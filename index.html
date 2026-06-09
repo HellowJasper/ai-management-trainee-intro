@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI 管培生个人介绍</title>
+    <link rel="stylesheet" href="./styles.css?v=20260609-2" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="home-stage" aria-label="AI 管培生照片墙">
+        <div class="paper-grid" aria-hidden="true"></div>
+        <div class="stage-noise" aria-hidden="true"></div>
+        <div class="halftone-orbit orbit-one" aria-hidden="true"></div>
+        <div class="halftone-orbit orbit-two" aria-hidden="true"></div>
+
+        <header class="stage-header">
+          <div class="brand-chip">
+            <span class="chip-dot"></span>
+            AI MANAGEMENT TRAINEES
+          </div>
+          <div class="cohort-mark">COHORT 01 / 12 PROFILES</div>
+        </header>
+
+        <div class="stage-title-lockup" aria-hidden="true">
+          <span>INTRO</span>
+          <span>CARDS</span>
+        </div>
+
+        <div class="photo-wall-wrap">
+          <div class="photo-wall" id="photoWall"></div>
+        </div>
+
+        <footer class="stage-footer">
+          <span>2026</span>
+          <span>AI ONBOARDING SHOWCASE</span>
+          <span>LIVE SESSION</span>
+        </footer>
+      </section>
+
+      <section class="detail-layer" id="detailLayer" aria-hidden="true">
+        <div class="detail-backdrop" data-action="close"></div>
+        <article class="detail-shell" role="dialog" aria-modal="true" aria-labelledby="detailName">
+          <aside class="selected-rail">
+            <div class="rail-topline">
+              <button class="close-button" type="button" data-action="close">CLOSE</button>
+              <span id="detailIndex">CARD 01 / 12</span>
+            </div>
+            <div class="selected-photo-card" id="selectedPhoto"></div>
+            <div class="selected-nameplate">
+              <span id="selectedDepartment">战略部</span>
+              <strong id="selectedName">许然</strong>
+            </div>
+            <div class="rail-note">SELECTED PROFILE</div>
+          </aside>
+
+          <div class="detail-main">
+            <div class="detail-top">
+              <div>
+                <p class="detail-kicker" id="detailDepartment">战略部 · STRATEGY</p>
+                <h1 id="detailName">Xu Ran</h1>
+              </div>
+              <div class="detail-facts">
+                <section>
+                  <span>BACKGROUND</span>
+                  <p id="detailBackground">AI 产品策略 / 用户研究</p>
+                </section>
+                <section>
+                  <span>AI TOOLKIT</span>
+                  <p id="detailTools">ChatGPT / Gamma</p>
+                </section>
+                <section>
+                  <span>AI PROBLEM</span>
+                  <p id="detailProblem">会议纪要归纳与追踪</p>
+                </section>
+                <section>
+                  <span>PERSONAL TAGS</span>
+                  <p id="detailTags">重度咖啡 / City Walk</p>
+                </section>
+              </div>
+            </div>
+
+            <div class="detail-visuals">
+              <figure class="feature-media life-media">
+                <div class="media-label">个人生活照</div>
+                <div class="large-life-photo" id="largeLifePhoto"></div>
+              </figure>
+              <figure class="feature-media meme-media">
+                <div class="media-label">最喜欢的表情包</div>
+                <div class="meme-board" id="memeBoard">
+                  <span id="memeText">MEME</span>
+                </div>
+              </figure>
+            </div>
+
+            <div class="challenge-slot" id="challengeSlot"></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="challenge-layer" id="challengeLayer" aria-hidden="true">
+        <div class="challenge-backdrop"></div>
+        <article class="challenge-shell" role="dialog" aria-modal="true" aria-labelledby="challengeTitle">
+          <div class="paper-grid" aria-hidden="true"></div>
+          <header class="challenge-header">
+            <button class="close-button" type="button" data-action="back-detail">BACK</button>
+            <span id="challengeMember">战略部 · 许然</span>
+          </header>
+
+          <div class="jar-stage">
+            <h2 id="challengeTitle">WORD CLOUD DRAW</h2>
+            <div class="jar-wrap">
+              <div class="jar-lid"></div>
+              <div class="jar-body">
+                <span class="jar-token token-a"></span>
+                <span class="jar-token token-b"></span>
+                <span class="jar-token token-c"></span>
+              </div>
+            </div>
+            <div class="cloud-words" id="cloudWords"></div>
+          </div>
+
+          <form class="host-form" id="hostForm">
+            <label for="sentenceInput">主持人录入句子</label>
+            <textarea
+              id="sentenceInput"
+              rows="3"
+              placeholder="输入管培生根据关键词现场造出的句子"
+            ></textarea>
+            <div class="form-actions">
+              <button class="secondary-action" type="button" id="drawWordsButton">重新抽词</button>
+              <button class="primary-action" type="submit">保存并回到详情</button>
+            </div>
+          </form>
+        </article>
+      </section>
+    </main>
+
+    <script src="./src/logic.js?v=20260609-2"></script>
+    <script src="./src/app.js?v=20260609-2"></script>
+  </body>
+</html>
