@@ -316,8 +316,8 @@ button {
 .profile-meta {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: clamp(3px, 0.45vw, 7px);
+  grid-template-columns: 1fr;
+  gap: clamp(4px, 0.42vw, 7px);
   width: 100%;
   margin-top: clamp(10px, 0.95vw, 15px);
   transform: none;
@@ -337,7 +337,17 @@ button {
   white-space: nowrap;
 }
 
-.profile-card.is-active .profile-meta span:last-child {
+.profile-name {
+  background: var(--paper-bright);
+  font-size: clamp(11px, 0.9vw, 16px);
+}
+
+.profile-department {
+  color: var(--muted);
+  font-size: clamp(8px, 0.68vw, 12px);
+}
+
+.profile-card.is-active .profile-name {
   background: var(--orange);
 }
 

@@ -234,8 +234,8 @@ function renderPhotoWall() {
         <button class="profile-card" type="button" data-id="${trainee.id}" aria-label="${trainee.department}${trainee.name}" style="${arcStyle}">
           <div class="portrait-frame" style="--portrait: ${trainee.portrait}"></div>
           <div class="profile-meta">
-            <span>${trainee.department}</span>
-            <span>${trainee.name}</span>
+            <span class="profile-name">${trainee.name}</span>
+            <span class="profile-department">${trainee.department}</span>
           </div>
         </button>
       `;
