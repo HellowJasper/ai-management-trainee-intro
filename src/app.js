@@ -1,160 +1,208 @@
-const trainees = [
+const fallbackTrainees = [
   {
-    id: "xu-ran",
-    department: "战略部",
-    departmentEn: "STRATEGY",
-    name: "许然",
-    romanName: "Xu Ran",
-    background: "AI 产品策略 / 用户研究",
-    tools: "ChatGPT / Gamma / 飞书多维表格",
-    problem: "会议纪要自动归纳与跨部门追踪",
-    tags: "重度咖啡 / City Walk / PPT 整洁强迫症",
-    meme: "OK, SHIP",
-    portrait: "linear-gradient(145deg, #f7f6f2 0%, #fc5000 46%, #d8d3c7 100%)",
+    "id": "liang-xingye",
+    "department": "AI战略办公室",
+    "departmentEn": "AI STRATEGY",
+    "name": "梁星野",
+    "romanName": "Liang Xingye",
+    "background": "管理科学 / AI 战略规划",
+    "aiPartners": "ChatGPT / Perplexity / 飞书多维表格",
+    "favoriteAI": "Perplexity",
+    "aiProblem": "把跨部门信息自动整理成可追踪的行动计划",
+    "aiPower": "把复杂议题拆成三步决策路径",
+    "funFact": "做任何项目之前都会先画一张任务地图。",
+    "photo": "./assets/trainees/liang-xingye/photo.png",
+    "memeImage": "./assets/trainees/liang-xingye/meme.png",
+    "memeText": "ALIGN FIRST",
+    "portrait": "linear-gradient(145deg, #041311 0%, #0c6f5e 48%, #d5fff4 100%)"
   },
   {
-    id: "chen-yi",
-    department: "产品部",
-    departmentEn: "PRODUCT",
-    name: "陈一",
-    romanName: "Chen Yi",
-    background: "交互设计 / 增长产品",
-    tools: "Cursor / ChatGPT / Figma AI",
-    problem: "把零散用户反馈转成清晰需求池",
-    tags: "夜跑 / 手冲入门 / 需求表洁癖",
-    meme: "LET IT COOK",
-    portrait: "linear-gradient(145deg, #f7f6f2 0%, #d9d3c6 45%, #524ae9 100%)",
+    "id": "xu-zhixia",
+    "department": "产品增长部",
+    "departmentEn": "PRODUCT GROWTH",
+    "name": "许知夏",
+    "romanName": "Xu Zhixia",
+    "background": "用户研究 / 增长产品",
+    "aiPartners": "ChatGPT / Figma AI / Gamma",
+    "favoriteAI": "Figma AI",
+    "aiProblem": "把用户反馈快速转成产品机会点",
+    "aiPower": "从一句吐槽里提炼出真实需求",
+    "funFact": "看到按钮文案不顺会忍不住现场改三版。",
+    "photo": "./assets/trainees/xu-zhixia/photo.png",
+    "memeImage": "./assets/trainees/xu-zhixia/meme.png",
+    "memeText": "ONE MORE VERSION",
+    "portrait": "linear-gradient(145deg, #07111c 0%, #2368ff 48%, #bffcf0 100%)"
   },
   {
-    id: "zhou-ning",
-    department: "运营部",
-    departmentEn: "OPS",
-    name: "周宁",
-    romanName: "Zhou Ning",
-    background: "内容运营 / 活动策划",
-    tools: "豆包 / 即梦 / ChatGPT",
-    problem: "自动拆解活动复盘和增长动作",
-    tags: "展览爱好者 / 重度便签用户 / 早 C 晚 A",
-    meme: "NO PANIC",
-    portrait: "linear-gradient(145deg, #f7f6f2 0%, #f5f28e 38%, #c6c1b6 100%)",
+    "id": "chen-moyan",
+    "department": "数据分析部",
+    "departmentEn": "DATA ANALYTICS",
+    "name": "陈墨言",
+    "romanName": "Chen Moyan",
+    "background": "统计学 / 商业分析",
+    "aiPartners": "Excel Copilot / ChatGPT / Power BI",
+    "favoriteAI": "Excel Copilot",
+    "aiProblem": "自动识别经营数据异常并生成解释",
+    "aiPower": "在一堆数字里最快找到关键波动",
+    "funFact": "看到图表没有单位会立刻进入校对状态。",
+    "photo": "./assets/trainees/chen-moyan/photo.png",
+    "memeImage": "./assets/trainees/chen-moyan/meme.png",
+    "memeText": "CHECK THE DATA",
+    "portrait": "linear-gradient(145deg, #08100c 0%, #6a9f16 48%, #f1ff9b 100%)"
   },
   {
-    id: "lin-che",
-    department: "技术部",
-    departmentEn: "TECH",
-    name: "林澈",
-    romanName: "Lin Che",
-    background: "前端工程 / 数据可视化",
-    tools: "Cursor / Claude Code / GitHub Copilot",
-    problem: "重复页面搭建和接口联调自动化",
-    tags: "键盘收集 / 编辑器主题党 / 篮球",
-    meme: "BUILD FIX",
-    portrait: "linear-gradient(145deg, #f7f6f2 0%, #d0ccc1 44%, #070607 100%)",
+    "id": "lin-yuan",
+    "department": "运营中台",
+    "departmentEn": "OPERATIONS",
+    "name": "林予安",
+    "romanName": "Lin Yuan",
+    "background": "内容运营 / 项目管理",
+    "aiPartners": "豆包 / 飞书妙记 / ChatGPT",
+    "favoriteAI": "飞书妙记",
+    "aiProblem": "把会议、复盘和待办自动串成闭环",
+    "aiPower": "把混乱现场整理成一页复盘",
+    "funFact": "手机备忘录里常年有几十条活动标题。",
+    "photo": "./assets/trainees/lin-yuan/photo.png",
+    "memeImage": "./assets/trainees/lin-yuan/meme.png",
+    "memeText": "MAKE IT A FLOW",
+    "portrait": "linear-gradient(145deg, #101712 0%, #2fb879 48%, #f4ff80 100%)"
   },
   {
-    id: "song-lan",
-    department: "人力部",
-    departmentEn: "HR",
-    name: "宋岚",
-    romanName: "Song Lan",
-    background: "组织发展 / 招聘运营",
-    tools: "Notion AI / ChatGPT / 飞书妙记",
-    problem: "候选人信息整理和面试纪要沉淀",
-    tags: "心理学播客 / 轻徒步 / Excel 快捷键",
-    meme: "ALIGN?",
-    portrait: "linear-gradient(145deg, #f7f6f2 0%, #e2e2df 45%, #524ae9 100%)",
+    "id": "zhou-cheng",
+    "department": "供应链部",
+    "departmentEn": "SUPPLY CHAIN",
+    "name": "周澄",
+    "romanName": "Zhou Cheng",
+    "background": "供应链管理 / 流程优化",
+    "aiPartners": "ChatGPT / 飞书多维表格 / Notion AI",
+    "favoriteAI": "飞书多维表格",
+    "aiProblem": "预测库存风险并提前提示处理方案",
+    "aiPower": "把长流程拆成可检查节点",
+    "funFact": "整理行李也会按流程图来分区。",
+    "photo": "./assets/trainees/zhou-cheng/photo.png",
+    "memeImage": "./assets/trainees/zhou-cheng/meme.png",
+    "memeText": "TRACK EVERYTHING",
+    "portrait": "linear-gradient(145deg, #061817 0%, #0d8b7b 48%, #e7fff7 100%)"
   },
   {
-    id: "he-xu",
-    department: "算法部",
-    departmentEn: "ALGORITHM",
-    name: "何序",
-    romanName: "He Xu",
-    background: "机器学习 / 推荐系统",
-    tools: "Python / ChatGPT / Cursor",
-    problem: "实验报告自动生成与指标解释",
-    tags: "重度咖啡 / 数学冷笑话 / 周末跑山",
-    meme: "LOSS DOWN",
-    portrait: "linear-gradient(145deg, #f7f6f2 0%, #ded9ca 42%, #070607 100%)",
+    "id": "shen-yichuan",
+    "department": "市场品牌部",
+    "departmentEn": "MARKETING",
+    "name": "沈亦川",
+    "romanName": "Shen Yichuan",
+    "background": "品牌传播 / 社媒增长",
+    "aiPartners": "Midjourney / 即梦 / ChatGPT",
+    "favoriteAI": "Midjourney",
+    "aiProblem": "快速生成多风格传播创意和脚本",
+    "aiPower": "把热点话题改造成品牌可用表达",
+    "funFact": "刷到好标题会先截图再继续看正文。",
+    "photo": "./assets/trainees/shen-yichuan/photo.png",
+    "memeImage": "./assets/trainees/shen-yichuan/meme.png",
+    "memeText": "MAKE IT VIRAL",
+    "portrait": "linear-gradient(145deg, #0a0f1f 0%, #1f68ff 48%, #29ffc9 100%)"
   },
   {
-    id: "ye-qing",
-    department: "财务部",
-    departmentEn: "FINANCE",
-    name: "叶青",
-    romanName: "Ye Qing",
-    background: "财务分析 / 经营预算",
-    tools: "Excel Copilot / ChatGPT / Power BI",
-    problem: "月度经营数据解释和异常识别",
-    tags: "咖啡拉花 / 数字敏感 / 城市骑行",
-    meme: "CHECK SUM",
-    portrait: "linear-gradient(145deg, #f7f6f2 0%, #f5f28e 45%, #706b62 100%)",
+    "id": "tang-yu",
+    "department": "人力发展部",
+    "departmentEn": "TALENT",
+    "name": "唐屿",
+    "romanName": "Tang Yu",
+    "background": "组织发展 / 人才培养",
+    "aiPartners": "ChatGPT / Notion AI / 飞书文档",
+    "favoriteAI": "Notion AI",
+    "aiProblem": "把培训反馈自动沉淀成人才成长画像",
+    "aiPower": "从一段自我介绍里抓到三个关键词",
+    "funFact": "朋友聚会时经常被默认安排做主持。",
+    "photo": "./assets/trainees/tang-yu/photo.png",
+    "memeImage": "./assets/trainees/tang-yu/meme.png",
+    "memeText": "TELL ME MORE",
+    "portrait": "linear-gradient(145deg, #06140f 0%, #3f7a6d 48%, #d9ffee 100%)"
   },
   {
-    id: "gu-an",
-    department: "市场部",
-    departmentEn: "MARKETING",
-    name: "顾安",
-    romanName: "Gu An",
-    background: "品牌传播 / 社媒增长",
-    tools: "Midjourney / 即梦 / ChatGPT",
-    problem: "热点趋势提炼和内容脚本生成",
-    tags: "胶片相机 / 话题雷达 / 周末看展",
-    meme: "VIRAL?",
-    portrait: "linear-gradient(145deg, #f7f6f2 0%, #fc5000 42%, #524ae9 100%)",
+    "id": "ye-nanqiao",
+    "department": "财务共享部",
+    "departmentEn": "FINANCE",
+    "name": "叶南乔",
+    "romanName": "Ye Nanqiao",
+    "background": "财务管理 / 经营预算",
+    "aiPartners": "Excel Copilot / ChatGPT / Power BI",
+    "favoriteAI": "Power BI",
+    "aiProblem": "把月度预算偏差自动解释清楚",
+    "aiPower": "把复杂报表翻译成业务听得懂的话",
+    "funFact": "看到总数对不上会自动开启侦探模式。",
+    "photo": "./assets/trainees/ye-nanqiao/photo.png",
+    "memeImage": "./assets/trainees/ye-nanqiao/meme.png",
+    "memeText": "SUM AGAIN",
+    "portrait": "linear-gradient(145deg, #10120a 0%, #9ca400 48%, #f7ff9e 100%)"
   },
   {
-    id: "tang-yu",
-    department: "客服部",
-    departmentEn: "SERVICE",
-    name: "唐予",
-    romanName: "Tang Yu",
-    background: "客户成功 / 服务体验",
-    tools: "ChatGPT / 飞书知识库 / Zendesk AI",
-    problem: "客户问题归类和高频答复生成",
-    tags: "猫系耐心 / 奶茶少冰 / 复盘控",
-    meme: "SOLVED",
-    portrait: "linear-gradient(145deg, #f7f6f2 0%, #e2e2df 46%, #fc5000 100%)",
+    "id": "gu-bai",
+    "department": "法务合规部",
+    "departmentEn": "LEGAL",
+    "name": "顾白",
+    "romanName": "Gu Bai",
+    "background": "法律合规 / 合同审核",
+    "aiPartners": "ChatGPT / 通义法睿 / 飞书文档",
+    "favoriteAI": "通义法睿",
+    "aiProblem": "自动识别合同高风险条款并给出提示",
+    "aiPower": "快速定位一句话里的隐藏风险",
+    "funFact": "看推理小说会先猜作者埋的法律漏洞。",
+    "photo": "./assets/trainees/gu-bai/photo.png",
+    "memeImage": "./assets/trainees/gu-bai/meme.png",
+    "memeText": "READ THE TERMS",
+    "portrait": "linear-gradient(145deg, #050a0d 0%, #28423d 48%, #dfffee 100%)"
   },
   {
-    id: "shen-zhou",
-    department: "销售部",
-    departmentEn: "SALES",
-    name: "沈舟",
-    romanName: "Shen Zhou",
-    background: "行业销售 / 大客户拓展",
-    tools: "ChatGPT / Perplexity / CRM AI",
-    problem: "客户背景调研和拜访纪要跟进",
-    tags: "路演体质 / 足球 / 语速管理中",
-    meme: "DEAL?",
-    portrait: "linear-gradient(145deg, #f7f6f2 0%, #fc5000 40%, #070607 100%)",
+    "id": "song-yining",
+    "department": "客户成功部",
+    "departmentEn": "CUSTOMER SUCCESS",
+    "name": "宋以宁",
+    "romanName": "Song Yining",
+    "background": "服务体验 / 客户运营",
+    "aiPartners": "ChatGPT / 飞书知识库 / Zendesk AI",
+    "favoriteAI": "飞书知识库",
+    "aiProblem": "把客户问题归类并生成高频答复",
+    "aiPower": "把复杂诉求拆成可处理工单",
+    "funFact": "能用很平静的语气处理连续十个紧急问题。",
+    "photo": "./assets/trainees/song-yining/photo.png",
+    "memeImage": "./assets/trainees/song-yining/meme.png",
+    "memeText": "CASE CLOSED",
+    "portrait": "linear-gradient(145deg, #061817 0%, #117f98 48%, #c8fff4 100%)"
   },
   {
-    id: "lu-xing",
-    department: "品牌部",
-    departmentEn: "BRAND",
-    name: "陆星",
-    romanName: "Lu Xing",
-    background: "视觉品牌 / 内容策划",
-    tools: "Figma AI / Midjourney / ChatGPT",
-    problem: "统一视觉资产和多版本文案延展",
-    tags: "字体收藏 / 黑胶 / 海报墙维护者",
-    meme: "MAKE POP",
-    portrait: "linear-gradient(145deg, #f7f6f2 0%, #524ae9 42%, #070607 100%)",
+    "id": "he-qingyue",
+    "department": "信息技术部",
+    "departmentEn": "IT",
+    "name": "何清越",
+    "romanName": "He Qingyue",
+    "background": "前端工程 / 数据可视化",
+    "aiPartners": "Cursor / GitHub Copilot / ChatGPT",
+    "favoriteAI": "Cursor",
+    "aiProblem": "把重复页面搭建和接口联调自动化",
+    "aiPower": "把重复代码抽成清晰组件",
+    "funFact": "曾经高强度 coding 让编辑器插件直接崩掉。",
+    "photo": "./assets/trainees/he-qingyue/photo.png",
+    "memeImage": "./assets/trainees/he-qingyue/meme.png",
+    "memeText": "SHIP THE FIX",
+    "portrait": "linear-gradient(145deg, #03080c 0%, #26323f 48%, #38f5c8 100%)"
   },
   {
-    id: "wen-yue",
-    department: "法务部",
-    departmentEn: "LEGAL",
-    name: "温悦",
-    romanName: "Wen Yue",
-    background: "合同审核 / 合规管理",
-    tools: "ChatGPT / 通义法睿 / 飞书文档",
-    problem: "合同风险点初筛和条款对比",
-    tags: "推理小说 / 低糖主义 / 条款高亮达人",
-    meme: "OBJECTION",
-    portrait: "linear-gradient(145deg, #fffef5 0%, #d8d6ca 44%, #3c3b36 100%)",
-  },
+    "id": "wen-ruolan",
+    "department": "研发创新部",
+    "departmentEn": "R&D",
+    "name": "温若澜",
+    "romanName": "Wen Ruolan",
+    "background": "生命科学 / 创新项目管理",
+    "aiPartners": "ChatGPT / Claude / Elicit",
+    "favoriteAI": "Elicit",
+    "aiProblem": "快速整理论文线索和研发假设",
+    "aiPower": "把研究材料压缩成可讨论的实验问题",
+    "funFact": "看到咖啡和文献会自动进入专注状态。",
+    "photo": "./assets/trainees/wen-ruolan/photo.png",
+    "memeImage": "./assets/trainees/wen-ruolan/meme.png",
+    "memeText": "HYPOTHESIS READY",
+    "portrait": "linear-gradient(145deg, #050d12 0%, #255d76 48%, #bffff5 100%)"
+  }
 ];
 
 const keywordBank = [
@@ -172,31 +220,173 @@ const keywordBank = [
   "入职",
 ];
 
-let traineeState = trainees.map((trainee) => ({
-  ...trainee,
-  sentence: "",
-  previousPairs: [],
-}));
-
+let traineeState = fallbackTrainees.map(window.AppLogic.normalizeTrainee);
 let selectedId = traineeState[0].id;
 let currentKeywords = [];
 let keywordDrawTimer = null;
+let appView = "intro";
+let profileMediaMode = "photo";
+let introTimer = null;
+let introExitTimer = null;
+let isIntroExiting = false;
 
+const introTiming = window.AppLogic.getIntroTiming();
+const INTRO_HOLD_MS = introTiming.holdMs;
+const INTRO_EXIT_MS = introTiming.exitMs;
+
+const appShell = document.querySelector(".app-shell");
+const introStage = document.getElementById("introStage");
+const landingStage = document.getElementById("landingStage");
+const personaWallStage = document.getElementById("personaWallStage");
 const photoWall = document.getElementById("photoWall");
 const detailLayer = document.getElementById("detailLayer");
 const challengeLayer = document.getElementById("challengeLayer");
+const drawCard = document.querySelector(".draw-card");
+const profileConsole = document.querySelector(".profile-console");
+const challengeShell = document.querySelector(".challenge-shell");
 const challengeSlot = document.getElementById("challengeSlot");
 const cloudWords = document.getElementById("cloudWords");
 const hostForm = document.getElementById("hostForm");
 const sentenceInput = document.getElementById("sentenceInput");
 const drawWordsButton = document.getElementById("drawWordsButton");
+const redrawWordsButton = document.getElementById("redrawWordsButton");
+const discoverButton = document.getElementById("discoverButton");
+const discoverMenu = document.getElementById("discoverMenu");
+const discoverPanel = document.getElementById("discoverPanel");
+
+const rainRenderers = {
+  intro: createRain("introRain", { fontSize: 17, density: 0.78, fade: "rgba(2, 8, 14, 0.2)" }),
+  home: createRain("landingRain", { fontSize: 17, density: 0.78, fade: "rgba(2, 8, 14, 0.1)" }),
+  wall: createRain("wallRain", { fontSize: 18, fade: "rgba(2, 8, 14, 0.1)" }),
+  detail: createRain("detailRain", { fontSize: 16, fade: "rgba(2, 8, 14, 0.12)" }),
+  challenge: createRain("challengeRain", { fontSize: 18, fade: "rgba(2, 8, 14, 0.12)" }),
+};
+
+const viewStages = {
+  intro: introStage,
+  home: landingStage,
+  wall: personaWallStage,
+};
+
+function createRain(id, options) {
+  if (!window.CodeRain) return null;
+  return window.CodeRain.createCodeRain(document.getElementById(id), {
+    glyphs: "010101AIJOINCARE{}[]<>".split(""),
+    ...options,
+  });
+}
+
+function setStageActive(stage, isActive) {
+  stage.hidden = !isActive;
+  stage.style.display = isActive ? "" : "none";
+  stage.style.opacity = isActive ? "1" : "0";
+  stage.style.visibility = isActive ? "visible" : "hidden";
+  stage.style.pointerEvents = isActive ? "auto" : "none";
+}
+
+function forceStagePaint(stage) {
+  void stage.offsetHeight;
+}
+
+function syncStages(view) {
+  setStageActive(viewStages.intro, view === "intro");
+  setStageActive(viewStages.home, view === "home");
+  setStageActive(viewStages.wall, ["wall", "detail", "challenge"].includes(view));
+}
+
+function syncRain(view) {
+  const activeKeys = new Set(
+    view === "intro"
+      ? ["intro"]
+      : view === "home"
+        ? ["home"]
+        : view === "detail"
+          ? ["detail"]
+          : view === "challenge"
+            ? ["challenge"]
+            : ["wall"]
+  );
+
+  Object.entries(rainRenderers).forEach(([key, rain]) => {
+    if (!rain) return;
+    if (activeKeys.has(key)) {
+      rain.resize();
+      rain.start();
+    } else {
+      rain.stop();
+    }
+  });
+}
+
+function startIntroExit(skipped = false) {
+  if (isIntroExiting) return;
+  isIntroExiting = true;
+  window.clearTimeout(introTimer);
+  window.clearTimeout(introExitTimer);
+
+  appView = "home";
+  setStageActive(landingStage, true);
+  landingStage.style.opacity = "0";
+  landingStage.style.pointerEvents = "none";
+  introStage.style.pointerEvents = "none";
+
+  appShell.dataset.view = "intro-exit";
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge");
+  appShell.classList.add("view-intro-exit");
+
+  rainRenderers.home?.resize();
+  rainRenderers.home?.start();
+
+  forceStagePaint(landingStage);
+  introStage.style.opacity = "0";
+  landingStage.style.opacity = "1";
+
+  introExitTimer = window.setTimeout(() => {
+    isIntroExiting = false;
+    setView(window.AppLogic.nextIntroState({ skipped }));
+  }, INTRO_EXIT_MS);
+}
+
+function syncDetailMotion(isOpen) {
+  drawCard.style.transform = isOpen ? "translate(0, -50%) rotate(-4deg)" : "translate(-120px, -50%) rotate(-4deg)";
+  drawCard.style.opacity = isOpen ? "1" : "0";
+  profileConsole.style.transform = isOpen ? "translateX(0)" : "translateX(12%)";
+}
+
+function syncChallengeMotion(isOpen) {
+  challengeShell.style.transform = isOpen ? "translate(-50%, -50%) scale(1)" : "translate(-50%, -46%) scale(0.98)";
+}
 
 function selectedTrainee() {
   return traineeState.find((trainee) => trainee.id === selectedId) || traineeState[0];
 }
 
+function setView(view) {
+  appView = view;
+  appShell.dataset.view = view;
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge");
+  appShell.classList.add(`view-${view}`);
+  syncStages(view);
+
+  if (view === "home" || view === "wall") {
+    detailLayer.classList.remove("is-open");
+    detailLayer.setAttribute("aria-hidden", "true");
+  }
+
+  syncRain(view);
+}
+
+function cssUrl(path) {
+  return path ? `url("${String(path).replaceAll('"', '\\"')}")` : "none";
+}
+
 function setPortrait(element, trainee) {
   element.style.setProperty("--portrait", trainee.portrait);
+}
+
+function setMediaBackground(element, imagePath, trainee) {
+  setPortrait(element, trainee);
+  element.style.setProperty("--media-image", cssUrl(imagePath));
 }
 
 function getArcStyle(layoutItem) {
@@ -222,6 +412,7 @@ function renderPhotoWall() {
   });
 
   photoWall.style.setProperty("--card-width", `${metrics.cardWidth}px`);
+  photoWall.style.setProperty("--card-height", `${metrics.cardHeight}px`);
   photoWall.style.setProperty("--portrait-height", `${metrics.portraitHeight}px`);
   photoWall.style.setProperty("--wall-visual-width", `${metrics.visualWidth}px`);
   photoWall.style.setProperty("--dock-influence", metrics.dockInfluence);
@@ -232,7 +423,7 @@ function renderPhotoWall() {
 
       return `
         <button class="profile-card" type="button" data-id="${trainee.id}" aria-label="${trainee.department}${trainee.name}" style="${arcStyle}">
-          <div class="portrait-frame" style="--portrait: ${trainee.portrait}"></div>
+          <div class="portrait-frame" style="--portrait: ${trainee.portrait}; --media-image: ${cssUrl(trainee.photo)}"></div>
           <div class="profile-meta">
             <span class="profile-name">${trainee.name}</span>
             <span class="profile-department">${trainee.department}</span>
@@ -250,7 +441,7 @@ function resetDock() {
     card.style.setProperty("--scale", "1");
     card.style.setProperty("--shift-x", "0px");
     card.style.setProperty("--lift", "0px");
-    card.style.setProperty("--alpha", "0.9");
+    card.style.setProperty("--alpha", "0.94");
   });
 }
 
@@ -277,14 +468,31 @@ function updateDock(pointerX) {
   });
 }
 
+function renderProfileMedia(trainee) {
+  const selectedPhoto = document.getElementById("selectedPhoto");
+  const mediaFrame = document.getElementById("profileMediaFrame");
+  const photoToggleButton = document.getElementById("photoToggleButton");
+
+  setMediaBackground(selectedPhoto, trainee.photo, trainee);
+  setMediaBackground(mediaFrame, profileMediaMode === "photo" ? trainee.photo : trainee.memeImage, trainee);
+  mediaFrame.dataset.mode = profileMediaMode;
+  mediaFrame.dataset.fallbackText = trainee.meme;
+  photoToggleButton.textContent = profileMediaMode === "photo" ? "PHOTO" : "MEME";
+}
+
+function renderChallengeSlot(trainee) {
+  if (trainee.sentence) {
+    challengeSlot.innerHTML = `<div class="sentence-card">${trainee.sentence}</div>`;
+    return;
+  }
+
+  challengeSlot.innerHTML = `<button class="blind-box-button" type="button" id="openChallenge">MY DIGITAL BLIND BOX</button>`;
+  document.getElementById("openChallenge").addEventListener("click", openChallenge);
+}
+
 function renderDetail() {
   const trainee = selectedTrainee();
-  const selectedPhoto = document.getElementById("selectedPhoto");
-  const largeLifePhoto = document.getElementById("largeLifePhoto");
   const selectedIndex = traineeState.findIndex((item) => item.id === trainee.id) + 1;
-
-  setPortrait(selectedPhoto, trainee);
-  setPortrait(largeLifePhoto, trainee);
 
   document.getElementById("detailIndex").textContent = `CARD ${String(selectedIndex).padStart(2, "0")} / 12`;
   document.getElementById("selectedDepartment").textContent = trainee.department;
@@ -293,29 +501,45 @@ function renderDetail() {
   document.getElementById("detailName").textContent = trainee.romanName;
   document.getElementById("detailBackground").textContent = trainee.background;
   document.getElementById("detailTools").textContent = trainee.tools;
+  document.getElementById("detailFavoriteTool").textContent = trainee.favoriteTool;
   document.getElementById("detailProblem").textContent = trainee.problem;
-  document.getElementById("detailTags").textContent = trainee.tags;
+  document.getElementById("detailPower").textContent = trainee.aiPower;
+  document.getElementById("detailFunFact").textContent = trainee.funFact;
   document.getElementById("memeText").textContent = trainee.meme;
   document.getElementById("challengeMember").textContent = `${trainee.department} · ${trainee.name}`;
+  renderProfileMedia(trainee);
+  renderChallengeSlot(trainee);
+}
 
-  if (trainee.sentence) {
-    challengeSlot.innerHTML = `<div class="sentence-card">${trainee.sentence}</div>`;
-  } else {
-    challengeSlot.innerHTML = `<button class="challenge-button" type="button" id="openChallenge">抽词云</button>`;
-    document.getElementById("openChallenge").addEventListener("click", openChallenge);
-  }
+function switchAdjacentProfile(direction) {
+  selectedId = window.AppLogic.resolveAdjacentTraineeId(traineeState, selectedId, direction);
+  profileMediaMode = "photo";
+  renderDetail();
 }
 
 function openDetail(id) {
   selectedId = id;
+  profileMediaMode = "photo";
   renderDetail();
+  syncStages("detail");
+  syncRain("detail");
   detailLayer.classList.add("is-open");
   detailLayer.setAttribute("aria-hidden", "false");
+  syncDetailMotion(true);
+  appShell.dataset.view = "detail";
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge");
+  appShell.classList.add("view-detail");
 }
 
 function closeDetail() {
+  syncDetailMotion(false);
   detailLayer.classList.remove("is-open");
   detailLayer.setAttribute("aria-hidden", "true");
+  appShell.dataset.view = appView === "home" ? "home" : "wall";
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge");
+  appShell.classList.add(appView === "home" ? "view-home" : "view-wall");
+  syncStages(appView === "home" ? "home" : "wall");
+  syncRain(appView === "home" ? "home" : "wall");
 }
 
 function renderCloudWords(words = []) {
@@ -326,6 +550,7 @@ function drawKeywords() {
   window.clearTimeout(keywordDrawTimer);
   challengeLayer.classList.add("is-drawing");
   drawWordsButton.disabled = true;
+  redrawWordsButton.disabled = true;
   renderCloudWords([]);
 
   const trainee = selectedTrainee();
@@ -337,78 +562,174 @@ function drawKeywords() {
     renderCloudWords(currentKeywords);
     challengeLayer.classList.remove("is-drawing");
     drawWordsButton.disabled = false;
+    redrawWordsButton.disabled = false;
     sentenceInput.focus();
   }, 1000);
 }
 
 function openChallenge() {
   sentenceInput.value = "";
+  syncStages("challenge");
+  syncRain("challenge");
   challengeLayer.classList.add("is-open");
   challengeLayer.setAttribute("aria-hidden", "false");
+  syncChallengeMotion(true);
+  appShell.dataset.view = "challenge";
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge");
+  appShell.classList.add("view-challenge");
   drawKeywords();
 }
 
 function closeChallenge() {
   window.clearTimeout(keywordDrawTimer);
   challengeLayer.classList.remove("is-drawing");
+  syncChallengeMotion(false);
   challengeLayer.classList.remove("is-open");
   challengeLayer.setAttribute("aria-hidden", "true");
   drawWordsButton.disabled = false;
+  redrawWordsButton.disabled = false;
+  appShell.dataset.view = "detail";
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge");
+  appShell.classList.add("view-detail");
+  syncStages("detail");
+  syncRain("detail");
 }
 
-photoWall.addEventListener("pointermove", (event) => {
-  updateDock(event.clientX);
-});
+function renderDiscoverPanel(target) {
+  const resolvedTarget = window.AppLogic.resolveDiscoverTarget(target);
+  const panels = {
+    business: {
+      title: "Business Scenario",
+      body: "围绕真实业务场景拆解 AI 机会点，用产品、运营、销售、财务、法务等视角共同完成现场命题。",
+    },
+    awards: {
+      title: "Demo & Awards",
+      body: "每组展示一段可运行 Demo 或流程样机，评委从业务价值、AI 使用深度、表达完成度三个维度打分。",
+    },
+    home: {
+      title: "Discover More",
+      body: "选择一个模块查看活动流程。",
+    },
+  };
+  const panel = panels[resolvedTarget];
 
-photoWall.addEventListener("pointerleave", resetDock);
+  discoverPanel.classList.add("is-visible");
+  discoverPanel.innerHTML = `
+    <strong>${panel.title}</strong>
+    <p>${panel.body}</p>
+  `;
+  discoverMenu.classList.remove("is-open");
+  discoverButton.setAttribute("aria-expanded", "false");
+}
 
-photoWall.addEventListener("click", (event) => {
-  const card = event.target.closest(".profile-card");
-  if (!card) {
-    return;
-  }
-  openDetail(card.dataset.id);
-});
+function bindEvents() {
+  document.getElementById("skipIntroButton").addEventListener("click", () => {
+    startIntroExit(true);
+  });
 
-document.addEventListener("click", (event) => {
-  const action = event.target.dataset.action;
-  if (action === "close") {
-    closeDetail();
-  }
-  if (action === "back-detail") {
+  document.getElementById("enterButton").addEventListener("click", () => {
+    setView("wall");
+  });
+
+  discoverButton.addEventListener("click", () => {
+    const isOpen = discoverMenu.classList.toggle("is-open");
+    discoverButton.setAttribute("aria-expanded", String(isOpen));
+  });
+
+  photoWall.addEventListener("pointermove", (event) => {
+    updateDock(event.clientX);
+  });
+
+  photoWall.addEventListener("pointerleave", resetDock);
+
+  photoWall.addEventListener("click", (event) => {
+    const card = event.target.closest(".profile-card");
+    if (!card) return;
+    openDetail(card.dataset.id);
+  });
+
+  document.getElementById("photoToggleButton").addEventListener("click", () => {
+    profileMediaMode = window.AppLogic.toggleProfileMedia(profileMediaMode);
+    renderProfileMedia(selectedTrainee());
+  });
+
+  document.addEventListener("click", (event) => {
+    const action = event.target.dataset.action;
+    const profileNavDirection = event.target.closest("[data-profile-nav]")?.dataset.profileNav;
+    const viewTarget = event.target.dataset.viewTarget;
+    const discoverTarget = event.target.dataset.discoverTarget;
+
+    if (profileNavDirection && detailLayer.classList.contains("is-open")) {
+      switchAdjacentProfile(profileNavDirection);
+      return;
+    }
+    if (action === "close") {
+      closeDetail();
+    }
+    if (action === "back-detail") {
+      closeChallenge();
+    }
+    if (viewTarget) {
+      window.clearTimeout(introTimer);
+      window.clearTimeout(introExitTimer);
+      setView(viewTarget);
+    }
+    if (discoverTarget) {
+      renderDiscoverPanel(discoverTarget);
+    }
+  });
+
+  drawWordsButton.addEventListener("click", drawKeywords);
+  redrawWordsButton.addEventListener("click", drawKeywords);
+
+  hostForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const sentence = sentenceInput.value.trim();
+    if (!sentence) {
+      sentenceInput.focus();
+      return;
+    }
+
+    traineeState = window.AppLogic.updateSentence(traineeState, selectedId, sentence);
     closeChallenge();
-  }
-});
+    renderDetail();
+  });
 
-drawWordsButton.addEventListener("click", drawKeywords);
-
-hostForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const sentence = sentenceInput.value.trim();
-  if (!sentence) {
-    sentenceInput.focus();
-    return;
-  }
-
-  traineeState = window.AppLogic.updateSentence(traineeState, selectedId, sentence);
-  closeChallenge();
-  renderDetail();
-});
-
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") {
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
     if (challengeLayer.classList.contains("is-open")) {
       closeChallenge();
       return;
     }
-    closeDetail();
-  }
-});
+    if (detailLayer.classList.contains("is-open")) {
+      closeDetail();
+    }
+  });
 
-renderPhotoWall();
-resetDock();
+  window.addEventListener("resize", () => {
+    renderPhotoWall();
+    resetDock();
+    Object.values(rainRenderers).forEach((rain) => rain?.resize());
+  });
+}
 
-window.addEventListener("resize", () => {
+async function initApp() {
+  appShell.classList.add("view-intro");
+  appShell.style.setProperty("--intro-hold-duration", `${INTRO_HOLD_MS}ms`);
+  appShell.style.setProperty("--intro-exit-duration", `${INTRO_EXIT_MS}ms`);
+  syncStages("intro");
+  bindEvents();
+  syncRain("intro");
   renderPhotoWall();
   resetDock();
-});
+  introTimer = window.setTimeout(() => {
+    startIntroExit(false);
+  }, INTRO_HOLD_MS);
+
+  traineeState = await window.AppData.loadTrainees(fallbackTrainees);
+  selectedId = traineeState[0]?.id || "";
+  renderPhotoWall();
+  resetDock();
+}
+
+initApp();

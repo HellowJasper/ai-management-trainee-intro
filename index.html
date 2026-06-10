@@ -3,27 +3,67 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI 管培生个人介绍</title>
-    <link rel="stylesheet" href="./styles.css?v=20260609-3" />
+    <title>AI Innovation Hackathon 2026</title>
+    <link rel="stylesheet" href="./styles.css?v=20260610-27" />
   </head>
   <body>
-    <main class="app-shell">
-      <section class="home-stage" aria-label="AI 管培生照片墙">
-        <div class="paper-grid" aria-hidden="true"></div>
-        <div class="stage-noise" aria-hidden="true"></div>
-        <div class="halftone-orbit orbit-one" aria-hidden="true"></div>
-        <div class="halftone-orbit orbit-two" aria-hidden="true"></div>
+    <main class="app-shell" data-view="intro">
+      <section class="intro-stage" id="introStage" aria-label="启动动画">
+        <canvas class="code-rain-canvas" id="introRain" aria-hidden="true"></canvas>
+        <button class="skip-intro-button" id="skipIntroButton" type="button">Skip</button>
+        <div class="intro-logo" aria-label="Joincare AI Hackathon"></div>
+        <div class="intro-scanline" aria-hidden="true"></div>
+      </section>
+
+      <section class="landing-stage" id="landingStage" aria-label="AI Innovation Hackathon 首页">
+        <canvas class="code-rain-canvas landing-rain" id="landingRain" aria-hidden="true"></canvas>
+        <div class="stage-vignette" aria-hidden="true"></div>
+        <nav class="hackathon-nav" aria-label="Hackathon navigation">
+          <button type="button" data-view-target="home">HOME</button>
+          <button type="button" data-view-target="wall">PERSONA CARD</button>
+          <button type="button" data-discover-target="business">BUSINESS SCENARIO</button>
+          <button type="button" data-discover-target="awards">DEMO&amp;AWARDS</button>
+        </nav>
+
+        <div class="landing-content">
+          <div class="landing-logo" aria-label="健康元 Joincare"></div>
+          <h1 class="landing-title">AI Innovation Hackathon 2026</h1>
+          <div class="landing-actions">
+            <button class="enter-button" type="button" id="enterButton">Enter</button>
+            <div class="discover-wrap">
+              <button
+                class="discover-button"
+                type="button"
+                id="discoverButton"
+                aria-expanded="false"
+                aria-controls="discoverMenu"
+              >
+                Discover More
+              </button>
+              <div class="discover-menu" id="discoverMenu">
+                <button type="button" data-discover-target="business">Business Scenario</button>
+                <button type="button" data-discover-target="awards">Demo & Awards</button>
+              </div>
+            </div>
+          </div>
+          <section class="discover-panel" id="discoverPanel" aria-live="polite"></section>
+        </div>
+      </section>
+
+      <section class="home-stage" id="personaWallStage" aria-label="AI 管培生照片墙">
+        <canvas class="code-rain-canvas wall-rain" id="wallRain" aria-hidden="true"></canvas>
+        <div class="stage-vignette" aria-hidden="true"></div>
 
         <header class="stage-header">
-          <div class="brand-chip">
+          <button class="brand-chip" type="button" data-view-target="home">
             <span class="chip-dot"></span>
             AI MANAGEMENT TRAINEES
-          </div>
+          </button>
           <div class="cohort-mark">COHORT 01 / 12 PROFILES</div>
         </header>
 
         <div class="stage-title-lockup" aria-hidden="true">
-          <span>INTRO</span>
+          <span>PERSONA</span>
           <span>CARDS</span>
         </div>
 
@@ -39,84 +79,94 @@
       </section>
 
       <section class="detail-layer" id="detailLayer" aria-hidden="true">
+        <canvas class="code-rain-canvas detail-rain" id="detailRain" aria-hidden="true"></canvas>
         <div class="detail-backdrop" data-action="close"></div>
-        <article class="detail-shell" role="dialog" aria-modal="true" aria-labelledby="detailName">
-          <aside class="selected-rail">
-            <div class="rail-topline">
-              <button class="close-button" type="button" data-action="close">CLOSE</button>
-              <span id="detailIndex">CARD 01 / 12</span>
-            </div>
-            <div class="selected-photo-card" id="selectedPhoto"></div>
-            <div class="selected-nameplate">
-              <span id="selectedDepartment">战略部</span>
-              <strong id="selectedName">许然</strong>
-            </div>
-            <div class="rail-note">SELECTED PROFILE</div>
-          </aside>
-
-          <div class="detail-main">
-            <div class="detail-top">
-              <div>
-                <p class="detail-kicker" id="detailDepartment">战略部 · STRATEGY</p>
-                <h1 id="detailName">Xu Ran</h1>
-              </div>
-              <div class="detail-facts">
-                <section>
-                  <span>BACKGROUND</span>
-                  <p id="detailBackground">AI 产品策略 / 用户研究</p>
-                </section>
-                <section>
-                  <span>AI TOOLKIT</span>
-                  <p id="detailTools">ChatGPT / Gamma</p>
-                </section>
-                <section>
-                  <span>AI PROBLEM</span>
-                  <p id="detailProblem">会议纪要归纳与追踪</p>
-                </section>
-                <section>
-                  <span>PERSONAL TAGS</span>
-                  <p id="detailTags">重度咖啡 / City Walk</p>
-                </section>
-              </div>
-            </div>
-
-            <div class="detail-visuals">
-              <figure class="feature-media life-media">
-                <div class="media-label">个人生活照</div>
-                <div class="large-life-photo" id="largeLifePhoto"></div>
-              </figure>
-              <figure class="feature-media meme-media">
-                <div class="media-label">最喜欢的表情包</div>
-                <div class="meme-board" id="memeBoard">
-                  <span id="memeText">MEME</span>
-                </div>
-              </figure>
-            </div>
-
-            <div class="challenge-slot" id="challengeSlot"></div>
+        <div class="draw-card" aria-label="抽卡卡片预览">
+          <button class="detail-nav-arrow detail-nav-arrow-left" type="button" data-profile-nav="previous" aria-label="切换到上一张卡片">
+            <span aria-hidden="true">‹</span>
+          </button>
+          <button class="detail-nav-arrow detail-nav-arrow-right" type="button" data-profile-nav="next" aria-label="切换到下一张卡片">
+            <span aria-hidden="true">›</span>
+          </button>
+          <div class="draw-card-topline">
+            <span id="detailIndex">CARD 01 / 12</span>
           </div>
+          <div class="draw-photo-card" id="selectedPhoto"></div>
+          <div class="draw-nameplate">
+            <strong id="selectedName">许然</strong>
+            <span id="selectedDepartment">战略部</span>
+          </div>
+        </div>
+
+        <article class="profile-console" role="dialog" aria-modal="true" aria-labelledby="detailName">
+          <div class="console-chrome" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <button class="close-button" type="button" data-action="close">CLOSE</button>
+
+          <section class="profile-info-panel">
+            <span class="info-chip" id="detailDepartment">战略部 · STRATEGY</span>
+            <div class="profile-fact-list">
+              <section>
+                <span>#1 🎓 专业背景</span>
+                <p id="detailBackground">AI 产品策略 / 用户研究</p>
+              </section>
+              <section>
+                <span>#2 🤖 我的AI搭子们</span>
+                <p id="detailTools">ChatGPT / Gamma</p>
+              </section>
+              <section>
+                <span>#3 🌟 我的本命AI搭子</span>
+                <p id="detailFavoriteTool">ChatGPT</p>
+              </section>
+              <section>
+                <span>#4 💡 我最想让AI解决的问题</span>
+                <p id="detailProblem">会议纪要归纳与追踪</p>
+              </section>
+              <section>
+                <span>#5 ⚡️ 我的AI超能力</span>
+                <p id="detailPower">把复杂问题拆成清晰行动</p>
+              </section>
+              <section>
+                <span>#6 🤣 一个有趣的事实</span>
+                <p id="detailFunFact">重度咖啡 / City Walk</p>
+              </section>
+            </div>
+          </section>
+
+          <section class="profile-media-panel" aria-label="照片与表情包">
+            <h1 class="profile-name-pill" id="detailName">Xu Ran</h1>
+            <div class="profile-media-frame" id="profileMediaFrame">
+              <button class="photo-toggle" id="photoToggleButton" type="button">PHOTO</button>
+              <span id="memeText">MEME</span>
+            </div>
+          </section>
+
+          <footer class="profile-console-footer">
+            <span>AI Innovation Hackathon &gt; JOINCARE</span>
+            <div class="challenge-slot" id="challengeSlot"></div>
+          </footer>
         </article>
       </section>
 
       <section class="challenge-layer" id="challengeLayer" aria-hidden="true">
+        <canvas class="code-rain-canvas challenge-rain" id="challengeRain" aria-hidden="true"></canvas>
         <div class="challenge-backdrop"></div>
         <article class="challenge-shell" role="dialog" aria-modal="true" aria-labelledby="challengeTitle">
-          <div class="paper-grid" aria-hidden="true"></div>
           <header class="challenge-header">
             <button class="close-button" type="button" data-action="back-detail">BACK</button>
             <span id="challengeMember">战略部 · 许然</span>
           </header>
 
           <div class="jar-stage">
-            <h2 id="challengeTitle">WORD CLOUD DRAW</h2>
-            <div class="jar-wrap">
-              <div class="jar-lid"></div>
-              <div class="jar-body">
-                <span class="jar-token token-a"></span>
-                <span class="jar-token token-b"></span>
-                <span class="jar-token token-c"></span>
-              </div>
-            </div>
+            <h2 id="challengeTitle">DIGITAL BLIND BOX</h2>
+            <button class="draw-capsule" type="button" id="drawWordsButton" aria-label="抽取两个关键词">
+              <span class="capsule-core"></span>
+              <span class="capsule-ring ring-a"></span>
+              <span class="capsule-ring ring-b"></span>
+            </button>
             <div class="cloud-words" id="cloudWords"></div>
           </div>
 
@@ -128,7 +178,7 @@
               placeholder="输入管培生根据关键词现场造出的句子"
             ></textarea>
             <div class="form-actions">
-              <button class="secondary-action" type="button" id="drawWordsButton">重新抽词</button>
+              <button class="secondary-action" type="button" id="redrawWordsButton">重新抽词</button>
               <button class="primary-action" type="submit">保存并回到详情</button>
             </div>
           </form>
@@ -136,7 +186,9 @@
       </section>
     </main>
 
-    <script src="./src/logic.js?v=20260609-3"></script>
-    <script src="./src/app.js?v=20260609-3"></script>
+    <script src="./src/logic.js?v=20260610-27"></script>
+    <script src="./src/data.js?v=20260610-27"></script>
+    <script src="./src/code-rain.js?v=20260610-27"></script>
+    <script src="./src/app.js?v=20260610-27"></script>
   </body>
 </html>

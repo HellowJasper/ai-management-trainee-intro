@@ -7,6 +7,11 @@
 
   root.AppLogic = api;
 })(typeof globalThis !== "undefined" ? globalThis : window, function createLogic() {
+  const introTiming = Object.freeze({
+    holdMs: 4000,
+    exitMs: 1200,
+  });
+
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
   }
@@ -60,18 +65,22 @@
     }
 
     const center = (count - 1) / 2;
+    const arcSpan = Math.PI * 0.86;
 
     return Array.from({ length: count }, (_, index) => {
       const distanceFromCenter = index - center;
       const normalized = center === 0 ? 0 : distanceFromCenter / center;
-      const closeness = 1 - Math.min(1, Math.abs(normalized));
-      const liftedArc = Math.pow(closeness, 1.65);
+      const theta = normalized * (arcSpan / 2);
+      const liftedArc = Math.cos(theta);
+      const edgeArc = Math.cos(arcSpan / 2);
+      const normalizedLift = center === 0 ? 1 : (liftedArc - edgeArc) / (1 - edgeArc);
+      const tangentRotation = Math.sin(theta) * maxRotation;
 
       return {
         x: Number((distanceFromCenter * step).toFixed(2)),
-        lift: Number((-liftedArc * maxLift).toFixed(2)),
-        rotation: Number((-normalized * maxRotation).toFixed(2)),
-        zIndex: Math.round(overlapZBase + liftedArc * overlapZRange),
+        lift: Number((-normalizedLift * maxLift).toFixed(2)),
+        rotation: Number((-tangentRotation).toFixed(2)),
+        zIndex: Math.round(overlapZBase + normalizedLift * overlapZRange),
       };
     });
   }
@@ -80,24 +89,26 @@
     const count = Math.max(1, Number(total) || 1);
     const width = Math.max(320, Number(viewportWidth) || 1280);
     const height = Math.max(520, Number(viewportHeight) || 720);
-    const horizontalInset = clamp(width * 0.1, 48, 128);
+    const horizontalInset = clamp(width * 0.08, 34, 118);
     const availableWidth = Math.max(320, width - horizontalInset);
-    const minCardWidth = width < 760 ? 66 : 88;
-    const naturalCardWidth = Math.min(218, availableWidth / 9.8, height * 0.21);
-    const cardWidth = clamp(naturalCardWidth, minCardWidth, 218);
+    const minCardWidth = width < 760 ? 84 : 126;
+    const maxCardWidth = width < 760 ? 150 : 246;
+    const naturalCardWidth = Math.min(maxCardWidth, availableWidth / (width < 760 ? 4.35 : 5.6), height * 0.34);
+    const cardWidth = clamp(naturalCardWidth, minCardWidth, maxCardWidth);
+    const cardHeight = cardWidth * 4 / 3;
     const fittedStep = count === 1 ? 0 : Math.max(0, (availableWidth - cardWidth) / (count - 1));
-    const readableStep = clamp(fittedStep, cardWidth * 0.58, cardWidth * 0.98);
+    const readableStep = clamp(fittedStep, cardWidth * 0.34, cardWidth * 0.66);
     const step = Math.floor(Math.min(readableStep, fittedStep) * 100) / 100;
     const visualWidth = count === 1 ? cardWidth : step * (count - 1) + cardWidth;
-    const desiredPortraitHeight = height * (width < 760 ? 0.31 : 0.34);
-    const portraitHeight = clamp(desiredPortraitHeight, cardWidth * 1.86, Math.min(height * 0.37, 380));
+    const portraitHeight = cardHeight - clamp(cardHeight * 0.23, 34, 62);
 
     return {
       availableWidth: Number(availableWidth.toFixed(2)),
+      cardHeight: Number(cardHeight.toFixed(2)),
       cardWidth: Number(cardWidth.toFixed(2)),
       dockInfluence: Number(clamp(step * 3.1, 180, 430).toFixed(2)),
-      maxLift: Number(clamp(cardWidth * 0.32, 24, 72).toFixed(2)),
-      maxRotation: width < 760 ? 3.8 : 5.2,
+      maxLift: Number(clamp(cardHeight * 0.18, 28, 84).toFixed(2)),
+      maxRotation: width < 760 ? 4.6 : 5.8,
       portraitHeight: Number(portraitHeight.toFixed(2)),
       step: Number(step.toFixed(2)),
       visualWidth: Number(visualWidth.toFixed(2)),
@@ -145,11 +156,69 @@
     });
   }
 
+  function normalizeTrainee(trainee) {
+    const safeTrainee = trainee || {};
+
+    return {
+      ...safeTrainee,
+      tools: safeTrainee.tools || safeTrainee.aiPartners || "",
+      favoriteTool: safeTrainee.favoriteTool || safeTrainee.favoriteAI || "",
+      problem: safeTrainee.problem || safeTrainee.aiProblem || "",
+      aiPower: safeTrainee.aiPower || "",
+      funFact: safeTrainee.funFact || safeTrainee.tags || "",
+      meme: safeTrainee.meme || safeTrainee.memeText || "MEME",
+      photo: safeTrainee.photo || "",
+      memeImage: safeTrainee.memeImage || "",
+      portrait: safeTrainee.portrait || "",
+      sentence: safeTrainee.sentence || "",
+      previousPairs: Array.isArray(safeTrainee.previousPairs) ? safeTrainee.previousPairs : [],
+    };
+  }
+
+  function toggleProfileMedia(currentMode) {
+    return currentMode === "photo" ? "meme" : "photo";
+  }
+
+  function nextIntroState() {
+    return "home";
+  }
+
+  function getIntroTiming() {
+    return { ...introTiming };
+  }
+
+  function resolveDiscoverTarget(target) {
+    return ["business", "awards"].includes(target) ? target : "home";
+  }
+
+  function resolveAdjacentTraineeId(trainees, currentId, direction) {
+    const list = Array.isArray(trainees) ? trainees.filter((trainee) => trainee?.id) : [];
+    if (list.length === 0) {
+      return "";
+    }
+
+    const currentIndex = list.findIndex((trainee) => trainee.id === currentId);
+    if (currentIndex < 0) {
+      return list[0].id;
+    }
+
+    const step = direction === "previous" ? -1 : 1;
+    const nextIndex = (currentIndex + step + list.length) % list.length;
+
+    return list[nextIndex].id;
+  }
+
   return {
     computeArcLayout,
     computeDockTransforms,
     computePhotoWallMetrics,
+    getIntroTiming,
+    nextIntroState,
+    normalizeTrainee,
     pickKeywordPair,
+    resolveAdjacentTraineeId,
+    resolveDiscoverTarget,
+    toggleProfileMedia,
     updateSentence,
   };
 });
