@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI Innovation Hackathon 2026</title>
-    <link rel="stylesheet" href="./styles.css?v=20260610-27" />
+    <link rel="stylesheet" href="./styles.css?v=20260610-30" />
   </head>
   <body>
     <main class="app-shell" data-view="intro">
@@ -59,7 +59,7 @@
             <span class="chip-dot"></span>
             AI MANAGEMENT TRAINEES
           </button>
-          <div class="cohort-mark">COHORT 01 / 12 PROFILES</div>
+          <div class="cohort-mark">TALENT PROFILES</div>
         </header>
 
         <div class="stage-title-lockup" aria-hidden="true">
@@ -73,8 +73,8 @@
 
         <footer class="stage-footer">
           <span>2026</span>
-          <span>AI ONBOARDING SHOWCASE</span>
-          <span>LIVE SESSION</span>
+          <span>AI Innovation Hackathon</span>
+          <span>NOW INTRODUCING...</span>
         </footer>
       </section>
 
@@ -107,7 +107,7 @@
           <button class="close-button" type="button" data-action="close">CLOSE</button>
 
           <section class="profile-info-panel">
-            <span class="info-chip" id="detailDepartment">战略部 · STRATEGY</span>
+            <span class="info-chip" id="detailDepartment">INFO</span>
             <div class="profile-fact-list">
               <section>
                 <span>#1 🎓 专业背景</span>
@@ -167,28 +167,31 @@
               <span class="capsule-ring ring-a"></span>
               <span class="capsule-ring ring-b"></span>
             </button>
-            <div class="cloud-words" id="cloudWords"></div>
+            <div class="cloud-words" id="cloudWords">
+              <span class="cloud-word" id="cloudWordA"></span>
+              <span class="cloud-word" id="cloudWordB"></span>
+            </div>
           </div>
 
           <form class="host-form" id="hostForm">
-            <label for="sentenceInput">主持人录入句子</label>
             <textarea
               id="sentenceInput"
               rows="3"
-              placeholder="输入管培生根据关键词现场造出的句子"
+              aria-label="主持人录入句子"
+              placeholder="看看管培生这次又造出了什么神句..."
             ></textarea>
             <div class="form-actions">
-              <button class="secondary-action" type="button" id="redrawWordsButton">重新抽词</button>
-              <button class="primary-action" type="submit">保存并回到详情</button>
+              <button class="secondary-action" type="button" id="redrawWordsButton">REDRAW</button>
+              <button class="primary-action" type="submit">RECORD</button>
             </div>
           </form>
         </article>
       </section>
     </main>
 
-    <script src="./src/logic.js?v=20260610-27"></script>
-    <script src="./src/data.js?v=20260610-27"></script>
-    <script src="./src/code-rain.js?v=20260610-27"></script>
-    <script src="./src/app.js?v=20260610-27"></script>
+    <script src="./src/logic.js?v=20260610-30"></script>
+    <script src="./src/data.js?v=20260610-30"></script>
+    <script src="./src/code-rain.js?v=20260610-30"></script>
+    <script src="./src/app.js?v=20260610-30"></script>
   </body>
 </html>

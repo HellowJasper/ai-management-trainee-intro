@@ -11,6 +11,7 @@ const {
   nextIntroState,
   normalizeTrainee,
   pickKeywordPair,
+  pickKeywordPairAB,
   resolveAdjacentTraineeId,
   resolveDiscoverTarget,
   toggleProfileMedia,
@@ -21,12 +22,24 @@ test("computeArcLayout places every card on a continuous circular arc", () => {
   const layout = computeArcLayout(12, {
     maxLift: 84,
     maxRotation: 5.8,
+    edgeScale: 0.74,
+    centerScale: 1.1,
   });
 
   assert.equal(layout.length, 12);
   assert.ok(layout[0].x < layout[1].x);
   assert.ok(layout[5].x < layout[6].x);
   assert.ok(layout[10].x < layout[11].x);
+  assert.ok(Math.abs(layout[0].x + layout[11].x) < 0.01);
+  assert.equal(layout[0].lift, layout[11].lift);
+
+  // Center card (index 5) properties
+  assert.equal(layout[5].x, 0);
+  assert.equal(layout[5].rotation, 0);
+  assert.equal(layout[5].lift, -84);
+  assert.equal(layout[5].scale, 1.1);
+
+  assert.ok(layout[6].x - layout[5].x > layout[1].x - layout[0].x);
   assert.ok(Math.abs(layout[0].rotation) <= 6);
   assert.ok(Math.abs(layout[11].rotation) <= 6);
   assert.ok(layout[1].lift < layout[0].lift);
@@ -40,6 +53,10 @@ test("computeArcLayout places every card on a continuous circular arc", () => {
   assert.ok(layout[9].lift > layout[8].lift);
   assert.ok(layout[10].lift > layout[9].lift);
   assert.ok(layout[5].zIndex > layout[0].zIndex);
+  assert.ok(layout[5].scale > layout[2].scale);
+  assert.ok(layout[6].scale > layout[9].scale);
+  assert.ok(layout[0].scale < 0.82);
+  assert.ok(layout[5].scale > 1);
 });
 
 test("computeDockTransforms enlarges hovered item and gently reduces distant items", () => {
@@ -63,13 +80,34 @@ test("computePhotoWallMetrics keeps twelve tarot cards in one row", () => {
     viewportHeight: 817,
   });
 
-  assert.ok(Math.abs(metrics.cardHeight / metrics.cardWidth - 4 / 3) < 0.002);
+  assert.ok(Math.abs(metrics.portraitHeight / metrics.cardWidth - 4 / 3) < 0.002);
+  assert.ok(metrics.cardHeight > metrics.portraitHeight);
   assert.ok(metrics.visualWidth <= metrics.availableWidth);
   assert.ok(metrics.step > 0);
   assert.ok(metrics.step < metrics.cardWidth);
-  assert.ok(metrics.maxLift >= metrics.cardHeight * 0.16);
-  assert.ok(metrics.maxRotation >= 3.2);
-  assert.ok(metrics.maxRotation <= 6);
+  assert.ok(metrics.maxLift >= metrics.cardHeight * 0.26);
+  assert.ok(metrics.maxRotation >= 7.4);
+  assert.ok(metrics.maxRotation <= 9.4);
+});
+
+test("twelve profile cards form one connected arc centered on the sixth card", () => {
+  const metrics = computePhotoWallMetrics({
+    total: 12,
+    viewportWidth: 1024,
+    viewportHeight: 768,
+  });
+  const layout = computeArcLayout(12, {
+    step: metrics.step,
+    maxLift: metrics.maxLift,
+    maxRotation: metrics.maxRotation,
+    splitGap: metrics.splitGap,
+  });
+
+  assert.equal(layout[5].x, 0);
+  assert.ok(layout.slice(0, 5).every((item) => item.x < 0));
+  assert.ok(layout.slice(6).every((item) => item.x > 0));
+  assert.equal(layout[0].scale, layout[11].scale);
+  assert.equal(layout[0].zIndex, layout[11].zIndex);
 });
 
 test("pickKeywordPair returns two different keywords and avoids previously used pairs", () => {
@@ -79,6 +117,17 @@ test("pickKeywordPair returns two different keywords and avoids previously used 
   assert.equal(pair.length, 2);
   assert.notEqual(pair[0], pair[1]);
   assert.notDeepEqual(pair, ["咖啡", "自动化"]);
+});
+
+test("pickKeywordPairAB returns a pair with one word from A and one from B, avoiding previously used pairs", () => {
+  const libA = ["咖啡", "奶茶"];
+  const libB = ["AI", "Agent"];
+  const pair = pickKeywordPairAB(libA, libB, [["咖啡", "AI"]], 0);
+
+  assert.equal(pair.length, 2);
+  assert.ok(libA.includes(pair[0]));
+  assert.ok(libB.includes(pair[1]));
+  assert.notDeepEqual(pair, ["咖啡", "AI"]);
 });
 
 test("updateSentence stores host-entered sentence on the selected trainee", () => {
@@ -160,4 +209,11 @@ test("navigation uses the bundled pixel display font", () => {
   assert.match(css, /src:\s*url\("\.\/assets\/fonts\/press-start-2p\.ttf"\)/);
   assert.match(css, /--nav-pixel:\s*"Press Start 2P"/);
   assert.match(css, /\.hackathon-nav button\s*{[\s\S]*font-family:\s*var\(--nav-pixel\)/);
+});
+
+test("profile arc cards do not use yaw perspective that breaks left-right symmetry", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+  const profileCardBlock = css.match(/\.profile-card\s*{[\s\S]*?\n}/)?.[0] || "";
+
+  assert.doesNotMatch(profileCardBlock, /rotateY/);
 });

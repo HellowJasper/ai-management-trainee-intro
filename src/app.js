@@ -85,20 +85,20 @@ const fallbackTrainees = [
     "portrait": "linear-gradient(145deg, #061817 0%, #0d8b7b 48%, #e7fff7 100%)"
   },
   {
-    "id": "shen-yichuan",
-    "department": "市场品牌部",
-    "departmentEn": "MARKETING",
-    "name": "沈亦川",
-    "romanName": "Shen Yichuan",
-    "background": "品牌传播 / 社媒增长",
-    "aiPartners": "Midjourney / 即梦 / ChatGPT",
-    "favoriteAI": "Midjourney",
-    "aiProblem": "快速生成多风格传播创意和脚本",
-    "aiPower": "把热点话题改造成品牌可用表达",
-    "funFact": "刷到好标题会先截图再继续看正文。",
-    "photo": "./assets/trainees/shen-yichuan/photo.png",
-    "memeImage": "./assets/trainees/shen-yichuan/meme.png",
-    "memeText": "MAKE IT VIRAL",
+    "id": "jasper",
+    "department": "AI创新部",
+    "departmentEn": "AI INNOVATION",
+    "name": "贾博深",
+    "romanName": "Jasper",
+    "background": "AI 技术研发 / 产品创新",
+    "aiPartners": "Cursor / Claude / ChatGPT",
+    "favoriteAI": "Cursor",
+    "aiProblem": "跨部门系统级 AI 落地与场景探索",
+    "aiPower": "将业务创意快速转化为高保真交互 Demo",
+    "funFact": "写代码比咖啡更能让他提神。",
+    "photo": "./assets/trainees/jasper/photo.png",
+    "memeImage": "./assets/trainees/jasper/meme.png",
+    "memeText": "OK, LET'S CODE",
     "portrait": "linear-gradient(145deg, #0a0f1f 0%, #1f68ff 48%, #29ffc9 100%)"
   },
   {
@@ -205,24 +205,55 @@ const fallbackTrainees = [
   }
 ];
 
-const keywordBank = [
+const libraryA = [
   "咖啡",
+  "奶茶",
+  "火锅",
+  "烧烤",
+  "螺蛳粉",
+  "蛋糕",
+  "冰淇淋",
+  "外卖",
+  "周末",
+  "假期",
+  "旅行",
+  "自拍",
+  "露营",
+  "健身房",
+  "演唱会",
+  "电影院",
+  "游戏",
+  "直播",
+  "摸鱼",
+  "社恐",
+  "社牛",
+  "熬夜",
+  "逆袭"
+];
+
+const libraryB = [
+  "AI",
+  "Agent",
+  "Prompt",
+  "大模型",
+  "智能体",
   "自动化",
-  "提示词",
-  "会议纪要",
-  "灵感",
-  "复盘",
-  "效率",
-  "表情包",
-  "协作",
-  "周一",
-  "模型",
-  "入职",
+  "数据",
+  "算法",
+  "开挂",
+  "玄学",
+  "穿越",
+  "平行宇宙",
+  "时光机",
+  "超能力",
+  "机器人",
+  "Bug"
 ];
 
 let traineeState = fallbackTrainees.map(window.AppLogic.normalizeTrainee);
 let selectedId = traineeState[0].id;
 let currentKeywords = [];
+let drawStage = 0; // 0: not drawn, 1: A drawn, 2: both A and B drawn
 let keywordDrawTimer = null;
 let appView = "intro";
 let profileMediaMode = "photo";
@@ -377,7 +408,7 @@ function setView(view) {
 }
 
 function cssUrl(path) {
-  return path ? `url("${String(path).replaceAll('"', '\\"')}")` : "none";
+  return path ? `url('${String(path).replaceAll("'", "\\'")}')` : "none";
 }
 
 function setPortrait(element, trainee) {
@@ -396,6 +427,7 @@ function getArcStyle(layoutItem) {
     `--arc-rot: ${layoutItem.rotation}`,
     `--arc-yaw: ${layoutItem.rotation * 1.65}`,
     `--arc-z: ${layoutItem.zIndex}`,
+    `--arc-scale: ${layoutItem.scale}`,
   ].join("; ");
 }
 
@@ -409,15 +441,19 @@ function renderPhotoWall() {
     step: metrics.step,
     maxLift: metrics.maxLift,
     maxRotation: metrics.maxRotation,
+    splitGap: metrics.splitGap,
   });
 
   photoWall.style.setProperty("--card-width", `${metrics.cardWidth}px`);
   photoWall.style.setProperty("--card-height", `${metrics.cardHeight}px`);
+  photoWall.style.setProperty("--card-gap", `${metrics.cardGap}px`);
+  photoWall.style.setProperty("--card-padding", `${metrics.cardPadding}px`);
+  photoWall.style.setProperty("--meta-height", `${metrics.metaHeight}px`);
   photoWall.style.setProperty("--portrait-height", `${metrics.portraitHeight}px`);
   photoWall.style.setProperty("--wall-visual-width", `${metrics.visualWidth}px`);
   photoWall.style.setProperty("--dock-influence", metrics.dockInfluence);
 
-  photoWall.innerHTML = traineeState
+  const cardsHtml = traineeState
     .map((trainee, index) => {
       const arcStyle = getArcStyle(arcLayout[index]);
 
@@ -432,6 +468,25 @@ function renderPhotoWall() {
       `;
     })
     .join("");
+
+  const svgWidth = metrics.visualWidth;
+  const svgHeight = 220;
+
+  const points = arcLayout.map((layoutItem) => {
+    const x = svgWidth / 2 + layoutItem.x;
+    const y = svgHeight + layoutItem.lift + 18;
+    return `${x},${y}`;
+  });
+
+  const pathD = `M ${points.join(" L ")}`;
+
+  const svgHtml = `
+    <svg class="photo-wall-svg" style="--svg-width: ${svgWidth}px; --svg-height: ${svgHeight}px;" viewBox="0 0 ${svgWidth} ${svgHeight}">
+      <path d="${pathD}" />
+    </svg>
+  `;
+
+  photoWall.innerHTML = cardsHtml + svgHtml;
 }
 
 function resetDock() {
@@ -482,7 +537,14 @@ function renderProfileMedia(trainee) {
 
 function renderChallengeSlot(trainee) {
   if (trainee.sentence) {
-    challengeSlot.innerHTML = `<div class="sentence-card">${trainee.sentence}</div>`;
+    challengeSlot.innerHTML = `
+      <div class="sentence-card" role="textbox" aria-readonly="true">
+        <span class="sentence-tag">[ DIGITAL RECORD ]</span>
+        <p class="sentence-text">${trainee.sentence}</p>
+        <button class="sentence-edit-btn" type="button" id="editChallenge" aria-label="编辑或重抽">EDIT</button>
+      </div>
+    `;
+    document.getElementById("editChallenge").addEventListener("click", openChallenge);
     return;
   }
 
@@ -497,7 +559,7 @@ function renderDetail() {
   document.getElementById("detailIndex").textContent = `CARD ${String(selectedIndex).padStart(2, "0")} / 12`;
   document.getElementById("selectedDepartment").textContent = trainee.department;
   document.getElementById("selectedName").textContent = trainee.name;
-  document.getElementById("detailDepartment").textContent = `${trainee.department} · ${trainee.departmentEn}`;
+  document.getElementById("detailDepartment").textContent = "INFO";
   document.getElementById("detailName").textContent = trainee.romanName;
   document.getElementById("detailBackground").textContent = trainee.background;
   document.getElementById("detailTools").textContent = trainee.tools;
@@ -543,32 +605,76 @@ function closeDetail() {
 }
 
 function renderCloudWords(words = []) {
-  cloudWords.innerHTML = words.map((word) => `<span class="cloud-word">${word}</span>`).join("");
+  const wordAEl = document.getElementById("cloudWordA");
+  const wordBEl = document.getElementById("cloudWordB");
+  if (!wordAEl || !wordBEl) return;
+
+  if (words.length >= 1) {
+    wordAEl.textContent = words[0];
+    wordAEl.classList.add("is-visible");
+  } else {
+    wordAEl.textContent = "";
+    wordAEl.classList.remove("is-visible");
+  }
+
+  if (words.length >= 2) {
+    wordBEl.textContent = words[1];
+    wordBEl.classList.add("is-visible");
+  } else {
+    wordBEl.textContent = "";
+    wordBEl.classList.remove("is-visible");
+  }
 }
 
 function drawKeywords() {
   window.clearTimeout(keywordDrawTimer);
+
+  if (drawStage === 2) {
+    drawStage = 0;
+  }
+
   challengeLayer.classList.add("is-drawing");
   drawWordsButton.disabled = true;
   redrawWordsButton.disabled = true;
-  renderCloudWords([]);
 
   const trainee = selectedTrainee();
   const salt = Date.now() + trainee.previousPairs.length;
 
-  keywordDrawTimer = window.setTimeout(() => {
-    currentKeywords = window.AppLogic.pickKeywordPair(keywordBank, trainee.previousPairs, salt);
-    trainee.previousPairs = [...trainee.previousPairs, currentKeywords];
-    renderCloudWords(currentKeywords);
-    challengeLayer.classList.remove("is-drawing");
-    drawWordsButton.disabled = false;
-    redrawWordsButton.disabled = false;
-    sentenceInput.focus();
-  }, 1000);
+  if (drawStage === 0) {
+    renderCloudWords([]);
+    const chosenPair = window.AppLogic.pickKeywordPairAB(
+      libraryA,
+      libraryB,
+      trainee.previousPairs,
+      salt
+    );
+    currentKeywords = chosenPair;
+
+    keywordDrawTimer = window.setTimeout(() => {
+      renderCloudWords([currentKeywords[0]]);
+      challengeLayer.classList.remove("is-drawing");
+      drawWordsButton.disabled = false;
+      redrawWordsButton.disabled = false;
+      drawStage = 1;
+    }, 1000);
+  } else if (drawStage === 1) {
+    renderCloudWords([currentKeywords[0]]);
+
+    keywordDrawTimer = window.setTimeout(() => {
+      renderCloudWords(currentKeywords);
+      trainee.previousPairs = [...trainee.previousPairs, currentKeywords];
+      challengeLayer.classList.remove("is-drawing");
+      drawWordsButton.disabled = false;
+      redrawWordsButton.disabled = false;
+      drawStage = 2;
+      sentenceInput.focus();
+    }, 1000);
+  }
 }
 
 function openChallenge() {
-  sentenceInput.value = "";
+  const trainee = selectedTrainee();
+  sentenceInput.value = trainee.sentence || "";
   syncStages("challenge");
   syncRain("challenge");
   challengeLayer.classList.add("is-open");
@@ -577,7 +683,17 @@ function openChallenge() {
   appShell.dataset.view = "challenge";
   appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge");
   appShell.classList.add("view-challenge");
-  drawKeywords();
+
+  if (trainee.previousPairs.length > 0) {
+    currentKeywords = trainee.previousPairs[trainee.previousPairs.length - 1];
+    renderCloudWords(currentKeywords);
+    drawStage = 2;
+    sentenceInput.focus();
+  } else {
+    currentKeywords = [];
+    renderCloudWords([]);
+    drawStage = 0;
+  }
 }
 
 function closeChallenge() {
