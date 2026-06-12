@@ -1007,7 +1007,7 @@ button:disabled {
 
 .draw-card {
   position: absolute;
-  left: clamp(58px, 5.2vw, 108px);
+  left: max(5.2vw, 100vw - min(70vw, 1120px) - min(28vw, 360px) - 50px);
   top: 50%;
   z-index: 40;
   width: min(28vw, 360px);
@@ -2180,6 +2180,7 @@ button:disabled {
     width: min(76vw, 920px);
     grid-template-columns: 1fr;
     overflow: auto;
+    padding-left: clamp(60px, 8vw, 90px);
   }
 
   .profile-info-panel {
@@ -2217,6 +2218,7 @@ button:disabled {
   .draw-card {
     width: min(24vw, 260px);
     min-width: 180px;
+    left: max(5.2vw, 100vw - min(76vw, 920px) - min(24vw, 260px) - 30px);
   }
 }
 
@@ -2266,6 +2268,7 @@ button:disabled {
     width: auto;
     border-right: 1px solid var(--line-strong);
     border-radius: var(--radius);
+    padding: clamp(20px, 2.4vw, 32px);
   }
 
   .profile-fact-list,
