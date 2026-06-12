@@ -566,23 +566,26 @@ button:disabled {
 }
 
 .enter-button {
-  border: 1px solid var(--neon);
-  background: rgba(2, 12, 15, 0.58);
-  color: var(--neon);
+  border: 1px solid #478d86;
+  background: rgb(71, 141, 134);
+  color: #000000;
   box-shadow:
-    0 0 24px rgba(40, 255, 200, 0.22),
-    inset 0 0 0 1px rgba(40, 255, 200, 0.1);
+    0 0 24px rgba(71, 141, 134, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+  font-family: "Press Start 2P", var(--nav-pixel);
+  font-size: clamp(12px, 1.2vw, 20px);
+  font-weight: 400;
   transition: all 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .enter-button:hover,
 .enter-button:focus-visible {
-  border-color: var(--line-strong);
-  background: rgba(40, 255, 200, 0.12);
-  color: var(--neon);
+  border-color: #5bb3aa;
+  background: #5bb3aa;
+  color: #000000;
   box-shadow:
-    0 0 32px rgba(40, 255, 200, 0.45),
-    inset 0 0 0 1px rgba(40, 255, 200, 0.2);
+    0 0 32px rgba(91, 179, 170, 0.65),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.25);
   transform: translateY(-2px) scale(1.02);
 }
 
