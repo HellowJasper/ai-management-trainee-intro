@@ -265,9 +265,9 @@ button:disabled {
   z-index: 3;
   width: clamp(230px, 28vw, 430px);
   max-width: calc(100vw - 56px);
-  aspect-ratio: 1371 / 1004;
+  aspect-ratio: 487 / 445;
   transform: translate(-50%, -50%);
-  background: url("./assets/joincare-icon-clean.png") center / contain no-repeat;
+  background: url("./assets/joincare-cyber-icon.png") center / contain no-repeat;
   filter: brightness(0.2) saturate(0.76) contrast(1.02);
   animation: introLogoPulse var(--intro-hold-duration) cubic-bezier(0.22, 0.78, 0.2, 1) both;
   will-change: transform, opacity;
