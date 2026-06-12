@@ -1007,11 +1007,11 @@ button:disabled {
 
 .draw-card {
   position: absolute;
-  left: max(5.2vw, 100vw - min(70vw, 1120px) - min(28vw, 360px) - 50px);
+  left: max(5.2vw, 100vw - min(80vw, 1260px) - min(22vw, 290px) - 40px);
   top: 50%;
   z-index: 40;
-  width: min(28vw, 360px);
-  min-width: 220px;
+  width: min(22vw, 290px);
+  min-width: 190px;
   transform: translate(-120px, -50%) rotate(-4deg);
   opacity: 0;
   transition:
@@ -1157,10 +1157,10 @@ button:disabled {
   bottom: clamp(18px, 3vh, 34px);
   z-index: 4;
   display: grid;
-  grid-template-columns: 1fr minmax(320px, 460px) auto;
+  grid-template-columns: clamp(10px, 6vw, 90px) minmax(320px, 480px) 1fr auto;
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 18px;
-  width: min(70vw, 1120px);
+  width: min(80vw, 1260px);
   overflow: hidden;
   border: 1px solid var(--line-strong);
   border-right: 0;
@@ -1280,7 +1280,7 @@ button:disabled {
 }
 
 .profile-media-panel {
-  grid-column: 3;
+  grid-column: 4;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
   gap: 0;
@@ -1484,7 +1484,7 @@ button:disabled {
 }
 
 .challenge-slot {
-  grid-column: 3;
+  grid-column: 4;
   min-height: 58px;
 }
 
@@ -2228,9 +2228,9 @@ button:disabled {
   }
 
   .draw-card {
-    width: min(24vw, 260px);
-    min-width: 180px;
-    left: max(5.2vw, 100vw - min(76vw, 920px) - min(24vw, 260px) - 30px);
+    width: min(20vw, 230px);
+    min-width: 170px;
+    left: max(5.2vw, 100vw - min(76vw, 920px) - min(20vw, 230px) - 24px);
   }
 }
 
