@@ -54,9 +54,40 @@
       columns.forEach((column) => {
         const glyph = glyphs[Math.floor(Math.random() * glyphs.length)] || "1";
         const isHead = Math.random() > 0.9;
-        context.fillStyle = isHead
-          ? `rgba(216, 255, 239, ${column.alpha})`
-          : `rgba(37, 245, 197, ${column.alpha * 0.72})`;
+        
+        let fillStyle = "";
+        if (options.theme === "cyber" && canvas.clientWidth > 0) {
+          const relX = column.x / canvas.clientWidth;
+          if (relX < 0.38) {
+            // Left blue rain
+            fillStyle = isHead
+              ? `rgba(210, 255, 255, ${column.alpha})`
+              : `rgba(0, 180, 216, ${column.alpha * 0.75})`;
+          } else if (relX > 0.62) {
+            // Right blue rain with a red/orange streak around 0.77-0.81
+            if (relX > 0.76 && relX < 0.81) {
+              fillStyle = isHead
+                ? `rgba(255, 225, 225, ${column.alpha})`
+                : `rgba(255, 90, 90, ${column.alpha * 0.85})`;
+            } else {
+              fillStyle = isHead
+                ? `rgba(210, 255, 255, ${column.alpha})`
+                : `rgba(0, 180, 216, ${column.alpha * 0.75})`;
+            }
+          } else {
+            // Center green rain
+            fillStyle = isHead
+              ? `rgba(216, 255, 239, ${column.alpha})`
+              : `rgba(37, 245, 197, ${column.alpha * 0.72})`;
+          }
+        } else {
+          // Default green/cyan rain
+          fillStyle = isHead
+            ? `rgba(216, 255, 239, ${column.alpha})`
+            : `rgba(37, 245, 197, ${column.alpha * 0.72})`;
+        }
+        
+        context.fillStyle = fillStyle;
         context.fillText(glyph, column.x, column.y);
         column.y += column.speed;
 
