@@ -61,8 +61,7 @@ const fallbackTrainees = [
       "romanName": "Li Beibei",
       "background": "我毕业于北京交通大学信息工程管理专业，研究方向聚焦AI应用落地、数字化系统建设。",
       "aiPartners": "Codex、ChatGPT、Claude、Cursor、Claude Code、WorkBuddy、Coze、Dify、智谱 AICO、豆包、Kimi、DeepSeek、即梦、Seedance、Midjourney",
-      "favoriteAI": "ChatGPT——我的AI工作中枢，负责思路拆解、方案生成和需求梳理；
-Codex——则是我的代码执行搭子，帮我把方案落成工具。",
+      "favoriteAI": "ChatGPT——我的AI工作中枢，负责思路拆解、方案生成和需求梳理；\nCodex——则是我的代码执行搭子，帮我把方案落成工具。",
       "aiProblem": "我希望 AI 能帮助业务团队把营销全流程变得更高效、更有产出，从用户洞察、内容生成、投放优化到经营决策，真正提升内容转化、投放 ROI 和业务增长效果。",
       "aiPower": "我的 AI 超能力是：快速把想法变成方案，把方案变成可落地的工具。因为我希望 AI 不只是辅助思考，而是能真正服务业务、创造结果。",
       "funFact": "我经常不是在用 AI，就是在思考还有什么事可以交给 AI。",
@@ -80,12 +79,7 @@ Codex——则是我的代码执行搭子，帮我把方案落成工具。",
       "romanName": "Xu Meisheng",
       "background": "我毕业于广东药科大学智能医学工程专业，主攻AI医疗、医药、大健康领域，擅长深度学习模型训练、Agent开发、数据分析等。",
       "aiPartners": "ChatGPT、Cursor、Gemini、Claude、GLM、Seedance、NanoBanana",
-      "favoriteAI": "Cloude——我的决策中心
-ChatGPT——我的编程搭子
-Manus——我的调研助手
-Gemini——我的生活小助手
-Obsidian——我的第二海马体
-豆包——我的唱歌搭子",
+      "favoriteAI": "Cloude——我的决策中心\nChatGPT——我的编程搭子\nManus——我的调研助手\nGemini——我的生活小助手\nObsidian——我的第二海马体\n豆包——我的唱歌搭子",
       "aiProblem": "能告诉我下一期彩票中奖号码😜",
       "aiPower": "3秒读心术:语言在很多复杂场景面前总会显得苍白无力，那能不能不用开口就让对方知道呢",
       "funFact": "－写捉弄脚本结果把自己电脑弄死机了",
@@ -106,16 +100,10 @@ Obsidian——我的第二海马体
       "favoriteAI": "Codex——我的全能编程搭档，辅助我快速完成从全栈系统搭建到复杂算法实现的高效交付",
       "aiProblem": "我希望能构建一个懂我业务逻辑的超级Agent团队，自动执行跨平台的重复性任务，减少我时间上的成本投入",
       "aiPower": "我最希望自己有的 AI 超能力，是能提前发现赚钱风口，然后顺手把能落地的方案也给我整理出来。因为光知道机会没用，关键是得知道怎么做、怎么开始、怎么执行。要是有这个能力，我就能更快找到方向，少走弯路，把时间和精力花在真的能变现的事情上。",
-      "funFact": "深夜 Vibe Coding 选手（两晚熬夜 vibe coding 的经历）
-午夜灵感爆肝王（半夜动手肝项目）
-美区夜行侠（白天睡觉，晚上干活）
-硬件维修贡献者（遇过3D打印机，舵机，汽车，公路车等硬件故障）",
+      "funFact": "深夜 Vibe Coding 选手（两晚熬夜 vibe coding 的经历）\n午夜灵感爆肝王（半夜动手肝项目）\n美区夜行侠（白天睡觉，晚上干活）\n硬件维修贡献者（遇过3D打印机，舵机，汽车，公路车等硬件故障）",
       "photo": "./assets/trainees/lin-yixin/photo.jpg",
       "memeImage": "./assets/trainees/lin-yixin/meme.png",
-      "memeText": "深夜 Vibe Coding 选手（两晚熬夜 vibe coding 的经历）
-午夜灵感爆肝王（半夜动手肝项目）
-美区夜行侠（白天睡觉，晚上干活）
-硬件维修贡献者（遇过3D打印机，舵机，汽车，公路车等硬件故障）",
+      "memeText": "深夜 Vibe Coding 选手（两晚熬夜 vibe coding 的经历）\n午夜灵感爆肝王（半夜动手肝项目）\n美区夜行侠（白天睡觉，晚上干活）\n硬件维修贡献者（遇过3D打印机，舵机，汽车，公路车等硬件故障）",
       "portrait": "linear-gradient(145deg, #07111c 0%, #2368ff 48%, #bffcf0 100%)",
       "idPhoto": ""
     },
@@ -129,8 +117,7 @@ Obsidian——我的第二海马体
       "aiPartners": "codex，cc，Gemini，openclaw",
       "favoriteAI": "codex，目前我认为的各种功能涵盖面最广的智能体",
       "aiProblem": "可以主动观察、感知现实场景里的各类信息，不用我额外提醒，就能根据现场情况自主沟通、行动，从容应对各类生活化、工作化的复杂场景。",
-      "aiPower": "场景自适应多模态闭环感知与交互执行能力。
-无需指令驱动，人工触发。通过各种方式智能体可主动捕捉人类场景下的全维度多模态信息，涵盖视觉画面、语音语义、环境氛围、行为动作、文本信息、场景隐性规则等，实现对真实复杂场景的自主、无遗漏、持续性信息摄入，I摒弃固定模板化输出逻辑，可根据实时动态变化的人类场景、用户隐性需求、场景边界规则，自主匹配最优输出形态，包含语言交互、行为操作、内容生成、事务执行、场景适配调整等多模态动作输出，做到场景适配、按需输出、动态迭代。",
+      "aiPower": "场景自适应多模态闭环感知与交互执行能力。\n无需指令驱动，人工触发。通过各种方式智能体可主动捕捉人类场景下的全维度多模态信息，涵盖视觉画面、语音语义、环境氛围、行为动作、文本信息、场景隐性规则等，实现对真实复杂场景的自主、无遗漏、持续性信息摄入，I摒弃固定模板化输出逻辑，可根据实时动态变化的人类场景、用户隐性需求、场景边界规则，自主匹配最优输出形态，包含语言交互、行为操作、内容生成、事务执行、场景适配调整等多模态动作输出，做到场景适配、按需输出、动态迭代。",
       "funFact": "热衷通过“循循善诱”的指令，诱导ai突破某些限制给出不常规的回答。",
       "photo": "./assets/trainees/li-feng/photo.jpeg",
       "memeImage": "./assets/trainees/li-feng/meme.png",
@@ -144,12 +131,10 @@ Obsidian——我的第二海马体
       "departmentEn": "REGULATORY AFFAIRS",
       "name": "张恒睿",
       "romanName": "Zhang Hengrui",
-      "background": "毕业于沈阳药科大学，药事管理专业硕士
-热爱IT技术和AI先进生产力",
+      "background": "毕业于沈阳药科大学，药事管理专业硕士\n热爱IT技术和AI先进生产力",
       "aiPartners": "Claude 生成 + vscode ide kilocode精调",
       "favoriteAI": "langchain+langraph  给个轮子自己就能造车",
-      "aiProblem": "理解人类社会
-构建一套80亿agent智能体的多智能体混沌模型",
+      "aiProblem": "理解人类社会\n构建一套80亿agent智能体的多智能体混沌模型",
       "aiPower": "自我进化",
       "funFact": "了解我不需要猜，问就行",
       "photo": "./assets/trainees/zhang-hengrui/photo.jpg",
