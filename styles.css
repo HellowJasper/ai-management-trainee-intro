@@ -543,7 +543,7 @@ button:disabled {
 .landing-actions {
   position: absolute;
   left: 50%;
-  top: 72%;
+  top: 75.5%;
   transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
@@ -554,7 +554,7 @@ button:disabled {
 
 .enter-button,
 .discover-button {
-  width: clamp(210px, 19vw, 292px);
+  width: clamp(260px, 24vw, 360px);
   min-height: clamp(54px, 6.6vh, 72px);
   border-radius: 999px;
   padding: 13px 28px;

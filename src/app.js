@@ -718,8 +718,8 @@ function renderDiscoverPanel(target) {
     <strong>${panel.title}</strong>
     <p>${panel.body}</p>
   `;
-  discoverMenu.classList.remove("is-open");
-  discoverButton.setAttribute("aria-expanded", "false");
+  if (discoverMenu) discoverMenu.classList.remove("is-open");
+  if (discoverButton) discoverButton.setAttribute("aria-expanded", "false");
 }
 
 function bindEvents() {
@@ -735,10 +735,12 @@ function bindEvents() {
     setView("wall");
   });
 
-  discoverButton.addEventListener("click", () => {
-    const isOpen = discoverMenu.classList.toggle("is-open");
-    discoverButton.setAttribute("aria-expanded", String(isOpen));
-  });
+  if (discoverButton && discoverMenu) {
+    discoverButton.addEventListener("click", () => {
+      const isOpen = discoverMenu.classList.toggle("is-open");
+      discoverButton.setAttribute("aria-expanded", String(isOpen));
+    });
+  }
 
   photoWall.addEventListener("pointermove", (event) => {
     updateDock(event.clientX);
