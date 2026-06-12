@@ -1136,6 +1136,7 @@ button:disabled {
   border-radius: var(--radius);
   background: rgba(3, 16, 19, 0.82);
   padding: 14px;
+  transform: translateX(24px);
 }
 
 .draw-nameplate strong {
@@ -1157,7 +1158,7 @@ button:disabled {
   bottom: clamp(18px, 3vh, 34px);
   z-index: 4;
   display: grid;
-  grid-template-columns: clamp(10px, 6vw, 90px) minmax(320px, 1fr) auto;
+  grid-template-columns: clamp(10px, 2vw, 40px) minmax(320px, 1fr) auto;
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 18px;
   width: min(80vw, 1260px);
