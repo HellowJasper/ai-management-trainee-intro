@@ -215,6 +215,7 @@
       aiPower: safeTrainee.aiPower || "",
       funFact: safeTrainee.funFact || safeTrainee.tags || "",
       meme: safeTrainee.meme || safeTrainee.memeText || "MEME",
+      idPhoto: safeTrainee.idPhoto || safeTrainee.photo || "",
       photo: safeTrainee.photo || "",
       memeImage: safeTrainee.memeImage || "",
       portrait: safeTrainee.portrait || "",

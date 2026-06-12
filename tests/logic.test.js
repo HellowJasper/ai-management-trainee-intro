@@ -165,8 +165,16 @@ test("normalizeTrainee maps JSON fields into render fields", () => {
   assert.equal(trainee.favoriteTool, "飞书妙记");
   assert.equal(trainee.problem, "候选人信息整理和面试纪要沉淀");
   assert.equal(trainee.photo, "./assets/trainees/song-lan/photo.png");
+  assert.equal(trainee.idPhoto, "./assets/trainees/song-lan/photo.png"); // should fallback to photo
   assert.equal(trainee.memeImage, "./assets/trainees/song-lan/meme.png");
   assert.equal(trainee.meme, "ALIGN?");
+
+  const traineeWithIdPhoto = normalizeTrainee({
+    photo: "./assets/trainees/song-lan/photo.jpg",
+    idPhoto: "./assets/trainees/song-lan/photo.png",
+  });
+  assert.equal(traineeWithIdPhoto.photo, "./assets/trainees/song-lan/photo.jpg");
+  assert.equal(traineeWithIdPhoto.idPhoto, "./assets/trainees/song-lan/photo.png");
 });
 
 test("toggleProfileMedia switches between photo and meme", () => {

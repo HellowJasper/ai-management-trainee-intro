@@ -1,25 +1,26 @@
 [
   {
     "id": "gu-lingqian",
-    "department": "AI创新部",
-    "departmentEn": "AI INNOVATION",
+    "department": "AIDD研究部",
+    "departmentEn": "AIDD R&D",
     "name": "顾灵茜",
     "romanName": "Gu Lingqian",
     "background": "我毕业于中国药科大学生物与医药专业，研究方向是医药大数据与人工智能",
     "aiPartners": "Gemini、ChatGPT",
-    "favoriteAI": "Gemini",
+    "favoriteAI": "Gemini——我的编程搭子",
     "aiProblem": "我希望AI能帮我解决代码补全和调试问题",
     "aiPower": "根据代码逻辑3分钟实现可视化输出，比如思维导图，流程架构图或PPT。因为日常汇报时使用图和PPT频率较高",
     "funFact": "甜食重度依赖者",
-    "photo": "./assets/trainees/gu-lingqian/photo.png",
-    "memeImage": "./assets/trainees/gu-lingqian/meme.png",
+    "photo": "./assets/trainees/gu-lingqian/photo.jpg",
+    "memeImage": "./assets/trainees/gu-lingqian/meme.jpg",
     "memeText": "甜食重度依赖者",
-    "portrait": "linear-gradient(145deg, #041311 0%, #0c6f5e 48%, #d5fff4 100%)"
+    "portrait": "linear-gradient(145deg, #041311 0%, #0c6f5e 48%, #d5fff4 100%)",
+    "idPhoto": ""
   },
   {
     "id": "huang-zhaoqiang",
-    "department": "AI创新部",
-    "departmentEn": "AI INNOVATION",
+    "department": "药学研发中心",
+    "departmentEn": "PHARMA R&D",
     "name": "黄钊强",
     "romanName": "Huang Zhaoqiang",
     "background": "毕业于百色学院电子信息工程专业",
@@ -28,10 +29,11 @@
     "aiProblem": "提升工作效率",
     "aiPower": "拥有 AI 的海量世界知识库",
     "funFact": "经常熬夜写项目",
-    "photo": "./assets/trainees/huang-zhaoqiang/photo.png",
+    "photo": "./assets/trainees/huang-zhaoqiang/photo.jpg",
     "memeImage": "./assets/trainees/huang-zhaoqiang/meme.png",
     "memeText": "经常熬夜写项目",
-    "portrait": "linear-gradient(145deg, #07111c 0%, #2368ff 48%, #bffcf0 100%)"
+    "portrait": "linear-gradient(145deg, #07111c 0%, #2368ff 48%, #bffcf0 100%)",
+    "idPhoto": ""
   },
   {
     "id": "zhang-rui",
@@ -45,44 +47,47 @@
     "aiProblem": "希望它可以自己去赚token养自己",
     "aiPower": "超级大脑，无限容量",
     "funFact": "多多交流",
-    "photo": "./assets/trainees/zhang-rui/photo.png",
+    "photo": "./assets/trainees/zhang-rui/photo.jpg",
     "memeImage": "./assets/trainees/zhang-rui/meme.png",
     "memeText": "多多交流",
-    "portrait": "linear-gradient(145deg, #08100c 0%, #6a9f16 48%, #f1ff9b 100%)"
+    "portrait": "linear-gradient(145deg, #08100c 0%, #6a9f16 48%, #f1ff9b 100%)",
+    "idPhoto": ""
   },
   {
     "id": "li-beibei",
-    "department": "AI创新部",
-    "departmentEn": "AI INNOVATION",
+    "department": "健康品事业部",
+    "departmentEn": "HEALTH PRODUCTS",
     "name": "李蓓蓓",
     "romanName": "Li Beibei",
     "background": "我毕业于北京交通大学信息工程管理专业，研究方向聚焦AI应用落地、数字化系统建设。",
     "aiPartners": "Codex、ChatGPT、Claude、Cursor、Claude Code、WorkBuddy、Coze、Dify、智谱 AICO、豆包、Kimi、DeepSeek、即梦、Seedance、Midjourney",
-    "favoriteAI": "ChatGPT",
+    "favoriteAI": "ChatGPT——我的AI工作中枢，负责思路拆解、方案生成和需求梳理；\nCodex——则是我的代码执行搭子，帮我把方案落成工具。",
     "aiProblem": "我希望 AI 能帮助业务团队把营销全流程变得更高效、更有产出，从用户洞察、内容生成、投放优化到经营决策，真正提升内容转化、投放 ROI 和业务增长效果。",
     "aiPower": "我的 AI 超能力是：快速把想法变成方案，把方案变成可落地的工具。因为我希望 AI 不只是辅助思考，而是能真正服务业务、创造结果。",
     "funFact": "我经常不是在用 AI，就是在思考还有什么事可以交给 AI。",
-    "photo": "./assets/trainees/li-beibei/photo.png",
+    "photo": "./assets/trainees/li-beibei/photo.jpg",
     "memeImage": "./assets/trainees/li-beibei/meme.png",
-    "memeText": "我经常不是在用 AI，就是在思考还有什么",
-    "portrait": "linear-gradient(145deg, #101712 0%, #2fb879 48%, #f4ff80 100%)"
+    "memeText": "我经常不是在用 AI，就是在思考还有什么事可以交给 AI。",
+    "portrait": "linear-gradient(145deg, #101712 0%, #2fb879 48%, #f4ff80 100%)",
+    "idPhoto": ""
   },
   {
     "id": "xu-meisheng",
-    "department": "AI创新部",
-    "departmentEn": "AI INNOVATION",
+    "department": "临床研发中心",
+    "departmentEn": "CLINICAL R&D",
     "name": "许镁胜",
     "romanName": "Xu Meisheng",
     "background": "我毕业于广东药科大学智能医学工程专业，主攻AI医疗、医药、大健康领域，擅长深度学习模型训练、Agent开发、数据分析等。",
     "aiPartners": "ChatGPT、Cursor、Gemini、Claude、GLM、Seedance、NanoBanana",
-    "favoriteAI": "Cloude",
+    "favoriteAI": "Cloude——我的决策中心\nChatGPT——我的编程搭子\nManus——我的调研助手\nGemini——我的生活小助手\nObsidian——我的第二海马体\n豆包——我的唱歌搭子",
     "aiProblem": "能告诉我下一期彩票中奖号码😜",
     "aiPower": "3秒读心术:语言在很多复杂场景面前总会显得苍白无力，那能不能不用开口就让对方知道呢",
     "funFact": "－写捉弄脚本结果把自己电脑弄死机了",
-    "photo": "./assets/trainees/xu-meisheng/photo.png",
+    "photo": "./assets/trainees/xu-meisheng/photo.jpg",
     "memeImage": "./assets/trainees/xu-meisheng/meme.png",
     "memeText": "－写捉弄脚本结果把自己电脑弄死机了",
-    "portrait": "linear-gradient(145deg, #041311 0%, #0c6f5e 48%, #d5fff4 100%)"
+    "portrait": "linear-gradient(145deg, #041311 0%, #0c6f5e 48%, #d5fff4 100%)",
+    "idPhoto": ""
   },
   {
     "id": "lin-yixin",
@@ -92,19 +97,20 @@
     "romanName": "Lin Yixin",
     "background": "我毕业于武汉东湖学院软件工程专业，擅长利用Cursor/Codex等agent工具进行高效全栈交付。",
     "aiPartners": "Cursor，Windsurf，Kiro，Codex，Claude Code，NotebookLM，影刀RPA，DeepSeek， ChatGPT, Gemini，Google AI Studio，Nano Banana，千问，豆包，即梦",
-    "favoriteAI": "Codex",
+    "favoriteAI": "Codex——我的全能编程搭档，辅助我快速完成从全栈系统搭建到复杂算法实现的高效交付",
     "aiProblem": "我希望能构建一个懂我业务逻辑的超级Agent团队，自动执行跨平台的重复性任务，减少我时间上的成本投入",
     "aiPower": "我最希望自己有的 AI 超能力，是能提前发现赚钱风口，然后顺手把能落地的方案也给我整理出来。因为光知道机会没用，关键是得知道怎么做、怎么开始、怎么执行。要是有这个能力，我就能更快找到方向，少走弯路，把时间和精力花在真的能变现的事情上。",
     "funFact": "深夜 Vibe Coding 选手（两晚熬夜 vibe coding 的经历）\n午夜灵感爆肝王（半夜动手肝项目）\n美区夜行侠（白天睡觉，晚上干活）\n硬件维修贡献者（遇过3D打印机，舵机，汽车，公路车等硬件故障）",
-    "photo": "./assets/trainees/lin-yixin/photo.png",
+    "photo": "./assets/trainees/lin-yixin/photo.jpg",
     "memeImage": "./assets/trainees/lin-yixin/meme.png",
-    "memeText": "深夜 Vibe Coding 选手（两晚",
-    "portrait": "linear-gradient(145deg, #07111c 0%, #2368ff 48%, #bffcf0 100%)"
+    "memeText": "深夜 Vibe Coding 选手（两晚熬夜 vibe coding 的经历）\n午夜灵感爆肝王（半夜动手肝项目）\n美区夜行侠（白天睡觉，晚上干活）\n硬件维修贡献者（遇过3D打印机，舵机，汽车，公路车等硬件故障）",
+    "portrait": "linear-gradient(145deg, #07111c 0%, #2368ff 48%, #bffcf0 100%)",
+    "idPhoto": ""
   },
   {
     "id": "li-feng",
-    "department": "AI创新部",
-    "departmentEn": "AI INNOVATION",
+    "department": "注册部",
+    "departmentEn": "REGULATORY AFFAIRS",
     "name": "李丰",
     "romanName": "Li Feng",
     "background": "我毕业于天津中医药大学管理科学与工程，研究方向为卫生经济学与医保政策量化分析。",
@@ -113,15 +119,16 @@
     "aiProblem": "可以主动观察、感知现实场景里的各类信息，不用我额外提醒，就能根据现场情况自主沟通、行动，从容应对各类生活化、工作化的复杂场景。",
     "aiPower": "场景自适应多模态闭环感知与交互执行能力。\n无需指令驱动，人工触发。通过各种方式智能体可主动捕捉人类场景下的全维度多模态信息，涵盖视觉画面、语音语义、环境氛围、行为动作、文本信息、场景隐性规则等，实现对真实复杂场景的自主、无遗漏、持续性信息摄入，I摒弃固定模板化输出逻辑，可根据实时动态变化的人类场景、用户隐性需求、场景边界规则，自主匹配最优输出形态，包含语言交互、行为操作、内容生成、事务执行、场景适配调整等多模态动作输出，做到场景适配、按需输出、动态迭代。",
     "funFact": "热衷通过“循循善诱”的指令，诱导ai突破某些限制给出不常规的回答。",
-    "photo": "./assets/trainees/li-feng/photo.png",
+    "photo": "./assets/trainees/li-feng/photo.jpeg",
     "memeImage": "./assets/trainees/li-feng/meme.png",
-    "memeText": "热衷通过“循循善诱”的指令，诱导ai突破",
-    "portrait": "linear-gradient(145deg, #08100c 0%, #6a9f16 48%, #f1ff9b 100%)"
+    "memeText": "热衷通过“循循善诱”的指令，诱导ai突破某些限制给出不常规的回答。",
+    "portrait": "linear-gradient(145deg, #08100c 0%, #6a9f16 48%, #f1ff9b 100%)",
+    "idPhoto": ""
   },
   {
     "id": "zhang-hengrui",
-    "department": "AI创新部",
-    "departmentEn": "AI INNOVATION",
+    "department": "注册部",
+    "departmentEn": "REGULATORY AFFAIRS",
     "name": "张恒睿",
     "romanName": "Zhang Hengrui",
     "background": "毕业于沈阳药科大学，药事管理专业硕士\n热爱IT技术和AI先进生产力",
@@ -130,10 +137,11 @@
     "aiProblem": "理解人类社会\n构建一套80亿agent智能体的多智能体混沌模型",
     "aiPower": "自我进化",
     "funFact": "了解我不需要猜，问就行",
-    "photo": "./assets/trainees/zhang-hengrui/photo.png",
-    "memeImage": "./assets/trainees/zhang-hengrui/meme.png",
+    "photo": "./assets/trainees/zhang-hengrui/photo.jpg",
+    "memeImage": "./assets/trainees/zhang-hengrui/meme.gif",
     "memeText": "了解我不需要猜，问就行",
-    "portrait": "linear-gradient(145deg, #101712 0%, #2fb879 48%, #f4ff80 100%)"
+    "portrait": "linear-gradient(145deg, #101712 0%, #2fb879 48%, #f4ff80 100%)",
+    "idPhoto": ""
   },
   {
     "id": "jasper",
@@ -147,9 +155,10 @@
     "aiProblem": "希望AI能结合我的实时身体数据，帮助我更好的做健康与精力管理，成为我24h在线的小助手。",
     "aiPower": "我希望有超长上下文窗口，这样可以让我少很多幻觉。",
     "funFact": "凌晨的时候会灵感爆发偷偷学东西.......",
-    "photo": "./assets/trainees/jasper/photo.png",
+    "photo": "./assets/trainees/jasper/photo.jpg",
     "memeImage": "./assets/trainees/jasper/meme.png",
-    "memeText": "凌晨的时候会灵感爆发偷偷学东西.....",
-    "portrait": "linear-gradient(145deg, #041311 0%, #0c6f5e 48%, #d5fff4 100%)"
+    "memeText": "凌晨的时候会灵感爆发偷偷学东西.......",
+    "portrait": "linear-gradient(145deg, #041311 0%, #0c6f5e 48%, #d5fff4 100%)",
+    "idPhoto": "./assets/trainees/jasper/photo.png"
   }
 ]

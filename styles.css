@@ -1330,6 +1330,18 @@ button:disabled {
     0 0 34px rgba(40, 255, 200, 0.14);
 }
 
+.profile-media-frame[data-mode="meme"] {
+  background-size: cover, contain, cover !important;
+  background-repeat: no-repeat, no-repeat, no-repeat !important;
+  background-position: center, center, center !important;
+}
+
+.profile-media-frame[data-mode="photo"] {
+  background-size: cover, cover, cover !important;
+  background-repeat: no-repeat, no-repeat, no-repeat !important;
+  background-position: center, center, center !important;
+}
+
 .profile-media-frame::before {
   content: "";
   position: absolute;
@@ -2374,3 +2386,37 @@ button:disabled {
   opacity: 0 !important;
   pointer-events: none !important;
 }
+
+/* Scrollbar styling for profile info list */
+.profile-fact-list::-webkit-scrollbar {
+  width: 6px;
+}
+.profile-fact-list::-webkit-scrollbar-track {
+  background: rgba(2, 12, 15, 0.3);
+  border-radius: 3px;
+}
+.profile-fact-list::-webkit-scrollbar-thumb {
+  background: rgba(103, 255, 213, 0.3);
+  border-radius: 3px;
+}
+.profile-fact-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(103, 255, 213, 0.6);
+}
+
+/* Responsive fixes for shorter screen heights (preventing vertical overflow cuts) */
+@media (max-height: 780px) {
+  .draw-card {
+    width: min(20vw, 240px);
+  }
+  .draw-nameplate strong {
+    font-size: clamp(20px, 2.2vw, 32px);
+  }
+  .detail-nav-arrow {
+    width: clamp(32px, 2.8vw, 42px);
+    height: clamp(56px, 6.2vh, 80px);
+  }
+  .detail-nav-arrow span {
+    font-size: clamp(28px, 3.2vw, 48px);
+  }
+}
+
