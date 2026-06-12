@@ -33,7 +33,7 @@
     "memeImage": "./assets/trainees/huang-zhaoqiang/meme.png",
     "memeText": "经常熬夜写项目",
     "portrait": "linear-gradient(145deg, #07111c 0%, #2368ff 48%, #bffcf0 100%)",
-    "idPhoto": ""
+    "idPhoto": "./assets/trainees/huang-zhaoqiang/idPhoto.jpg"
   },
   {
     "id": "zhang-rui",
@@ -51,7 +51,7 @@
     "memeImage": "./assets/trainees/zhang-rui/meme.png",
     "memeText": "多多交流",
     "portrait": "linear-gradient(145deg, #08100c 0%, #6a9f16 48%, #f1ff9b 100%)",
-    "idPhoto": ""
+    "idPhoto": "./assets/trainees/zhang-rui/idPhoto.jpg"
   },
   {
     "id": "li-beibei",
@@ -69,7 +69,7 @@
     "memeImage": "./assets/trainees/li-beibei/meme.png",
     "memeText": "我经常不是在用 AI，就是在思考还有什么事可以交给 AI。",
     "portrait": "linear-gradient(145deg, #101712 0%, #2fb879 48%, #f4ff80 100%)",
-    "idPhoto": ""
+    "idPhoto": "./assets/trainees/li-beibei/idPhoto.jpg"
   },
   {
     "id": "xu-meisheng",
@@ -87,7 +87,7 @@
     "memeImage": "./assets/trainees/xu-meisheng/meme.png",
     "memeText": "－写捉弄脚本结果把自己电脑弄死机了",
     "portrait": "linear-gradient(145deg, #041311 0%, #0c6f5e 48%, #d5fff4 100%)",
-    "idPhoto": ""
+    "idPhoto": "./assets/trainees/xu-meisheng/idPhoto.jpg"
   },
   {
     "id": "lin-yixin",
@@ -159,6 +159,6 @@
     "memeImage": "./assets/trainees/jasper/meme.png",
     "memeText": "凌晨的时候会灵感爆发偷偷学东西.......",
     "portrait": "linear-gradient(145deg, #041311 0%, #0c6f5e 48%, #d5fff4 100%)",
-    "idPhoto": "./assets/trainees/jasper/photo.png"
+    "idPhoto": "./assets/trainees/jasper/idPhoto.jpg"
   }
 ]
