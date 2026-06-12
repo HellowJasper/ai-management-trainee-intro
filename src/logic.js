@@ -236,7 +236,7 @@
   }
 
   function resolveDiscoverTarget(target) {
-    return ["business", "awards"].includes(target) ? target : "home";
+    return ["awards"].includes(target) ? target : "home";
   }
 
   function resolveAdjacentTraineeId(trainees, currentId, direction) {

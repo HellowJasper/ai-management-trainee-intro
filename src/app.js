@@ -286,17 +286,32 @@ const discoverMenu = document.getElementById("discoverMenu");
 const discoverPanel = document.getElementById("discoverPanel");
 
 const rainRenderers = {
-  intro: createRain("introRain", { fontSize: 17, density: 0.78, fade: "rgba(2, 8, 14, 0.2)" }),
-  home: createRain("landingRain", { fontSize: 17, density: 0.78, fade: "rgba(2, 8, 14, 0.1)" }),
-  wall: createRain("wallRain", { fontSize: 18, fade: "rgba(2, 8, 14, 0.1)" }),
-  detail: createRain("detailRain", { fontSize: 16, fade: "rgba(2, 8, 14, 0.12)" }),
-  challenge: createRain("challengeRain", { fontSize: 18, fade: "rgba(2, 8, 14, 0.12)" }),
+  intro: createRain("introRain", { fontSize: 17, density: 0.78, fade: "rgba(2, 8, 14, 0.08)" }),
+  home: createRain("landingRain", { fontSize: 17, density: 0.78, fade: "rgba(2, 8, 14, 0.04)" }),
+  wall: createRain("wallRain", { fontSize: 18, fade: "rgba(2, 8, 14, 0.04)" }),
+  detail: createRain("detailRain", { fontSize: 16, fade: "rgba(2, 8, 14, 0.05)" }),
+  challenge: createRain("challengeRain", { fontSize: 18, fade: "rgba(2, 8, 14, 0.05)" }),
+  discover: createRain("discoverRain", { fontSize: 18, fade: "rgba(2, 8, 14, 0.04)" }),
 };
+
+const discoverParticles = typeof window.createParticles === "function"
+  ? window.createParticles("discoverParticles", {
+      count: 100,
+      colors: [
+        "rgba(255, 255, 255, 0.75)",
+        "rgba(40, 255, 200, 0.65)",
+        "rgba(103, 80, 255, 0.6)",
+        "rgba(167, 255, 79, 0.6)"
+      ]
+    })
+  : null;
+
 
 const viewStages = {
   intro: introStage,
   home: landingStage,
   wall: personaWallStage,
+  discover: document.getElementById("discoverStage"),
 };
 
 function createRain(id, options) {
@@ -323,6 +338,7 @@ function syncStages(view) {
   setStageActive(viewStages.intro, view === "intro");
   setStageActive(viewStages.home, view === "home");
   setStageActive(viewStages.wall, ["wall", "detail", "challenge"].includes(view));
+  setStageActive(viewStages.discover, view === "discover");
 }
 
 function syncRain(view) {
@@ -335,7 +351,9 @@ function syncRain(view) {
           ? ["detail"]
           : view === "challenge"
             ? ["challenge"]
-            : ["wall"]
+            : view === "discover"
+              ? ["discover"]
+              : ["wall"]
   );
 
   Object.entries(rainRenderers).forEach(([key, rain]) => {
@@ -347,6 +365,15 @@ function syncRain(view) {
       rain.stop();
     }
   });
+}
+
+function syncParticles(view) {
+  if (!discoverParticles) return;
+  if (view === "discover") {
+    discoverParticles.start();
+  } else {
+    discoverParticles.stop();
+  }
 }
 
 function startIntroExit(skipped = false) {
@@ -362,7 +389,7 @@ function startIntroExit(skipped = false) {
   introStage.style.pointerEvents = "none";
 
   appShell.dataset.view = "intro-exit";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge", "view-discover");
   appShell.classList.add("view-intro-exit");
 
   rainRenderers.home?.resize();
@@ -395,7 +422,7 @@ function selectedTrainee() {
 function setView(view) {
   appView = view;
   appShell.dataset.view = view;
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge", "view-discover");
   appShell.classList.add(`view-${view}`);
   syncStages(view);
 
@@ -405,6 +432,8 @@ function setView(view) {
   }
 
   syncRain(view);
+  syncParticles(view);
+  discoverPanel.classList.remove("is-visible");
 }
 
 function cssUrl(path) {
@@ -589,7 +618,7 @@ function openDetail(id) {
   detailLayer.setAttribute("aria-hidden", "false");
   syncDetailMotion(true);
   appShell.dataset.view = "detail";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge", "view-discover");
   appShell.classList.add("view-detail");
 }
 
@@ -598,7 +627,7 @@ function closeDetail() {
   detailLayer.classList.remove("is-open");
   detailLayer.setAttribute("aria-hidden", "true");
   appShell.dataset.view = appView === "home" ? "home" : "wall";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge", "view-discover");
   appShell.classList.add(appView === "home" ? "view-home" : "view-wall");
   syncStages(appView === "home" ? "home" : "wall");
   syncRain(appView === "home" ? "home" : "wall");
@@ -681,7 +710,7 @@ function openChallenge() {
   challengeLayer.setAttribute("aria-hidden", "false");
   syncChallengeMotion(true);
   appShell.dataset.view = "challenge";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge", "view-discover");
   appShell.classList.add("view-challenge");
 
   if (trainee.previousPairs.length > 0) {
@@ -705,7 +734,7 @@ function closeChallenge() {
   drawWordsButton.disabled = false;
   redrawWordsButton.disabled = false;
   appShell.dataset.view = "detail";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge", "view-discover");
   appShell.classList.add("view-detail");
   syncStages("detail");
   syncRain("detail");
@@ -714,10 +743,6 @@ function closeChallenge() {
 function renderDiscoverPanel(target) {
   const resolvedTarget = window.AppLogic.resolveDiscoverTarget(target);
   const panels = {
-    business: {
-      title: "Business Scenario",
-      body: "围绕真实业务场景拆解 AI 机会点，用产品、运营、销售、财务、法务等视角共同完成现场命题。",
-    },
     awards: {
       title: "Demo & Awards",
       body: "每组展示一段可运行 Demo 或流程样机，评委从业务价值、AI 使用深度、表达完成度三个维度打分。",
@@ -727,10 +752,11 @@ function renderDiscoverPanel(target) {
       body: "选择一个模块查看活动流程。",
     },
   };
-  const panel = panels[resolvedTarget];
+  const panel = panels[resolvedTarget] || panels.home;
 
   discoverPanel.classList.add("is-visible");
   discoverPanel.innerHTML = `
+    <button class="discover-close-btn" type="button" id="closeDiscoverPanel" aria-label="关闭">×</button>
     <strong>${panel.title}</strong>
     <p>${panel.body}</p>
   `;
@@ -741,6 +767,10 @@ function renderDiscoverPanel(target) {
 function bindEvents() {
   document.getElementById("skipIntroButton").addEventListener("click", () => {
     startIntroExit(true);
+  });
+
+  document.getElementById("backdropToggleBtn").addEventListener("click", () => {
+    landingStage.classList.toggle("backdrop-mode");
   });
 
   document.getElementById("enterButton").addEventListener("click", () => {
@@ -770,6 +800,19 @@ function bindEvents() {
   });
 
   document.addEventListener("click", (event) => {
+    if (event.target.id === "closeDiscoverPanel") {
+      discoverPanel.classList.remove("is-visible");
+      return;
+    }
+
+    if (discoverPanel.classList.contains("is-visible")) {
+      const isPanelClick = discoverPanel.contains(event.target);
+      const isDiscoverTrigger = event.target.closest("#discoverButton") || event.target.closest("#discoverMenu") || event.target.closest("[data-discover-target]");
+      if (!isPanelClick && !isDiscoverTrigger) {
+        discoverPanel.classList.remove("is-visible");
+      }
+    }
+
     const action = event.target.dataset.action;
     const profileNavDirection = event.target.closest("[data-profile-nav]")?.dataset.profileNav;
     const viewTarget = event.target.dataset.viewTarget;
@@ -822,10 +865,41 @@ function bindEvents() {
     }
   });
 
+  // 3D Card Hover Tilting & Gloss Effects
+  const deptCards = document.querySelectorAll(".dept-card");
+  deptCards.forEach((card) => {
+    card.addEventListener("pointermove", (e) => {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const width = rect.width;
+      const height = rect.height;
+
+      const px = (x / width) * 100;
+      const py = (y / height) * 100;
+
+      card.style.setProperty("--mouse-x", `${px}%`);
+      card.style.setProperty("--mouse-y", `${py}%`);
+
+      const rotateX = ((y / height) - 0.5) * -12;
+      const rotateY = ((x / width) - 0.5) * 12;
+
+      card.style.transition = "none";
+      card.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.015, 1.015, 1.015)`;
+    });
+
+    card.addEventListener("pointerleave", () => {
+      card.style.transition = "transform 450ms cubic-bezier(0.16, 1, 0.3, 1), border-color 300ms ease, box-shadow 300ms ease";
+      card.style.transform = "rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)";
+    });
+  });
+
   window.addEventListener("resize", () => {
     renderPhotoWall();
     resetDock();
     Object.values(rainRenderers).forEach((rain) => rain?.resize());
+    discoverParticles?.resize();
   });
 }
 
@@ -836,6 +910,7 @@ async function initApp() {
   syncStages("intro");
   bindEvents();
   syncRain("intro");
+  syncParticles("intro");
   renderPhotoWall();
   resetDock();
   introTimer = window.setTimeout(() => {

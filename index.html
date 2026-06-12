@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI Innovation Hackathon 2026</title>
-    <link rel="stylesheet" href="./styles.css?v=20260610-30" />
+    <link rel="stylesheet" href="./styles.css?v=20260611-01" />
   </head>
   <body>
     <main class="app-shell" data-view="intro">
@@ -21,7 +21,7 @@
         <nav class="hackathon-nav" aria-label="Hackathon navigation">
           <button type="button" data-view-target="home">HOME</button>
           <button type="button" data-view-target="wall">PERSONA CARD</button>
-          <button type="button" data-discover-target="business">BUSINESS SCENARIO</button>
+          <button type="button" data-view-target="discover">BUSINESS SCENARIO</button>
           <button type="button" data-discover-target="awards">DEMO&amp;AWARDS</button>
         </nav>
 
@@ -41,13 +41,14 @@
                 Discover More
               </button>
               <div class="discover-menu" id="discoverMenu">
-                <button type="button" data-discover-target="business">Business Scenario</button>
+                <button type="button" data-view-target="discover">Business Scenario</button>
                 <button type="button" data-discover-target="awards">Demo & Awards</button>
               </div>
             </div>
           </div>
           <section class="discover-panel" id="discoverPanel" aria-live="polite"></section>
         </div>
+        <button class="backdrop-toggle-btn" id="backdropToggleBtn" type="button" aria-label="Toggle Backdrop Mode"></button>
       </section>
 
       <section class="home-stage" id="personaWallStage" aria-label="AI 管培生照片墙">
@@ -187,11 +188,76 @@
           </form>
         </article>
       </section>
+
+      <section class="discover-stage" id="discoverStage" aria-label="业务场景部门详情">
+        <canvas class="code-rain-canvas discover-rain" id="discoverRain" aria-hidden="true"></canvas>
+        <canvas class="code-rain-canvas discover-particles" id="discoverParticles" aria-hidden="true"></canvas>
+        <div class="discover-glow-orb orb-1" aria-hidden="true"></div>
+        <div class="discover-glow-orb orb-2" aria-hidden="true"></div>
+        <div class="discover-glow-orb orb-3" aria-hidden="true"></div>
+        <div class="stage-vignette" aria-hidden="true"></div>
+        <header class="stage-header">
+          <button class="brand-chip" type="button" data-view-target="home">
+            <span class="chip-dot"></span>
+            AI MANAGEMENT TRAINEES
+          </button>
+          <div class="cohort-mark">4 CORE SECTORS</div>
+        </header>
+
+        <div class="discover-hub-wrap">
+          <h2 class="discover-hub-title">AI BUSINESS SCENARIOS</h2>
+          <div class="department-grid">
+            <a href="https://joincare.feishu.cn/docx/placeholder-strategy-growth" target="_blank" class="dept-card" style="--dept-color: var(--neon); --dept-color-rgb: 40, 255, 200;">
+              <div class="dept-icon-glow">01</div>
+              <div class="dept-content">
+                <h3>AI战略与增长组</h3>
+                <span class="dept-en">AI STRATEGY &amp; GROWTH</span>
+                <p>覆盖部门：AI战略办公室、产品增长部</p>
+                <div class="dept-link-badge">查看文档 ➔</div>
+              </div>
+            </a>
+            <a href="https://joincare.feishu.cn/docx/placeholder-rd-tech" target="_blank" class="dept-card" style="--dept-color: var(--neon-2); --dept-color-rgb: 167, 255, 79;">
+              <div class="dept-icon-glow">02</div>
+              <div class="dept-content">
+                <h3>AI研发与技术组</h3>
+                <span class="dept-en">AI R&amp;D &amp; TECHNOLOGY</span>
+                <p>覆盖部门：研发创新部、信息技术部、AI创新部</p>
+                <div class="dept-link-badge">查看文档 ➔</div>
+              </div>
+            </a>
+            <a href="https://joincare.feishu.cn/docx/placeholder-ops-supply" target="_blank" class="dept-card" style="--dept-color: #8b5cf6; --dept-color-rgb: 139, 92, 246;">
+              <div class="dept-icon-glow">03</div>
+              <div class="dept-content">
+                <h3>AI运营与供应链组</h3>
+                <span class="dept-en">AI OPERATIONS &amp; SUPPLY CHAIN</span>
+                <p>覆盖部门：运营中台、供应链部、客户成功部、数据分析部</p>
+                <div class="dept-link-badge">查看文档 ➔</div>
+              </div>
+            </a>
+            <a href="https://joincare.feishu.cn/docx/placeholder-general-funcs" target="_blank" class="dept-card" style="--dept-color: #ff6b6b; --dept-color-rgb: 255, 107, 107;">
+              <div class="dept-icon-glow">04</div>
+              <div class="dept-content">
+                <h3>AI综合职能组</h3>
+                <span class="dept-en">AI GENERAL FUNCTIONS</span>
+                <p>覆盖部门：人力发展部、财务共享部、法务合规部</p>
+                <div class="dept-link-badge">查看文档 ➔</div>
+              </div>
+            </a>
+          </div>
+        </div>
+
+        <footer class="stage-footer">
+          <span>2026</span>
+          <span>BUSINESS SCENARIOS HUB</span>
+          <span>LIVE SESSION</span>
+        </footer>
+      </section>
     </main>
 
-    <script src="./src/logic.js?v=20260610-30"></script>
-    <script src="./src/data.js?v=20260610-30"></script>
-    <script src="./src/code-rain.js?v=20260610-30"></script>
-    <script src="./src/app.js?v=20260610-30"></script>
+    <script src="./src/logic.js?v=20260611-01"></script>
+    <script src="./src/data.js?v=20260611-01"></script>
+    <script src="./src/code-rain.js?v=20260611-01"></script>
+    <script src="./src/particles.js?v=20260611-01"></script>
+    <script src="./src/app.js?v=20260611-01"></script>
   </body>
 </html>

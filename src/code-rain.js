@@ -13,7 +13,7 @@
     const context = canvas.getContext("2d");
     const glyphs = options.glyphs || "010101AIJOINCARE{}[]<>".split("");
     const fontSize = options.fontSize || 18;
-    const frameInterval = options.frameInterval || 50;
+    const frameInterval = options.frameInterval || 20;
     let animationFrame = 0;
     let columns = [];
     let running = false;
@@ -33,7 +33,7 @@
       columns = Array.from({ length: Math.ceil(width / columnStep) }, (_, index) => ({
         x: index * columnStep,
         y: Math.random() * -height,
-        speed: 1.4 + Math.random() * 3.4,
+        speed: (1.4 + Math.random() * 3.4) * (frameInterval / 50),
         alpha: 0.38 + Math.random() * 0.62,
       }));
     }
@@ -62,7 +62,7 @@
 
         if (column.y > canvas.clientHeight + 40) {
           column.y = Math.random() * -180;
-          column.speed = 1.4 + Math.random() * 3.4;
+          column.speed = (1.4 + Math.random() * 3.4) * (frameInterval / 50);
         }
       });
 

@@ -187,7 +187,6 @@ test("getIntroTiming keeps the loading hold and crossfade durations explicit", (
 });
 
 test("resolveDiscoverTarget accepts known discover menu targets", () => {
-  assert.equal(resolveDiscoverTarget("business"), "business");
   assert.equal(resolveDiscoverTarget("awards"), "awards");
   assert.equal(resolveDiscoverTarget("unknown"), "home");
 });
@@ -216,4 +215,14 @@ test("profile arc cards do not use yaw perspective that breaks left-right symmet
   const profileCardBlock = css.match(/\.profile-card\s*{[\s\S]*?\n}/)?.[0] || "";
 
   assert.doesNotMatch(profileCardBlock, /rotateY/);
+});
+
+test("view transitions clear the discover view class before switching stages", () => {
+  const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const removeCalls = appJs.match(/appShell\.classList\.remove\([\s\S]*?\);/g) || [];
+
+  assert.ok(removeCalls.length > 0);
+  removeCalls.forEach((removeCall) => {
+    assert.match(removeCall, /"view-discover"/);
+  });
 });
