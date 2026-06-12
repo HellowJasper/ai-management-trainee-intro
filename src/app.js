@@ -446,7 +446,7 @@ function renderPhotoWall() {
 
       return `
         <button class="profile-card" type="button" data-id="${trainee.id}" aria-label="${trainee.department}${trainee.name}" style="${arcStyle}">
-          <div class="portrait-frame" style="--portrait: ${trainee.portrait}; --media-image: ${cssUrl(trainee.idPhoto)}"></div>
+          <div class="portrait-frame" style="--portrait: ${trainee.portrait}; --media-image: ${cssUrl(trainee.idPhoto || trainee.photo)}"></div>
           <div class="profile-meta">
             <span class="profile-name">${trainee.name}</span>
             <span class="profile-department">${trainee.department}</span>
@@ -515,7 +515,7 @@ function renderProfileMedia(trainee) {
   const mediaFrame = document.getElementById("profileMediaFrame");
   const photoToggleButton = document.getElementById("photoToggleButton");
 
-  setMediaBackground(selectedPhoto, trainee.idPhoto, trainee);
+  setMediaBackground(selectedPhoto, trainee.idPhoto || trainee.photo, trainee);
   setMediaBackground(mediaFrame, profileMediaMode === "photo" ? trainee.photo : trainee.memeImage, trainee);
   mediaFrame.dataset.mode = profileMediaMode;
   mediaFrame.dataset.fallbackText = trainee.meme;
