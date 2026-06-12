@@ -1030,7 +1030,7 @@ button:disabled {
   z-index: 40;
   width: min(22vw, 290px);
   min-width: 190px;
-  transform: translate(-120px, -50%) rotate(-4deg);
+  transform: translate(-120px, -50%) rotate(-7deg);
   opacity: 0;
   transition:
     transform 520ms cubic-bezier(0.18, 0.88, 0.22, 1),
@@ -1102,7 +1102,7 @@ button:disabled {
 }
 
 .detail-layer.is-open .draw-card {
-  transform: translate(0, -50%) rotate(-4deg);
+  transform: translate(0, -50%) rotate(-7deg);
   opacity: 1;
 }
 

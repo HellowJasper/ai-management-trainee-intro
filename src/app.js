@@ -364,7 +364,7 @@ function startIntroExit(skipped = false) {
 }
 
 function syncDetailMotion(isOpen) {
-  drawCard.style.transform = isOpen ? "translate(0, -50%) rotate(-4deg)" : "translate(-120px, -50%) rotate(-4deg)";
+  drawCard.style.transform = isOpen ? "translate(0, -50%) rotate(-7deg)" : "translate(-120px, -50%) rotate(-7deg)";
   drawCard.style.opacity = isOpen ? "1" : "0";
   profileConsole.style.transform = isOpen ? "translateX(0)" : "translateX(12%)";
 }
