@@ -543,7 +543,7 @@ button:disabled {
   max-width: calc(100vw - 72px);
   aspect-ratio: 2891 / 988;
   transform: translate(-50%, -50%);
-  background: url("./assets/joincare-full-clean.png") center / contain no-repeat;
+  background: url("./assets/joincare-full-cyber.png") center / contain no-repeat;
   filter:
     brightness(1.18)
     saturate(0.92)
