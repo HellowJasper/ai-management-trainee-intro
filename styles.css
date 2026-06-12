@@ -1157,7 +1157,7 @@ button:disabled {
   bottom: clamp(18px, 3vh, 34px);
   z-index: 4;
   display: grid;
-  grid-template-columns: clamp(10px, 6vw, 90px) minmax(320px, 480px) 1fr auto;
+  grid-template-columns: clamp(10px, 6vw, 90px) minmax(320px, 1fr) auto;
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 18px;
   width: min(80vw, 1260px);
@@ -1280,7 +1280,7 @@ button:disabled {
 }
 
 .profile-media-panel {
-  grid-column: 4;
+  grid-column: 3;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
   gap: 0;
@@ -1484,7 +1484,7 @@ button:disabled {
 }
 
 .challenge-slot {
-  grid-column: 4;
+  grid-column: 3;
   min-height: 58px;
 }
 
