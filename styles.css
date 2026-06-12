@@ -1007,7 +1007,7 @@ button:disabled {
 
 .draw-card {
   position: absolute;
-  left: max(5.2vw, 100vw - calc(min(80vw, 1260px) - 24px) - min(22vw, 290px) - 40px);
+  left: max(3vw, 100vw - calc(min(80vw, 1260px) - 24px) - min(22vw, 290px) - 40px);
   top: 50%;
   z-index: 40;
   width: min(22vw, 290px);
@@ -1035,7 +1035,7 @@ button:disabled {
     inset 0 0 0 1px rgba(255, 255, 255, 0.04),
     0 0 28px rgba(40, 255, 200, 0.08);
   backdrop-filter: blur(8px);
-  opacity: 0.66;
+  opacity: 0.35;
   transition:
     opacity 180ms ease,
     border-color 180ms ease,
@@ -1067,7 +1067,7 @@ button:disabled {
 .detail-nav-arrow:focus-visible {
   border-color: var(--line-strong);
   color: var(--neon);
-  opacity: 0.92;
+  opacity: 0.85;
   box-shadow:
     inset 0 0 0 1px rgba(40, 255, 200, 0.16),
     0 0 34px rgba(40, 255, 200, 0.2);
@@ -2230,7 +2230,7 @@ button:disabled {
   .draw-card {
     width: min(20vw, 230px);
     min-width: 170px;
-    left: max(5.2vw, 100vw - calc(min(76vw, 920px) - 24px) - min(20vw, 230px) - 24px);
+    left: max(3vw, 100vw - calc(min(76vw, 920px) - 24px) - min(20vw, 230px) - 24px);
   }
 }
 
