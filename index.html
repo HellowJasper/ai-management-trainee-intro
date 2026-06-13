@@ -11,8 +11,6 @@
       <section class="intro-stage" id="introStage" aria-label="启动动画">
         <canvas class="code-rain-canvas" id="introRain" aria-hidden="true"></canvas>
         <button class="skip-intro-button" id="skipIntroButton" type="button">Skip</button>
-        <div class="intro-logo" aria-label="Joincare AI Hackathon"></div>
-        <div class="intro-scanline" aria-hidden="true"></div>
       </section>
 
       <section class="landing-stage backdrop-mode" id="landingStage" aria-label="AI Innovation Hackathon 首页">
@@ -26,8 +24,26 @@
         </nav>
 
         <div class="landing-content">
-          <div class="landing-logo" aria-label="健康元 Joincare"></div>
-          <h1 class="landing-title">AI Innovation Hackathon 2026</h1>
+          <div class="logo-hud-container">
+            <div class="hud-bracket top-left"></div>
+            <div class="hud-bracket top-right"></div>
+            <div class="hud-bracket bottom-left"></div>
+            <div class="hud-bracket bottom-right"></div>
+            <div class="hud-scanner-ring"></div>
+            <div class="hud-metadata left-meta">
+              <span>SYS_STATUS: ACTIVE</span>
+              <span>COGNITIVE_LAYER: ON</span>
+            </div>
+            <div class="landing-logo" aria-label="健康元 Joincare"></div>
+            <div class="hud-metadata right-meta">
+              <span>LOC: SEC_HOME</span>
+              <span>AI_CORE: 99.8%</span>
+            </div>
+          </div>
+          <h1 class="landing-title">
+            <span class="title-primary">AI Innovation</span>
+            <span class="title-secondary">Hackathon 2026</span>
+          </h1>
           <div class="landing-actions">
             <button class="enter-button" type="button" id="enterButton">Let's Get Started!</button>
           </div>
@@ -243,6 +259,7 @@
     <script src="./src/data.js?v=20260611-01"></script>
     <script src="./src/code-rain.js?v=20260611-01"></script>
     <script src="./src/particles.js?v=20260611-01"></script>
+    <script src="./src/intro.js?v=20260611-01"></script>
     <script src="./src/app.js?v=20260611-01"></script>
   </body>
 </html>

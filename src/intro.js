@@ -5,13 +5,13 @@
 
   // ---- timeline (ms) ----------------------------------------------------
   const T = {
-    rainOnly: 1200,   // pure code-rain on black
-    assemble: 1700,   // rain glyphs coalesce into the BIG centred icon
-    iconHold: 600,    // hold the hero icon
-    shrink: 1000,     // icon scales down / moves to final lockup slot
-    word: 1500,       // 健康元 + JOINCARE characters assemble
-    sub: 1600,        // subtitle decodes in (green / yellow)
-    tail: 700,        // final hold before handing off to landing
+    rainOnly: 1000,   // pure code-rain on black
+    assemble: 3500,   // rain glyphs coalesce into the BIG centred icon (3.5 seconds appearing)
+    iconHold: 500,    // hold the hero icon
+    shrink: 1200,     // icon scales down / moves to final lockup slot
+    word: 1200,       // 健康元 + JOINCARE characters assemble
+    sub: 1200,        // subtitle decodes in (green / yellow)
+    tail: 800,        // final hold before handing off to landing
   };
   // absolute markers
   const M = {};
@@ -19,13 +19,9 @@
   M.assembleEnd = M.assembleStart + T.assemble;
   M.shrinkStart = M.assembleEnd + T.iconHold;
   M.shrinkEnd = M.shrinkStart + T.shrink;
-  M.wordStart = M.shrinkStart + 200;
-  M.wordEnd = M.wordStart + T.word;
-  M.subStart = M.wordEnd - 200;
-  M.subEnd = M.subStart + T.sub;
-  M.total = M.subEnd + T.tail;
+  M.total = M.shrinkEnd;
 
-  const ICON_SPLIT = 0.42;            // image-fraction boundary icon | wordmark
+  const ICON_SPLIT = 0.47;            // image-fraction boundary icon | wordmark
   const SUBTITLE = "AI Innovation Hackathon 2026";
   const LOGO_GLYPHS = "01101001AIJC<>{}".split("");
   const RAIN_GLYPHS = "010101AIJOINCARE{}[]<>".split("");
@@ -60,6 +56,7 @@
     let finished = false;
     let raf = 0;
     let startTs = 0;
+    let isCORS = false;
 
     let samples = [];        // {ix,iy,color,group,glyph,delay}
     let layout = null;       // cached geometry for current size
@@ -96,10 +93,10 @@
 
     function buildLayout() {
       const { w, h } = viewport();
-      const logoW = clamp(Math.min(w * 0.7, 960), 320, Math.max(320, w * 0.9));
+      const logoW = Math.min(w * 0.34, 500, w - 72);
       const logoH = logoW * (988 / 2891);
       const logoX = (w - logoW) / 2;
-      const logoY = h * 0.30;
+      const logoY = h * 0.30 - logoH / 2;
 
       // icon-group final bounding box (image fractions < ICON_SPLIT)
       let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -146,39 +143,45 @@
 
     // ---- pixel sampling -------------------------------------------------
     function buildSamples() {
-      const iw = logoImg.naturalWidth || 2891;
-      const ih = logoImg.naturalHeight || 988;
-      // higher sampler resolution + tighter stride => more, finer characters
-      const SW = 900;
-      const SH = Math.round(SW * ih / iw);
-      sampler.width = SW;
-      sampler.height = SH;
-      sctx.clearRect(0, 0, SW, SH);
-      sctx.drawImage(logoImg, 0, 0, SW, SH);
-      const data = sctx.getImageData(0, 0, SW, SH).data;
+      try {
+        const iw = logoImg.naturalWidth || 2891;
+        const ih = logoImg.naturalHeight || 988;
+        // higher sampler resolution + tighter stride => more, finer characters
+        const SW = 900;
+        const SH = Math.round(SW * ih / iw);
+        sampler.width = SW;
+        sampler.height = SH;
+        sctx.clearRect(0, 0, SW, SH);
+        sctx.drawImage(logoImg, 0, 0, SW, SH);
+        const data = sctx.getImageData(0, 0, SW, SH).data;
 
-      const gap = 4; // sampling stride in sampler px (smaller = denser)
-      samples = [];
-      for (let y = 0; y < SH; y += gap) {
-        for (let x = 0; x < SW; x += gap) {
-          const idx = (y * SW + x) * 4;
-          const a = data[idx + 3];
-          if (a < 90) continue;
-          let r = data[idx], g = data[idx + 1], b = data[idx + 2];
-          // bias washed-out pixels toward the brand neon so they read on black
-          if (r + g + b > 690) { r = GREEN[0]; g = GREEN[1]; b = GREEN[2]; }
-          const ix = x / SW;
-          const iy = y / SH;
-          samples.push({
-            ix, iy,
-            color: [r, g, b],
-            group: ix < ICON_SPLIT ? "icon" : "word",
-            glyph: LOGO_GLYPHS[(Math.random() * LOGO_GLYPHS.length) | 0],
-            delay: Math.random(),
-            seedX: (Math.random() - 0.5) * 70,
-            seedY: -120 - Math.random() * 160,
-          });
+        const gap = 4; // sampling stride in sampler px (smaller = denser)
+        samples = [];
+        for (let y = 0; y < SH; y += gap) {
+          for (let x = 0; x < SW; x += gap) {
+            const idx = (y * SW + x) * 4;
+            const a = data[idx + 3];
+            if (a < 90) continue;
+            let r = data[idx], g = data[idx + 1], b = data[idx + 2];
+            // bias washed-out pixels toward the brand neon so they read on black
+            if (r + g + b > 690) { r = GREEN[0]; g = GREEN[1]; b = GREEN[2]; }
+            const ix = x / SW;
+            const iy = y / SH;
+            samples.push({
+              ix, iy,
+              color: [r, g, b],
+              group: ix < ICON_SPLIT ? "icon" : "word",
+              glyph: LOGO_GLYPHS[(Math.random() * LOGO_GLYPHS.length) | 0],
+              delay: Math.random(),
+              seedX: (Math.random() - 0.5) * 70,
+              seedY: -120 - Math.random() * 160,
+            });
+          }
         }
+        isCORS = false;
+      } catch (err) {
+        console.warn("CORS/file:// protocol restricts canvas pixel read. Running image fallback animation.", err);
+        isCORS = true;
       }
     }
 
@@ -208,102 +211,91 @@
       const L = layout;
       const assembleP = clamp((elapsed - M.assembleStart) / T.assemble, 0, 1);
       const shrinkP = clamp((elapsed - M.shrinkStart) / T.shrink, 0, 1);
-      const wordP = clamp((elapsed - M.wordStart) / T.word, 0, 1);
       const flicker = (elapsed / 70) | 0;
+
+      if (isCORS) {
+        // Image-based fallback animation for file:// protocol CORS bypass
+        ctx.globalCompositeOperation = "source-over";
+        const iw = logoImg.naturalWidth || 2891;
+        const ih = logoImg.naturalHeight || 988;
+
+        // Draw Icon (left part of image)
+        const iconSrcW = iw * ICON_SPLIT;
+        const iconSrcH = ih;
+
+        const scaleNow = shrinkP > 0 ? lerp(L.k, 1, easeInOut(shrinkP)) : L.k;
+        const iconW = L.logoW * ICON_SPLIT * scaleNow;
+        const iconH = L.logoH * scaleNow;
+
+        let iconX, iconY, iconAlpha;
+        const fx = L.logoX + (iconW / 2);
+        const fy = L.logoY + (iconH / 2);
+        const hx = L.heroCx;
+        const hy = L.heroCy;
+
+        if (shrinkP > 0) {
+          const t = easeInOut(shrinkP);
+          iconX = lerp(hx, fx, t) - iconW / 2;
+          iconY = lerp(hy, fy, t) - iconH / 2;
+          iconAlpha = 1;
+        } else {
+          iconX = hx - iconW / 2;
+          iconY = hy - iconH / 2;
+          iconAlpha = easeOut(assembleP);
+        }
+
+        if (iconAlpha > 0.02) {
+          ctx.filter = "brightness(1.48) saturate(1.15) drop-shadow(0 0 16px rgba(40, 255, 200, 0.65)) drop-shadow(0 0 44px rgba(40, 255, 200, 0.35))";
+          ctx.globalAlpha = iconAlpha * 0.98; // Match homepage logo opacity
+          ctx.drawImage(logoImg, 0, 0, iconSrcW, iconSrcH, iconX, iconY, iconW, iconH);
+          ctx.filter = "none";
+        }
+
+        ctx.globalAlpha = 1.0;
+        return;
+      }
 
       ctx.globalCompositeOperation = "lighter";
       ctx.textBaseline = "middle";
       ctx.textAlign = "center";
 
+      ctx.filter = "brightness(1.48) saturate(1.15) drop-shadow(0 0 16px rgba(40, 255, 200, 0.65)) drop-shadow(0 0 44px rgba(40, 255, 200, 0.35))";
+
       const scaleNow = shrinkP > 0 ? lerp(L.k, 1, easeInOut(shrinkP)) : L.k;
       const iconFont = Math.max(5, L.baseFont * scaleNow);
-      const wordFont = Math.max(5, L.baseFont);
 
       for (let i = 0; i < samples.length; i++) {
         const s = samples[i];
-        let x, y, alpha, font;
+        if (s.group !== "icon") continue;
 
-        if (s.group === "icon") {
-          const fx = L.logoX + s.ix * L.logoW;
-          const fy = L.logoY + s.iy * L.logoH;
-          const hx = L.heroCx + (fx - L.iconCx) * L.k;
-          const hy = L.heroCy + (fy - L.iconCy) * L.k;
-          if (shrinkP > 0) {
-            const t = easeInOut(shrinkP);
-            x = lerp(hx, fx, t);
-            y = lerp(hy, fy, t);
-            alpha = 1;
-          } else {
-            const pp = easeOut(clamp((assembleP - s.delay * 0.4) / 0.6, 0, 1));
-            x = lerp(hx + s.seedX, hx, pp);
-            y = lerp(hy + s.seedY, hy, pp);
-            alpha = pp;
-          }
-          font = iconFont;
+        const fx = L.logoX + s.ix * L.logoW;
+        const fy = L.logoY + s.iy * L.logoH;
+        const hx = L.heroCx + (fx - L.iconCx) * L.k;
+        const hy = L.heroCy + (fy - L.iconCy) * L.k;
+        let x, y, alpha;
+
+        if (shrinkP > 0) {
+          const t = easeInOut(shrinkP);
+          x = lerp(hx, fx, t);
+          y = lerp(hy, fy, t);
+          alpha = 1;
         } else {
-          if (wordP <= 0) continue;
-          const fx = L.logoX + s.ix * L.logoW;
-          const fy = L.logoY + s.iy * L.logoH;
-          const pp = easeOut(clamp((wordP - s.delay * 0.45) / 0.55, 0, 1));
-          x = fx;
-          y = lerp(fy - 26, fy, pp);
+          const pp = easeOut(clamp((assembleP - s.delay * 0.4) / 0.6, 0, 1));
+          x = lerp(hx + s.seedX, hx, pp);
+          y = lerp(hy + s.seedY, hy, pp);
           alpha = pp;
-          font = wordFont;
         }
 
         if (alpha <= 0.02) continue;
-        ctx.font = `${font}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+        ctx.font = `${iconFont}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
         const glyph = ((i + flicker) % 11 === 0)
           ? LOGO_GLYPHS[(Math.random() * LOGO_GLYPHS.length) | 0]
           : s.glyph;
         ctx.fillStyle = rgba(s.color, alpha * 0.92);
         ctx.fillText(glyph, x, y);
       }
+      ctx.filter = "none";
       ctx.globalCompositeOperation = "source-over";
-    }
-
-    function drawSubtitle(elapsed) {
-      const subP = clamp((elapsed - M.subStart) / T.sub, 0, 1);
-      if (subP <= 0) return;
-      const L = layout;
-      const reveal = easeOut(subP);
-      const len = SUBTITLE.length;
-
-      ctx.font = `700 ${L.subFont}px "Noto Sans SC", "PingFang SC", "Segoe UI", sans-serif`;
-      ctx.textBaseline = "middle";
-      ctx.textAlign = "left";
-
-      // measure for centering
-      let total = 0;
-      for (let i = 0; i < len; i++) total += ctx.measureText(SUBTITLE[i]).width;
-      let x = L.w / 2 - total / 2;
-      const y = L.subY;
-
-      for (let i = 0; i < len; i++) {
-        const ch = SUBTITLE[i];
-        const w = ctx.measureText(ch).width;
-        const frac = i / Math.max(1, len - 1);
-        const resolved = (i / len) <= reveal;
-        // brand green -> lime -> yellow across the string
-        const baseColor = frac < 0.5 ? mix(GREEN, LIME, frac * 2) : mix(LIME, YELLOW, (frac - 0.5) * 2);
-        if (ch === " ") { x += w; continue; }
-
-        if (resolved) {
-          ctx.fillStyle = rgba(baseColor, 1);
-          ctx.shadowColor = rgba(baseColor, 0.85);
-          ctx.shadowBlur = 14;
-          ctx.fillText(ch, x, y);
-          ctx.shadowBlur = 0;
-        } else {
-          const g = SUB_SCRAMBLE[(Math.random() * SUB_SCRAMBLE.length) | 0];
-          ctx.fillStyle = rgba(baseColor, 0.55);
-          ctx.shadowColor = rgba(baseColor, 0.5);
-          ctx.shadowBlur = 8;
-          ctx.fillText(g, x, y);
-          ctx.shadowBlur = 0;
-        }
-        x += w;
-      }
     }
 
     function frame(ts) {
@@ -324,7 +316,6 @@
       drawRain(rainAlpha);
 
       if (logoReady) drawLogo(elapsed);
-      drawSubtitle(elapsed);
 
       if (!finished && elapsed >= M.total) {
         finished = true;

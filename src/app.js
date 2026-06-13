@@ -244,7 +244,9 @@ const discoverMenu = document.getElementById("discoverMenu");
 const discoverPanel = document.getElementById("discoverPanel");
 
 const rainRenderers = {
-  intro: createRain("introRain", { fontSize: 17, density: 0.78, fade: "rgba(2, 8, 14, 0.08)" }),
+  intro: typeof window.IntroSequence !== "undefined"
+    ? window.IntroSequence.createIntroSequence("introRain", { logoSrc: "./assets/joincare-full-clean.png", onComplete: () => startIntroExit(false) })
+    : createRain("introRain", { fontSize: 17, density: 0.78, fade: "rgba(2, 8, 14, 0.08)" }),
   home: createRain("landingRain", { fontSize: 17, density: 0.78, fade: "rgba(2, 8, 14, 0.04)" }),
   wall: createRain("wallRain", { fontSize: 18, fade: "rgba(2, 8, 14, 0.04)" }),
   detail: createRain("detailRain", { fontSize: 16, fade: "rgba(2, 8, 14, 0.05)" }),
@@ -873,9 +875,11 @@ async function initApp() {
   syncParticles("intro");
   renderPhotoWall();
   resetDock();
-  introTimer = window.setTimeout(() => {
-    startIntroExit(false);
-  }, INTRO_HOLD_MS);
+  if (typeof window.IntroSequence === "undefined") {
+    introTimer = window.setTimeout(() => {
+      startIntroExit(false);
+    }, INTRO_HOLD_MS);
+  }
 
   traineeState = await window.AppData.loadTrainees(fallbackTrainees);
   selectedId = traineeState[0]?.id || "";
