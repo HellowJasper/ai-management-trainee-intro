@@ -245,7 +245,9 @@
         }
 
         if (iconAlpha > 0.02) {
-          ctx.filter = "brightness(1.48) saturate(1.15)";
+          const bVal = 0.1 + 1.38 * (shrinkP > 0 ? 1 : assembleP);
+          const sVal = 0.7 + 0.45 * (shrinkP > 0 ? 1 : assembleP);
+          ctx.filter = `brightness(${bVal}) saturate(${sVal})`;
           ctx.globalAlpha = iconAlpha * 0.98; // Match homepage logo opacity
           ctx.drawImage(logoImg, 0, 0, iconSrcW, iconSrcH, iconX, iconY, iconW, iconH);
           ctx.filter = "none";
@@ -259,7 +261,9 @@
       ctx.textBaseline = "middle";
       ctx.textAlign = "center";
 
-      ctx.filter = "brightness(1.48) saturate(1.15)";
+      const bVal = 0.1 + 1.38 * (shrinkP > 0 ? 1 : assembleP);
+      const sVal = 0.7 + 0.45 * (shrinkP > 0 ? 1 : assembleP);
+      ctx.filter = `brightness(${bVal}) saturate(${sVal})`;
 
       const scaleNow = shrinkP > 0 ? lerp(L.k, 1, easeInOut(shrinkP)) : L.k;
       const iconFont = Math.max(5, L.baseFont * scaleNow);

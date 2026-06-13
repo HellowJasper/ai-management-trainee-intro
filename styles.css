@@ -109,8 +109,7 @@ button:disabled {
   display: grid;
   place-items: center;
   background:
-    radial-gradient(circle at 50% 48%, rgba(20, 102, 88, 0.24), transparent 34%),
-    linear-gradient(180deg, rgba(4, 28, 30, 0.78), rgba(2, 8, 14, 0.96)),
+    linear-gradient(180deg, rgba(4, 34, 32, 0.48), rgba(2, 8, 14, 0.94)),
     var(--void);
   transition:
     opacity var(--intro-exit-duration) cubic-bezier(0.22, 0.78, 0.2, 1),
@@ -118,16 +117,7 @@ button:disabled {
 }
 
 .intro-stage::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 50% 50%, transparent 0 21%, rgba(1, 23, 25, 0.2) 43%, rgba(0, 0, 0, 0.78) 100%),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.52), transparent 34%, transparent 66%, rgba(0, 0, 0, 0.52)),
-    rgba(0, 0, 0, 0.74);
-  animation: introBrightnessGate var(--intro-hold-duration) cubic-bezier(0.22, 0.78, 0.2, 1) both;
+  display: none !important;
 }
 
 #introRain {
@@ -501,7 +491,7 @@ button:disabled {
   pointer-events: none;
 }
 
-.logo-hud-container {
+.landing-logo {
   position: absolute;
   left: 50%;
   top: 30%;
@@ -509,130 +499,11 @@ button:disabled {
   max-width: calc(100vw - 72px);
   aspect-ratio: 2891 / 988;
   transform: translate(-50%, -50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.landing-logo {
-  width: 100%;
-  height: 100%;
   background: url("./assets/joincare-full-clean.png") center / contain no-repeat;
   filter:
     brightness(1.48)
-    saturate(1.15)
-    drop-shadow(0 0 16px rgba(40, 255, 200, 0.65))
-    drop-shadow(0 0 44px rgba(40, 255, 200, 0.35));
+    saturate(1.15);
   opacity: 0.98;
-  z-index: 2;
-  animation: logoGlowPulse 4s ease-in-out infinite alternate;
-}
-
-@keyframes logoGlowPulse {
-  0% {
-    filter:
-      brightness(1.38)
-      saturate(1.15)
-      drop-shadow(0 0 14px rgba(40, 255, 200, 0.55))
-      drop-shadow(0 0 38px rgba(40, 255, 200, 0.28));
-  }
-  100% {
-    filter:
-      brightness(1.52)
-      saturate(1.15)
-      drop-shadow(0 0 22px rgba(40, 255, 200, 0.82))
-      drop-shadow(0 0 54px rgba(40, 255, 200, 0.45));
-  }
-}
-
-
-.hud-bracket {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  border-color: rgba(40, 255, 200, 0.62);
-  border-style: solid;
-  pointer-events: none;
-  z-index: 1;
-}
-.hud-bracket.top-left {
-  top: -16px;
-  left: -16px;
-  border-width: 2.5px 0 0 2.5px;
-}
-.hud-bracket.top-right {
-  top: -16px;
-  right: -16px;
-  border-width: 2.5px 2.5px 0 0;
-}
-.hud-bracket.bottom-left {
-  bottom: -16px;
-  left: -16px;
-  border-width: 0 0 2.5px 2.5px;
-}
-.hud-bracket.bottom-right {
-  bottom: -16px;
-  right: -16px;
-  border-width: 0 2.5px 2.5px 0;
-}
-
-.hud-scanner-ring {
-  position: absolute;
-  left: calc(min(34vw, 500px) * 0.235 - (min(34vw, 500px) * 0.38 / 2));
-  top: 50%;
-  width: calc(min(34vw, 500px) * 0.38);
-  height: calc(min(34vw, 500px) * 0.38);
-  border: 1.2px dashed rgba(40, 255, 200, 0.35);
-  border-radius: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  z-index: 1;
-  animation: hudScannerRotate 20s linear infinite;
-}
-
-@keyframes hudScannerRotate {
-  from {
-    transform: translateY(-50%) rotate(0deg);
-  }
-  to {
-    transform: translateY(-50%) rotate(360deg);
-  }
-}
-
-.hud-metadata {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-family: var(--pixel);
-  font-size: clamp(8px, 0.75vw, 11px);
-  color: var(--text-soft);
-  opacity: 0.65;
-  pointer-events: none;
-  z-index: 1;
-  letter-spacing: 0.05em;
-}
-
-.hud-metadata.left-meta {
-  left: -110px;
-  text-align: right;
-}
-
-.hud-metadata.right-meta {
-  right: -110px;
-  text-align: left;
-}
-
-.hud-metadata span {
-  display: block;
-  white-space: nowrap;
-  text-shadow: 0 0 8px rgba(167, 201, 192, 0.3);
-}
-
-@media (max-width: 768px) {
-  .hud-metadata {
-    display: none;
-  }
 }
 
 .landing-title {
@@ -643,34 +514,18 @@ button:disabled {
   width: max-content;
   max-width: calc(100vw - 48px);
   margin: 0;
+  color: #dffff5;
   font-family: var(--body);
   font-size: clamp(44px, 5.4vw, 92px);
   font-weight: 900;
-  line-height: 1.05;
-  letter-spacing: -0.01em;
+  line-height: 1.03;
+  letter-spacing: 0;
   text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  text-shadow:
+    0 0 10px rgba(223, 255, 245, 0.72),
+    0 0 26px rgba(40, 255, 200, 0.5),
+    0 0 54px rgba(40, 255, 200, 0.28);
   white-space: nowrap;
-}
-
-.landing-title .title-primary {
-  background: linear-gradient(90deg, #28ffc8 0%, #00b4d8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0 12px rgba(40, 255, 200, 0.45));
-}
-
-.landing-title .title-secondary {
-  background: linear-gradient(90deg, #8b5cf6 0%, #ff6b6b 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0 12px rgba(139, 92, 246, 0.45));
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 
 .landing-actions {
@@ -2572,72 +2427,33 @@ button:disabled {
 }
 
 /* Homepage elements entrance animations */
-.app-shell.view-home .logo-hud-container,
-.app-shell.view-intro-exit .logo-hud-container {
+.app-shell.view-home .landing-logo,
+.app-shell.view-intro-exit .landing-logo {
   animation: landingLogoReveal 1000ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .app-shell.view-home .landing-title,
 .app-shell.view-intro-exit .landing-title {
-  animation: titlePowerOnFlicker 1400ms cubic-bezier(0.16, 1, 0.3, 1) 150ms both;
+  animation: landingTitleReveal 1000ms cubic-bezier(0.16, 1, 0.3, 1) 200ms both;
 }
 
 @keyframes landingLogoReveal {
   from {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.96);
+  }
+  to {
+    opacity: 0.98;
+  }
+}
+
+@keyframes landingTitleReveal {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -40%);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%);
   }
 }
-
-@keyframes titlePowerOnFlicker {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -46%) scale(0.97);
-    filter: brightness(0.3) contrast(1.2);
-  }
-  10% {
-    opacity: 0.05;
-    filter: brightness(0.3);
-  }
-  11% {
-    opacity: 0.8;
-    transform: translate(-50%, -50%) scale(1);
-    filter: brightness(1.3) contrast(1.1);
-  }
-  15% {
-    opacity: 0.15;
-    filter: brightness(0.4);
-  }
-  22% {
-    opacity: 0.9;
-    filter: brightness(1.4);
-  }
-  25% {
-    opacity: 0.3;
-    filter: brightness(0.5);
-  }
-  29% {
-    opacity: 0.95;
-    filter: brightness(1.2);
-  }
-  32% {
-    opacity: 0.6;
-    filter: brightness(0.8);
-  }
-  35% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-    filter: brightness(1) contrast(1);
-  }
-  100% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-    filter: brightness(1) contrast(1);
-  }
-}
-
 
