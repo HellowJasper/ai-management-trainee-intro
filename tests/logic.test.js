@@ -38,8 +38,10 @@ test("computeArcLayout places every card on a continuous circular arc", () => {
   // Center card (index 5) properties
   assert.equal(layout[5].x, 0);
   assert.equal(layout[5].rotation, 0);
-  assert.equal(layout[5].lift, -84);
+  assert.equal(layout[5].lift, -102);
   assert.equal(layout[5].scale, 1.1);
+  assert.ok(layout[5].lift < layout[4].lift);
+  assert.ok(layout[5].lift < layout[6].lift);
 
   assert.ok(layout[6].x - layout[5].x > layout[1].x - layout[0].x);
   assert.ok(Math.abs(layout[0].rotation) <= 6);

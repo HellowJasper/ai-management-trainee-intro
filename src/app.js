@@ -492,7 +492,9 @@ function renderPhotoWall() {
     const x_last = svgWidth / 2 + lastLayout.x;
     const y_last = svgHeight + lastLayout.lift + 18;
     const x_center = svgWidth / 2 + centerLayout.x;
-    const y_peak = svgHeight + centerLayout.lift + 18;
+    // The center card is elevated by -18px in the layout. To keep the bottom SVG curve
+    // running along the natural, undistorted circular arc, we add 18px back to the center lift.
+    const y_peak = svgHeight + (centerLayout.lift + 18) + 18;
 
     const x_ctrl = x_center;
     const y_ctrl = 2 * y_peak - (y_first + y_last) / 2;

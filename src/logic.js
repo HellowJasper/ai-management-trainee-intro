@@ -91,9 +91,14 @@
       const tangentRotation = Math.sin(theta) * maxRotation;
       const arcX = (Math.sin(theta) / Math.sin(arcSpan / 2)) * centerIndex * step;
 
+      let liftVal = -shapedLift * maxLift;
+      if (index === centerIndex) {
+        liftVal -= 18; // Elevate C-position card slightly to create hierarchy (more negative = higher on screen)
+      }
+
       return {
         x: Number(arcX.toFixed(2)),
-        lift: Number((-shapedLift * maxLift).toFixed(2)),
+        lift: Number(liftVal.toFixed(2)),
         rotation: Number((-tangentRotation).toFixed(2)),
         scale: Number((edgeScale + shapedScale * scaleRange).toFixed(4)),
         zIndex: Math.round(overlapZBase + normalizedLift * overlapZRange),
