@@ -122,7 +122,7 @@
         iconCx, iconCy, k,
         heroCx: w / 2, heroCy: h * 0.40,
         gap: Math.max(7, Math.round(logoW / 120)),
-        baseFont: clamp(logoW / 175, 4.5, 8),
+        baseFont: clamp(logoW / 148, 5.5, 9),
         subY: logoY + logoH + h * 0.085,
         subFont: clamp(logoW * 0.062, 22, 64),
       };
@@ -155,22 +155,23 @@
         sctx.drawImage(logoImg, 0, 0, SW, SH);
         const data = sctx.getImageData(0, 0, SW, SH).data;
 
-        const gap = 4; // sampling stride in sampler px (smaller = denser)
+        const gap = 6; // sampling stride in sampler px (smaller = denser)
         samples = [];
         for (let y = 0; y < SH; y += gap) {
           for (let x = 0; x < SW; x += gap) {
             const idx = (y * SW + x) * 4;
             const a = data[idx + 3];
             if (a < 90) continue;
+            const ix = x / SW;
+            if (ix >= ICON_SPLIT) continue; // skip the wordmark completely to optimize rendering
             let r = data[idx], g = data[idx + 1], b = data[idx + 2];
             // bias washed-out pixels toward the brand neon so they read on black
             if (r + g + b > 690) { r = GREEN[0]; g = GREEN[1]; b = GREEN[2]; }
-            const ix = x / SW;
             const iy = y / SH;
             samples.push({
               ix, iy,
               color: [r, g, b],
-              group: ix < ICON_SPLIT ? "icon" : "word",
+              group: "icon",
               glyph: LOGO_GLYPHS[(Math.random() * LOGO_GLYPHS.length) | 0],
               delay: Math.random(),
               seedX: (Math.random() - 0.5) * 70,
@@ -264,10 +265,6 @@
       ctx.textBaseline = "middle";
       ctx.textAlign = "center";
 
-      const bVal = 0.1 + 1.38 * (shrinkP > 0 ? 1 : assembleP);
-      const sVal = 0.7 + 0.45 * (shrinkP > 0 ? 1 : assembleP);
-      ctx.filter = `brightness(${bVal}) saturate(${sVal})`;
-
       const scaleNow = shrinkP > 0 ? lerp(L.k, 1, easeInOut(shrinkP)) : L.k;
       const iconFont = Math.max(5, L.baseFont * scaleNow);
       ctx.font = `${iconFont}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
@@ -301,7 +298,6 @@
         ctx.fillStyle = rgba(s.color, alpha * 0.92);
         ctx.fillText(glyph, x, y);
       }
-      ctx.filter = "none";
       ctx.globalCompositeOperation = "source-over";
     }
 
