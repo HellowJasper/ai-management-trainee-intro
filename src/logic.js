@@ -86,8 +86,8 @@
       const liftedArc = Math.cos(theta);
       const edgeArc = Math.cos(arcSpan / 2);
       const normalizedLift = (liftedArc - edgeArc) / (1 - edgeArc);
-      const shapedLift = Math.pow(normalizedLift, 1.5); // steeper drop near center
-      const shapedScale = Math.pow(normalizedLift, 1.35); // steeper scale drop near center
+      const shapedLift = normalizedLift; // linear mapping matches the circular curve of Math.cos
+      const shapedScale = Math.pow(normalizedLift, 1.1); // subtle scale easing
       const tangentRotation = Math.sin(theta) * maxRotation;
       const arcX = (Math.sin(theta) / Math.sin(arcSpan / 2)) * centerIndex * step;
 
@@ -130,8 +130,8 @@
       cardPadding: Number(cardPadding.toFixed(2)),
       cardWidth: Number(cardWidth.toFixed(2)),
       dockInfluence: Number(clamp(step * 3.1, 180, 430).toFixed(2)),
-      maxLift: Number(clamp(cardHeight * 0.58, 120, 240).toFixed(2)),
-      maxRotation: width < 760 ? 11.5 : 12.8,
+      maxLift: Number(clamp(cardHeight * 0.42, 90, 180).toFixed(2)),
+      maxRotation: width < 760 ? 8.6 : 9.8,
       metaHeight: Number(metaHeight.toFixed(2)),
       portraitHeight: Number(portraitHeight.toFixed(2)),
       splitGap: Number(splitGap.toFixed(2)),
