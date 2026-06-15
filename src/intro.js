@@ -23,9 +23,32 @@
 
   const ICON_SPLIT = 0.47;            // image-fraction boundary icon | wordmark
   const SUBTITLE = "AI Innovation Hackathon 2026";
-  const LOGO_GLYPHS = "01101001AIJC<>{}".split("");
   const RAIN_GLYPHS = "010101AIJOINCARE{}[]<>".split("");
   const SUB_SCRAMBLE = "01<>{}/\\=+*#$%&ABCDEFKLMNXYZ".split("");
+
+  const TETROMINOES = [
+    // I shape
+    [[0, -1.5], [0, -0.5], [0, 0.5], [0, 1.5]],
+    // O shape
+    [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]],
+    // T shape
+    [[-1, 0], [0, 0], [1, 0], [0, -1]],
+    // S shape
+    [[0, 0], [1, 0], [-1, 1], [0, 1]],
+    // Z shape
+    [[-1, 0], [0, 0], [0, 1], [1, 1]],
+    // J shape
+    [[0, -1], [0, 0], [0, 1], [-1, 1]],
+    // L shape
+    [[0, -1], [0, 0], [0, 1], [1, 1]]
+  ];
+
+  function getRotatedOffset(ox, oy, rotation) {
+    if (rotation === 1) return [-oy, ox];
+    if (rotation === 2) return [-ox, -oy];
+    if (rotation === 3) return [oy, -ox];
+    return [ox, oy];
+  }
 
   const GREEN = [40, 255, 200];       // --neon
   const LIME = [167, 255, 79];        // --neon-2
@@ -172,7 +195,8 @@
               ix, iy,
               color: [r, g, b],
               group: "icon",
-              glyph: LOGO_GLYPHS[(Math.random() * LOGO_GLYPHS.length) | 0],
+              type: (Math.random() * 7) | 0,
+              rotation: (Math.random() * 4) | 0,
               delay: Math.random(),
               seedX: (Math.random() - 0.5) * 70,
               seedY: -120 - Math.random() * 160,
@@ -262,12 +286,9 @@
       }
 
       ctx.globalCompositeOperation = "lighter";
-      ctx.textBaseline = "middle";
-      ctx.textAlign = "center";
 
       const scaleNow = shrinkP > 0 ? lerp(L.k, 1, easeInOut(shrinkP)) : L.k;
-      const iconFont = Math.max(5, L.baseFont * scaleNow);
-      ctx.font = `${iconFont}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      const cellSize = Math.max(0.6, (L.logoW / 120) * 1.3 * scaleNow);
 
       for (let i = 0; i < samples.length; i++) {
         const s = samples[i];
@@ -292,11 +313,17 @@
         }
 
         if (alpha <= 0.02) continue;
-        const glyph = ((i + flicker) % 11 === 0)
-          ? LOGO_GLYPHS[(Math.random() * LOGO_GLYPHS.length) | 0]
-          : s.glyph;
-        ctx.fillStyle = rgba(s.color, alpha * 0.92);
-        ctx.fillText(glyph, x, y);
+
+        const shape = TETROMINOES[s.type];
+        ctx.fillStyle = rgba(s.color, alpha * 0.94);
+        const cellW = Math.max(0.5, cellSize - 0.25);
+
+        for (let c = 0; c < 4; c++) {
+          const [ox, oy] = getRotatedOffset(shape[c][0], shape[c][1], s.rotation);
+          const cx = x + ox * cellSize;
+          const cy = y + oy * cellSize;
+          ctx.fillRect(cx - cellW / 2, cy - cellW / 2, cellW, cellW);
+        }
       }
       ctx.globalCompositeOperation = "source-over";
     }
@@ -407,7 +434,12 @@
       cancelAnimationFrame(raf);
     }
 
-    return { start, stop, resize };
+    return {
+      start,
+      stop,
+      resize,
+      getSamples: () => ({ samples, layout, getRotatedOffset, TETROMINOES })
+    };
   }
 
   return { createIntroSequence };

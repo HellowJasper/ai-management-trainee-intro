@@ -362,6 +362,7 @@ function startIntroExit(skipped = false) {
 
   appView = "home";
   setStageActive(landingStage, true);
+  drawLandingLogo();
   landingStage.style.opacity = "0";
   landingStage.style.pointerEvents = "none";
   introStage.style.pointerEvents = "none";
@@ -624,6 +625,51 @@ function closeDetail() {
   appShell.classList.add(appView === "home" ? "view-home" : "view-wall");
   syncStages(appView === "home" ? "home" : "wall");
   syncRain(appView === "home" ? "home" : "wall");
+}
+
+function drawLandingLogo() {
+  const canvas = document.getElementById("landingLogoCanvas");
+  if (!canvas) return;
+  const intro = rainRenderers.intro;
+  if (!intro || typeof intro.getSamples !== "function") return;
+  const data = intro.getSamples();
+  if (!data || !data.samples || data.samples.length === 0) return;
+
+  const ctx = canvas.getContext("2d");
+  const ratio = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  canvas.width = Math.floor(w * ratio);
+  canvas.height = Math.floor(h * ratio);
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.globalCompositeOperation = "lighter";
+
+  const samples = data.samples;
+  const TETROMINOES = data.TETROMINOES;
+  const getRotatedOffset = data.getRotatedOffset;
+  const cellSize = Math.max(0.6, (w / 120) * 1.3);
+
+  for (let i = 0; i < samples.length; i++) {
+    const s = samples[i];
+    if (s.group !== "icon") continue;
+
+    const normX = s.ix / 0.47; // ICON_SPLIT is 0.47
+    const cx = normX * w;
+    const cy = s.iy * h;
+
+    const shape = TETROMINOES[s.type];
+    ctx.fillStyle = `rgba(${s.color[0]}, ${s.color[1]}, ${s.color[2]}, 0.94)`;
+    const cellW = Math.max(0.5, cellSize - 0.25);
+
+    for (let c = 0; c < 4; c++) {
+      const [ox, oy] = getRotatedOffset(shape[c][0], shape[c][1], s.rotation);
+      const cellX = cx + ox * cellSize;
+      const cellY = cy + oy * cellSize;
+      ctx.fillRect(cellX - cellW / 2, cellY - cellW / 2, cellW, cellW);
+    }
+  }
 }
 
 function renderCloudWords(words = []) {
@@ -895,6 +941,7 @@ function bindEvents() {
     resetDock();
     Object.values(rainRenderers).forEach((rain) => rain?.resize());
     discoverParticles?.resize();
+    drawLandingLogo();
   });
 }
 
