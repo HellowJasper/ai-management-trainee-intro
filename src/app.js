@@ -141,7 +141,7 @@ const fallbackTrainees = [
       "memeImage": "./assets/trainees/zhang-hengrui/meme.gif",
       "memeText": "了解我不需要猜，问就行",
       "portrait": "linear-gradient(145deg, #101712 0%, #2fb879 48%, #f4ff80 100%)",
-      "idPhoto": ""
+      "idPhoto": "./assets/trainees/zhang-hengrui/idPhoto.jpg"
     },
     {
       "id": "jasper",
