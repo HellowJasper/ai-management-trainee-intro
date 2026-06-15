@@ -863,8 +863,6 @@ button:disabled {
     translateX(var(--arc-x, 0px))
     translateX(var(--shift-x))
     translateY(calc(var(--arc-lift, 0px) + var(--lift)))
-    rotate(calc(var(--arc-rot, 0) * 1deg))
-    rotateX(5deg)
     scale(calc(var(--arc-scale) * var(--scale)));
   transform-origin: 50% 100%;
   transition:
