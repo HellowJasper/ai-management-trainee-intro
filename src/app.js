@@ -479,13 +479,25 @@ function renderPhotoWall() {
   const svgWidth = metrics.visualWidth;
   const svgHeight = 220;
 
-  const points = arcLayout.map((layoutItem) => {
-    const x = svgWidth / 2 + layoutItem.x;
-    const y = svgHeight + layoutItem.lift + 18;
-    return `${x},${y}`;
-  });
+  let pathD = "";
+  if (arcLayout.length > 1) {
+    const firstLayout = arcLayout[0];
+    const lastLayout = arcLayout[arcLayout.length - 1];
+    const centerIndex = Math.floor((arcLayout.length - 1) / 2);
+    const centerLayout = arcLayout[centerIndex];
 
-  const pathD = `M ${points.join(" L ")}`;
+    const x_first = svgWidth / 2 + firstLayout.x;
+    const y_first = svgHeight + firstLayout.lift + 18;
+    const x_last = svgWidth / 2 + lastLayout.x;
+    const y_last = svgHeight + lastLayout.lift + 18;
+    const x_center = svgWidth / 2 + centerLayout.x;
+    const y_peak = svgHeight + centerLayout.lift + 18;
+
+    const x_ctrl = x_center;
+    const y_ctrl = 2 * y_peak - (y_first + y_last) / 2;
+
+    pathD = `M ${x_first},${y_first} Q ${x_ctrl},${y_ctrl} ${x_last},${y_last}`;
+  }
 
   const svgHtml = `
     <svg class="photo-wall-svg" style="--svg-width: ${svgWidth}px; --svg-height: ${svgHeight}px;" viewBox="0 0 ${svgWidth} ${svgHeight}">
