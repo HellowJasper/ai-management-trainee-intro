@@ -193,6 +193,7 @@ button:disabled {
 .brand-chip,
 .cohort-mark,
 .stage-footer span,
+.stage-footer button,
 .close-button,
 .draw-card-topline span,
 .info-chip,
@@ -217,7 +218,8 @@ button:disabled {
 
 .brand-chip,
 .cohort-mark,
-.stage-footer span {
+.stage-footer span,
+.stage-footer button {
   font-family: var(--nav-pixel);
 }
 
@@ -227,6 +229,8 @@ button:disabled {
 .discover-button:hover,
 .discover-menu button:hover,
 .brand-chip:hover,
+.cohort-mark:hover,
+.stage-footer button:hover,
 .close-button:hover,
 .photo-toggle:hover,
 .blind-box-button:hover,
@@ -714,16 +718,16 @@ button:disabled {
   bottom: clamp(18px, 2.4vw, 34px);
 }
 
-.stage-footer span:nth-child(1) {
+.stage-footer *:nth-child(1) {
   justify-self: start;
 }
 
-.stage-footer span:nth-child(2) {
+.stage-footer *:nth-child(2) {
   justify-self: center;
   text-align: center;
 }
 
-.stage-footer span:nth-child(3) {
+.stage-footer *:nth-child(3) {
   justify-self: end;
   text-align: right;
 }
@@ -735,7 +739,8 @@ button:disabled {
   font-size: clamp(7px, 0.58vw, 9.5px);
 }
 
-.stage-footer span {
+.stage-footer span,
+.stage-footer button {
   min-height: 22px;
   padding: 4px 8px;
   font-size: clamp(7px, 0.58vw, 9.5px);
