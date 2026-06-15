@@ -542,7 +542,7 @@ button:disabled {
 
 .enter-button,
 .discover-button {
-  width: clamp(210px, 19vw, 292px);
+  width: clamp(290px, 26vw, 420px);
   min-height: clamp(54px, 6.6vh, 72px);
   border-radius: 999px;
   padding: 13px 28px;
@@ -551,6 +551,7 @@ button:disabled {
   font-weight: 500;
   line-height: 1;
   text-transform: none;
+  white-space: nowrap;
 }
 
 .enter-button {
@@ -2330,7 +2331,7 @@ button:disabled {
 
   .enter-button,
   .discover-button {
-    min-width: min(220px, 82vw);
+    min-width: min(260px, 90vw);
   }
 
   .profile-console {
