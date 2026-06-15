@@ -2454,12 +2454,12 @@ button:disabled {
 
 .app-shell.view-home .landing-logo-text,
 .app-shell.view-intro-exit .landing-logo-text {
-  animation: landingTextReveal 1200ms cubic-bezier(0.16, 1, 0.3, 1) 150ms both;
+  animation: landingTextReveal 2400ms cubic-bezier(0.4, 0, 0.2, 1) 200ms both;
 }
 
 .app-shell.view-home .landing-title,
 .app-shell.view-intro-exit .landing-title {
-  animation: landingTitleReveal 1200ms cubic-bezier(0.16, 1, 0.3, 1) 150ms both;
+  animation: landingTitleReveal 2200ms cubic-bezier(0.4, 0, 0.2, 1) 600ms both;
 }
 
 @keyframes landingCanvasReveal {
