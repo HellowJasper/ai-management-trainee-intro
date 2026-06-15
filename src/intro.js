@@ -190,8 +190,11 @@
       const { h } = viewport();
       ctx.globalCompositeOperation = "source-over";
       ctx.textBaseline = "top";
+      if (rainCols.length > 0) {
+        const firstFs = rainCols[0].fs;
+        ctx.font = `${firstFs}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
+      }
       rainCols.forEach((c) => {
-        ctx.font = `${c.fs}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
         const glyph = RAIN_GLYPHS[(Math.random() * RAIN_GLYPHS.length) | 0];
         const head = Math.random() > 0.9;
         const a = c.alpha * globalAlpha;
@@ -267,6 +270,7 @@
 
       const scaleNow = shrinkP > 0 ? lerp(L.k, 1, easeInOut(shrinkP)) : L.k;
       const iconFont = Math.max(5, L.baseFont * scaleNow);
+      ctx.font = `${iconFont}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
 
       for (let i = 0; i < samples.length; i++) {
         const s = samples[i];
@@ -291,7 +295,6 @@
         }
 
         if (alpha <= 0.02) continue;
-        ctx.font = `${iconFont}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
         const glyph = ((i + flicker) % 11 === 0)
           ? LOGO_GLYPHS[(Math.random() * LOGO_GLYPHS.length) | 0]
           : s.glyph;
@@ -342,10 +345,10 @@
         ctx.globalCompositeOperation = "lighter";
         ctx.textBaseline = "middle";
         ctx.textAlign = "center";
+        ctx.font = `${Math.max(5, L.baseFont)}px ui-monospace, monospace`;
         samples.forEach((s) => {
           const fx = L.logoX + s.ix * L.logoW;
           const fy = L.logoY + s.iy * L.logoH;
-          ctx.font = `${Math.max(5, L.baseFont)}px ui-monospace, monospace`;
           ctx.fillStyle = rgba(s.color, 0.92);
           ctx.fillText(s.glyph, fx, fy);
         });
