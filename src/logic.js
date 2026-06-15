@@ -277,9 +277,25 @@
 
   function getDetailOrder(trainees) {
     if (!Array.isArray(trainees)) return [];
-    const jasper = trainees.find((item) => item?.id === "jasper");
-    const others = trainees.filter((item) => item?.id !== "jasper");
-    return jasper ? [jasper, ...others] : trainees;
+    const order = [
+      "jasper",
+      "zhang-rui",
+      "lin-yixin",
+      "tang-jingpei",
+      "gu-lingqian",
+      "xu-meisheng",
+      "huang-zhaoqiang",
+      "li-feng",
+      "zhang-hengrui",
+      "li-beibei",
+    ];
+    return [...trainees].sort((a, b) => {
+      const idxA = order.indexOf(a?.id);
+      const idxB = order.indexOf(b?.id);
+      const valA = idxA === -1 ? Infinity : idxA;
+      const valB = idxB === -1 ? Infinity : idxB;
+      return valA - valB;
+    });
   }
 
   return {
