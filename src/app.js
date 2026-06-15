@@ -227,7 +227,7 @@ const libraryB = [
 ];
 
 let traineeState = window.AppLogic.positionJasperAtCenter(fallbackTrainees.map(window.AppLogic.normalizeTrainee));
-let selectedId = traineeState[0].id;
+let selectedId = traineeState.find((t) => t.id === "jasper")?.id || traineeState[0].id;
 let currentKeywords = [];
 let drawStage = 0; // 0: not drawn, 1: A drawn, 2: both A and B drawn
 let keywordDrawTimer = null;
@@ -573,9 +573,10 @@ function renderChallengeSlot(trainee) {
 
 function renderDetail() {
   const trainee = selectedTrainee();
-  const selectedIndex = traineeState.findIndex((item) => item.id === trainee.id) + 1;
+  const detailOrderTrainees = window.AppLogic.getDetailOrder(traineeState);
+  const displayIndex = detailOrderTrainees.findIndex((item) => item.id === trainee.id) + 1;
 
-  document.getElementById("detailIndex").textContent = `CARD ${String(selectedIndex).padStart(2, "0")} / 12`;
+  document.getElementById("detailIndex").textContent = `PROFILE ${String(displayIndex).padStart(2, "0")} / ${detailOrderTrainees.length}`;
   document.getElementById("selectedDepartment").textContent = trainee.department;
   document.getElementById("selectedName").textContent = trainee.name;
   document.getElementById("detailDepartment").textContent = "INFO";
@@ -593,7 +594,9 @@ function renderDetail() {
 }
 
 function switchAdjacentProfile(direction) {
-  selectedId = window.AppLogic.resolveAdjacentTraineeId(traineeState, selectedId, direction);
+  const detailOrderTrainees = window.AppLogic.getDetailOrder(traineeState);
+
+  selectedId = window.AppLogic.resolveAdjacentTraineeId(detailOrderTrainees, selectedId, direction);
   profileMediaMode = "photo";
   renderDetail();
 }
@@ -912,7 +915,7 @@ async function initApp() {
   }
 
   traineeState = window.AppLogic.positionJasperAtCenter(await window.AppData.loadTrainees(fallbackTrainees));
-  selectedId = traineeState[0]?.id || "";
+  selectedId = traineeState.find((t) => t.id === "jasper")?.id || traineeState[0]?.id || "";
   renderPhotoWall();
   resetDock();
 }

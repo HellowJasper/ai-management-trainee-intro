@@ -270,8 +270,16 @@
     return list;
   }
 
+  function getDetailOrder(trainees) {
+    if (!Array.isArray(trainees)) return [];
+    const jasper = trainees.find((item) => item?.id === "jasper");
+    const others = trainees.filter((item) => item?.id !== "jasper");
+    return jasper ? [jasper, ...others] : trainees;
+  }
+
   return {
     positionJasperAtCenter,
+    getDetailOrder,
     computeArcLayout,
     computeDockTransforms,
     computePhotoWallMetrics,

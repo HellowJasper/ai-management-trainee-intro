@@ -5,6 +5,7 @@ const path = require("node:path");
 
 const {
   positionJasperAtCenter,
+  getDetailOrder,
   computeArcLayout,
   computeDockTransforms,
   computePhotoWallMetrics,
@@ -260,4 +261,20 @@ test("positionJasperAtCenter puts Jasper exactly at the center index", () => {
   ];
   const reorderedEven = positionJasperAtCenter(traineesEven);
   assert.equal(reorderedEven[2].id, "jasper");
+});
+
+test("getDetailOrder places Jasper exactly at the first index (01) and leaves others in original order", () => {
+  const trainees = [
+    { id: "a" },
+    { id: "b" },
+    { id: "jasper" },
+    { id: "c" }
+  ];
+
+  const ordered = getDetailOrder(trainees);
+  assert.equal(ordered.length, 4);
+  assert.equal(ordered[0].id, "jasper");
+  assert.equal(ordered[1].id, "a");
+  assert.equal(ordered[2].id, "b");
+  assert.equal(ordered[3].id, "c");
 });
