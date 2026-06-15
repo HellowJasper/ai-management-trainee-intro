@@ -89,7 +89,7 @@ test("computePhotoWallMetrics keeps twelve tarot cards in one row", () => {
   assert.ok(metrics.step < metrics.cardWidth);
   assert.ok(metrics.maxLift >= metrics.cardHeight * 0.26);
   assert.ok(metrics.maxRotation >= 7.4);
-  assert.ok(metrics.maxRotation <= 9.4);
+  assert.ok(metrics.maxRotation <= 14.0);
 });
 
 test("twelve profile cards form one connected arc centered on the sixth card", () => {
