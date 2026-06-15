@@ -257,7 +257,19 @@
     return list[nextIndex].id;
   }
 
+  function positionJasperAtCenter(trainees) {
+    if (!Array.isArray(trainees)) return [];
+    const index = trainees.findIndex((t) => t?.id === "jasper");
+    if (index === -1) return trainees;
+    const list = [...trainees];
+    const jasper = list.splice(index, 1)[0];
+    const centerIdx = Math.floor(list.length / 2);
+    list.splice(centerIdx, 0, jasper);
+    return list;
+  }
+
   return {
+    positionJasperAtCenter,
     computeArcLayout,
     computeDockTransforms,
     computePhotoWallMetrics,

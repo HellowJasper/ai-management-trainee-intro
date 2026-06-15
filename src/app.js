@@ -226,7 +226,7 @@ const libraryB = [
   "Bug"
 ];
 
-let traineeState = fallbackTrainees.map(window.AppLogic.normalizeTrainee);
+let traineeState = window.AppLogic.positionJasperAtCenter(fallbackTrainees.map(window.AppLogic.normalizeTrainee));
 let selectedId = traineeState[0].id;
 let currentKeywords = [];
 let drawStage = 0; // 0: not drawn, 1: A drawn, 2: both A and B drawn
@@ -899,7 +899,7 @@ async function initApp() {
     }, INTRO_HOLD_MS);
   }
 
-  traineeState = await window.AppData.loadTrainees(fallbackTrainees);
+  traineeState = window.AppLogic.positionJasperAtCenter(await window.AppData.loadTrainees(fallbackTrainees));
   selectedId = traineeState[0]?.id || "";
   renderPhotoWall();
   resetDock();

@@ -790,6 +790,7 @@ button:disabled {
   height: 100%;
   min-height: 100%;
   padding: 14px clamp(6px, 1vw, 18px) 104px;
+  perspective: 1700px;
 }
 
 .photo-wall::before {
@@ -862,6 +863,7 @@ button:disabled {
     0 18px 46px rgba(0, 0, 0, 0.42),
     0 0 28px rgba(40, 255, 200, 0.12);
   transform:
+    perspective(1000px)
     translateX(-50%)
     translateX(var(--arc-x, 0px))
     translateX(var(--shift-x))

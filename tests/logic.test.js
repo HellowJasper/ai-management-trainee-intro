@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const {
+  positionJasperAtCenter,
   computeArcLayout,
   computeDockTransforms,
   computePhotoWallMetrics,
@@ -233,4 +234,30 @@ test("view transitions clear the discover view class before switching stages", (
   removeCalls.forEach((removeCall) => {
     assert.match(removeCall, /"view-discover"/);
   });
+});
+
+test("positionJasperAtCenter puts Jasper exactly at the center index", () => {
+  const trainees = [
+    { id: "a" },
+    { id: "b" },
+    { id: "c" },
+    { id: "jasper" },
+    { id: "d" }
+  ];
+
+  // Odd length (5): should be at index 2
+  const reorderedOdd = positionJasperAtCenter(trainees);
+  assert.equal(reorderedOdd[2].id, "jasper");
+
+  // Even length (6): should be at index 2
+  const traineesEven = [
+    { id: "a" },
+    { id: "b" },
+    { id: "c" },
+    { id: "d" },
+    { id: "jasper" },
+    { id: "e" }
+  ];
+  const reorderedEven = positionJasperAtCenter(traineesEven);
+  assert.equal(reorderedEven[2].id, "jasper");
 });
