@@ -188,8 +188,6 @@
             const ix = x / SW;
             if (ix >= ICON_SPLIT) continue; // skip the wordmark completely to optimize rendering
             let r = data[idx], g = data[idx + 1], b = data[idx + 2];
-            // bias washed-out pixels toward the brand neon so they read on black
-            if (r + g + b > 690) { r = GREEN[0]; g = GREEN[1]; b = GREEN[2]; }
             const iy = y / SH;
             samples.push({
               ix, iy,
@@ -285,10 +283,10 @@
         return;
       }
 
-      ctx.globalCompositeOperation = "lighter";
+      ctx.globalCompositeOperation = "source-over";
 
       const scaleNow = shrinkP > 0 ? lerp(L.k, 1, easeInOut(shrinkP)) : L.k;
-      const cellSize = Math.max(0.6, (L.logoW / 120) * 1.3 * scaleNow);
+      const cellSize = Math.max(0.5, (L.logoW / 300) * scaleNow);
 
       for (let i = 0; i < samples.length; i++) {
         const s = samples[i];

@@ -644,12 +644,12 @@ function drawLandingLogo() {
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
 
   ctx.clearRect(0, 0, w, h);
-  ctx.globalCompositeOperation = "lighter";
+  ctx.globalCompositeOperation = "source-over";
 
   const samples = data.samples;
   const TETROMINOES = data.TETROMINOES;
   const getRotatedOffset = data.getRotatedOffset;
-  const cellSize = Math.max(0.6, (w / 120) * 1.3);
+  const cellSize = Math.max(0.5, w / 150);
 
   for (let i = 0; i < samples.length; i++) {
     const s = samples[i];

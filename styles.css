@@ -511,7 +511,6 @@ button:disabled {
 .landing-logo-canvas {
   width: 47%;
   height: 100%;
-  filter: brightness(1.48) saturate(1.15);
   opacity: 0;
 }
 
@@ -521,7 +520,6 @@ button:disabled {
   background: url("./assets/joincare-full-clean.png") no-repeat;
   background-size: 188.68% 100%; /* 100 / 0.53 */
   background-position: 100% center;
-  filter: brightness(1.48) saturate(1.15);
   opacity: 0;
   clip-path: inset(0 100% 0 0);
 }
