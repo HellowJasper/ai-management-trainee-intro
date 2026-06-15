@@ -1,0 +1,12 @@
+.git
+.gitignore
+.DS_Store
+tests
+package.json
+package-lock.json
+node_modules
+README.md
+task.md
+walkthrough.md
+Dockerfile
+.dockerignore
