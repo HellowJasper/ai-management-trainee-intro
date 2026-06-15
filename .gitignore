@@ -2,3 +2,7 @@
 .superpowers/
 node_modules/
 npm-debug.log*
+data/*.csv
+data/*.zip
+data/*.xlsx
+data/AI*附件/

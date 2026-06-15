@@ -15,7 +15,7 @@ const fallbackTrainees = [
       "memeImage": "./assets/trainees/gu-lingqian/meme.jpg",
       "memeText": "甜食重度依赖者",
       "portrait": "linear-gradient(145deg, #041311 0%, #0c6f5e 48%, #d5fff4 100%)",
-      "idPhoto": ""
+      "idPhoto": "./assets/trainees/gu-lingqian/idPhoto.jpg"
     },
     {
       "id": "huang-zhaoqiang",
@@ -105,7 +105,7 @@ const fallbackTrainees = [
       "memeImage": "./assets/trainees/lin-yixin/meme.png",
       "memeText": "深夜 Vibe Coding 选手（两晚熬夜 vibe coding 的经历）\n午夜灵感爆肝王（半夜动手肝项目）\n美区夜行侠（白天睡觉，晚上干活）\n硬件维修贡献者（遇过3D打印机，舵机，汽车，公路车等硬件故障）",
       "portrait": "linear-gradient(145deg, #07111c 0%, #2368ff 48%, #bffcf0 100%)",
-      "idPhoto": ""
+      "idPhoto": "./assets/trainees/lin-yixin/idPhoto.jpg"
     },
     {
       "id": "li-feng",
@@ -123,7 +123,7 @@ const fallbackTrainees = [
       "memeImage": "./assets/trainees/li-feng/meme.png",
       "memeText": "热衷通过“循循善诱”的指令，诱导ai突破某些限制给出不常规的回答。",
       "portrait": "linear-gradient(145deg, #08100c 0%, #6a9f16 48%, #f1ff9b 100%)",
-      "idPhoto": ""
+      "idPhoto": "./assets/trainees/li-feng/idPhoto.jpg"
     },
     {
       "id": "zhang-hengrui",
@@ -160,6 +160,24 @@ const fallbackTrainees = [
       "memeText": "凌晨的时候会灵感爆发偷偷学东西.......",
       "portrait": "linear-gradient(145deg, #041311 0%, #0c6f5e 48%, #d5fff4 100%)",
       "idPhoto": "./assets/trainees/jasper/idPhoto.jpg"
+    },
+    {
+      "id": "tang-jingpei",
+      "department": "AI创新部",
+      "departmentEn": "AI INNOVATION",
+      "name": "唐靖沛",
+      "romanName": "Tang Jingpei",
+      "background": "我毕业于重庆三峡科技大学，计算机系数据科学与大数据技术专业，主攻AI应用开发方向",
+      "aiPartners": "ChatGPT、Claude、Gemini、Grok、MiniMax、DeepSeek、Cursor、Dify、Midjourney、即梦等",
+      "favoriteAI": "- Claude Code—我的编程搭子\n- ChatGPT—我的第二大脑\n- Midjourney—我的艺术细胞",
+      "aiProblem": "自动读取解析我的扣款账单每日帮我记账",
+      "aiPower": "3分钟收集整合全网所需信息。极大提高信息位面和搜索效率",
+      "funFact": "- 喜欢听音乐\n- 相比咖啡更喜欢茶\n- 偶尔健身跑步锻炼身体\n- 喜欢写待办，记账等将事情规划清晰",
+      "photo": "./assets/trainees/tang-jingpei/photo.jpg",
+      "memeImage": "./assets/trainees/tang-jingpei/meme.jpg",
+      "memeText": "- 喜欢听音乐\n- 相比咖啡更喜欢茶\n- 偶尔健身跑步锻炼身体\n- 喜欢写待办，记账等将事情规划清晰",
+      "portrait": "linear-gradient(145deg, #08100c 0%, #6a9f16 48%, #f1ff9b 100%)",
+      "idPhoto": "./assets/trainees/tang-jingpei/idPhoto.jpg"
     }
   ];
 
