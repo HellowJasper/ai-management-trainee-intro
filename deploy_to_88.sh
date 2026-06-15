@@ -6,7 +6,7 @@ SERVER_USER="root"
 REPO_URL="https://git.joincare.com.cn/Jasper/ai-management-trainee-intro.git"
 CONTAINER_NAME="ai-intro-app"
 IMAGE_NAME="ai-intro"
-PORT_MAPPING="8080:80"
+PORT_MAPPING="8083:80"
 NETWORK_NAME="infra-net"
 
 echo "==========================================="
