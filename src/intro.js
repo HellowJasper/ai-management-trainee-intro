@@ -178,7 +178,7 @@
         sctx.drawImage(logoImg, 0, 0, SW, SH);
         const data = sctx.getImageData(0, 0, SW, SH).data;
 
-        const gap = 6; // sampling stride in sampler px (smaller = denser)
+        const gap = 4; // sampling stride in sampler px (smaller = denser)
         samples = [];
         for (let y = 0; y < SH; y += gap) {
           for (let x = 0; x < SW; x += gap) {
@@ -286,7 +286,7 @@
       ctx.globalCompositeOperation = "source-over";
 
       const scaleNow = shrinkP > 0 ? lerp(L.k, 1, easeInOut(shrinkP)) : L.k;
-      const cellSize = Math.max(0.5, (L.logoW / 300) * scaleNow);
+      const cellW = Math.max(0.75, (4 / 900) * L.logoW * scaleNow * 1.25);
 
       for (let i = 0; i < samples.length; i++) {
         const s = samples[i];
@@ -312,16 +312,8 @@
 
         if (alpha <= 0.02) continue;
 
-        const shape = TETROMINOES[s.type];
         ctx.fillStyle = rgba(s.color, alpha * 0.94);
-        const cellW = Math.max(0.5, cellSize - 0.25);
-
-        for (let c = 0; c < 4; c++) {
-          const [ox, oy] = getRotatedOffset(shape[c][0], shape[c][1], s.rotation);
-          const cx = x + ox * cellSize;
-          const cy = y + oy * cellSize;
-          ctx.fillRect(cx - cellW / 2, cy - cellW / 2, cellW, cellW);
-        }
+        ctx.fillRect(x - cellW / 2, y - cellW / 2, cellW, cellW);
       }
       ctx.globalCompositeOperation = "source-over";
     }
@@ -334,7 +326,11 @@
 
       // trailing fade -> code-rain streaks + keeps logo crisp (redrawn on top)
       ctx.globalCompositeOperation = "source-over";
-      ctx.fillStyle = "rgba(2, 8, 14, 0.18)";
+      // Create radial gradient for a high-tech glowing background vignette
+      const grad = ctx.createRadialGradient(w / 2, h * 0.40, 10, w / 2, h * 0.40, Math.max(w, h) * 0.8);
+      grad.addColorStop(0, "rgba(4, 28, 26, 0.28)"); // subtle green glow in the center
+      grad.addColorStop(1, "rgba(2, 8, 14, 0.18)"); // dark void at the edges
+      ctx.fillStyle = grad;
       ctx.fillRect(0, 0, w, h);
 
       // rain dims once the logo starts emerging so the mark stands out
@@ -364,14 +360,12 @@
       if (logoReady && layout) {
         const L = layout;
         ctx.globalCompositeOperation = "lighter";
-        ctx.textBaseline = "middle";
-        ctx.textAlign = "center";
-        ctx.font = `${Math.max(5, L.baseFont)}px ui-monospace, monospace`;
+        const cellW = Math.max(0.75, (4 / 900) * L.logoW * 1.25);
         samples.forEach((s) => {
           const fx = L.logoX + s.ix * L.logoW;
           const fy = L.logoY + s.iy * L.logoH;
           ctx.fillStyle = rgba(s.color, 0.92);
-          ctx.fillText(s.glyph, fx, fy);
+          ctx.fillRect(fx - cellW / 2, fy - cellW / 2, cellW, cellW);
         });
         ctx.globalCompositeOperation = "source-over";
       }

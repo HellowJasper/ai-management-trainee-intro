@@ -649,9 +649,7 @@ function drawLandingLogo() {
   ctx.globalCompositeOperation = "source-over";
 
   const samples = data.samples;
-  const TETROMINOES = data.TETROMINOES;
-  const getRotatedOffset = data.getRotatedOffset;
-  const cellSize = Math.max(0.5, w / 150);
+  const cellW = Math.max(0.75, (4 / (900 * 0.47)) * w * 1.15); // 900 * 0.47 = 423
 
   for (let i = 0; i < samples.length; i++) {
     const s = samples[i];
@@ -661,16 +659,8 @@ function drawLandingLogo() {
     const cx = normX * w;
     const cy = s.iy * h;
 
-    const shape = TETROMINOES[s.type];
     ctx.fillStyle = `rgba(${s.color[0]}, ${s.color[1]}, ${s.color[2]}, 0.94)`;
-    const cellW = Math.max(0.5, cellSize - 0.25);
-
-    for (let c = 0; c < 4; c++) {
-      const [ox, oy] = getRotatedOffset(shape[c][0], shape[c][1], s.rotation);
-      const cellX = cx + ox * cellSize;
-      const cellY = cy + oy * cellSize;
-      ctx.fillRect(cellX - cellW / 2, cellY - cellW / 2, cellW, cellW);
-    }
+    ctx.fillRect(cx - cellW / 2, cy - cellW / 2, cellW, cellW);
   }
 }
 
