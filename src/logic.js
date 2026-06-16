@@ -56,8 +56,9 @@
       maxLift = 72,
       maxRotation = 4,
       arcSpan = Math.PI * 0.68,
-      edgeScale = 0.74,
-      centerScale = 1.1,
+      edgeScale = 0.64,
+      centerScale = 1.18,
+      centerLiftBoost = 6,
       splitGap = 0,
       overlapZBase = 70,
       overlapZRange = 80,
@@ -87,16 +88,18 @@
       const edgeArc = Math.cos(arcSpan / 2);
       const normalizedLift = (liftedArc - edgeArc) / (1 - edgeArc);
       const shapedLift = normalizedLift; // linear mapping matches the circular curve of Math.cos
-      const shapedScale = Math.pow(normalizedLift, 1.1); // subtle scale easing
+      const shapedScale = Math.pow(normalizedLift, 1.35);
       const tangentRotation = Math.sin(theta) * maxRotation;
       const arcX = (Math.sin(theta) / Math.sin(arcSpan / 2)) * centerIndex * step;
 
-      let liftVal = -shapedLift * maxLift;
+      const curveLift = -shapedLift * maxLift;
+      let liftVal = curveLift;
       if (index === centerIndex) {
-        liftVal -= 18; // Elevate C-position card slightly to create hierarchy (more negative = higher on screen)
+        liftVal -= centerLiftBoost;
       }
 
       return {
+        curveLift: Number(curveLift.toFixed(2)),
         x: Number(arcX.toFixed(2)),
         lift: Number(liftVal.toFixed(2)),
         rotation: Number((-tangentRotation).toFixed(2)),
@@ -135,8 +138,8 @@
       cardPadding: Number(cardPadding.toFixed(2)),
       cardWidth: Number(cardWidth.toFixed(2)),
       dockInfluence: Number(clamp(step * 3.1, 180, 430).toFixed(2)),
-      maxLift: Number(clamp(cardHeight * 0.42, 90, 180).toFixed(2)),
-      maxRotation: width < 760 ? 8.6 : 9.8,
+      maxLift: Number(clamp(cardHeight * 0.26, width < 760 ? 48 : 62, 110).toFixed(2)),
+      maxRotation: width < 760 ? 6.4 : 6.8,
       metaHeight: Number(metaHeight.toFixed(2)),
       portraitHeight: Number(portraitHeight.toFixed(2)),
       splitGap: Number(splitGap.toFixed(2)),
@@ -239,6 +242,14 @@
     return "home";
   }
 
+  function resolveLandingCtaTarget() {
+    return "welcome";
+  }
+
+  function resolveWelcomeEntryTarget() {
+    return "wall";
+  }
+
   function getIntroTiming() {
     return { ...introTiming };
   }
@@ -311,8 +322,10 @@
     normalizeTrainee,
     pickKeywordPair,
     pickKeywordPairAB,
+    resolveLandingCtaTarget,
     resolveAdjacentTraineeId,
     resolveDiscoverTarget,
+    resolveWelcomeEntryTarget,
     toggleProfileMedia,
     updateSentence,
   };

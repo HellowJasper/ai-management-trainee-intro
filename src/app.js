@@ -280,6 +280,7 @@ const INTRO_EXIT_MS = introTiming.exitMs;
 const appShell = document.querySelector(".app-shell");
 const introStage = document.getElementById("introStage");
 const landingStage = document.getElementById("landingStage");
+const welcomeStage = document.getElementById("welcomeStage");
 const personaWallStage = document.getElementById("personaWallStage");
 const photoWall = document.getElementById("photoWall");
 const detailLayer = document.getElementById("detailLayer");
@@ -302,6 +303,7 @@ const rainRenderers = {
     ? window.IntroSequence.createIntroSequence("introRain", { logoSrc: "./assets/joincare-full-clean.png", onComplete: () => startIntroExit(false) })
     : createRain("introRain", { fontSize: 17, density: 0.78, fade: "rgba(2, 8, 14, 0.08)" }),
   home: createRain("landingRain", { fontSize: 17, density: 0.78, fade: "rgba(2, 8, 14, 0.04)" }),
+  welcome: createRain("welcomeRain", { fontSize: 17, density: 0.74, fade: "rgba(2, 8, 14, 0.045)" }),
   wall: createRain("wallRain", { fontSize: 18, fade: "rgba(2, 8, 14, 0.04)" }),
   detail: createRain("detailRain", { fontSize: 16, fade: "rgba(2, 8, 14, 0.05)" }),
   challenge: createRain("challengeRain", { fontSize: 18, fade: "rgba(2, 8, 14, 0.05)" }),
@@ -324,6 +326,7 @@ const discoverParticles = typeof window.createParticles === "function"
 const viewStages = {
   intro: introStage,
   home: landingStage,
+  welcome: welcomeStage,
   wall: personaWallStage,
   discover: document.getElementById("discoverStage"),
 };
@@ -351,6 +354,7 @@ function forceStagePaint(stage) {
 function syncStages(view) {
   setStageActive(viewStages.intro, view === "intro");
   setStageActive(viewStages.home, view === "home");
+  setStageActive(viewStages.welcome, view === "welcome");
   setStageActive(viewStages.wall, ["wall", "detail", "challenge"].includes(view));
   setStageActive(viewStages.discover, view === "discover");
 }
@@ -361,13 +365,15 @@ function syncRain(view) {
       ? ["intro"]
       : view === "home"
         ? ["home"]
-        : view === "detail"
-          ? ["detail"]
-          : view === "challenge"
-            ? ["challenge"]
-            : view === "discover"
-              ? ["discover"]
-              : ["wall"]
+        : view === "welcome"
+          ? ["welcome"]
+          : view === "detail"
+            ? ["detail"]
+            : view === "challenge"
+              ? ["challenge"]
+              : view === "discover"
+                ? ["discover"]
+                : ["wall"]
   );
 
   Object.entries(rainRenderers).forEach(([key, rain]) => {
@@ -404,7 +410,7 @@ function startIntroExit(skipped = false) {
   introStage.style.pointerEvents = "none";
 
   appShell.dataset.view = "intro-exit";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge", "view-discover");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover");
   appShell.classList.add("view-intro-exit");
 
   rainRenderers.home?.resize();
@@ -437,7 +443,7 @@ function selectedTrainee() {
 function setView(view) {
   appView = view;
   appShell.dataset.view = view;
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge", "view-discover");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover");
   appShell.classList.add(`view-${view}`);
   syncStages(view);
 
@@ -531,30 +537,62 @@ function renderPhotoWall() {
   const svgHeight = 220;
 
   let pathD = "";
+  let glassMaskHeight = svgHeight;
+  let glassDepth = 58;
+  let glassTranslateY = 29;
   if (arcLayout.length > 1) {
     const firstLayout = arcLayout[0];
     const lastLayout = arcLayout[arcLayout.length - 1];
     const centerIndex = Math.floor((arcLayout.length - 1) / 2);
     const centerLayout = arcLayout[centerIndex];
+    const lineLiftRatio = 0.62;
+    glassDepth = Math.max(42, Math.min(86, metrics.cardHeight * 0.26));
+    glassTranslateY = glassDepth / 2;
 
     const x_first = svgWidth / 2 + firstLayout.x;
-    const y_first = svgHeight + firstLayout.lift + 18;
+    const y_first = svgHeight + firstLayout.curveLift * lineLiftRatio;
     const x_last = svgWidth / 2 + lastLayout.x;
-    const y_last = svgHeight + lastLayout.lift + 18;
+    const y_last = svgHeight + lastLayout.curveLift * lineLiftRatio;
     const x_center = svgWidth / 2 + centerLayout.x;
-    // The center card is elevated by -18px in the layout. To keep the bottom SVG curve
-    // running along the natural, undistorted circular arc, we add 18px back to the center lift.
-    const y_peak = svgHeight + (centerLayout.lift + 18) + 18;
+    const y_peak = svgHeight + centerLayout.curveLift * lineLiftRatio;
 
     const x_ctrl = x_center;
     const y_ctrl = 2 * y_peak - (y_first + y_last) / 2;
+    glassMaskHeight = svgHeight + glassDepth * 1.4;
 
     pathD = `M ${x_first},${y_first} Q ${x_ctrl},${y_ctrl} ${x_last},${y_last}`;
   }
 
   const svgHtml = `
     <svg class="photo-wall-svg" style="--svg-width: ${svgWidth}px; --svg-height: ${svgHeight}px;" viewBox="0 0 ${svgWidth} ${svgHeight}">
-      <path d="${pathD}" />
+      <defs>
+        <linearGradient id="photoWallGlassGradient" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#bffff0" stop-opacity="0.22" />
+          <stop offset="28%" stop-color="#28ffc8" stop-opacity="0.18" />
+          <stop offset="74%" stop-color="#04866f" stop-opacity="0.08" />
+          <stop offset="100%" stop-color="#02080e" stop-opacity="0" />
+        </linearGradient>
+        <linearGradient id="photoWallGlassSheen" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#28ffc8" stop-opacity="0" />
+          <stop offset="48%" stop-color="#dffff5" stop-opacity="0.5" />
+          <stop offset="100%" stop-color="#28ffc8" stop-opacity="0" />
+        </linearGradient>
+        <linearGradient id="photoWallGlassEdgeFade" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="white" stop-opacity="0" />
+          <stop offset="12%" stop-color="white" stop-opacity="0.2" />
+          <stop offset="28%" stop-color="white" stop-opacity="0.92" />
+          <stop offset="50%" stop-color="white" stop-opacity="1" />
+          <stop offset="72%" stop-color="white" stop-opacity="0.92" />
+          <stop offset="88%" stop-color="white" stop-opacity="0.2" />
+          <stop offset="100%" stop-color="white" stop-opacity="0" />
+        </linearGradient>
+        <mask id="photoWallGlassMask" maskUnits="userSpaceOnUse" x="0" y="0" width="${svgWidth}" height="${glassMaskHeight}">
+          <rect x="0" y="0" width="${svgWidth}" height="${glassMaskHeight}" fill="url(#photoWallGlassEdgeFade)" />
+        </mask>
+      </defs>
+      <path class="photo-wall-glass-fill" d="${pathD}" transform="translate(0 ${glassTranslateY})" style="--glass-stroke-width: ${glassDepth}px;" mask="url(#photoWallGlassMask)" />
+      <path class="photo-wall-glass-sheen" d="${pathD}" />
+      <path class="photo-wall-arc-line" d="${pathD}" />
     </svg>
   `;
 
@@ -664,7 +702,7 @@ function openDetail(id) {
   detailLayer.setAttribute("aria-hidden", "false");
   syncDetailMotion(true);
   appShell.dataset.view = "detail";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge", "view-discover");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover");
   appShell.classList.add("view-detail");
 }
 
@@ -673,7 +711,7 @@ function closeDetail() {
   detailLayer.classList.remove("is-open");
   detailLayer.setAttribute("aria-hidden", "true");
   appShell.dataset.view = appView === "home" ? "home" : "wall";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge", "view-discover");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover");
   appShell.classList.add(appView === "home" ? "view-home" : "view-wall");
   syncStages(appView === "home" ? "home" : "wall");
   syncRain(appView === "home" ? "home" : "wall");
@@ -801,7 +839,7 @@ function openChallenge() {
   challengeLayer.setAttribute("aria-hidden", "false");
   syncChallengeMotion(true);
   appShell.dataset.view = "challenge";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge", "view-discover");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover");
   appShell.classList.add("view-challenge");
 
   if (trainee.previousPairs.length > 0) {
@@ -825,7 +863,7 @@ function closeChallenge() {
   drawWordsButton.disabled = false;
   redrawWordsButton.disabled = false;
   appShell.dataset.view = "detail";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-wall", "view-detail", "view-challenge", "view-discover");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover");
   appShell.classList.add("view-detail");
   syncStages("detail");
   syncRain("detail");
@@ -865,7 +903,11 @@ function bindEvents() {
   });
 
   document.getElementById("enterButton").addEventListener("click", () => {
-    setView("wall");
+    setView(window.AppLogic.resolveLandingCtaTarget());
+  });
+
+  document.getElementById("welcomeEnterButton").addEventListener("click", () => {
+    setView(window.AppLogic.resolveWelcomeEntryTarget());
   });
 
   if (discoverButton && discoverMenu) {

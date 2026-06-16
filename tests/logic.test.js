@@ -14,8 +14,10 @@ const {
   normalizeTrainee,
   pickKeywordPair,
   pickKeywordPairAB,
+  resolveLandingCtaTarget,
   resolveAdjacentTraineeId,
   resolveDiscoverTarget,
+  resolveWelcomeEntryTarget,
   toggleProfileMedia,
   updateSentence,
 } = require("../src/logic.js");
@@ -38,7 +40,8 @@ test("computeArcLayout places every card on a continuous circular arc", () => {
   // Center card (index 5) properties
   assert.equal(layout[5].x, 0);
   assert.equal(layout[5].rotation, 0);
-  assert.equal(layout[5].lift, -102);
+  assert.equal(layout[5].curveLift, -84);
+  assert.equal(layout[5].lift, -90);
   assert.equal(layout[5].scale, 1.1);
   assert.ok(layout[5].lift < layout[4].lift);
   assert.ok(layout[5].lift < layout[6].lift);
@@ -89,9 +92,10 @@ test("computePhotoWallMetrics keeps twelve tarot cards in one row", () => {
   assert.ok(metrics.visualWidth <= metrics.availableWidth);
   assert.ok(metrics.step > 0);
   assert.ok(metrics.step < metrics.cardWidth);
-  assert.ok(metrics.maxLift >= metrics.cardHeight * 0.26);
-  assert.ok(metrics.maxRotation >= 7.4);
-  assert.ok(metrics.maxRotation <= 14.0);
+  assert.ok(metrics.maxLift >= metrics.cardHeight * 0.22);
+  assert.ok(metrics.maxLift <= metrics.cardHeight * 0.3);
+  assert.ok(metrics.maxRotation >= 5.2);
+  assert.ok(metrics.maxRotation <= 8.0);
 });
 
 test("twelve profile cards form one connected arc centered on the sixth card", () => {
@@ -111,6 +115,8 @@ test("twelve profile cards form one connected arc centered on the sixth card", (
   assert.ok(layout.slice(0, 5).every((item) => item.x < 0));
   assert.ok(layout.slice(6).every((item) => item.x > 0));
   assert.equal(layout[0].scale, layout[11].scale);
+  assert.ok(layout[5].scale > 1.16);
+  assert.ok(layout[0].scale < 0.68);
   assert.equal(layout[0].zIndex, layout[11].zIndex);
 });
 
@@ -191,6 +197,27 @@ test("nextIntroState moves from intro to home", () => {
   assert.equal(nextIntroState({ skipped: true }), "home");
 });
 
+test("landing CTA opens the terminal boot welcome before manual persona entry", () => {
+  assert.equal(resolveLandingCtaTarget(), "welcome");
+  assert.equal(resolveWelcomeEntryTarget(), "wall");
+});
+
+test("terminal boot welcome stage is wired into the HTML", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+
+  assert.match(html, /<section class="welcome-stage" id="welcomeStage"/);
+  assert.match(html, /id="welcomeRain"/);
+  assert.match(html, /BOOTING HACKATHON_PROTOCOL_2026/);
+  assert.match(html, /进入未来伙伴档案/);
+});
+
+test("landing stage starts with its main CTA visible and clickable", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  const landingOpenTag = html.match(/<section class="[^"]*" id="landingStage"/)?.[0] || "";
+
+  assert.doesNotMatch(landingOpenTag, /backdrop-mode/);
+});
+
 test("getIntroTiming keeps the loading hold and crossfade durations explicit", () => {
   assert.deepEqual(getIntroTiming(), {
     holdMs: 4000,
@@ -201,6 +228,14 @@ test("getIntroTiming keeps the loading hold and crossfade durations explicit", (
 test("resolveDiscoverTarget accepts known discover menu targets", () => {
   assert.equal(resolveDiscoverTarget("awards"), "awards");
   assert.equal(resolveDiscoverTarget("unknown"), "home");
+});
+
+test("discover header links to talent profiles and a pending next section", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  const discoverSection = html.match(/<section class="discover-stage"[\s\S]*?<\/section>\s*<\/main>/)?.[0] || "";
+
+  assert.match(discoverSection, /<button class="brand-chip" type="button" data-view-target="wall">/);
+  assert.match(discoverSection, /<button class="cohort-mark" type="button" data-discover-target="awards">5 CORE SECTORS<\/button>/);
 });
 
 test("resolveAdjacentTraineeId moves to neighboring profile with wraparound", () => {
@@ -229,6 +264,20 @@ test("profile arc cards do not use yaw perspective that breaks left-right symmet
   assert.doesNotMatch(profileCardBlock, /rotateY/);
 });
 
+test("business scenario cards brighten indexes and center their button content", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+  const iconBlock = css.match(/\.dept-icon-glow\s*{[\s\S]*?\n}/)?.[0] || "";
+  const contentBlock = css.match(/\.dept-content\s*{[\s\S]*?\n}/)?.[0] || "";
+  const textBlock = css.match(/\.dept-content p\s*{[\s\S]*?\n}/)?.[0] || "";
+  const badgeBlock = css.match(/\.dept-link-badge\s*{[\s\S]*?\n}/)?.[0] || "";
+
+  assert.match(iconBlock, /font-size:\s*clamp\(42px,\s*3\.4vw,\s*58px\)/);
+  assert.match(iconBlock, /opacity:\s*0\.92/);
+  assert.match(contentBlock, /align-items:\s*center/);
+  assert.match(textBlock, /text-align:\s*center/);
+  assert.match(badgeBlock, /align-self:\s*center/);
+});
+
 test("view transitions clear the discover view class before switching stages", () => {
   const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
   const removeCalls = appJs.match(/appShell\.classList\.remove\([\s\S]*?\);/g) || [];
@@ -236,6 +285,7 @@ test("view transitions clear the discover view class before switching stages", (
   assert.ok(removeCalls.length > 0);
   removeCalls.forEach((removeCall) => {
     assert.match(removeCall, /"view-discover"/);
+    assert.match(removeCall, /"view-welcome"/);
   });
 });
 

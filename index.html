@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI Innovation Hackathon 2026</title>
-    <link rel="stylesheet" href="./styles.css?v=20260616-02" />
+    <link rel="stylesheet" href="./styles.css?v=20260616-04" />
   </head>
   <body>
     <main class="app-shell" data-view="intro">
@@ -13,7 +13,7 @@
         <button class="skip-intro-button" id="skipIntroButton" type="button">Skip</button>
       </section>
 
-      <section class="landing-stage backdrop-mode" id="landingStage" aria-label="AI Innovation Hackathon 首页">
+      <section class="landing-stage" id="landingStage" aria-label="AI Innovation Hackathon 首页">
         <canvas class="code-rain-canvas landing-rain" id="landingRain" aria-hidden="true"></canvas>
         <div class="stage-vignette" aria-hidden="true"></div>
         <nav class="hackathon-nav" aria-label="Hackathon navigation">
@@ -35,6 +35,67 @@
           <section class="discover-panel" id="discoverPanel" aria-live="polite"></section>
         </div>
         <button class="backdrop-toggle-btn" id="backdropToggleBtn" type="button" aria-label="Toggle Backdrop Mode"></button>
+      </section>
+
+      <section class="welcome-stage" id="welcomeStage" aria-label="AI创新黑客松任务启动">
+        <canvas class="code-rain-canvas welcome-rain" id="welcomeRain" aria-hidden="true"></canvas>
+        <div class="stage-vignette" aria-hidden="true"></div>
+        <div class="welcome-signal-field" aria-hidden="true"></div>
+
+        <header class="welcome-hud welcome-hud-top">
+          <span>JOINCARE://START</span>
+          <strong>MISSION ONLINE</strong>
+          <span>AI HACKATHON 2026</span>
+        </header>
+
+        <article class="welcome-terminal" aria-labelledby="welcomeTerminalTitle">
+          <div class="welcome-terminal-chrome" aria-hidden="true">
+            <div class="welcome-terminal-lights">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <span>HACKATHON_PROTOCOL_2026</span>
+            <span>READY</span>
+          </div>
+
+          <div class="welcome-terminal-body">
+            <p class="welcome-kicker">SYSTEM BOOT SEQUENCE</p>
+            <h2 id="welcomeTerminalTitle">
+              BOOTING HACKATHON_PROTOCOL_2026
+              <span>AI创新黑客松协议启动</span>
+            </h2>
+
+            <div class="welcome-boot-lines">
+              <section>
+                <strong>Welcome to AI innovation hackathon 2026.</strong>
+                <span>欢迎来到AI创新黑客松 2026</span>
+              </section>
+              <section>
+                <strong>24H mission window unlocked.</strong>
+                <span>未来24小时，真实业务挑战已解锁。</span>
+              </section>
+              <section>
+                <strong>Business leaders + future teammates linked.</strong>
+                <span>业务专家与未来伙伴正在接入。</span>
+              </section>
+              <section>
+                <strong>AI-powered solutions: ready to build.</strong>
+                <span>借助AI创造创新解决方案。</span>
+              </section>
+            </div>
+
+            <button class="welcome-enter-button" id="welcomeEnterButton" type="button">
+              <strong>MISSION STARTS NOW</strong>
+              <span>任务现在开始 / 进入未来伙伴档案 ➔</span>
+            </button>
+          </div>
+        </article>
+
+        <footer class="welcome-hud welcome-hud-bottom">
+          <span>STATUS: MANUAL ENTRY</span>
+          <span>PERSONA PROFILE NEXT</span>
+        </footer>
       </section>
 
       <section class="home-stage" id="personaWallStage" aria-label="AI 管培生照片墙">
@@ -183,11 +244,11 @@
         <div class="discover-glow-orb orb-3" aria-hidden="true"></div>
         <div class="stage-vignette" aria-hidden="true"></div>
         <header class="stage-header">
-          <button class="brand-chip" type="button" data-view-target="home">
+          <button class="brand-chip" type="button" data-view-target="wall">
             <span class="chip-dot"></span>
             AI MANAGEMENT TRAINEES
           </button>
-          <div class="cohort-mark">5 CORE SECTORS</div>
+          <button class="cohort-mark" type="button" data-discover-target="awards">5 CORE SECTORS</button>
         </header>
 
         <div class="discover-hub-wrap">
@@ -211,7 +272,7 @@
                 <div class="dept-link-badge">查看文档 ➔</div>
               </div>
             </a>
-            <a href="https://joincare.feishu.cn/docx/placeholder-marketing" target="_blank" class="dept-card" style="--dept-color: rgb(80, 164, 121); --dept-color-rgb: 80, 164, 121;">
+            <a href="https://joincare.feishu.cn/docx/placeholder-marketing" target="_blank" class="dept-card" style="--dept-color: rgb(205, 255, 92); --dept-color-rgb: 205, 255, 92;">
               <div class="dept-icon-glow">03</div>
               <div class="dept-content">
                 <h3>营销</h3>
@@ -220,7 +281,7 @@
                 <div class="dept-link-badge">查看文档 ➔</div>
               </div>
             </a>
-            <a href="https://joincare.feishu.cn/docx/placeholder-functions" target="_blank" class="dept-card" style="--dept-color: rgb(175, 214, 67); --dept-color-rgb: 175, 214, 67;">
+            <a href="https://joincare.feishu.cn/docx/placeholder-functions" target="_blank" class="dept-card" style="--dept-color: rgb(85, 182, 78); --dept-color-rgb: 85, 182, 78;">
               <div class="dept-icon-glow">04</div>
               <div class="dept-content">
                 <h3>职能</h3>
@@ -229,7 +290,7 @@
                 <div class="dept-link-badge">查看文档 ➔</div>
               </div>
             </a>
-            <a href="https://joincare.feishu.cn/docx/placeholder-production" target="_blank" class="dept-card" style="--dept-color: rgb(85, 182, 78); --dept-color-rgb: 85, 182, 78;">
+            <a href="https://joincare.feishu.cn/docx/placeholder-production" target="_blank" class="dept-card" style="--dept-color: rgb(110, 235, 150); --dept-color-rgb: 110, 235, 150;">
               <div class="dept-icon-glow">05</div>
               <div class="dept-content">
                 <h3>生产</h3>
@@ -249,11 +310,11 @@
       </section>
     </main>
 
-    <script src="./src/logic.js?v=20260616-02"></script>
-    <script src="./src/data.js?v=20260616-02"></script>
-    <script src="./src/code-rain.js?v=20260616-02"></script>
-    <script src="./src/particles.js?v=20260616-02"></script>
-    <script src="./src/intro.js?v=20260616-02"></script>
-    <script src="./src/app.js?v=20260616-02"></script>
+    <script src="./src/logic.js?v=20260616-04"></script>
+    <script src="./src/data.js?v=20260616-04"></script>
+    <script src="./src/code-rain.js?v=20260616-04"></script>
+    <script src="./src/particles.js?v=20260616-04"></script>
+    <script src="./src/intro.js?v=20260616-04"></script>
+    <script src="./src/app.js?v=20260616-04"></script>
   </body>
 </html>

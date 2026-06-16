@@ -94,6 +94,7 @@ button:disabled {
 
 .intro-stage,
 .landing-stage,
+.welcome-stage,
 .home-stage {
   position: fixed;
   inset: 0;
@@ -169,6 +170,18 @@ button:disabled {
   pointer-events: auto;
 }
 
+.app-shell[data-view="welcome"] > .welcome-stage {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.app-shell.view-welcome > .welcome-stage {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
 .app-shell[data-view="wall"] > .home-stage,
 .app-shell[data-view="detail"] > .home-stage,
 .app-shell[data-view="challenge"] > .home-stage {
@@ -189,6 +202,7 @@ button:disabled {
 .hackathon-nav button,
 .enter-button,
 .discover-button,
+.welcome-enter-button,
 .discover-menu button,
 .brand-chip,
 .cohort-mark,
@@ -227,6 +241,7 @@ button:disabled {
 .hackathon-nav button:hover,
 .enter-button:hover,
 .discover-button:hover,
+.welcome-enter-button:hover,
 .discover-menu button:hover,
 .brand-chip:hover,
 .cohort-mark:hover,
@@ -697,6 +712,319 @@ button:disabled {
   line-height: 1.6;
 }
 
+.welcome-stage {
+  z-index: 11;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 34%, rgba(40, 255, 200, 0.2), transparent 28%),
+    radial-gradient(circle at 50% 74%, rgba(167, 255, 79, 0.11), transparent 27%),
+    linear-gradient(180deg, rgba(2, 18, 20, 0.82), rgba(2, 8, 14, 0.97)),
+    var(--void);
+}
+
+.welcome-rain {
+  z-index: 1;
+  opacity: 0.54;
+  mix-blend-mode: screen;
+}
+
+.welcome-stage .stage-vignette {
+  z-index: 2;
+  background:
+    linear-gradient(90deg, rgba(2, 8, 14, 0.9), transparent 22%, transparent 78%, rgba(2, 8, 14, 0.9)),
+    linear-gradient(180deg, rgba(2, 8, 14, 0.26), transparent 42%, rgba(2, 8, 14, 0.92));
+}
+
+.welcome-signal-field {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.welcome-signal-field::before {
+  content: "0101  JOINCARE  AI  2026  AGENT  PROMPT  DATA  FUTURE  TEAM";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: clamp(120px, 20vh, 190px);
+  padding-top: 20px;
+  color: rgba(103, 255, 213, 0.18);
+  font-family: var(--pixel);
+  font-size: clamp(9px, 0.85vw, 13px);
+  letter-spacing: 0.18em;
+  text-align: center;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 26px, rgba(40, 255, 200, 0.24) 27px 29px, transparent 30px 56px);
+  mask-image: linear-gradient(180deg, black, transparent);
+}
+
+.welcome-signal-field::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(180deg, rgba(234, 255, 248, 0.055) 0 1px, transparent 1px 10px),
+    linear-gradient(90deg, transparent, rgba(40, 255, 200, 0.08), transparent);
+  opacity: 0.46;
+}
+
+.welcome-hud {
+  position: absolute;
+  left: clamp(18px, 3vw, 44px);
+  right: clamp(18px, 3vw, 44px);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: rgba(213, 255, 244, 0.66);
+  font-family: var(--nav-pixel);
+  font-size: clamp(7px, 0.58vw, 9.5px);
+  line-height: 1.45;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(40, 255, 200, 0.2);
+}
+
+.welcome-hud strong {
+  color: var(--neon-2);
+  font-weight: 400;
+}
+
+.welcome-hud-top {
+  top: clamp(12px, 1.8vw, 24px);
+}
+
+.welcome-hud-bottom {
+  bottom: clamp(18px, 2.4vw, 34px);
+}
+
+.welcome-terminal {
+  position: relative;
+  z-index: 4;
+  width: min(720px, calc(100vw - 72px));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius);
+  background: rgba(4, 18, 16, 0.45);
+  box-shadow:
+    0 30px 60px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 32px rgba(40, 255, 200, 0.08);
+  overflow: hidden;
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  animation: welcomeTerminalIn 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.welcome-terminal::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.04), transparent),
+    radial-gradient(circle at 50% 0%, rgba(40, 255, 200, 0.16), transparent 38%);
+  opacity: 0.46;
+  pointer-events: none;
+}
+
+.welcome-terminal-chrome {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 34px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  padding: 8px 14px;
+  color: rgba(255, 255, 255, 0.65);
+  font-family: var(--nav-pixel);
+  font-size: clamp(10px, 0.9vw, 12px);
+}
+
+.welcome-terminal-chrome > span:nth-child(2) {
+  justify-self: center;
+}
+
+.welcome-terminal-lights {
+  display: flex;
+  gap: 7px;
+}
+
+.welcome-terminal-lights span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--neon);
+  box-shadow: 0 0 12px rgba(40, 255, 200, 0.9);
+}
+
+.welcome-terminal-lights span:nth-child(2) {
+  background: var(--neon-2);
+  box-shadow: 0 0 12px rgba(167, 255, 79, 0.72);
+}
+
+.welcome-terminal-lights span:nth-child(3) {
+  background: rgba(234, 255, 248, 0.62);
+  box-shadow: 0 0 12px rgba(234, 255, 248, 0.38);
+}
+
+.welcome-terminal-body {
+  position: relative;
+  z-index: 1;
+  padding: clamp(18px, 2.5vw, 28px) clamp(22px, 3.6vw, 36px) clamp(18px, 2.5vw, 26px);
+}
+
+.welcome-kicker {
+  margin: 0 0 8px;
+  color: rgba(167, 255, 79, 0.9);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: clamp(10px, 0.8vw, 11px);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.welcome-terminal h2 {
+  margin: 0;
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: clamp(22px, 2.2vw, 30px);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  text-shadow:
+    0 0 12px rgba(255, 255, 255, 0.15),
+    0 0 36px rgba(40, 255, 200, 0.2);
+}
+
+.welcome-terminal h2 span {
+  display: block;
+  margin-top: 6px;
+  color: var(--neon-2);
+  font-family: var(--body);
+  font-size: clamp(16px, 1.55vw, 21px);
+  font-weight: 900;
+  text-shadow: 0 0 18px rgba(167, 255, 79, 0.42);
+}
+
+.welcome-boot-lines {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin: clamp(13px, 1.7vw, 18px) 0 clamp(13px, 1.7vw, 18px);
+}
+
+.welcome-boot-lines section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 0.72fr);
+  gap: 14px;
+  align-items: center;
+  min-height: 0;
+  border-left: 2px solid var(--neon);
+  border-radius: 0;
+  padding: 6px 0 6px 12px;
+  background: linear-gradient(90deg, rgba(40, 255, 200, 0.04) 0%, transparent 80%);
+  color: rgba(255, 255, 255, 0.95);
+  line-height: 1.35;
+  transition: all 200ms ease;
+}
+
+.welcome-boot-lines section:hover {
+  background: linear-gradient(90deg, rgba(40, 255, 200, 0.08) 0%, transparent 90%);
+  border-left-color: var(--neon-2);
+}
+
+.welcome-boot-lines strong {
+  display: block;
+  color: #ffffff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: clamp(12px, 0.85vw, 13px);
+  font-weight: 500;
+}
+
+.welcome-boot-lines strong::before {
+  content: "> ";
+  color: var(--neon-2);
+  font-family: var(--pixel);
+  font-weight: normal;
+}
+
+.welcome-boot-lines span {
+  display: block;
+  margin-top: 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: var(--body);
+  font-size: clamp(12px, 0.88vw, 13px);
+}
+
+.welcome-enter-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  border: 1px solid rgba(167, 255, 79, 0.36);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  background: rgba(167, 255, 79, 0.08);
+  color: #eafff8;
+  cursor: pointer;
+  box-shadow: 0 0 18px rgba(167, 255, 79, 0.1);
+  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  margin-top: clamp(16px, 2.5vw, 28px);
+  text-align: left;
+}
+
+.welcome-enter-button:hover,
+.welcome-enter-button:focus-visible {
+  background: rgba(167, 255, 79, 0.16);
+  border-color: rgba(167, 255, 79, 0.85);
+  box-shadow:
+    0 0 28px rgba(167, 255, 79, 0.25),
+    0 0 60px rgba(40, 255, 200, 0.12),
+    inset 0 0 12px rgba(167, 255, 79, 0.1);
+  transform: translateY(-2px);
+}
+
+.welcome-enter-button strong {
+  display: block;
+  color: #ffffff;
+  font-family: var(--pixel);
+  flex: 0 0 auto;
+  font-size: clamp(14px, 1.2vw, 17px);
+  line-height: 1.08;
+  text-shadow: 0 0 12px rgba(167, 255, 79, 0.4);
+}
+
+.welcome-enter-button span {
+  display: block;
+  margin-top: 0;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: clamp(11px, 0.8vw, 13px);
+  font-weight: 500;
+  text-align: right;
+}
+
+@keyframes welcomeTerminalIn {
+  0% {
+    opacity: 0;
+    transform: translateY(22px) scale(0.985);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
 .home-stage {
   z-index: 12;
   background:
@@ -805,27 +1133,15 @@ button:disabled {
   min-height: 100%;
   padding: 14px clamp(6px, 1vw, 18px) 104px;
   perspective: 1700px;
+  isolation: isolate;
 }
 
 .photo-wall::before {
-  content: "";
-  position: absolute;
-  left: 5%;
-  right: 5%;
-  bottom: 30px;
-  height: 20%;
-  box-shadow: 0 -22px 60px rgba(40, 255, 200, 0.08);
+  display: none;
 }
 
 .photo-wall::after {
-  content: "";
-  position: absolute;
-  left: 10%;
-  right: 10%;
-  bottom: 42px;
-  height: 40px;
-  background: rgba(40, 255, 200, 0.15);
-  filter: blur(26px);
+  display: none;
 }
 
 .photo-wall-svg {
@@ -840,7 +1156,28 @@ button:disabled {
   z-index: 1;
 }
 
-.photo-wall-svg path {
+.photo-wall-glass-fill {
+  fill: none;
+  stroke: url("#photoWallGlassGradient");
+  stroke-width: var(--glass-stroke-width, 58px);
+  stroke-linecap: round;
+  opacity: 0.74;
+  filter:
+    blur(0.8px)
+    drop-shadow(0 10px 22px rgba(40, 255, 200, 0.1))
+    drop-shadow(0 24px 46px rgba(2, 86, 74, 0.14));
+}
+
+.photo-wall-glass-sheen {
+  fill: none;
+  stroke: url("#photoWallGlassSheen");
+  stroke-width: 5px;
+  stroke-linecap: round;
+  opacity: 0.62;
+  filter: blur(1.2px);
+}
+
+.photo-wall-arc-line {
   fill: none;
   stroke: rgba(103, 255, 213, 0.5);
   stroke-width: 1.5px;
@@ -2011,23 +2348,23 @@ button:disabled {
   align-items: center;
   justify-content: flex-start;
   padding: 0 40px;
-  max-width: 1380px;
+  max-width: 1510px;
   margin: 0 auto;
   width: 100%;
   z-index: 3;
-  padding-top: clamp(60px, 10vh, 120px);
+  padding-top: clamp(52px, 8vh, 104px);
 }
 
 .discover-hub-title {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: clamp(28px, 3.6vw, 48px);
+  font-size: clamp(36px, 4.6vw, 68px);
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   background: linear-gradient(180deg, #ffffff 40%, rgba(255, 255, 255, 0.65) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  margin: 0 0 clamp(40px, 6vh, 80px);
+  margin: 0 0 clamp(34px, 5vh, 66px);
   text-align: center;
   text-shadow: none;
 }
@@ -2045,7 +2382,7 @@ button:disabled {
 .department-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 30px;
+  gap: clamp(28px, 2.4vw, 42px);
   width: 100%;
   perspective: 1200px;
 }
@@ -2059,6 +2396,7 @@ button:disabled {
 .dept-card {
   display: flex;
   align-items: stretch;
+  min-height: clamp(206px, 22vh, 276px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
@@ -2111,15 +2449,17 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 63px;
+  width: clamp(72px, 5.2vw, 90px);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0) 100%);
   border-right: 1px solid rgba(255, 255, 255, 0.05);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 36px;
-  font-weight: 200;
+  font-size: clamp(42px, 3.4vw, 58px);
+  font-weight: 300;
   color: var(--dept-color);
-  opacity: 0.65;
-  text-shadow: 0 0 16px rgba(var(--dept-color-rgb), 0.4);
+  opacity: 0.92;
+  text-shadow:
+    0 0 18px rgba(var(--dept-color-rgb), 0.58),
+    0 0 34px rgba(var(--dept-color-rgb), 0.28);
   transition: all 400ms ease;
 
   transform: translateZ(35px);
@@ -2135,20 +2475,24 @@ button:disabled {
 
 .dept-content {
   flex: 1;
-  padding: 26px 13px;
+  padding: clamp(28px, 2vw, 36px) clamp(20px, 1.7vw, 28px);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(10px, 1.2vw, 18px);
+  text-align: center;
   transform: translateZ(25px);
   transform-style: preserve-3d;
 }
 
 .dept-content h3 {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif;
-  font-size: 19.5px;
+  font-size: clamp(24px, 1.8vw, 34px);
+  line-height: 1.1;
   margin: 0;
   color: #ffffff;
-  font-weight: 600;
+  font-weight: 800;
   transition: color 260ms ease, transform 300ms ease;
   letter-spacing: 0.02em;
   transform: translateZ(5px);
@@ -2161,27 +2505,30 @@ button:disabled {
 
 .dept-content .dept-en {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 10px;
+  font-size: clamp(11px, 0.82vw, 14px);
   color: var(--text-soft);
   text-transform: uppercase;
-  margin-top: 4px;
   display: block;
   letter-spacing: 0.16em;
-  font-weight: 500;
-  opacity: 0.6;
+  font-weight: 700;
+  line-height: 1.35;
+  opacity: 0.78;
 }
 
 .dept-content p {
-  margin: 18px 0 24px;
-  color: rgba(255, 255, 255, 0.52);
-  font-size: 13px;
+  width: 100%;
+  max-width: 420px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: clamp(14px, 1vw, 17px);
   line-height: 1.55;
-  font-weight: 400;
+  font-weight: 600;
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 8px;
-  padding: 10px 14px;
+  padding: 12px 16px;
   letter-spacing: 0.02em;
+  text-align: center;
   transition: all 300ms ease;
 }
 
@@ -2193,15 +2540,16 @@ button:disabled {
 
 .dept-link-badge {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
-  align-self: flex-start;
+  font-size: clamp(13px, 0.9vw, 15px);
+  color: rgba(255, 255, 255, 0.82);
+  align-self: center;
   transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
-  font-weight: 600;
+  font-weight: 800;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 6px 16px;
+  padding: 8px 20px;
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -2282,6 +2630,22 @@ button:disabled {
     flex-wrap: wrap;
   }
 
+  .welcome-terminal {
+    max-height: calc(100vh - 108px);
+  }
+
+  .welcome-terminal-body {
+    overflow-y: auto;
+  }
+
+  .welcome-boot-lines {
+    grid-template-columns: 1fr;
+  }
+
+  .welcome-boot-lines section {
+    min-height: 0;
+  }
+
   .photo-wall-wrap {
     width: calc(100vw - 28px);
     height: 46vh;
@@ -2358,8 +2722,38 @@ button:disabled {
   }
 
   .enter-button,
-  .discover-button {
+  .discover-button,
+  .welcome-enter-button {
     min-width: min(260px, 90vw);
+  }
+
+  .welcome-hud {
+    font-size: 7px;
+  }
+
+  .welcome-hud-bottom {
+    display: none;
+  }
+
+  .welcome-terminal {
+    width: calc(100vw - 28px);
+    max-height: calc(100vh - 82px);
+  }
+
+  .welcome-terminal-chrome {
+    grid-template-columns: auto 1fr;
+  }
+
+  .welcome-terminal-chrome > span:last-child {
+    display: none;
+  }
+
+  .welcome-terminal h2 {
+    font-size: clamp(24px, 7vw, 34px);
+  }
+
+  .welcome-mission-lock strong {
+    font-size: clamp(20px, 6.5vw, 30px);
   }
 
   .profile-console {
@@ -2440,6 +2834,24 @@ button:disabled {
 
 /* Responsive fixes for shorter screen heights (preventing vertical overflow cuts) */
 @media (max-height: 780px) {
+  .welcome-terminal {
+    max-height: calc(100vh - 82px);
+  }
+  .welcome-terminal-body {
+    padding-top: 17px;
+    padding-bottom: 18px;
+  }
+  .welcome-boot-lines {
+    margin: 12px 0;
+  }
+  .welcome-boot-lines section {
+    min-height: 0;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+  .welcome-enter-button {
+    margin-top: 11px;
+  }
   .draw-card {
     width: min(20vw, 240px);
   }
@@ -2503,4 +2915,3 @@ button:disabled {
     transform: translate(-50%, -50%);
   }
 }
-
