@@ -805,7 +805,7 @@ button:disabled {
 .welcome-terminal {
   position: relative;
   z-index: 4;
-  width: min(720px, calc(100vw - 72px));
+  width: min(880px, calc(100vw - 80px));
   border: 1px solid rgba(103, 255, 213, 0.18);
   border-top: 1px solid rgba(103, 255, 213, 0.35);
   border-radius: var(--radius);
@@ -877,7 +877,7 @@ button:disabled {
 .welcome-terminal-body {
   position: relative;
   z-index: 1;
-  padding: clamp(18px, 2.5vw, 28px) clamp(22px, 3.6vw, 36px) clamp(18px, 2.5vw, 26px);
+  padding: clamp(24px, 3vw, 34px) clamp(28px, 4vw, 44px) clamp(22px, 2.8vw, 30px);
 }
 
 .welcome-kicker {
@@ -894,7 +894,7 @@ button:disabled {
   margin: 0;
   color: #ffffff;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: clamp(22px, 2.2vw, 30px);
+  font-size: clamp(24px, 2.6vw, 34px);
   font-weight: 800;
   line-height: 1.15;
   letter-spacing: -0.01em;
@@ -944,7 +944,7 @@ button:disabled {
   display: block;
   color: #ffffff;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: clamp(12px, 0.85vw, 13px);
+  font-size: clamp(12.5px, 0.9vw, 14.5px);
   font-weight: 500;
 }
 
@@ -960,56 +960,60 @@ button:disabled {
   margin-top: 0;
   color: rgba(103, 255, 213, 0.72);
   font-family: var(--body);
-  font-size: clamp(12px, 0.88vw, 13px);
+  font-size: clamp(12.5px, 0.9vw, 14.5px);
 }
 
 .welcome-enter-button {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  width: 100%;
-  border: 1px solid rgba(167, 255, 79, 0.36);
-  border-radius: var(--radius);
-  padding: 14px 20px;
-  background: rgba(167, 255, 79, 0.08);
+  justify-content: center;
+  gap: 5px;
+  width: min(460px, 100%);
+  margin: clamp(20px, 3.2vw, 36px) auto 0;
+  border: 1px solid rgba(167, 255, 79, 0.42);
+  border-radius: 999px;
+  padding: 12px 32px;
+  background: linear-gradient(180deg, rgba(167, 255, 79, 0.15) 0%, rgba(167, 255, 79, 0.04) 100%);
   color: #eafff8;
   cursor: pointer;
-  box-shadow: 0 0 18px rgba(167, 255, 79, 0.1);
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.35),
+    0 0 20px rgba(167, 255, 79, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
-  margin-top: clamp(16px, 2.5vw, 28px);
-  text-align: left;
+  text-align: center;
 }
 
 .welcome-enter-button:hover,
 .welcome-enter-button:focus-visible {
-  background: rgba(167, 255, 79, 0.16);
-  border-color: rgba(167, 255, 79, 0.85);
+  background: linear-gradient(180deg, rgba(167, 255, 79, 0.26) 0%, rgba(167, 255, 79, 0.08) 100%);
+  border-color: rgba(167, 255, 79, 0.9);
   box-shadow:
-    0 0 28px rgba(167, 255, 79, 0.25),
-    0 0 60px rgba(40, 255, 200, 0.12),
-    inset 0 0 12px rgba(167, 255, 79, 0.1);
-  transform: translateY(-2px);
+    0 12px 28px rgba(0, 0, 0, 0.45),
+    0 0 32px rgba(167, 255, 79, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transform: translateY(-2px) scale(1.015);
 }
 
 .welcome-enter-button strong {
   display: block;
   color: #ffffff;
   font-family: var(--pixel);
-  flex: 0 0 auto;
-  font-size: clamp(14px, 1.2vw, 17px);
-  line-height: 1.08;
-  text-shadow: 0 0 12px rgba(167, 255, 79, 0.4);
+  font-size: clamp(14px, 1.25vw, 18px);
+  line-height: 1.1;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 12px rgba(167, 255, 79, 0.5);
 }
 
 .welcome-enter-button span {
   display: block;
   margin-top: 0;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.82);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: clamp(11px, 0.8vw, 13px);
   font-weight: 500;
-  text-align: right;
+  text-align: center;
 }
 
 @keyframes welcomeTerminalIn {
