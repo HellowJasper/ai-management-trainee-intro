@@ -2044,11 +2044,17 @@ button:disabled {
 
 .department-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 30px;
   width: 100%;
   perspective: 1200px;
 }
+
+.dept-card:nth-child(1) { order: 1; grid-column: span 2; }
+.dept-card:nth-child(2) { order: 2; grid-column: span 2; }
+.dept-card:nth-child(5) { order: 3; grid-column: span 2; }
+.dept-card:nth-child(3) { order: 4; grid-column: 2 / span 2; }
+.dept-card:nth-child(4) { order: 5; grid-column: 4 / span 2; }
 
 .dept-card {
   display: flex;
@@ -2328,6 +2334,11 @@ button:disabled {
   .department-grid {
     grid-template-columns: 1fr;
     gap: 16px;
+  }
+
+  .dept-card {
+    grid-column: auto !important;
+    order: unset !important;
   }
 
   .discover-hub-wrap {
