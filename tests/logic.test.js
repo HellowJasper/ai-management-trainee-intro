@@ -238,6 +238,14 @@ test("discover header links to talent profiles and a pending next section", () =
   assert.match(discoverSection, /<button class="cohort-mark" type="button" data-discover-target="awards">5 CORE SECTORS<\/button>/);
 });
 
+test("general functions card uses the requested cyan accent", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  const functionsCard = html.match(/<a href="https:\/\/joincare\.feishu\.cn\/docx\/placeholder-functions"[\s\S]*?<\/a>/)?.[0] || "";
+
+  assert.match(functionsCard, /--dept-color:\s*rgb\(100,\s*232,\s*214\)/);
+  assert.match(functionsCard, /--dept-color-rgb:\s*100,\s*232,\s*214/);
+});
+
 test("resolveAdjacentTraineeId moves to neighboring profile with wraparound", () => {
   const trainees = [{ id: "a" }, { id: "b" }, { id: "c" }];
 
