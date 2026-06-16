@@ -288,6 +288,8 @@
       "li-feng",
       "zhang-hengrui",
       "li-beibei",
+      "zhan-meiling",
+      "chen-xulin",
     ];
     return [...trainees].sort((a, b) => {
       const idxA = order.indexOf(a?.id);

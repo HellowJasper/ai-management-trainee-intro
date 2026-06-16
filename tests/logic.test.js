@@ -268,17 +268,21 @@ test("positionJasperAtCenter puts Jasper exactly at the center index", () => {
 test("getDetailOrder sorts trainees according to the predefined order from the latest data files", () => {
   const trainees = [
     { id: "li-beibei" },
+    { id: "chen-xulin" },
     { id: "gu-lingqian" },
+    { id: "zhan-meiling" },
     { id: "jasper" },
     { id: "zhang-rui" }
   ];
 
   const ordered = getDetailOrder(trainees);
-  assert.equal(ordered.length, 4);
+  assert.equal(ordered.length, 6);
   assert.equal(ordered[0].id, "jasper");
   assert.equal(ordered[1].id, "zhang-rui");
   assert.equal(ordered[2].id, "gu-lingqian");
   assert.equal(ordered[3].id, "li-beibei");
+  assert.equal(ordered[4].id, "zhan-meiling");
+  assert.equal(ordered[5].id, "chen-xulin");
 
   // Fallback behavior for unknown IDs (should maintain relative order after predefined ones)
   const traineesFallback = [

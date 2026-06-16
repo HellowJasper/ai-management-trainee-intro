@@ -1,0 +1,7 @@
+.env
+.env.*
+!.env.example
+node_modules/
+data/*.zip
+data/AI*附件/
+.DS_Store

@@ -2,7 +2,11 @@
 .superpowers/
 node_modules/
 npm-debug.log*
+.env
+.env.*
+!.env.example
 data/*.csv
 data/*.zip
 data/*.xlsx
 data/AI*附件/
+.vercel
