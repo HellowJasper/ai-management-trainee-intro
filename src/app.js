@@ -419,6 +419,20 @@ function cssUrl(path) {
   return path ? `url('${String(path).replaceAll("'", "\\'")}')` : "none";
 }
 
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;",
+  })[char]);
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value).replaceAll("`", "&#96;");
+}
+
 function setPortrait(element, trainee) {
   element.style.setProperty("--portrait", trainee.portrait);
 }
@@ -466,11 +480,11 @@ function renderPhotoWall() {
       const arcStyle = getArcStyle(arcLayout[index]);
 
       return `
-        <button class="profile-card" type="button" data-id="${trainee.id}" aria-label="${trainee.department}${trainee.name}" style="${arcStyle}">
+        <button class="profile-card" type="button" data-id="${escapeAttribute(trainee.id)}" aria-label="${escapeAttribute(`${trainee.department}${trainee.name}`)}" style="${arcStyle}">
           <div class="portrait-frame" style="--portrait: ${trainee.portrait}; --media-image: ${cssUrl(trainee.idPhoto || trainee.photo)}"></div>
           <div class="profile-meta">
-            <span class="profile-name">${trainee.name}</span>
-            <span class="profile-department">${trainee.department}</span>
+            <span class="profile-name">${escapeHtml(trainee.name)}</span>
+            <span class="profile-department">${escapeHtml(trainee.department)}</span>
           </div>
         </button>
       `;
@@ -562,7 +576,7 @@ function renderChallengeSlot(trainee) {
     challengeSlot.innerHTML = `
       <div class="sentence-card" role="textbox" aria-readonly="true">
         <span class="sentence-tag">[ DIGITAL RECORD ]</span>
-        <p class="sentence-text">${trainee.sentence}</p>
+        <p class="sentence-text">${escapeHtml(trainee.sentence)}</p>
         <button class="sentence-edit-btn" type="button" id="editChallenge" aria-label="编辑或重抽">EDIT</button>
       </div>
     `;
@@ -633,9 +647,9 @@ function drawLandingLogo() {
   const canvas = document.getElementById("landingLogoCanvas");
   if (!canvas) return;
   const intro = rainRenderers.intro;
-  if (!intro) return;
-  const logoImg = typeof intro.getLogoImg === "function" ? intro.getLogoImg() : null;
-  if (!logoImg || !logoImg.complete) return;
+  if (!intro || typeof intro.getSamples !== "function") return;
+  const data = intro.getSamples();
+  if (!data || !data.samples || data.samples.length === 0) return;
 
   const ctx = canvas.getContext("2d");
   const ratio = window.devicePixelRatio || 1;
@@ -648,15 +662,30 @@ function drawLandingLogo() {
   ctx.clearRect(0, 0, w, h);
   ctx.globalCompositeOperation = "source-over";
 
-  // Draw the high-fidelity clean image directly!
-  const iw = logoImg.naturalWidth || 2891;
-  const ih = logoImg.naturalHeight || 988;
-  const iconSrcW = iw * 0.47; // ICON_SPLIT is 0.47
-  const iconSrcH = ih;
+  const samples = data.samples;
+  const TETROMINOES = data.TETROMINOES;
+  const getRotatedOffset = data.getRotatedOffset;
+  const cellSize = Math.max(0.5, w / 150);
 
-  ctx.globalAlpha = 0.98; // Match homepage logo opacity
-  ctx.drawImage(logoImg, 0, 0, iconSrcW, iconSrcH, 0, 0, w, h);
-  ctx.globalAlpha = 1.0;
+  for (let i = 0; i < samples.length; i++) {
+    const s = samples[i];
+    if (s.group !== "icon") continue;
+
+    const normX = s.ix / 0.47; // ICON_SPLIT is 0.47
+    const cx = normX * w;
+    const cy = s.iy * h;
+
+    const shape = TETROMINOES[s.type];
+    ctx.fillStyle = `rgba(${s.color[0]}, ${s.color[1]}, ${s.color[2]}, 0.94)`;
+    const cellW = Math.max(0.5, cellSize - 0.25);
+
+    for (let c = 0; c < 4; c++) {
+      const [ox, oy] = getRotatedOffset(shape[c][0], shape[c][1], s.rotation);
+      const cellX = cx + ox * cellSize;
+      const cellY = cy + oy * cellSize;
+      ctx.fillRect(cellX - cellW / 2, cellY - cellW / 2, cellW, cellW);
+    }
+  }
 }
 
 function renderCloudWords(words = []) {
@@ -869,7 +898,7 @@ function bindEvents() {
   drawWordsButton.addEventListener("click", drawKeywords);
   redrawWordsButton.addEventListener("click", drawKeywords);
 
-  hostForm.addEventListener("submit", (event) => {
+  hostForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const sentence = sentenceInput.value.trim();
     if (!sentence) {
@@ -877,9 +906,20 @@ function bindEvents() {
       return;
     }
 
-    traineeState = window.AppLogic.updateSentence(traineeState, selectedId, sentence);
+    const traineeId = selectedId;
+    traineeState = window.AppLogic.updateSentence(traineeState, traineeId, sentence);
     closeChallenge();
     renderDetail();
+
+    try {
+      const savedTrainee = await window.AppData.saveSentence(traineeId, sentence);
+      traineeState = traineeState.map((trainee) => trainee.id === traineeId ? savedTrainee : trainee);
+      if (selectedId === traineeId) {
+        renderDetail();
+      }
+    } catch (error) {
+      console.warn("Sentence was kept locally because the API save failed.", error);
+    }
   });
 
   document.addEventListener("keydown", (event) => {

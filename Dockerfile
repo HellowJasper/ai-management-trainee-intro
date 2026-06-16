@@ -1,9 +1,9 @@
-FROM nginx:alpine
+FROM node:20-alpine
 
-# Copy static website files into Nginx default public directory
-COPY . /usr/share/nginx/html
+WORKDIR /app
 
-# Expose port 80
-EXPOSE 80
+COPY . .
 
-CMD ["nginx", "-g", "daemon off;"]
+EXPOSE 5173
+
+CMD ["npm", "start"]

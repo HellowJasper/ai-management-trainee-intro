@@ -1,7 +1,10 @@
 {
   "scripts": {
+    "dev": "node server/index.js",
+    "start": "node server/index.js",
+    "static": "python3 -m http.server 5173",
     "test": "node --test",
-    "start": "python3 -m http.server 5173"
+    "test:api": "node --test tests/server.test.js"
   },
   "devDependencies": {}
 }
