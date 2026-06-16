@@ -2357,23 +2357,23 @@ button:disabled {
   align-items: center;
   justify-content: flex-start;
   padding: 0 40px;
-  max-width: 1510px;
+  max-width: 1380px;
   margin: 0 auto;
   width: 100%;
   z-index: 3;
-  padding-top: clamp(52px, 8vh, 104px);
+  padding-top: clamp(60px, 10vh, 120px);
 }
 
 .discover-hub-title {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: clamp(36px, 4.6vw, 68px);
+  font-size: clamp(28px, 3.6vw, 48px);
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   background: linear-gradient(180deg, #ffffff 40%, rgba(255, 255, 255, 0.65) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  margin: 0 0 clamp(34px, 5vh, 66px);
+  margin: 0 0 clamp(40px, 6vh, 80px);
   text-align: center;
   text-shadow: none;
 }
@@ -2391,7 +2391,7 @@ button:disabled {
 .department-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: clamp(28px, 2.4vw, 42px);
+  gap: 30px;
   width: 100%;
   perspective: 1200px;
 }
@@ -2405,7 +2405,6 @@ button:disabled {
 .dept-card {
   display: flex;
   align-items: stretch;
-  min-height: clamp(206px, 22vh, 276px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
@@ -2458,17 +2457,15 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: clamp(72px, 5.2vw, 90px);
+  width: 63px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0) 100%);
   border-right: 1px solid rgba(255, 255, 255, 0.05);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: clamp(42px, 3.4vw, 58px);
-  font-weight: 300;
+  font-size: 36px;
+  font-weight: 200;
   color: var(--dept-color);
-  opacity: 0.92;
-  text-shadow:
-    0 0 18px rgba(var(--dept-color-rgb), 0.58),
-    0 0 34px rgba(var(--dept-color-rgb), 0.28);
+  opacity: 0.65;
+  text-shadow: 0 0 16px rgba(var(--dept-color-rgb), 0.4);
   transition: all 400ms ease;
 
   transform: translateZ(35px);
@@ -2484,24 +2481,20 @@ button:disabled {
 
 .dept-content {
   flex: 1;
-  padding: clamp(28px, 2vw, 36px) clamp(20px, 1.7vw, 28px);
+  padding: 26px 13px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: clamp(10px, 1.2vw, 18px);
-  text-align: center;
+  justify-content: space-between;
   transform: translateZ(25px);
   transform-style: preserve-3d;
 }
 
 .dept-content h3 {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif;
-  font-size: clamp(24px, 1.8vw, 34px);
-  line-height: 1.1;
+  font-size: 19.5px;
   margin: 0;
   color: #ffffff;
-  font-weight: 800;
+  font-weight: 600;
   transition: color 260ms ease, transform 300ms ease;
   letter-spacing: 0.02em;
   transform: translateZ(5px);
@@ -2514,30 +2507,27 @@ button:disabled {
 
 .dept-content .dept-en {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: clamp(11px, 0.82vw, 14px);
+  font-size: 10px;
   color: var(--text-soft);
   text-transform: uppercase;
+  margin-top: 4px;
   display: block;
   letter-spacing: 0.16em;
-  font-weight: 700;
-  line-height: 1.35;
-  opacity: 0.78;
+  font-weight: 500;
+  opacity: 0.6;
 }
 
 .dept-content p {
-  width: 100%;
-  max-width: 420px;
-  margin: 0;
-  color: rgba(255, 255, 255, 0.68);
-  font-size: clamp(14px, 1vw, 17px);
+  margin: 18px 0 24px;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 13px;
   line-height: 1.55;
-  font-weight: 600;
+  font-weight: 400;
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 8px;
-  padding: 12px 16px;
+  padding: 10px 14px;
   letter-spacing: 0.02em;
-  text-align: center;
   transition: all 300ms ease;
 }
 
@@ -2549,16 +2539,15 @@ button:disabled {
 
 .dept-link-badge {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: clamp(13px, 0.9vw, 15px);
-  color: rgba(255, 255, 255, 0.82);
-  align-self: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  align-self: flex-start;
   transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
-  font-weight: 800;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: 6px;
-  padding: 8px 20px;
+  padding: 6px 16px;
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);

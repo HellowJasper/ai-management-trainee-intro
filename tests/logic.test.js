@@ -272,18 +272,14 @@ test("profile arc cards do not use yaw perspective that breaks left-right symmet
   assert.doesNotMatch(profileCardBlock, /rotateY/);
 });
 
-test("business scenario cards brighten indexes and center their button content", () => {
+test("business scenario cards use original compact layout parameters", () => {
   const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
   const iconBlock = css.match(/\.dept-icon-glow\s*{[\s\S]*?\n}/)?.[0] || "";
-  const contentBlock = css.match(/\.dept-content\s*{[\s\S]*?\n}/)?.[0] || "";
-  const textBlock = css.match(/\.dept-content p\s*{[\s\S]*?\n}/)?.[0] || "";
   const badgeBlock = css.match(/\.dept-link-badge\s*{[\s\S]*?\n}/)?.[0] || "";
 
-  assert.match(iconBlock, /font-size:\s*clamp\(42px,\s*3\.4vw,\s*58px\)/);
-  assert.match(iconBlock, /opacity:\s*0\.92/);
-  assert.match(contentBlock, /align-items:\s*center/);
-  assert.match(textBlock, /text-align:\s*center/);
-  assert.match(badgeBlock, /align-self:\s*center/);
+  assert.match(iconBlock, /font-size:\s*36px/);
+  assert.match(iconBlock, /opacity:\s*0\.65/);
+  assert.match(badgeBlock, /align-self:\s*flex-start/);
 });
 
 test("view transitions clear the discover view class before switching stages", () => {
