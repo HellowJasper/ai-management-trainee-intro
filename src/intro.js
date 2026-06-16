@@ -237,85 +237,42 @@
       const L = layout;
       const assembleP = clamp((elapsed - M.assembleStart) / T.assemble, 0, 1);
       const shrinkP = clamp((elapsed - M.shrinkStart) / T.shrink, 0, 1);
-      const flicker = (elapsed / 70) | 0;
-
-      if (isCORS) {
-        // Image-based fallback animation for file:// protocol CORS bypass
-        ctx.globalCompositeOperation = "source-over";
-        const iw = logoImg.naturalWidth || 2891;
-        const ih = logoImg.naturalHeight || 988;
-
-        // Draw Icon (left part of image)
-        const iconSrcW = iw * ICON_SPLIT;
-        const iconSrcH = ih;
-
-        const scaleNow = shrinkP > 0 ? lerp(L.k, 1, easeInOut(shrinkP)) : L.k;
-        const iconW = L.logoW * ICON_SPLIT * scaleNow;
-        const iconH = L.logoH * scaleNow;
-
-        let iconX, iconY, iconAlpha;
-        const fx = L.logoX + (iconW / 2);
-        const fy = L.logoY + (iconH / 2);
-        const hx = L.heroCx;
-        const hy = L.heroCy;
-
-        if (shrinkP > 0) {
-          const t = easeInOut(shrinkP);
-          iconX = lerp(hx, fx, t) - iconW / 2;
-          iconY = lerp(hy, fy, t) - iconH / 2;
-          iconAlpha = 1;
-        } else {
-          iconX = hx - iconW / 2;
-          iconY = hy - iconH / 2;
-          iconAlpha = easeOut(assembleP);
-        }
-
-        if (iconAlpha > 0.02) {
-          const bVal = 0.1 + 1.38 * (shrinkP > 0 ? 1 : assembleP);
-          const sVal = 0.7 + 0.45 * (shrinkP > 0 ? 1 : assembleP);
-          ctx.filter = `brightness(${bVal}) saturate(${sVal})`;
-          ctx.globalAlpha = iconAlpha * 0.98; // Match homepage logo opacity
-          ctx.drawImage(logoImg, 0, 0, iconSrcW, iconSrcH, iconX, iconY, iconW, iconH);
-          ctx.filter = "none";
-        }
-
-        ctx.globalAlpha = 1.0;
-        return;
-      }
 
       ctx.globalCompositeOperation = "source-over";
+      const iw = logoImg.naturalWidth || 2891;
+      const ih = logoImg.naturalHeight || 988;
+
+      // Draw Icon (left part of image)
+      const iconSrcW = iw * ICON_SPLIT;
+      const iconSrcH = ih;
 
       const scaleNow = shrinkP > 0 ? lerp(L.k, 1, easeInOut(shrinkP)) : L.k;
-      const cellW = Math.max(0.75, (4 / 900) * L.logoW * scaleNow * 1.25);
+      const iconW = L.logoW * ICON_SPLIT * scaleNow;
+      const iconH = L.logoH * scaleNow;
 
-      for (let i = 0; i < samples.length; i++) {
-        const s = samples[i];
-        if (s.group !== "icon") continue;
+      let iconX, iconY, iconAlpha;
+      const fx = L.logoX + (iconW / 2);
+      const fy = L.logoY + (iconH / 2);
+      const hx = L.heroCx;
+      const hy = L.heroCy;
 
-        const fx = L.logoX + s.ix * L.logoW;
-        const fy = L.logoY + s.iy * L.logoH;
-        const hx = L.heroCx + (fx - L.iconCx) * L.k;
-        const hy = L.heroCy + (fy - L.iconCy) * L.k;
-        let x, y, alpha;
-
-        if (shrinkP > 0) {
-          const t = easeInOut(shrinkP);
-          x = lerp(hx, fx, t);
-          y = lerp(hy, fy, t);
-          alpha = 1;
-        } else {
-          const pp = easeOut(clamp((assembleP - s.delay * 0.4) / 0.6, 0, 1));
-          x = lerp(hx + s.seedX, hx, pp);
-          y = lerp(hy + s.seedY, hy, pp);
-          alpha = pp;
-        }
-
-        if (alpha <= 0.02) continue;
-
-        ctx.fillStyle = rgba(s.color, alpha * 0.94);
-        ctx.fillRect(x - cellW / 2, y - cellW / 2, cellW, cellW);
+      if (shrinkP > 0) {
+        const t = easeInOut(shrinkP);
+        iconX = lerp(hx, fx, t) - iconW / 2;
+        iconY = lerp(hy, fy, t) - iconH / 2;
+        iconAlpha = 1;
+      } else {
+        iconX = hx - iconW / 2;
+        iconY = hy - iconH / 2;
+        iconAlpha = easeOut(assembleP);
       }
-      ctx.globalCompositeOperation = "source-over";
+
+      if (iconAlpha > 0.02) {
+        ctx.globalAlpha = iconAlpha * 0.98; // Match homepage logo opacity
+        ctx.drawImage(logoImg, 0, 0, iconSrcW, iconSrcH, iconX, iconY, iconW, iconH);
+      }
+
+      ctx.globalAlpha = 1.0;
     }
 
     function frame(ts) {
@@ -359,15 +316,18 @@
       ctx.fillRect(0, 0, w, h);
       if (logoReady && layout) {
         const L = layout;
-        ctx.globalCompositeOperation = "lighter";
-        const cellW = Math.max(0.75, (4 / 900) * L.logoW * 1.25);
-        samples.forEach((s) => {
-          const fx = L.logoX + s.ix * L.logoW;
-          const fy = L.logoY + s.iy * L.logoH;
-          ctx.fillStyle = rgba(s.color, 0.92);
-          ctx.fillRect(fx - cellW / 2, fy - cellW / 2, cellW, cellW);
-        });
-        ctx.globalCompositeOperation = "source-over";
+        const iw = logoImg.naturalWidth || 2891;
+        const ih = logoImg.naturalHeight || 988;
+        const iconSrcW = iw * ICON_SPLIT;
+        const iconSrcH = ih;
+        const iconW = L.logoW * ICON_SPLIT;
+        const iconH = L.logoH;
+        const iconX = L.logoX;
+        const iconY = L.logoY;
+
+        ctx.globalAlpha = 0.98;
+        ctx.drawImage(logoImg, 0, 0, iconSrcW, iconSrcH, iconX, iconY, iconW, iconH);
+        ctx.globalAlpha = 1.0;
       }
       // subtitle static
       if (layout) {
@@ -430,6 +390,7 @@
       start,
       stop,
       resize,
+      getLogoImg: () => logoImg,
       getSamples: () => ({ samples, layout, getRotatedOffset, TETROMINOES })
     };
   }

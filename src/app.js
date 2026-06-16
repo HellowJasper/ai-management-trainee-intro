@@ -633,9 +633,9 @@ function drawLandingLogo() {
   const canvas = document.getElementById("landingLogoCanvas");
   if (!canvas) return;
   const intro = rainRenderers.intro;
-  if (!intro || typeof intro.getSamples !== "function") return;
-  const data = intro.getSamples();
-  if (!data || !data.samples || data.samples.length === 0) return;
+  if (!intro) return;
+  const logoImg = typeof intro.getLogoImg === "function" ? intro.getLogoImg() : null;
+  if (!logoImg || !logoImg.complete) return;
 
   const ctx = canvas.getContext("2d");
   const ratio = window.devicePixelRatio || 1;
@@ -648,20 +648,15 @@ function drawLandingLogo() {
   ctx.clearRect(0, 0, w, h);
   ctx.globalCompositeOperation = "source-over";
 
-  const samples = data.samples;
-  const cellW = Math.max(0.75, (4 / (900 * 0.47)) * w * 1.15); // 900 * 0.47 = 423
+  // Draw the high-fidelity clean image directly!
+  const iw = logoImg.naturalWidth || 2891;
+  const ih = logoImg.naturalHeight || 988;
+  const iconSrcW = iw * 0.47; // ICON_SPLIT is 0.47
+  const iconSrcH = ih;
 
-  for (let i = 0; i < samples.length; i++) {
-    const s = samples[i];
-    if (s.group !== "icon") continue;
-
-    const normX = s.ix / 0.47; // ICON_SPLIT is 0.47
-    const cx = normX * w;
-    const cy = s.iy * h;
-
-    ctx.fillStyle = `rgba(${s.color[0]}, ${s.color[1]}, ${s.color[2]}, 0.94)`;
-    ctx.fillRect(cx - cellW / 2, cy - cellW / 2, cellW, cellW);
-  }
+  ctx.globalAlpha = 0.98; // Match homepage logo opacity
+  ctx.drawImage(logoImg, 0, 0, iconSrcW, iconSrcH, 0, 0, w, h);
+  ctx.globalAlpha = 1.0;
 }
 
 function renderCloudWords(words = []) {
