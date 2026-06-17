@@ -94,6 +94,94 @@ test("API returns 404 for missing trainees", async (t) => {
   assert.equal(payload.error.statusCode, 404);
 });
 
+test("API lists team formation tracks for backend-controlled grouping", async (t) => {
+  const publicRoot = path.join(__dirname, "..");
+  const teamRepository = {
+    async listTeams() {
+      return [
+        {
+          id: "pharma",
+          index: "01",
+          name: "药学",
+          advisor: { name: "赛道顾问 A", role: "赛道顾问" },
+          members: [
+            { name: "队友 01" },
+            { name: "队友 02" },
+            { name: "队友 03" },
+            { name: "队友 04" },
+          ],
+        },
+        {
+          id: "medicine",
+          index: "02",
+          name: "医学",
+          advisor: { name: "赛道顾问 B", role: "赛道顾问" },
+          members: [
+            { name: "队友 01" },
+            { name: "队友 02" },
+            { name: "队友 03" },
+            { name: "队友 04" },
+          ],
+        },
+        {
+          id: "marketing",
+          index: "03",
+          name: "营销",
+          advisor: { name: "赛道顾问 C", role: "赛道顾问" },
+          members: [
+            { name: "队友 01" },
+            { name: "队友 02" },
+            { name: "队友 03" },
+            { name: "队友 04" },
+          ],
+        },
+        {
+          id: "functions",
+          index: "04",
+          name: "职能",
+          advisor: { name: "赛道顾问 D", role: "赛道顾问" },
+          members: [
+            { name: "队友 01" },
+            { name: "队友 02" },
+            { name: "队友 03" },
+            { name: "队友 04" },
+          ],
+        },
+        {
+          id: "production",
+          index: "05",
+          name: "生产",
+          advisor: { name: "赛道顾问 E", role: "赛道顾问" },
+          members: [
+            { name: "队友 01" },
+            { name: "队友 02" },
+            { name: "队友 03" },
+            { name: "队友 04" },
+          ],
+        },
+      ];
+    },
+  };
+  const server = createServer({ publicRoot, teamRepository });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/teams`);
+  const teams = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(teams.length, 5);
+  assert.deepEqual(
+    teams.map((team) => team.name),
+    ["药学", "医学", "营销", "职能", "生产"],
+  );
+  teams.forEach((team) => {
+    assert.equal(team.advisor.role, "赛道顾问");
+    assert.equal(team.members.length, 4);
+  });
+});
+
 test("/admin serves the management console shell", async (t) => {
   const publicRoot = path.join(__dirname, "..");
   const server = createServer({ publicRoot });

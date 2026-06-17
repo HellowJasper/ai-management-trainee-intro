@@ -291,7 +291,7 @@ test("resolveStageScreenView maps admin stages to existing screen views", () => 
   assert.equal(resolveStageScreenView("icebreaker"), "wall");
   assert.equal(resolveStageScreenView("speech"), "home");
   assert.equal(resolveStageScreenView("tracks"), "discover");
-  assert.equal(resolveStageScreenView("team"), "wall");
+  assert.equal(resolveStageScreenView("team"), "team");
   assert.equal(resolveStageScreenView("vote"), "home");
   assert.equal(resolveStageScreenView("result"), "home");
   assert.equal(resolveStageScreenView("unknown"), "");
@@ -343,12 +343,60 @@ test("main screen polls admin state and switches views only on stage changes", (
   assert.match(appJs, /window\.setInterval\(pollAdminState/);
 });
 
-test("discover header links to talent profiles and a pending next section", () => {
+test("discover header links to talent profiles and the team formation screen", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
   const discoverSection = html.match(/<section class="discover-stage"[\s\S]*?<\/section>\s*<\/main>/)?.[0] || "";
 
   assert.match(discoverSection, /<button class="brand-chip" type="button" data-view-target="wall">/);
-  assert.match(discoverSection, /<button class="cohort-mark" type="button" data-discover-target="awards">5 CORE SECTORS<\/button>/);
+  assert.match(discoverSection, /<button class="cohort-mark" type="button" data-view-target="team">5 CORE SECTORS<\/button>/);
+});
+
+test("team formation screen is wired as a dedicated five-sector stage", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
+
+  assert.match(html, /<section class="team-stage" id="teamStage" aria-label="五大赛道组队"/);
+  assert.match(html, /<canvas class="code-rain-canvas team-rain" id="teamRain"/);
+  assert.match(html, /<div class="team-grid" id="teamGrid"/);
+  assert.match(appJs, /team:\s*document\.getElementById\("teamStage"\)/);
+  assert.match(appJs, /team:\s*createRain\("teamRain"/);
+  assert.match(appJs, /renderTeamFormation/);
+  assert.match(dataJs, /async function loadTeams/);
+  assert.match(dataJs, /fetchJson\("\/api\/teams"\)/);
+  assert.match(dataJs, /fetchJson\("\.\/data\/teams\.json"\)/);
+});
+
+test("team formation screen uses a restrained five-column command cabin layout", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+  const stageBlock = css.match(/\.team-stage\s*{[\s\S]*?\n}/)?.[0] || "";
+  const wrapBlock = css.match(/\.team-hub-wrap\s*{[\s\S]*?\n}/)?.[0] || "";
+  const gridBlock = css.match(/\.team-grid\s*{[\s\S]*?\n}/)?.[0] || "";
+  const trackBlock = css.match(/\.team-track-card\s*{[\s\S]*?\n}/)?.[0] || "";
+  const advisorBlock = css.match(/\.team-advisor-card\s*{[\s\S]*?\n}/)?.[0] || "";
+  const memberListBlock = css.match(/\.team-member-list\s*{[\s\S]*?\n}/)?.[0] || "";
+  const memberCardBlock = css.match(/\.team-member-card\s*{[\s\S]*?\n}/)?.[0] || "";
+  const avatarBlock = css.match(/\.team-member-avatar\s*{[\s\S]*?\n}/)?.[0] || "";
+
+  assert.match(stageBlock, /grid-template-rows:\s*auto 1fr auto/);
+  assert.match(css, /\.app-shell\[data-view="team"\]\s*>\s*\.team-stage/);
+  assert.match(css, /\.app-shell\.view-team\s*>\s*\.team-stage/);
+  assert.match(wrapBlock, /padding:\s*clamp\(70px,\s*7\.4vh,\s*96px\)\s+clamp\(28px,\s*3\.8vw,\s*56px\)\s+clamp\(56px,\s*6\.2vh,\s*76px\)/);
+  assert.match(gridBlock, /grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(gridBlock, /height:\s*min\(640px,\s*calc\(100vh - 250px\)\)/);
+  assert.match(trackBlock, /grid-template-rows:\s*auto auto minmax\(0,\s*1fr\)/);
+  assert.match(trackBlock, /border-top:\s*1px solid rgba\(var\(--team-color-rgb\),\s*0\.58\)/);
+  assert.match(trackBlock, /background:[\s\S]*rgba\(3,\s*14,\s*18,\s*0\.76\)/);
+  assert.doesNotMatch(trackBlock, /0 20px 50px/);
+  assert.match(css, /\.team-role-label\s*{[\s\S]*?color:\s*var\(--team-color\)/);
+  assert.match(advisorBlock, /grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/);
+  assert.match(advisorBlock, /background:[\s\S]*rgba\(var\(--team-color-rgb\),\s*0\.08\)/);
+  assert.match(advisorBlock, /min-height:\s*clamp\(92px,\s*10\.6vh,\s*120px\)/);
+  assert.match(memberListBlock, /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(memberListBlock, /grid-template-rows:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(memberCardBlock, /grid-template-columns:\s*1fr/);
+  assert.match(memberCardBlock, /align-content:\s*space-between/);
+  assert.match(avatarBlock, /background-image:\s*var\(--avatar-image\)/);
 });
 
 test("business scenario cards use the requested 02-03-04 accent rotation", () => {

@@ -264,7 +264,7 @@
       icebreaker: "wall",
       speech: "home",
       tracks: "discover",
-      team: "wall",
+      team: "team",
       vote: "home",
       result: "home",
     };

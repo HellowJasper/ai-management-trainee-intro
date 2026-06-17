@@ -45,6 +45,28 @@
     return fetchJson("/api/admin/state");
   }
 
+  async function loadTeams(fallbackTeams = []) {
+    const sources = [
+      () => fetchJson("/api/teams"),
+      () => fetchJson("./data/teams.json"),
+    ];
+
+    for (const source of sources) {
+      try {
+        const teams = await source();
+        if (!Array.isArray(teams)) {
+          throw new Error("Team data must be an array.");
+        }
+
+        return teams;
+      } catch (error) {
+        console.warn(error);
+      }
+    }
+
+    return fallbackTeams;
+  }
+
   async function updateAdminStage(stageId) {
     return fetchJson("/api/admin/stage", {
       method: "PATCH",
@@ -106,6 +128,7 @@
     createTrainee,
     deleteTrainee,
     loadAdminState,
+    loadTeams,
     loadTrainees,
     saveSentence,
     updateAdminStage,

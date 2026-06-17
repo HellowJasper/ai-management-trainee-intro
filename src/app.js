@@ -263,6 +263,7 @@ const libraryB = [
 ];
 
 let traineeState = window.AppLogic.positionJasperAtCenter(fallbackTrainees.map(window.AppLogic.normalizeTrainee));
+let teamState = [];
 let selectedId = traineeState.find((t) => t.id === "jasper")?.id || traineeState[0].id;
 let currentKeywords = [];
 let drawStage = 0; // 0: not drawn, 1: A drawn, 2: both A and B drawn
@@ -284,7 +285,9 @@ const introStage = document.getElementById("introStage");
 const landingStage = document.getElementById("landingStage");
 const welcomeStage = document.getElementById("welcomeStage");
 const personaWallStage = document.getElementById("personaWallStage");
+const teamStage = document.getElementById("teamStage");
 const photoWall = document.getElementById("photoWall");
+const teamGrid = document.getElementById("teamGrid");
 const detailLayer = document.getElementById("detailLayer");
 const challengeLayer = document.getElementById("challengeLayer");
 const drawCard = document.querySelector(".draw-card");
@@ -313,6 +316,7 @@ const rainRenderers = {
   detail: createRain("detailRain", { fontSize: 16, fade: "rgba(2, 8, 14, 0.05)" }),
   challenge: createRain("challengeRain", { fontSize: 18, fade: "rgba(2, 8, 14, 0.05)" }),
   discover: createRain("discoverRain", { fontSize: 18, fade: "rgba(2, 8, 14, 0.04)" }),
+  team: createRain("teamRain", { fontSize: 18, fade: "rgba(2, 8, 14, 0.04)" }),
 };
 
 const discoverParticles = typeof window.createParticles === "function"
@@ -334,6 +338,7 @@ const viewStages = {
   welcome: welcomeStage,
   wall: personaWallStage,
   discover: document.getElementById("discoverStage"),
+  team: document.getElementById("teamStage"),
 };
 
 function createRain(id, options) {
@@ -362,6 +367,7 @@ function syncStages(view) {
   setStageActive(viewStages.welcome, view === "welcome");
   setStageActive(viewStages.wall, ["wall", "detail", "challenge"].includes(view));
   setStageActive(viewStages.discover, view === "discover");
+  setStageActive(viewStages.team, view === "team");
 }
 
 function syncRain(view) {
@@ -378,7 +384,9 @@ function syncRain(view) {
               ? ["challenge"]
               : view === "discover"
                 ? ["discover"]
-                : ["wall"]
+                : view === "team"
+                  ? ["team"]
+                  : ["wall"]
   );
 
   Object.entries(rainRenderers).forEach(([key, rain]) => {
@@ -415,7 +423,7 @@ function startIntroExit(skipped = false) {
   introStage.style.pointerEvents = "none";
 
   appShell.dataset.view = "intro-exit";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team");
   appShell.classList.add("view-intro-exit");
 
   rainRenderers.home?.resize();
@@ -448,7 +456,7 @@ function selectedTrainee() {
 function setView(view) {
   appView = view;
   appShell.dataset.view = view;
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team");
   appShell.classList.add(`view-${view}`);
   syncStages(view);
 
@@ -604,6 +612,65 @@ function renderPhotoWall() {
   photoWall.innerHTML = cardsHtml + svgHtml;
 }
 
+function renderTeamFormation() {
+  if (!teamGrid) return;
+
+  if (!teamState.length) {
+    teamGrid.innerHTML = `
+      <div class="team-empty-state">
+        <span>TEAM DATA</span>
+        <strong>SYNCING...</strong>
+      </div>
+    `;
+    return;
+  }
+
+  teamGrid.innerHTML = teamState
+    .map((team) => {
+      const advisor = team.advisor || {};
+      const members = Array.isArray(team.members) ? team.members.slice(0, 4) : [];
+      const memberSlots = Array.from({ length: 4 }, (_, index) => members[index] || {
+        name: `待定队友 ${index + 1}`,
+        department: "待分配",
+        role: `队友 ${String(index + 1).padStart(2, "0")}`,
+      });
+
+      return `
+        <article class="team-track-card" style="--team-color: ${escapeAttribute(team.color || "var(--neon)")}; --team-color-rgb: ${escapeAttribute(team.colorRgb || "40, 255, 200")};">
+          <header class="team-track-head">
+            <span class="team-track-index">${escapeHtml(team.index || "")}</span>
+            <div>
+              <h3>${escapeHtml(team.name || "")}</h3>
+              <span>${escapeHtml(team.nameEn || "")}</span>
+            </div>
+          </header>
+          <section class="team-advisor-card">
+            <span class="team-role-label">TRACK ADVISOR</span>
+            <strong>${escapeHtml(advisor.name || "赛道顾问")}</strong>
+            <p>${escapeHtml(advisor.department || team.hostDepartment || "")}</p>
+          </section>
+          <div class="team-member-list">
+            ${memberSlots
+              .map((member) => `
+                <section class="team-member-card">
+                  <div class="team-member-avatar" style="--avatar-image: ${cssUrl(member.photo)}">
+                    <span>${escapeHtml(String(member.name || "?").slice(0, 1))}</span>
+                  </div>
+                  <div class="team-member-meta">
+                    <span>${escapeHtml(member.role || "队友")}</span>
+                    <strong>${escapeHtml(member.name || "待定队友")}</strong>
+                    <p>${escapeHtml(member.department || "待分配")}</p>
+                  </div>
+                </section>
+              `)
+              .join("")}
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
 function resetDock() {
   const cards = Array.from(photoWall.querySelectorAll(".profile-card"));
   cards.forEach((card) => {
@@ -707,7 +774,7 @@ function openDetail(id) {
   detailLayer.setAttribute("aria-hidden", "false");
   syncDetailMotion(true);
   appShell.dataset.view = "detail";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team");
   appShell.classList.add("view-detail");
 }
 
@@ -716,7 +783,7 @@ function closeDetail() {
   detailLayer.classList.remove("is-open");
   detailLayer.setAttribute("aria-hidden", "true");
   appShell.dataset.view = appView === "home" ? "home" : "wall";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team");
   appShell.classList.add(appView === "home" ? "view-home" : "view-wall");
   syncStages(appView === "home" ? "home" : "wall");
   syncRain(appView === "home" ? "home" : "wall");
@@ -844,7 +911,7 @@ function openChallenge() {
   challengeLayer.setAttribute("aria-hidden", "false");
   syncChallengeMotion(true);
   appShell.dataset.view = "challenge";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover");
+    appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team");
   appShell.classList.add("view-challenge");
 
   if (trainee.previousPairs.length > 0) {
@@ -868,7 +935,7 @@ function closeChallenge() {
   drawWordsButton.disabled = false;
   redrawWordsButton.disabled = false;
   appShell.dataset.view = "detail";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team");
   appShell.classList.add("view-detail");
   syncStages("detail");
   syncRain("detail");
@@ -1116,6 +1183,7 @@ async function initApp() {
   syncRain("intro");
   syncParticles("intro");
   renderPhotoWall();
+  renderTeamFormation();
   resetDock();
   if (typeof window.IntroSequence === "undefined") {
     introTimer = window.setTimeout(() => {
@@ -1124,8 +1192,10 @@ async function initApp() {
   }
 
   traineeState = window.AppLogic.positionJasperAtCenter(await window.AppData.loadTrainees(fallbackTrainees));
+  teamState = await window.AppData.loadTeams([]);
   selectedId = traineeState.find((t) => t.id === "jasper")?.id || traineeState[0]?.id || "";
   renderPhotoWall();
+  renderTeamFormation();
   resetDock();
   startAdminStatePolling();
 }

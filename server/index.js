@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
 const { createAdminStateRepository } = require("./adminStateRepository");
+const { createTeamRepository } = require("./teamRepository");
 const { createTraineeRepository } = require("./traineeRepository");
 
 const DEFAULT_PUBLIC_ROOT = path.join(__dirname, "..");
@@ -83,7 +84,7 @@ function decodePathname(pathname) {
   }
 }
 
-async function routeApi(request, response, url, repository, adminStateRepository) {
+async function routeApi(request, response, url, repository, adminStateRepository, teamRepository) {
   const segments = url.pathname.split("/").filter(Boolean);
 
   if (request.method === "OPTIONS") {
@@ -108,6 +109,11 @@ async function routeApi(request, response, url, repository, adminStateRepository
   if (url.pathname === "/api/admin/stage" && ["POST", "PATCH"].includes(request.method)) {
     const payload = await readJsonBody(request);
     sendJson(response, 200, await adminStateRepository.setCurrentStage(payload.stageId));
+    return true;
+  }
+
+  if (url.pathname === "/api/teams" && request.method === "GET") {
+    sendJson(response, 200, await teamRepository.listTeams());
     return true;
   }
 
@@ -224,6 +230,7 @@ function createServer({
   publicRoot = DEFAULT_PUBLIC_ROOT,
   repository = createTraineeRepository(),
   adminStateRepository = createAdminStateRepository(),
+  teamRepository = createTeamRepository(),
 } = {}) {
   const resolvedPublicRoot = path.resolve(publicRoot);
 
@@ -232,7 +239,7 @@ function createServer({
 
     try {
       if (url.pathname === "/api" || url.pathname.startsWith("/api/")) {
-        const handled = await routeApi(request, response, url, repository, adminStateRepository);
+        const handled = await routeApi(request, response, url, repository, adminStateRepository, teamRepository);
         if (!handled) {
           sendJson(response, 404, {
             error: {

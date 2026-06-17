@@ -1,0 +1,202 @@
+[
+  {
+    "id": "pharma",
+    "index": "01",
+    "name": "药学",
+    "nameEn": "PHARMACEUTICALS",
+    "hostDepartment": "药学研发中心",
+    "color": "var(--neon)",
+    "colorRgb": "40, 255, 200",
+    "advisor": {
+      "name": "赛道顾问 A",
+      "department": "药学研发中心",
+      "role": "赛道顾问"
+    },
+    "members": [
+      {
+        "name": "黄钊强",
+        "department": "药学研发中心",
+        "role": "队友 01",
+        "photo": "./assets/trainees/huang-zhaoqiang/idPhoto.jpg"
+      },
+      {
+        "name": "占美玲",
+        "department": "AIDD研究部",
+        "role": "队友 02",
+        "photo": "./assets/trainees/zhan-meiling/idPhoto.jpg"
+      },
+      {
+        "name": "顾灵茜",
+        "department": "AIDD研究部",
+        "role": "队友 03",
+        "photo": "./assets/trainees/gu-lingqian/idPhoto.jpg"
+      },
+      {
+        "name": "林艺新",
+        "department": "AI创新部",
+        "role": "队友 04",
+        "photo": "./assets/trainees/lin-yixin/idPhoto.jpg"
+      }
+    ]
+  },
+  {
+    "id": "medicine",
+    "index": "02",
+    "name": "医学",
+    "nameEn": "CLINICAL MEDICINE",
+    "hostDepartment": "临床研发中心",
+    "color": "rgb(205, 255, 92)",
+    "colorRgb": "205, 255, 92",
+    "advisor": {
+      "name": "赛道顾问 B",
+      "department": "临床研发中心",
+      "role": "赛道顾问"
+    },
+    "members": [
+      {
+        "name": "许镁胜",
+        "department": "临床研发中心",
+        "role": "队友 01",
+        "photo": "./assets/trainees/xu-meisheng/idPhoto.jpg"
+      },
+      {
+        "name": "陈徐林",
+        "department": "AI创新部",
+        "role": "队友 02",
+        "photo": "./assets/trainees/chen-xulin/idPhoto.png"
+      },
+      {
+        "name": "唐靖沛",
+        "department": "AI创新部",
+        "role": "队友 03",
+        "photo": "./assets/trainees/tang-jingpei/idPhoto.jpg"
+      },
+      {
+        "name": "张瑞",
+        "department": "AI创新部",
+        "role": "队友 04",
+        "photo": "./assets/trainees/zhang-rui/idPhoto.jpg"
+      }
+    ]
+  },
+  {
+    "id": "marketing",
+    "index": "03",
+    "name": "营销",
+    "nameEn": "SALES & MARKETING",
+    "hostDepartment": "健康品事业部",
+    "color": "rgb(100, 232, 214)",
+    "colorRgb": "100, 232, 214",
+    "advisor": {
+      "name": "赛道顾问 C",
+      "department": "健康品事业部",
+      "role": "赛道顾问"
+    },
+    "members": [
+      {
+        "name": "李蓓蓓",
+        "department": "健康品事业部",
+        "role": "队友 01",
+        "photo": "./assets/trainees/li-beibei/idPhoto.jpg"
+      },
+      {
+        "name": "李丰",
+        "department": "注册部",
+        "role": "队友 02",
+        "photo": "./assets/trainees/li-feng/idPhoto.jpg"
+      },
+      {
+        "name": "张恒睿",
+        "department": "注册部",
+        "role": "队友 03",
+        "photo": "./assets/trainees/zhang-hengrui/idPhoto.jpg"
+      },
+      {
+        "name": "贾博深",
+        "department": "AI创新部",
+        "role": "队友 04",
+        "photo": "./assets/trainees/jasper/idPhoto.jpg"
+      }
+    ]
+  },
+  {
+    "id": "functions",
+    "index": "04",
+    "name": "职能",
+    "nameEn": "GENERAL FUNCTIONS",
+    "hostDepartment": "董事长办公室",
+    "color": "var(--neon-2)",
+    "colorRgb": "167, 255, 79",
+    "advisor": {
+      "name": "赛道顾问 D",
+      "department": "董事长办公室",
+      "role": "赛道顾问"
+    },
+    "members": [
+      {
+        "name": "张瑞",
+        "department": "AI创新部",
+        "role": "队友 01",
+        "photo": "./assets/trainees/zhang-rui/idPhoto.jpg"
+      },
+      {
+        "name": "唐靖沛",
+        "department": "AI创新部",
+        "role": "队友 02",
+        "photo": "./assets/trainees/tang-jingpei/idPhoto.jpg"
+      },
+      {
+        "name": "李丰",
+        "department": "注册部",
+        "role": "队友 03",
+        "photo": "./assets/trainees/li-feng/idPhoto.jpg"
+      },
+      {
+        "name": "陈徐林",
+        "department": "AI创新部",
+        "role": "队友 04",
+        "photo": "./assets/trainees/chen-xulin/idPhoto.png"
+      }
+    ]
+  },
+  {
+    "id": "production",
+    "index": "05",
+    "name": "生产",
+    "nameEn": "PRODUCTION & MANUFACTURING",
+    "hostDepartment": "生产管理中心",
+    "color": "rgb(110, 235, 150)",
+    "colorRgb": "110, 235, 150",
+    "advisor": {
+      "name": "赛道顾问 E",
+      "department": "生产管理中心",
+      "role": "赛道顾问"
+    },
+    "members": [
+      {
+        "name": "顾灵茜",
+        "department": "AIDD研究部",
+        "role": "队友 01",
+        "photo": "./assets/trainees/gu-lingqian/idPhoto.jpg"
+      },
+      {
+        "name": "许镁胜",
+        "department": "临床研发中心",
+        "role": "队友 02",
+        "photo": "./assets/trainees/xu-meisheng/idPhoto.jpg"
+      },
+      {
+        "name": "李蓓蓓",
+        "department": "健康品事业部",
+        "role": "队友 03",
+        "photo": "./assets/trainees/li-beibei/idPhoto.jpg"
+      },
+      {
+        "name": "黄钊强",
+        "department": "药学研发中心",
+        "role": "队友 04",
+        "photo": "./assets/trainees/huang-zhaoqiang/idPhoto.jpg"
+      }
+    ]
+  }
+]
