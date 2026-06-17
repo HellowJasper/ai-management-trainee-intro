@@ -14,8 +14,10 @@ const {
   normalizeTrainee,
   pickKeywordPair,
   pickKeywordPairAB,
+  createAdminStageSyncKey,
   resolveLandingCtaTarget,
   resolveAdjacentTraineeId,
+  shouldApplyAdminStageChange,
   resolveDiscoverTarget,
   resolveStageScreenView,
   resolveWelcomeEntryTarget,
@@ -235,6 +237,39 @@ test("landing stage starts with its main CTA visible and clickable", () => {
   assert.doesNotMatch(landingOpenTag, /backdrop-mode/);
 });
 
+test("landing logo keeps a static icon fallback when admin state skips the intro animation", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+  const fallbackBlock = css.match(/\.landing-logo-container::before\s*{[\s\S]*?\n}/)?.[0] || "";
+  const revealBlock = css.match(/\/\* Homepage elements entrance animations \*\/[\s\S]*?\.app-shell\.view-intro-exit \.landing-logo-canvas/)?.[0] || "";
+
+  assert.match(fallbackBlock, /joincare-full-clean\.png/);
+  assert.match(fallbackBlock, /width:\s*47%/);
+  assert.match(fallbackBlock, /background-size:\s*212\.77% 100%/);
+  assert.match(revealBlock, /\.app-shell\.view-home \.landing-logo-container::before/);
+  assert.match(revealBlock, /\.app-shell\.view-intro-exit \.landing-logo-container::before/);
+  assert.match(css, /\.app-shell\.view-home \.landing-logo-container::before,[\s\S]*?opacity:\s*0\.98/);
+  assert.match(css, /\.app-shell\.view-home \.landing-logo-text\s*{[\s\S]*?clip-path:\s*inset\(0 0 0 0\)/);
+});
+
+test("landing hero keeps the same copy while using a balanced cinematic hierarchy", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+  const logoBlock = css.match(/\.landing-logo-container\s*{[\s\S]*?\n}/)?.[0] || "";
+  const enterButtonBlock = css.match(/\.enter-button,\n\.feishu-login-button\s*{[\s\S]*?\n}/)?.[0] || "";
+
+  assert.match(html, /<span class="landing-title-main">AI黑客松<\/span>/);
+  assert.match(html, /<span class="landing-title-cn">AI创新黑客松大赛2026<\/span>/);
+  assert.match(html, /<span class="landing-title-en">AI Innovation Hackathon 2026<\/span>/);
+  assert.match(html, /<button class="enter-button" type="button" id="enterButton">开始<\/button>/);
+  assert.match(logoBlock, /top:\s*clamp\(130px,\s*20vh,\s*185px\)/);
+  assert.match(logoBlock, /width:\s*min\(27vw,\s*430px\)/);
+  assert.match(css, /\.landing-stage::before\s*{[\s\S]*?hero energy field/);
+  assert.match(css, /\.landing-title\s*{[\s\S]*?background:\s*radial-gradient/);
+  assert.match(css, /\.landing-title-main\s*{[\s\S]*?filter:\s*drop-shadow/);
+  assert.match(enterButtonBlock, /background:\s*linear-gradient/);
+  assert.match(enterButtonBlock, /color:\s*rgba\(223,\s*255,\s*245,\s*0\.94\)/);
+});
+
 test("getIntroTiming keeps the loading hold and crossfade durations explicit", () => {
   assert.deepEqual(getIntroTiming(), {
     holdMs: 4000,
@@ -256,6 +291,20 @@ test("resolveStageScreenView maps admin stages to existing screen views", () => 
   assert.equal(resolveStageScreenView("vote"), "home");
   assert.equal(resolveStageScreenView("result"), "home");
   assert.equal(resolveStageScreenView("unknown"), "");
+});
+
+test("admin stage polling treats the first fetched stage as baseline only", () => {
+  const firstTeamPublish = createAdminStageSyncKey("team", "2026-05-22T06:00:00.000Z");
+  const secondTeamPublish = createAdminStageSyncKey("team", "2026-06-17T03:12:47.953Z");
+  const votePublish = createAdminStageSyncKey("vote", "2026-06-17T03:20:00.000Z");
+
+  assert.equal(firstTeamPublish, "team@2026-05-22T06:00:00.000Z");
+  assert.equal(createAdminStageSyncKey("", "2026-05-22T06:00:00.000Z"), "");
+  assert.equal(shouldApplyAdminStageChange("", firstTeamPublish), false);
+  assert.equal(shouldApplyAdminStageChange(firstTeamPublish, firstTeamPublish), false);
+  assert.equal(shouldApplyAdminStageChange(firstTeamPublish, secondTeamPublish), true);
+  assert.equal(shouldApplyAdminStageChange(secondTeamPublish, votePublish), true);
+  assert.equal(shouldApplyAdminStageChange(firstTeamPublish, ""), false);
 });
 
 test("admin state API helpers are exposed without swallowing failures", () => {
@@ -282,8 +331,11 @@ test("main screen polls admin state and switches views only on stage changes", (
   const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
 
   assert.match(appJs, /window\.AppData\.loadAdminState\(\)/);
+  assert.match(appJs, /window\.AppLogic\.createAdminStageSyncKey\(stageId,\s*state\.updatedAt\)/);
+  assert.match(appJs, /window\.AppLogic\.shouldApplyAdminStageChange\(lastAdminStageSyncKey,\s*stageSyncKey\)/);
+  assert.match(appJs, /if\s*\(!shouldSwitchStage\)\s*{[\s\S]*?return;/);
   assert.match(appJs, /window\.AppLogic\.resolveStageScreenView\(state\.currentStageId\)/);
-  assert.match(appJs, /lastAdminStageId/);
+  assert.match(appJs, /lastAdminStageSyncKey/);
   assert.match(appJs, /window\.setInterval\(pollAdminState/);
 });
 
@@ -295,12 +347,18 @@ test("discover header links to talent profiles and a pending next section", () =
   assert.match(discoverSection, /<button class="cohort-mark" type="button" data-discover-target="awards">5 CORE SECTORS<\/button>/);
 });
 
-test("general functions card uses the requested cyan accent", () => {
+test("business scenario cards use the requested 02-03-04 accent rotation", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  const medicineCard = html.match(/<a href="https:\/\/joincare\.feishu\.cn\/docx\/placeholder-medicine"[\s\S]*?<\/a>/)?.[0] || "";
+  const marketingCard = html.match(/<a href="https:\/\/joincare\.feishu\.cn\/docx\/placeholder-marketing"[\s\S]*?<\/a>/)?.[0] || "";
   const functionsCard = html.match(/<a href="https:\/\/joincare\.feishu\.cn\/docx\/placeholder-functions"[\s\S]*?<\/a>/)?.[0] || "";
 
-  assert.match(functionsCard, /--dept-color:\s*rgb\(100,\s*232,\s*214\)/);
-  assert.match(functionsCard, /--dept-color-rgb:\s*100,\s*232,\s*214/);
+  assert.match(medicineCard, /--dept-color:\s*rgb\(205,\s*255,\s*92\)/);
+  assert.match(medicineCard, /--dept-color-rgb:\s*205,\s*255,\s*92/);
+  assert.match(marketingCard, /--dept-color:\s*rgb\(100,\s*232,\s*214\)/);
+  assert.match(marketingCard, /--dept-color-rgb:\s*100,\s*232,\s*214/);
+  assert.match(functionsCard, /--dept-color:\s*var\(--neon-2\)/);
+  assert.match(functionsCard, /--dept-color-rgb:\s*167,\s*255,\s*79/);
 });
 
 test("resolveAdjacentTraineeId moves to neighboring profile with wraparound", () => {
@@ -329,14 +387,22 @@ test("profile arc cards do not use yaw perspective that breaks left-right symmet
   assert.doesNotMatch(profileCardBlock, /rotateY/);
 });
 
-test("business scenario cards use original compact layout parameters", () => {
+test("business scenario cards use five-column briefing layout", () => {
   const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
-  const iconBlock = css.match(/\.dept-icon-glow\s*{[\s\S]*?\n}/)?.[0] || "";
-  const badgeBlock = css.match(/\.dept-link-badge\s*{[\s\S]*?\n}/)?.[0] || "";
+  const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  const gridBlock = css.match(/\.department-grid\s*{[\s\S]*?\n}/)?.[0] || "";
+  const cardBlock = css.match(/\.dept-card\s*{[\s\S]*?\n}/)?.[0] || "";
 
-  assert.match(iconBlock, /font-size:\s*36px/);
-  assert.match(iconBlock, /opacity:\s*0\.65/);
-  assert.match(badgeBlock, /align-self:\s*flex-start/);
+  assert.match(gridBlock, /grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(gridBlock, /height:\s*clamp\(500px,\s*61vh,\s*620px\)/);
+  assert.match(cardBlock, /grid-template-rows:\s*auto auto auto minmax\(18px,\s*1fr\) auto/);
+  assert.match(css, /\.dept-status\s*{[\s\S]*?align-self:\s*end/);
+  assert.match(css, /\.dept-link-badge\s*{[\s\S]*?margin-top:\s*0/);
+  assert.match(css, /\.dept-link-badge\s*{[\s\S]*?justify-content:\s*center/);
+  assert.match(html, /class="dept-body"/);
+  assert.match(html, /class="dept-info"/);
+  assert.match(html, /class="dept-status" aria-hidden="true"/);
+  assert.doesNotMatch(html, /五列展示五个赛道/);
 });
 
 test("view transitions clear the discover view class before switching stages", () => {
