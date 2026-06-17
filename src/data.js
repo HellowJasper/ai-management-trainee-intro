@@ -41,6 +41,20 @@
     return fallbackTrainees.map(root.AppLogic.normalizeTrainee);
   }
 
+  async function loadAdminState() {
+    return fetchJson("/api/admin/state");
+  }
+
+  async function updateAdminStage(stageId) {
+    return fetchJson("/api/admin/stage", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ stageId }),
+    });
+  }
+
   async function saveSentence(traineeId, sentence) {
     const trainee = await fetchJson(`/api/trainees/${encodeURIComponent(traineeId)}/sentence`, {
       method: "PATCH",
@@ -91,8 +105,10 @@
   return {
     createTrainee,
     deleteTrainee,
+    loadAdminState,
     loadTrainees,
     saveSentence,
+    updateAdminStage,
     updateTrainee,
   };
 });

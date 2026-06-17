@@ -1,6 +1,7 @@
 const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
+const { createAdminStateRepository } = require("./adminStateRepository");
 const { createTraineeRepository } = require("./traineeRepository");
 
 const DEFAULT_PUBLIC_ROOT = path.join(__dirname, "..");
@@ -82,7 +83,7 @@ function decodePathname(pathname) {
   }
 }
 
-async function routeApi(request, response, url, repository) {
+async function routeApi(request, response, url, repository, adminStateRepository) {
   const segments = url.pathname.split("/").filter(Boolean);
 
   if (request.method === "OPTIONS") {
@@ -96,6 +97,17 @@ async function routeApi(request, response, url, repository) {
 
   if (url.pathname === "/api/health" && request.method === "GET") {
     sendJson(response, 200, { status: "ok" });
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/state" && request.method === "GET") {
+    sendJson(response, 200, await adminStateRepository.getState());
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/stage" && ["POST", "PATCH"].includes(request.method)) {
+    const payload = await readJsonBody(request);
+    sendJson(response, 200, await adminStateRepository.setCurrentStage(payload.stageId));
     return true;
   }
 
@@ -152,7 +164,12 @@ function serveStatic(request, response, url, publicRoot) {
   }
 
   const decodedPathname = decodePathname(url.pathname);
-  const requestPath = decodedPathname === "/" ? "/index.html" : decodedPathname;
+  const requestPath =
+    decodedPathname === "/"
+      ? "/index.html"
+      : decodedPathname === "/admin" || decodedPathname === "/admin/"
+        ? "/admin.html"
+        : decodedPathname;
   const filePath = path.resolve(publicRoot, `.${requestPath}`);
 
   if (!filePath.startsWith(`${publicRoot}${path.sep}`) && filePath !== publicRoot) {
@@ -187,6 +204,7 @@ function serveStatic(request, response, url, publicRoot) {
 function createServer({
   publicRoot = DEFAULT_PUBLIC_ROOT,
   repository = createTraineeRepository(),
+  adminStateRepository = createAdminStateRepository(),
 } = {}) {
   const resolvedPublicRoot = path.resolve(publicRoot);
 
@@ -195,7 +213,7 @@ function createServer({
 
     try {
       if (url.pathname.startsWith("/api/")) {
-        const handled = await routeApi(request, response, url, repository);
+        const handled = await routeApi(request, response, url, repository, adminStateRepository);
         if (!handled) {
           sendJson(response, 404, {
             error: {

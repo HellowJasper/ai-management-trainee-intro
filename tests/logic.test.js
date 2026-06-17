@@ -17,6 +17,7 @@ const {
   resolveLandingCtaTarget,
   resolveAdjacentTraineeId,
   resolveDiscoverTarget,
+  resolveStageScreenView,
   resolveWelcomeEntryTarget,
   toggleProfileMedia,
   updateSentence,
@@ -211,6 +212,22 @@ test("terminal boot welcome stage is wired into the HTML", () => {
   assert.match(html, /进入未来伙伴档案/);
 });
 
+test("admin console keeps the event control cockpit structure wired", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+  const js = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.match(html, /<aside class="admin-sidebar"/);
+  assert.match(html, /流程控制台/);
+  assert.match(html, /大屏预览/);
+  assert.match(html, /安全确认/);
+  assert.match(html, /操作日志/);
+  assert.match(css, /--neon:\s*#28ffc8/);
+  assert.match(css, /\.admin-nav button\.is-active/);
+  assert.match(js, /name:\s*"组队开启"/);
+  assert.match(js, /data-stage-command/);
+});
+
 test("landing stage starts with its main CTA visible and clickable", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
   const landingOpenTag = html.match(/<section class="[^"]*" id="landingStage"/)?.[0] || "";
@@ -228,6 +245,46 @@ test("getIntroTiming keeps the loading hold and crossfade durations explicit", (
 test("resolveDiscoverTarget accepts known discover menu targets", () => {
   assert.equal(resolveDiscoverTarget("awards"), "awards");
   assert.equal(resolveDiscoverTarget("unknown"), "home");
+});
+
+test("resolveStageScreenView maps admin stages to existing screen views", () => {
+  assert.equal(resolveStageScreenView("opening"), "welcome");
+  assert.equal(resolveStageScreenView("icebreaker"), "wall");
+  assert.equal(resolveStageScreenView("speech"), "home");
+  assert.equal(resolveStageScreenView("tracks"), "discover");
+  assert.equal(resolveStageScreenView("team"), "wall");
+  assert.equal(resolveStageScreenView("vote"), "home");
+  assert.equal(resolveStageScreenView("result"), "home");
+  assert.equal(resolveStageScreenView("unknown"), "");
+});
+
+test("admin state API helpers are exposed without swallowing failures", () => {
+  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
+
+  assert.match(dataJs, /async function loadAdminState\(\)/);
+  assert.match(dataJs, /fetchJson\("\/api\/admin\/state"\)/);
+  assert.match(dataJs, /async function updateAdminStage\(stageId\)/);
+  assert.match(dataJs, /fetchJson\("\/api\/admin\/stage",\s*{[\s\S]*method:\s*"PATCH"/);
+  assert.match(dataJs, /body:\s*JSON\.stringify\(\{\s*stageId\s*\}\)/);
+  assert.match(dataJs, /loadAdminState,/);
+  assert.match(dataJs, /updateAdminStage,/);
+});
+
+test("admin console publishes phase changes through the admin state API", () => {
+  const js = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.match(js, /window\.AppData\.loadAdminState\(\)/);
+  assert.match(js, /window\.AppData\.updateAdminStage\(stageId\)/);
+  assert.match(js, /catch\s*\(error\)[\s\S]*同步失败/);
+});
+
+test("main screen polls admin state and switches views only on stage changes", () => {
+  const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+
+  assert.match(appJs, /window\.AppData\.loadAdminState\(\)/);
+  assert.match(appJs, /window\.AppLogic\.resolveStageScreenView\(state\.currentStageId\)/);
+  assert.match(appJs, /lastAdminStageId/);
+  assert.match(appJs, /window\.setInterval\(pollAdminState/);
 });
 
 test("discover header links to talent profiles and a pending next section", () => {

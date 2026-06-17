@@ -272,6 +272,8 @@ let profileMediaMode = "photo";
 let introTimer = null;
 let introExitTimer = null;
 let isIntroExiting = false;
+let lastAdminStageId = "";
+let adminPollTimer = null;
 
 const introTiming = window.AppLogic.getIntroTiming();
 const INTRO_HOLD_MS = introTiming.holdMs;
@@ -893,6 +895,38 @@ function renderDiscoverPanel(target) {
   if (discoverButton) discoverButton.setAttribute("aria-expanded", "false");
 }
 
+async function pollAdminState() {
+  try {
+    const state = await window.AppData.loadAdminState();
+    const stageId = state?.currentStageId || "";
+    if (!stageId || stageId === lastAdminStageId) {
+      return;
+    }
+
+    lastAdminStageId = stageId;
+    const screenView = window.AppLogic.resolveStageScreenView(state.currentStageId);
+    if (!screenView) {
+      return;
+    }
+
+    window.clearTimeout(introTimer);
+    window.clearTimeout(introExitTimer);
+    isIntroExiting = false;
+    challengeLayer.classList.remove("is-open", "is-drawing");
+    challengeLayer.setAttribute("aria-hidden", "true");
+    detailLayer.classList.remove("is-open");
+    detailLayer.setAttribute("aria-hidden", "true");
+    setView(screenView);
+  } catch (error) {
+    console.warn("Admin state polling failed.", error);
+  }
+}
+
+function startAdminStatePolling() {
+  pollAdminState();
+  adminPollTimer = window.setInterval(pollAdminState, 3000);
+}
+
 function bindEvents() {
   document.getElementById("skipIntroButton").addEventListener("click", () => {
     startIntroExit(true);
@@ -1048,6 +1082,10 @@ function bindEvents() {
     discoverParticles?.resize();
     drawLandingLogo();
   });
+
+  window.addEventListener("pagehide", () => {
+    window.clearInterval(adminPollTimer);
+  });
 }
 
 async function initApp() {
@@ -1070,6 +1108,7 @@ async function initApp() {
   selectedId = traineeState.find((t) => t.id === "jasper")?.id || traineeState[0]?.id || "";
   renderPhotoWall();
   resetDock();
+  startAdminStatePolling();
 }
 
 initApp();

@@ -258,6 +258,20 @@
     return ["awards"].includes(target) ? target : "home";
   }
 
+  function resolveStageScreenView(stageId) {
+    const stageViews = {
+      opening: "welcome",
+      icebreaker: "wall",
+      speech: "home",
+      tracks: "discover",
+      team: "wall",
+      vote: "home",
+      result: "home",
+    };
+
+    return stageViews[stageId] || "";
+  }
+
   function resolveAdjacentTraineeId(trainees, currentId, direction) {
     const list = Array.isArray(trainees) ? trainees.filter((trainee) => trainee?.id) : [];
     if (list.length === 0) {
@@ -325,6 +339,7 @@
     resolveLandingCtaTarget,
     resolveAdjacentTraineeId,
     resolveDiscoverTarget,
+    resolveStageScreenView,
     resolveWelcomeEntryTarget,
     toggleProfileMedia,
     updateSentence,

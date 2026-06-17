@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI 星锐黑客松 管理后台</title>
+    <link rel="stylesheet" href="./admin.css?v=20260617-01" />
+  </head>
+  <body>
+    <main class="admin-shell">
+      <canvas class="admin-rain" id="adminRain" aria-hidden="true"></canvas>
+      <div class="admin-vignette" aria-hidden="true"></div>
+
+      <aside class="admin-sidebar" aria-label="后台导航">
+        <a class="admin-brand" href="/" aria-label="返回主会场大屏">
+          <img src="./assets/joincare-full-cyber.png" alt="健康元 Joincare" />
+        </a>
+
+        <nav class="admin-nav" aria-label="管理后台导航">
+          <button type="button">
+            <span class="nav-icon">▦</span>
+            控制台
+          </button>
+          <button class="is-active" type="button">
+            <span class="nav-icon">▷</span>
+            流程控制台
+          </button>
+          <button type="button">
+            <span class="nav-icon">▣</span>
+            大屏控制
+          </button>
+          <button type="button">
+            <span class="nav-icon">▤</span>
+            页面管理
+          </button>
+          <button type="button">
+            <span class="nav-icon">✧</span>
+            内容管理
+          </button>
+          <button type="button">
+            <span class="nav-icon">⌘</span>
+            数据与投票
+          </button>
+          <button type="button">
+            <span class="nav-icon">♙</span>
+            队伍与成员
+          </button>
+          <button type="button">
+            <span class="nav-icon">⚙</span>
+            系统设置
+          </button>
+          <button type="button">
+            <span class="nav-icon">☷</span>
+            操作日志
+          </button>
+        </nav>
+
+        <section class="admin-version-panel" aria-label="项目版本">
+          <strong>AI星锐黑客松 2026</strong>
+          <span>三天，把 AI 创意做成可运行系统</span>
+          <small>版本：v3.4-preview</small>
+        </section>
+      </aside>
+
+      <section class="admin-workspace">
+        <header class="admin-topbar">
+          <div>
+            <p class="admin-kicker">JOINCARE://MISSION_CONTROL</p>
+            <h1>AI 星锐黑客松 <span>管理后台</span></h1>
+          </div>
+
+          <div class="admin-topbar-actions">
+            <span class="connection-chip">
+              <i></i>
+              大屏连接正常
+            </span>
+            <button class="screen-select" type="button">
+              主会场大屏
+              <span>⌄</span>
+            </button>
+            <button class="admin-user" type="button" aria-label="当前管理员：admin">
+              <span class="user-avatar">●</span>
+              admin
+              <span>⌄</span>
+            </button>
+          </div>
+        </header>
+
+        <div class="admin-grid">
+          <section class="panel flow-panel" aria-labelledby="flowTitle">
+            <div class="panel-heading">
+              <div>
+                <p>PROCESS_CONTROL</p>
+                <h2 id="flowTitle">流程控制台</h2>
+              </div>
+              <span class="panel-code">SYNC 02ms</span>
+            </div>
+
+            <div class="current-stage-card">
+              <div class="stage-radar" aria-hidden="true">
+                <span></span>
+                <span></span>
+              </div>
+              <div class="stage-summary">
+                <span>当前阶段</span>
+                <h3 id="currentStageName">组队开启</h3>
+                <p id="currentStageTime">开始时间：2026-05-22 14:00:00</p>
+              </div>
+              <strong class="status-pill status-active" id="currentStageStatus">进行中</strong>
+            </div>
+
+            <div class="quick-switch">
+              <button class="primary-admin-action" type="button" id="startNextStage">开启下一阶段</button>
+              <button class="secondary-admin-action" type="button" id="finishCurrentStage">结束当前阶段</button>
+            </div>
+
+            <div class="flow-table" role="table" aria-label="阶段流程">
+              <div class="flow-row flow-head" role="row">
+                <span role="columnheader">阶段流程</span>
+                <span role="columnheader">状态</span>
+                <span role="columnheader">时间</span>
+                <span role="columnheader">操作</span>
+              </div>
+              <div id="stageRows"></div>
+            </div>
+
+            <p class="panel-note">说明：阶段切换后，大屏将自动加载对应页面并全屏展示。</p>
+          </section>
+
+          <section class="panel preview-panel" aria-labelledby="previewTitle">
+            <div class="panel-heading">
+              <div>
+                <p>LIVE_PREVIEW</p>
+                <h2 id="previewTitle">大屏预览</h2>
+              </div>
+              <div class="preview-actions">
+                <span class="live-dot">LIVE</span>
+                <a href="/" target="_blank" rel="noreferrer">全屏预览 ↗</a>
+              </div>
+            </div>
+
+            <article class="screen-preview" aria-label="主会场大屏预览">
+              <div class="preview-rain" aria-hidden="true"></div>
+              <img src="./assets/joincare-full-cyber.png" alt="健康元 Joincare" />
+              <h3>AI星锐黑客松</h3>
+              <p>三天，把 AI 创意做成可运行系统</p>
+              <strong id="previewStageName">组队开启</strong>
+              <span>2026 AI 管培生入职创新实战培训</span>
+              <div class="preview-timeline" id="previewTimeline"></div>
+            </article>
+          </section>
+
+          <section class="panel guard-panel" aria-labelledby="guardTitle">
+            <div class="panel-heading">
+              <div>
+                <p>SAFE_GUARD</p>
+                <h2 id="guardTitle">安全确认</h2>
+              </div>
+            </div>
+
+            <p>重要操作需二次确认</p>
+            <button class="danger-action danger-warn" type="button" id="closeVoteButton">关闭投票</button>
+            <button class="danger-action danger-red" type="button" id="publishResultButton">发布结果</button>
+
+            <label class="confirm-check">
+              <input type="checkbox" id="confirmDangerAction" />
+              <span>我已确认当前操作</span>
+            </label>
+          </section>
+
+          <section class="panel log-panel" aria-labelledby="logTitle">
+            <div class="panel-heading">
+              <div>
+                <p>OPERATION_LOG</p>
+                <h2 id="logTitle">操作日志</h2>
+              </div>
+              <button type="button" id="clearLogButton">清空</button>
+            </div>
+            <ol class="operation-log" id="operationLog"></ol>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script src="./src/data.js?v=20260617-02"></script>
+    <script src="./src/admin.js?v=20260617-01"></script>
+  </body>
+</html>
