@@ -299,6 +299,9 @@ const redrawWordsButton = document.getElementById("redrawWordsButton");
 const discoverButton = document.getElementById("discoverButton");
 const discoverMenu = document.getElementById("discoverMenu");
 const discoverPanel = document.getElementById("discoverPanel");
+const landingActions = document.getElementById("landingActions");
+const landingLoginPanel = document.getElementById("landingLoginPanel");
+const feishuLoginButton = document.getElementById("feishuLoginButton");
 
 const rainRenderers = {
   intro: typeof window.IntroSequence !== "undefined"
@@ -937,7 +940,17 @@ function bindEvents() {
   });
 
   document.getElementById("enterButton").addEventListener("click", () => {
-    setView(window.AppLogic.resolveLandingCtaTarget());
+    landingActions?.classList.add("is-login");
+    document.getElementById("enterButton").hidden = true;
+    if (landingLoginPanel) {
+      landingLoginPanel.hidden = false;
+      feishuLoginButton?.focus();
+    }
+  });
+
+  feishuLoginButton?.addEventListener("click", () => {
+    window.sessionStorage.setItem("joincare_feishu_login", "demo");
+    window.location.href = "./site.html#home";
   });
 
   document.getElementById("welcomeEnterButton").addEventListener("click", () => {

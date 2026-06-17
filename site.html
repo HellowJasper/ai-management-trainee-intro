@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI创新黑客松 · 官网</title>
+    <link rel="stylesheet" href="./styles.css?v=20260616-02" />
+    <link rel="stylesheet" href="./src/site.css?v=20260617-01" />
+  </head>
+  <body class="site-body">
+    <section class="site-intro" id="siteIntro" aria-label="进场动画">
+      <canvas class="code-rain-canvas" id="siteIntroRain" aria-hidden="true"></canvas>
+      <button class="site-skip" id="siteSkip" type="button">Skip</button>
+      <div class="intro-enter" id="introEnter">
+        <span class="intro-enter-cap">SYSTEM READY · HACKATHON_PROTOCOL_2026</span>
+        <button class="intro-enter-btn" id="siteEnter" type="button"><strong>进入官网</strong><span>ENTER ➔</span></button>
+      </div>
+    </section>
+
+    <canvas class="code-rain-canvas site-rain" id="siteRain" aria-hidden="true"></canvas>
+    <div class="site-bg-glow" aria-hidden="true"></div>
+
+    <header class="site-nav" id="siteNav">
+      <a class="nav-brand" href="#home">
+        <img src="./assets/joincare-full-clean.png" alt="健康元 Joincare" />
+        <span class="nav-brand-divider"></span>
+        <strong>AI创新黑客松</strong>
+      </a>
+      <nav class="nav-links" id="navLinks" aria-label="主导航"></nav>
+      <div class="nav-actions">
+        <span class="nav-phase" id="navPhase"></span>
+        <button class="nav-login" id="navLogin" type="button">登录 / 我的</button>
+      </div>
+      <button class="nav-burger" id="navBurger" type="button" aria-label="菜单">☰</button>
+    </header>
+
+    <main class="site-main" id="siteMain" aria-live="polite"></main>
+
+    <footer class="site-footer">
+      <div class="foot-inner">
+        <img class="foot-logo" src="./assets/joincare-full-clean.png" alt="健康元 Joincare" />
+        <div class="foot-meta">
+          <span>健康元药业集团股份有限公司 · Joincare</span>
+          <span>AI Innovation Hackathon 2026 · 让 AI 创新驱动健康未来</span>
+        </div>
+        <div class="foot-tag">HACKATHON_PROTOCOL_2026</div>
+      </div>
+    </footer>
+
+    <script src="./src/logic.js?v=20260616-02"></script>
+    <script src="./src/code-rain.js?v=20260616-02"></script>
+    <script src="./src/intro.js?v=20260616-02"></script>
+    <script src="./src/screen-data.js?v=20260616-04"></script>
+    <script src="./src/site.js?v=20260617-01"></script>
+  </body>
+</html>

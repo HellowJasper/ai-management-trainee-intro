@@ -186,13 +186,12 @@
             const a = data[idx + 3];
             if (a < 90) continue;
             const ix = x / SW;
-            if (ix >= ICON_SPLIT) continue; // skip the wordmark completely to optimize rendering
             let r = data[idx], g = data[idx + 1], b = data[idx + 2];
             const iy = y / SH;
             samples.push({
               ix, iy,
               color: [r, g, b],
-              group: "icon",
+              group: ix < ICON_SPLIT ? "icon" : "wordmark",
               type: (Math.random() * 7) | 0,
               rotation: (Math.random() * 4) | 0,
               delay: Math.random(),
@@ -279,6 +278,17 @@
           ctx.filter = "none";
         }
 
+        if (shrinkP > 0.02) {
+          const wordSrcX = iconSrcW;
+          const wordSrcW = iw - iconSrcW;
+          const wordX = L.logoX + L.logoW * ICON_SPLIT;
+          const wordY = L.logoY;
+          const wordW = L.logoW * (1 - ICON_SPLIT);
+          const wordH = L.logoH;
+          ctx.globalAlpha = easeOut(shrinkP) * 0.98;
+          ctx.drawImage(logoImg, wordSrcX, 0, wordSrcW, ih, wordX, wordY, wordW, wordH);
+        }
+
         ctx.globalAlpha = 1.0;
         return;
       }
@@ -321,6 +331,29 @@
           const cx = x + ox * cellSize;
           const cy = y + oy * cellSize;
           ctx.fillRect(cx - cellW / 2, cy - cellW / 2, cellW, cellW);
+        }
+      }
+
+      if (shrinkP > 0.02) {
+        const wordAlpha = easeOut(shrinkP);
+        const wordCellSize = Math.max(0.5, L.logoW / 300);
+        const wordCellW = Math.max(0.5, wordCellSize - 0.25);
+
+        for (let i = 0; i < samples.length; i++) {
+          const s = samples[i];
+          if (s.group !== "wordmark") continue;
+
+          const fx = L.logoX + s.ix * L.logoW;
+          const fy = L.logoY + s.iy * L.logoH;
+          const shape = TETROMINOES[s.type];
+          ctx.fillStyle = rgba(s.color, wordAlpha * 0.94);
+
+          for (let c = 0; c < 4; c++) {
+            const [ox, oy] = getRotatedOffset(shape[c][0], shape[c][1], s.rotation);
+            const cx = fx + ox * wordCellSize;
+            const cy = fy + oy * wordCellSize;
+            ctx.fillRect(cx - wordCellW / 2, cy - wordCellW / 2, wordCellW, wordCellW);
+          }
         }
       }
       ctx.globalCompositeOperation = "source-over";
