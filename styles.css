@@ -513,8 +513,8 @@ button:disabled {
 .landing-logo-container {
   position: absolute;
   left: 50%;
-  top: 30%;
-  width: min(34vw, 500px);
+  top: 28%;
+  width: min(36vw, 560px);
   max-width: calc(100vw - 72px);
   aspect-ratio: 2891 / 988;
   transform: translate(-50%, -50%);
@@ -542,16 +542,19 @@ button:disabled {
 .landing-title {
   position: absolute;
   left: 50%;
-  top: 55%;
+  top: 53.5%;
   transform: translate(-50%, -50%);
+  display: flex;
   width: max-content;
   max-width: calc(100vw - 48px);
   margin: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(8px, 1.4vh, 14px);
   color: #dffff5;
   font-family: var(--body);
-  font-size: clamp(44px, 5.4vw, 92px);
   font-weight: 900;
-  line-height: 1.03;
+  line-height: 1;
   letter-spacing: 0;
   text-align: center;
   text-shadow:
@@ -561,10 +564,28 @@ button:disabled {
   white-space: nowrap;
 }
 
+.landing-title-main {
+  font-size: clamp(54px, 6.4vw, 110px);
+}
+
+.landing-title-cn {
+  color: var(--neon-2);
+  font-size: clamp(22px, 2.2vw, 38px);
+  text-shadow:
+    0 0 14px rgba(167, 255, 79, 0.5),
+    0 0 34px rgba(167, 255, 79, 0.18);
+}
+
+.landing-title-en {
+  color: rgba(223, 255, 245, 0.92);
+  font-size: clamp(20px, 2.1vw, 34px);
+  font-weight: 800;
+}
+
 .landing-actions {
   position: absolute;
   left: 50%;
-  top: calc(80% - 50px);
+  top: calc(81% - 50px);
   transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
@@ -573,8 +594,13 @@ button:disabled {
   pointer-events: auto;
 }
 
+.landing-actions.is-login {
+  top: calc(82% - 50px);
+}
+
 .enter-button,
-.discover-button {
+.discover-button,
+.feishu-login-button {
   width: clamp(290px, 26vw, 420px);
   min-height: clamp(54px, 6.6vh, 72px);
   border-radius: 999px;
@@ -587,7 +613,8 @@ button:disabled {
   white-space: nowrap;
 }
 
-.enter-button {
+.enter-button,
+.feishu-login-button {
   border: 1px solid #478d86;
   background: rgb(71, 141, 134);
   color: #000000;
@@ -598,7 +625,9 @@ button:disabled {
 }
 
 .enter-button:hover,
-.enter-button:focus-visible {
+.enter-button:focus-visible,
+.feishu-login-button:hover,
+.feishu-login-button:focus-visible {
   border-color: #5bb3aa;
   background: #5bb3aa;
   color: #000000;
@@ -606,6 +635,52 @@ button:disabled {
     0 0 32px rgba(91, 179, 170, 0.65),
     inset 0 0 0 1px rgba(255, 255, 255, 0.25);
   transform: translateY(-2px) scale(1.02);
+}
+
+.landing-login-panel {
+  width: min(420px, calc(100vw - 48px));
+  border: 1px solid rgba(103, 255, 213, 0.44);
+  border-radius: var(--radius);
+  background: rgba(4, 18, 21, 0.82);
+  padding: 20px;
+  text-align: center;
+  box-shadow:
+    0 20px 44px rgba(0, 0, 0, 0.42),
+    0 0 28px rgba(40, 255, 200, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+}
+
+.landing-login-panel[hidden] {
+  display: none;
+}
+
+.landing-login-kicker {
+  display: block;
+  color: var(--neon-2);
+  font-family: var(--nav-pixel);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+}
+
+.landing-login-panel strong {
+  display: block;
+  margin-top: 10px;
+  color: #ffffff;
+  font-size: 24px;
+}
+
+.landing-login-panel p {
+  margin: 8px 0 16px;
+  color: var(--text-soft);
+  font-size: 14px;
+}
+
+.feishu-login-button {
+  width: 100%;
+  min-height: 52px;
+  font-size: 20px;
 }
 
 .discover-button {
