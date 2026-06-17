@@ -7,7 +7,7 @@
   "use strict";
   const D = root.ScreenData;
   const VOTE_KEY = "joincare_hackathon_vote";
-  const PHASE = "voting"; // voting | published —— 投票期不显示排名，公布后才出最终排行
+  const PHASE = "published"; // voting | published —— 投票期不显示排名，公布后才出最终排行
   let TRAINEES = [];
 
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -260,9 +260,11 @@
     const rows = ranked.map((t) => {
       const champ = t.rank === 1;
       const avas = [t.advisor, ...t.members].slice(0, 5).map((p) => avatar(p, 30)).join("");
-      return `<div class="rk-row glass ${champ ? "champ" : ""}" style="--accent:${t.accent};--rgb:${t.rgb}"><span class="rk-no ${t.rank <= 3 ? "top" : ""}">${champ ? "★" : pad(t.rank)}</span><div class="rk-id"><b>${esc(t.name)}${champ ? '<i class="rk-crown">CHAMPION · 冠军</i>' : ""}</b><span>${esc(t.project)} · ${esc(t.track)}</span></div><div class="rk-avas">${avas}</div><div class="rk-bar"><span class="meter" style="--accent:${t.accent};--rgb:${t.rgb}"><i style="width:${(t.total / max) * 100}%"></i></span></div><div class="rk-mini"><span>专家 ${t.expert}</span><span>赋分 ${t.votePoint}</span></div><span class="rk-total">${t.total}</span></div>`;
+      const scoreWidth = ((t.total / max) * 100).toFixed(2);
+      const delay = (t.rank - 1) * 120;
+      return `<div class="rk-row glass ${champ ? "champ" : ""}" style="--accent:${t.accent};--rgb:${t.rgb};--score-width:${scoreWidth}%;--rank-delay:${delay}ms"><span class="rk-no ${t.rank <= 3 ? "top" : ""}">${champ ? "★" : pad(t.rank)}</span><div class="rk-id"><b>${esc(t.name)}${champ ? '<i class="rk-crown">CHAMPION · 冠军</i>' : ""}</b><span>${esc(t.project)} · ${esc(t.track)}</span></div><div class="rk-avas">${avas}</div><div class="rk-bar"><span class="meter" style="--accent:${t.accent};--rgb:${t.rgb}"><i></i></span></div><div class="rk-mini"><span>专家 ${t.expert}</span><span>赋分 ${t.votePoint}</span></div><span class="rk-total">${t.total}</span></div>`;
     }).join("");
-    return `${pageHead("最终排行 · GRAND PRIZE", "综合得分 = 专家评审 70% + 大众投票赋分 30%", "RESULT")}<section class="container sec"><div class="rk-list">${rows}</div></section>`;
+    return `${pageHead("最终排行 · GRAND PRIZE", "综合得分 = 专家评审 70% + 大众投票赋分 30%", "RESULT")}<section class="container sec result-sec"><div class="rk-list">${rows}</div></section>`;
   }
 
   /* =======================================================================
@@ -285,7 +287,7 @@
     navLinks.querySelectorAll("a").forEach((a) => a.classList.toggle("on", a.dataset.nav === key));
     doc.body.dataset.view = key;
     navLinks.classList.remove("open");
-    root.scrollTo({ top: 0 });
+    root.scrollTo({ top: 0, behavior: "auto" });
   }
   function go(key, push) {
     const v = VIEWS.find((x) => x.key === key) || VIEWS[0];
@@ -340,18 +342,6 @@
     root.addEventListener("resize", () => { rain && rain.resize(); if (doc.body.dataset.view === "people") renderWall(); });
   }
 
-  function playIntro() {
-    const stage = doc.getElementById("siteIntro");
-    if (!stage || location.search.indexOf("nointro") >= 0) { stage && stage.remove(); return; }
-    let dismissed = false, seq = null;
-    const dismiss = () => { if (dismissed) return; dismissed = true; seq && seq.stop && seq.stop(); stage.classList.add("hide"); root.setTimeout(() => stage.remove(), 760); };
-    const ready = () => stage.classList.add("ready"); // 动画结束 → 显示「进入官网」，等用户点击
-    if (root.IntroSequence) { seq = root.IntroSequence.createIntroSequence("siteIntroRain", { logoSrc: "./assets/joincare-full-clean.png", onComplete: ready }); seq.start(); }
-    else ready();
-    root.setTimeout(ready, 7000); // 兜底：动画回调若延迟，也保证「进入官网」出现
-    const skip = doc.getElementById("siteSkip"); skip && skip.addEventListener("click", dismiss);
-    const enter = doc.getElementById("siteEnter"); enter && enter.addEventListener("click", dismiss);
-  }
   function tick() { doc.querySelectorAll("[data-countdown]").forEach((el) => { let r = Math.max(0, (+el.dataset.remain || 0) - 1); el.dataset.remain = r; el.innerHTML = fmtHMS(r); }); }
 
   async function loadTrainees() {
@@ -362,7 +352,6 @@
     await loadTrainees();
     bind();
     route(false);
-    playIntro();
     root.setInterval(tick, 1000);
   }
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", init); else init();

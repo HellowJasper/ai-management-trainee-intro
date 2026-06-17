@@ -541,9 +541,9 @@ button:disabled {
 .landing-logo-container {
   position: absolute;
   left: 50%;
-  top: clamp(150px, 25vh, 215px);
   z-index: 2;
-  width: min(22vw, 350px);
+  top: 26%;
+  width: min(38vw, 600px);
   max-width: calc(100vw - 72px);
   aspect-ratio: 2891 / 988;
   transform: translate(-50%, -50%);
@@ -590,7 +590,7 @@ button:disabled {
 .landing-title {
   position: absolute;
   left: 50%;
-  top: 52.2%;
+  top: 50%;
   z-index: 2;
   transform: translate(-50%, -50%);
   display: flex;
@@ -599,7 +599,7 @@ button:disabled {
   margin: 0;
   flex-direction: column;
   align-items: center;
-  gap: clamp(8px, 1.1vh, 13px);
+  gap: clamp(12px, 1.8vh, 20px);
   padding: 0;
   color: #dffff5;
   font-family: var(--body);
@@ -614,36 +614,18 @@ button:disabled {
   white-space: nowrap;
 }
 
-.landing-title::before,
-.landing-title::after {
-  content: none;
-}
-
-.landing-title::before {
-  top: 0;
-}
-
-.landing-title::after {
-  bottom: 0;
-}
-
-.landing-title-main {
-  font-size: clamp(62px, 5.7vw, 98px);
-  filter: drop-shadow(0 0 12px rgba(223, 255, 245, 0.42)) drop-shadow(0 0 24px rgba(40, 255, 200, 0.18));
-}
-
 .landing-title-cn {
-  color: rgba(167, 255, 79, 0.88);
-  font-size: clamp(20px, 1.6vw, 29px);
-  font-weight: 850;
+  color: var(--neon-2);
+  font-size: clamp(40px, 4.6vw, 82px);
   text-shadow:
-    0 0 8px rgba(167, 255, 79, 0.22),
-    0 0 18px rgba(167, 255, 79, 0.08);
+    0 0 14px rgba(167, 255, 79, 0.5),
+    0 0 34px rgba(167, 255, 79, 0.28),
+    0 0 58px rgba(167, 255, 79, 0.16);
 }
 
 .landing-title-en {
-  color: rgba(223, 255, 245, 0.68);
-  font-size: clamp(16px, 1.35vw, 24px);
+  color: rgba(223, 255, 245, 0.92);
+  font-size: clamp(28px, 3vw, 50px);
   font-weight: 800;
   text-shadow:
     0 0 8px rgba(223, 255, 245, 0.2),
@@ -653,7 +635,7 @@ button:disabled {
 .landing-actions {
   position: absolute;
   left: 50%;
-  top: clamp(540px, 66.5vh, 680px);
+  top: calc(75% - 50px);
   z-index: 2;
   transform: translate(-50%, -50%);
   display: flex;
@@ -663,8 +645,19 @@ button:disabled {
   pointer-events: auto;
 }
 
-.landing-actions.is-login {
-  top: calc(82% - 50px);
+.landing-actions.is-authing {
+  top: calc(75% - 50px);
+}
+
+.landing-actions.is-authing .enter-button {
+  background: linear-gradient(90deg, #478d86, #a7ff4f, #478d86);
+  background-size: 220% 100%;
+  animation: authPulse 1200ms linear infinite;
+}
+
+@keyframes authPulse {
+  from { background-position: 0% 50%; }
+  to { background-position: 220% 50%; }
 }
 
 .enter-button,
@@ -2885,12 +2878,9 @@ button:disabled {
 
 .team-hub-desc {
   margin: 0;
-  color: rgba(167, 255, 79, 0.82);
-  font-family: var(--pixel);
-  font-size: clamp(11.5px, 0.82vw, 14.5px);
+  color: rgba(213, 238, 238, 0.58);
+  font-size: clamp(12px, 0.9vw, 15px);
   font-weight: 700;
-  letter-spacing: 0.05em;
-  text-shadow: 0 0 12px rgba(167, 255, 79, 0.28);
 }
 
 .team-grid {
@@ -2901,14 +2891,7 @@ button:disabled {
   width: 100%;
   height: min(640px, calc(100vh - 250px));
   min-height: 500px;
-  perspective: 1600px;
-  transform-style: preserve-3d;
-}
-
-.team-grid:hover > .team-track-card:not(:hover) {
-  opacity: 0.46;
-  transform: scale(0.978) translateZ(-15px);
-  filter: saturate(0.68) brightness(0.85);
+  perspective: 1400px;
 }
 
 .team-track-card {
@@ -2931,24 +2914,6 @@ button:disabled {
   -webkit-backdrop-filter: blur(20px) saturate(135%);
   overflow: hidden;
   position: relative;
-  transform-style: preserve-3d;
-  will-change: transform, opacity, filter;
-  transition:
-    transform 450ms cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 360ms cubic-bezier(0.16, 1, 0.3, 1),
-    border-color 300ms ease,
-    box-shadow 300ms ease,
-    filter 360ms ease;
-}
-
-.team-track-card:hover {
-  border-color: rgba(var(--team-color-rgb), 0.65);
-  border-top-color: var(--team-color);
-  box-shadow:
-    0 30px 60px rgba(0, 0, 0, 0.5),
-    0 0 28px rgba(var(--team-color-rgb), 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  transform: translateY(-5px) scale(1.012) translateZ(25px);
 }
 
 .team-track-card::before {
@@ -3012,7 +2977,7 @@ button:disabled {
   align-items: start;
   gap: 10px;
   min-height: clamp(92px, 10.6vh, 120px);
-  margin: clamp(16px, 1.8vh, 22px) 0 clamp(16px, 1.8vh, 22px);
+  margin: clamp(12px, 1.5vh, 16px) 0 clamp(12px, 1.5vh, 16px);
   padding: clamp(13px, 1.2vw, 17px);
   border: 1px solid rgba(var(--team-color-rgb), 0.34);
   border-radius: 6px;
@@ -3090,7 +3055,6 @@ button:disabled {
     rgba(0, 0, 0, 0.2);
   position: relative;
   overflow: hidden;
-  transition: border-color 300ms ease, box-shadow 300ms ease, background 300ms ease;
 }
 
 .team-member-card::before {
@@ -3103,14 +3067,6 @@ button:disabled {
   font-size: 8px;
   font-weight: 900;
   letter-spacing: 0.08em;
-}
-
-.team-member-card:hover {
-  border-color: rgba(var(--team-color-rgb), 0.45);
-  background:
-    linear-gradient(180deg, rgba(var(--team-color-rgb), 0.08), rgba(0, 0, 0, 0.35)),
-    rgba(0, 0, 0, 0.3);
-  box-shadow: 0 0 16px rgba(var(--team-color-rgb), 0.08);
 }
 
 .team-member-card {
@@ -3136,30 +3092,6 @@ button:disabled {
   font-weight: 900;
   overflow: hidden;
   box-shadow: 0 0 12px rgba(var(--team-color-rgb), 0.1);
-  position: relative;
-  transition: border-color 300ms ease, box-shadow 300ms ease;
-}
-
-.team-member-avatar::after {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  border: 1px solid rgba(var(--team-color-rgb), 0.24);
-  border-radius: 8px;
-  pointer-events: none;
-  opacity: 0.62;
-  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.team-member-card:hover .team-member-avatar {
-  border-color: var(--team-color);
-  box-shadow: 0 0 16px rgba(var(--team-color-rgb), 0.32);
-}
-
-.team-member-card:hover .team-member-avatar::after {
-  border-color: var(--team-color);
-  opacity: 1;
-  inset: -3px;
 }
 
 .team-member-avatar span {
@@ -3408,7 +3340,15 @@ button:disabled {
   }
 
   .landing-title {
-    font-size: clamp(42px, 13vw, 72px);
+    gap: 10px;
+  }
+
+  .landing-title-cn {
+    font-size: clamp(32px, 9.5vw, 54px);
+  }
+
+  .landing-title-en {
+    font-size: clamp(20px, 6vw, 32px);
   }
 
   .enter-button,

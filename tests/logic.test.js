@@ -200,9 +200,26 @@ test("nextIntroState moves from intro to home", () => {
   assert.equal(nextIntroState({ skipped: true }), "home");
 });
 
-test("landing CTA opens the terminal boot welcome before manual persona entry", () => {
-  assert.equal(resolveLandingCtaTarget(), "welcome");
+test("landing CTA is wired for seamless Feishu auth", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+
+  assert.doesNotMatch(html, /landing-title-main/);
+  assert.doesNotMatch(html, /AI黑客松/);
+  assert.doesNotMatch(html, /feishuLoginButton/);
+  assert.match(appJs, /飞书登录中/);
+  assert.match(appJs, /site\.html#home/);
   assert.equal(resolveWelcomeEntryTarget(), "wall");
+});
+
+test("official site opens directly without the duplicate intro gate", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.doesNotMatch(html, /id="siteIntro"/);
+  assert.doesNotMatch(html, /id="siteSkip"/);
+  assert.doesNotMatch(html, /id="siteEnter"/);
+  assert.match(siteCss, /overflow-y:\s*auto/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
@@ -251,27 +268,28 @@ test("landing logo keeps a static icon fallback when admin state skips the intro
   assert.match(css, /\.app-shell\.view-home \.landing-logo-text\s*{[\s\S]*?clip-path:\s*inset\(0 0 0 0\)/);
 });
 
-test("landing hero keeps the same copy while using a balanced cinematic hierarchy", () => {
+test("landing hero uses the merged two-line cinematic hierarchy", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
   const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
   const logoBlock = css.match(/\.landing-logo-container\s*{[\s\S]*?\n}/)?.[0] || "";
-  const enterButtonBlock = css.match(/\.enter-button,\n\.feishu-login-button\s*{[\s\S]*?\n}/)?.[0] || "";
+  const enterButtonBlock = css.match(/\.enter-button,\n\.discover-button,\n\.feishu-login-button\s*{[\s\S]*?\n}/)?.[0] || "";
 
-  assert.match(html, /<span class="landing-title-main">AI黑客松<\/span>/);
+  assert.doesNotMatch(html, /landing-title-main/);
+  assert.doesNotMatch(html, /AI黑客松<\/span>/);
   assert.match(html, /<span class="landing-title-cn">AI创新黑客松大赛2026<\/span>/);
   assert.match(html, /<span class="landing-title-en">AI Innovation Hackathon 2026<\/span>/);
   assert.match(html, /<button class="enter-button" type="button" id="enterButton">开始<\/button>/);
-  assert.match(logoBlock, /top:\s*clamp\(150px,\s*25vh,\s*215px\)/);
-  assert.match(logoBlock, /width:\s*min\(22vw,\s*350px\)/);
+  assert.match(logoBlock, /top:\s*26%/);
+  assert.match(logoBlock, /width:\s*min\(38vw,\s*600px\)/);
   assert.match(css, /\.landing-stage::before\s*{[\s\S]*?centered light field/);
   assert.match(css, /\.landing-content::before\s*{[\s\S]*?content:\s*none/);
   assert.match(css, /\.landing-content::after\s*{[\s\S]*?content:\s*none/);
-  assert.match(css, /\.landing-title::before,\n\.landing-title::after\s*{[\s\S]*?content:\s*none/);
-  assert.match(css, /\.landing-title-main\s*{[\s\S]*?filter:\s*drop-shadow/);
+  assert.match(css, /\.landing-title-cn\s*{[\s\S]*?font-size:\s*clamp\(40px,\s*4\.6vw,\s*82px\)/);
+  assert.match(css, /\.landing-title-en\s*{[\s\S]*?font-size:\s*clamp\(28px,\s*3vw,\s*50px\)/);
   assert.match(css, /\.app-shell\.view-home \.landing-title\s*{[\s\S]*?animation:\s*none/);
   assert.match(css, /\.app-shell\.view-home \.landing-title\s*{[\s\S]*?opacity:\s*1/);
-  assert.match(enterButtonBlock, /background:\s*linear-gradient/);
-  assert.match(enterButtonBlock, /color:\s*rgba\(223,\s*255,\s*245,\s*0\.94\)/);
+  assert.match(enterButtonBlock, /width:\s*clamp\(220px,\s*18vw,\s*292px\)/);
+  assert.match(enterButtonBlock, /border-radius:\s*8px/);
 });
 
 test("getIntroTiming keeps the loading hold and crossfade durations explicit", () => {
