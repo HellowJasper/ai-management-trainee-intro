@@ -29,10 +29,10 @@
   --warning: #f6ff81;
   --ink: #02080e;
   --radius: 8px;
-  --display: "Orbitron", "Inter", "Noto Sans SC", "PingFang SC", sans-serif;
-  --nav-pixel: "Press Start 2P", "Share Tech Mono", "Courier New", monospace;
-  --pixel: "Share Tech Mono", "Courier New", monospace;
-  --body: "Inter", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --display: "Impact", "Arial Black", "Noto Sans SC", "PingFang SC", sans-serif;
+  --nav-pixel: "Press Start 2P", "Courier New", "SFMono-Regular", "Menlo", "Consolas", monospace;
+  --pixel: "Courier New", "SFMono-Regular", "Menlo", "Consolas", monospace;
+  --body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   --intro-hold-duration: 4000ms;
   --intro-exit-duration: 1200ms;
 }
@@ -428,8 +428,8 @@ button:disabled {
   display: grid;
   place-items: center;
   background:
-    radial-gradient(ellipse at 50% 63%, rgba(40, 255, 200, 0.16), transparent 30%),
-    linear-gradient(90deg, transparent 14%, rgba(40, 255, 200, 0.045) 49%, transparent 86%),
+    radial-gradient(ellipse at 50% 55%, rgba(40, 255, 200, 0.13), transparent 34%),
+    linear-gradient(90deg, rgba(2, 8, 14, 0.78), transparent 32%, transparent 68%, rgba(2, 8, 14, 0.78)),
     linear-gradient(180deg, rgba(2, 18, 20, 0.76), rgba(2, 8, 14, 0.94)),
     var(--void);
 }
@@ -438,18 +438,18 @@ button:disabled {
   content: "";
   position: absolute;
   left: 50%;
-  top: 60%;
+  top: 55%;
   z-index: 3;
-  width: min(74vw, 980px);
-  height: clamp(210px, 30vh, 320px);
+  width: min(64vw, 860px);
+  height: clamp(320px, 46vh, 460px);
   transform: translate(-50%, -50%);
   background:
-    linear-gradient(90deg, transparent, rgba(111, 255, 219, 0.14) 20%, rgba(111, 255, 219, 0.18) 50%, rgba(111, 255, 219, 0.14) 80%, transparent),
-    linear-gradient(180deg, transparent 0%, rgba(7, 57, 52, 0.13) 18%, rgba(7, 57, 52, 0.22) 48%, transparent 100%);
-  opacity: 0.82;
-  filter: blur(18px);
+    radial-gradient(ellipse at 50% 48%, rgba(119, 255, 221, 0.18), rgba(40, 255, 200, 0.08) 38%, transparent 68%),
+    linear-gradient(180deg, transparent 0%, rgba(7, 57, 52, 0.12) 34%, transparent 100%);
+  opacity: 0.78;
+  filter: blur(10px);
   pointer-events: none;
-  /* hero energy field */
+  /* centered light field */
 }
 
 .landing-rain {
@@ -524,23 +524,33 @@ button:disabled {
 .landing-content {
   position: absolute;
   inset: 0;
+  isolation: isolate;
   z-index: 4;
   width: 100%;
   pointer-events: none;
 }
 
+.landing-content::before {
+  content: none;
+}
+
+.landing-content::after {
+  content: none;
+}
+
 .landing-logo-container {
   position: absolute;
   left: 50%;
-  top: clamp(148px, 24vh, 210px);
-  width: min(27vw, 430px);
+  top: clamp(150px, 25vh, 215px);
+  z-index: 2;
+  width: min(22vw, 350px);
   max-width: calc(100vw - 72px);
   aspect-ratio: 2891 / 988;
   transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   gap: 0;
-  filter: saturate(0.88) brightness(0.92) drop-shadow(0 0 22px rgba(40, 255, 200, 0.2));
+  filter: saturate(0.78) brightness(0.84) drop-shadow(0 0 16px rgba(40, 255, 200, 0.14));
 }
 
 .landing-logo-container::before {
@@ -580,7 +590,8 @@ button:disabled {
 .landing-title {
   position: absolute;
   left: 50%;
-  top: 52%;
+  top: 52.2%;
+  z-index: 2;
   transform: translate(-50%, -50%);
   display: flex;
   width: max-content;
@@ -588,61 +599,62 @@ button:disabled {
   margin: 0;
   flex-direction: column;
   align-items: center;
-  gap: clamp(14px, 1.8vh, 20px);
-  padding: clamp(24px, 3vh, 36px) clamp(34px, 4.8vw, 74px);
-  color: var(--text);
+  gap: clamp(8px, 1.1vh, 13px);
+  padding: 0;
+  color: #dffff5;
   font-family: var(--body);
   font-weight: 900;
-  line-height: 1.2;
+  line-height: 1;
   letter-spacing: 0;
   text-align: center;
+  text-shadow:
+    0 0 7px rgba(223, 255, 245, 0.58),
+    0 0 18px rgba(40, 255, 200, 0.32),
+    0 0 34px rgba(40, 255, 200, 0.16);
   white-space: nowrap;
 }
 
 .landing-title::before,
 .landing-title::after {
-  display: none;
+  content: none;
+}
+
+.landing-title::before {
+  top: 0;
+}
+
+.landing-title::after {
+  bottom: 0;
 }
 
 .landing-title-main {
-  font-family: var(--display);
-  font-size: clamp(54px, 5.8vw, 98px);
-  letter-spacing: 0.1em;
-  margin-right: -0.1em;
-  font-weight: 900;
-  background: linear-gradient(180deg, #ffffff 40%, #c1fdf0 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0 14px rgba(40, 255, 200, 0.22));
+  font-size: clamp(62px, 5.7vw, 98px);
+  filter: drop-shadow(0 0 12px rgba(223, 255, 245, 0.42)) drop-shadow(0 0 24px rgba(40, 255, 200, 0.18));
 }
 
 .landing-title-cn {
-  font-family: var(--body);
-  color: var(--neon-2);
-  font-size: clamp(17.5px, 1.5vw, 26px);
-  font-weight: 700;
-  letter-spacing: 0.24em;
-  margin-right: -0.24em;
-  opacity: 0.95;
-  text-shadow: 0 0 12px rgba(167, 255, 79, 0.24);
+  color: rgba(167, 255, 79, 0.88);
+  font-size: clamp(20px, 1.6vw, 29px);
+  font-weight: 850;
+  text-shadow:
+    0 0 8px rgba(167, 255, 79, 0.22),
+    0 0 18px rgba(167, 255, 79, 0.08);
 }
 
 .landing-title-en {
-  font-family: "Rajdhani", var(--pixel);
-  color: var(--text-soft);
-  font-size: clamp(14px, 1.25vw, 20px);
-  font-weight: 700;
-  letter-spacing: 0.36em;
-  margin-right: -0.36em;
-  text-transform: uppercase;
-  opacity: 0.85;
-  text-shadow: none;
+  color: rgba(223, 255, 245, 0.68);
+  font-size: clamp(16px, 1.35vw, 24px);
+  font-weight: 800;
+  text-shadow:
+    0 0 8px rgba(223, 255, 245, 0.2),
+    0 0 14px rgba(40, 255, 200, 0.08);
 }
 
 .landing-actions {
   position: absolute;
   left: 50%;
-  top: clamp(640px, 73vh, 760px);
+  top: clamp(540px, 66.5vh, 680px);
+  z-index: 2;
   transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
@@ -658,12 +670,12 @@ button:disabled {
 .enter-button,
 .discover-button,
 .feishu-login-button {
-  width: clamp(240px, 21vw, 340px);
-  min-height: clamp(50px, 5.8vh, 62px);
-  border-radius: 999px;
+  width: clamp(220px, 18vw, 292px);
+  min-height: clamp(46px, 5.3vh, 56px);
+  border-radius: 8px;
   padding: 12px 28px;
   font-family: var(--body);
-  font-size: clamp(17px, 1.35vw, 24px);
+  font-size: clamp(18px, 1.25vw, 24px);
   font-weight: 800;
   line-height: 1;
   text-transform: none;
@@ -672,29 +684,28 @@ button:disabled {
 
 .enter-button,
 .feishu-login-button {
-  border: 1.5px solid rgba(103, 255, 213, 0.28);
-  background: linear-gradient(180deg, rgba(2, 12, 15, 0.22) 0%, rgba(2, 12, 15, 0.22) 100%);
+  border: 1px solid rgba(103, 255, 213, 0.42);
+  background: linear-gradient(180deg, rgba(8, 38, 37, 0.76), rgba(3, 16, 20, 0.86));
   color: rgba(223, 255, 245, 0.94);
-  letter-spacing: 0.16em;
-  padding-left: calc(28px + 0.16em);
   box-shadow:
-    0 10px 24px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  transition: all 260ms cubic-bezier(0.16, 1, 0.3, 1);
+    0 0 18px rgba(40, 255, 200, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    inset 0 -12px 24px rgba(40, 255, 200, 0.05);
+  transition: all 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .enter-button:hover,
 .enter-button:focus-visible,
 .feishu-login-button:hover,
 .feishu-login-button:focus-visible {
-  border-color: var(--neon-2);
-  background: rgba(167, 255, 79, 0.08);
-  color: #ffffff;
+  border-color: rgba(167, 255, 79, 0.76);
+  background: linear-gradient(180deg, rgba(19, 74, 66, 0.96), rgba(8, 34, 38, 0.92));
+  color: #f1fff9;
   box-shadow:
-    0 12px 32px rgba(167, 255, 79, 0.22),
-    0 0 16px rgba(40, 255, 200, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transform: translateY(-2px) scale(1.015);
+    0 0 28px rgba(40, 255, 200, 0.3),
+    0 0 48px rgba(167, 255, 79, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
 }
 
 .landing-login-panel {
@@ -2532,8 +2543,8 @@ button:disabled {
   gap: clamp(10px, 1.1vw, 18px);
   width: 100%;
   height: clamp(500px, 61vh, 620px);
-  transform: translateY(-6px);
   perspective: 1400px;
+  transform: translateY(-8px);
 }
 
 .dept-card {
@@ -2593,6 +2604,7 @@ button:disabled {
 }
 
 .dept-card:hover {
+  transform: translateY(-6px);
   border-color: rgba(var(--dept-color-rgb), 0.46);
   box-shadow:
     0 30px 60px rgba(var(--dept-color-rgb), 0.1),
@@ -3125,9 +3137,14 @@ button:disabled {
   clip-path: inset(0 0 0 0);
 }
 
-.app-shell.view-home .landing-title,
 .app-shell.view-intro-exit .landing-title {
   animation: landingTitleReveal 2200ms cubic-bezier(0.4, 0, 0.2, 1) 600ms both;
+}
+
+.app-shell.view-home .landing-title {
+  animation: none;
+  opacity: 1;
+  transform: translate(-50%, -50%);
 }
 
 @keyframes landingCanvasReveal {

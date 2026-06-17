@@ -261,11 +261,15 @@ test("landing hero keeps the same copy while using a balanced cinematic hierarch
   assert.match(html, /<span class="landing-title-cn">AI创新黑客松大赛2026<\/span>/);
   assert.match(html, /<span class="landing-title-en">AI Innovation Hackathon 2026<\/span>/);
   assert.match(html, /<button class="enter-button" type="button" id="enterButton">开始<\/button>/);
-  assert.match(logoBlock, /top:\s*clamp\(130px,\s*20vh,\s*185px\)/);
-  assert.match(logoBlock, /width:\s*min\(27vw,\s*430px\)/);
-  assert.match(css, /\.landing-stage::before\s*{[\s\S]*?hero energy field/);
-  assert.match(css, /\.landing-title\s*{[\s\S]*?background:\s*radial-gradient/);
+  assert.match(logoBlock, /top:\s*clamp\(150px,\s*25vh,\s*215px\)/);
+  assert.match(logoBlock, /width:\s*min\(22vw,\s*350px\)/);
+  assert.match(css, /\.landing-stage::before\s*{[\s\S]*?centered light field/);
+  assert.match(css, /\.landing-content::before\s*{[\s\S]*?content:\s*none/);
+  assert.match(css, /\.landing-content::after\s*{[\s\S]*?content:\s*none/);
+  assert.match(css, /\.landing-title::before,\n\.landing-title::after\s*{[\s\S]*?content:\s*none/);
   assert.match(css, /\.landing-title-main\s*{[\s\S]*?filter:\s*drop-shadow/);
+  assert.match(css, /\.app-shell\.view-home \.landing-title\s*{[\s\S]*?animation:\s*none/);
+  assert.match(css, /\.app-shell\.view-home \.landing-title\s*{[\s\S]*?opacity:\s*1/);
   assert.match(enterButtonBlock, /background:\s*linear-gradient/);
   assert.match(enterButtonBlock, /color:\s*rgba\(223,\s*255,\s*245,\s*0\.94\)/);
 });
@@ -392,9 +396,12 @@ test("business scenario cards use five-column briefing layout", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
   const gridBlock = css.match(/\.department-grid\s*{[\s\S]*?\n}/)?.[0] || "";
   const cardBlock = css.match(/\.dept-card\s*{[\s\S]*?\n}/)?.[0] || "";
+  const hoverBlock = css.match(/\.dept-card:hover\s*{[\s\S]*?\n}/)?.[0] || "";
 
   assert.match(gridBlock, /grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(gridBlock, /height:\s*clamp\(500px,\s*61vh,\s*620px\)/);
+  assert.match(gridBlock, /transform:\s*translateY\(-8px\)/);
+  assert.match(hoverBlock, /transform:\s*translateY\(-6px\)/);
   assert.match(cardBlock, /grid-template-rows:\s*auto auto auto minmax\(18px,\s*1fr\) auto/);
   assert.match(css, /\.dept-status\s*{[\s\S]*?align-self:\s*end/);
   assert.match(css, /\.dept-link-badge\s*{[\s\S]*?margin-top:\s*0/);

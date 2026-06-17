@@ -272,6 +272,19 @@
     return stageViews[stageId] || "";
   }
 
+  function createAdminStageSyncKey(stageId, updatedAt) {
+    const cleanStageId = String(stageId || "").trim();
+    if (!cleanStageId) {
+      return "";
+    }
+
+    return `${cleanStageId}@${String(updatedAt || "")}`;
+  }
+
+  function shouldApplyAdminStageChange(previousStageSyncKey, nextStageSyncKey) {
+    return Boolean(previousStageSyncKey && nextStageSyncKey && previousStageSyncKey !== nextStageSyncKey);
+  }
+
   function resolveAdjacentTraineeId(trainees, currentId, direction) {
     const list = Array.isArray(trainees) ? trainees.filter((trainee) => trainee?.id) : [];
     if (list.length === 0) {
@@ -336,8 +349,10 @@
     normalizeTrainee,
     pickKeywordPair,
     pickKeywordPairAB,
+    createAdminStageSyncKey,
     resolveLandingCtaTarget,
     resolveAdjacentTraineeId,
+    shouldApplyAdminStageChange,
     resolveDiscoverTarget,
     resolveStageScreenView,
     resolveWelcomeEntryTarget,

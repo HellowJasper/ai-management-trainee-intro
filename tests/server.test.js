@@ -117,6 +117,43 @@ test("/admin serves the management console shell", async (t) => {
   assert.match(slashHtml, /大屏预览/);
 });
 
+test("API root returns a JSON 404 instead of falling through to static files", async (t) => {
+  const publicRoot = path.join(__dirname, "..");
+  const server = createServer({ publicRoot });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api`);
+  const payload = await response.json();
+
+  assert.equal(response.status, 404);
+  assert.match(response.headers.get("content-type"), /application\/json/);
+  assert.equal(payload.error.statusCode, 404);
+  assert.match(payload.error.message, /API route was not found/);
+
+  const healthResponse = await fetch(`${baseUrl}/api/health`);
+  assert.equal(healthResponse.status, 200);
+});
+
+test("static directories without index files return 404 without closing the server", async (t) => {
+  const publicRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-static-"));
+  await fs.mkdir(path.join(publicRoot, "empty"));
+  const server = createServer({ publicRoot });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/empty`);
+  const text = await response.text();
+
+  assert.equal(response.status, 404);
+  assert.equal(text, "Not Found");
+
+  const healthResponse = await fetch(`${baseUrl}/api/health`);
+  assert.equal(healthResponse.status, 200);
+});
+
 test("admin state API returns current stage state", async (t) => {
   const { publicRoot, adminStateRepository } = await createTempAdminStateRepository({
     currentStageId: "team",

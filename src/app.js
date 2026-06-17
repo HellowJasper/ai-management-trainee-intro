@@ -272,7 +272,7 @@ let profileMediaMode = "photo";
 let introTimer = null;
 let introExitTimer = null;
 let isIntroExiting = false;
-let lastAdminStageId = "";
+let lastAdminStageSyncKey = "";
 let adminPollTimer = null;
 
 const introTiming = window.AppLogic.getIntroTiming();
@@ -902,11 +902,17 @@ async function pollAdminState() {
   try {
     const state = await window.AppData.loadAdminState();
     const stageId = state?.currentStageId || "";
-    if (!stageId || stageId === lastAdminStageId) {
+    if (!stageId) {
       return;
     }
 
-    lastAdminStageId = stageId;
+    const stageSyncKey = window.AppLogic.createAdminStageSyncKey(stageId, state.updatedAt);
+    const shouldSwitchStage = window.AppLogic.shouldApplyAdminStageChange(lastAdminStageSyncKey, stageSyncKey);
+    lastAdminStageSyncKey = stageSyncKey;
+    if (!shouldSwitchStage) {
+      return;
+    }
+
     const screenView = window.AppLogic.resolveStageScreenView(state.currentStageId);
     if (!screenView) {
       return;

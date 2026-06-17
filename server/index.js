@@ -186,18 +186,37 @@ function serveStatic(request, response, url, publicRoot) {
     }
 
     const resolvedFilePath = stats.isDirectory() ? path.join(filePath, "index.html") : filePath;
-    const extension = path.extname(resolvedFilePath).toLowerCase();
 
-    response.writeHead(200, {
-      "Content-Type": MIME_TYPES[extension] || "application/octet-stream",
+    fs.stat(resolvedFilePath, (resolvedStatError, resolvedStats) => {
+      if (resolvedStatError || !resolvedStats.isFile()) {
+        response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+        response.end("Not Found");
+        return;
+      }
+
+      const extension = path.extname(resolvedFilePath).toLowerCase();
+
+      response.writeHead(200, {
+        "Content-Type": MIME_TYPES[extension] || "application/octet-stream",
+      });
+
+      if (request.method === "HEAD") {
+        response.end();
+        return;
+      }
+
+      const stream = fs.createReadStream(resolvedFilePath);
+      stream.on("error", () => {
+        if (!response.headersSent) {
+          response.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+          response.end("Internal Server Error");
+          return;
+        }
+
+        response.destroy();
+      });
+      stream.pipe(response);
     });
-
-    if (request.method === "HEAD") {
-      response.end();
-      return;
-    }
-
-    fs.createReadStream(resolvedFilePath).pipe(response);
   });
 }
 
@@ -212,7 +231,7 @@ function createServer({
     const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
 
     try {
-      if (url.pathname.startsWith("/api/")) {
+      if (url.pathname === "/api" || url.pathname.startsWith("/api/")) {
         const handled = await routeApi(request, response, url, repository, adminStateRepository);
         if (!handled) {
           sendJson(response, 404, {
