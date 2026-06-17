@@ -298,8 +298,6 @@ const discoverButton = document.getElementById("discoverButton");
 const discoverMenu = document.getElementById("discoverMenu");
 const discoverPanel = document.getElementById("discoverPanel");
 const landingActions = document.getElementById("landingActions");
-const landingLoginPanel = document.getElementById("landingLoginPanel");
-const feishuLoginButton = document.getElementById("feishuLoginButton");
 
 const rainRenderers = {
   intro: typeof window.IntroSequence !== "undefined"
@@ -906,17 +904,14 @@ function bindEvents() {
   });
 
   document.getElementById("enterButton").addEventListener("click", () => {
-    landingActions?.classList.add("is-login");
-    document.getElementById("enterButton").hidden = true;
-    if (landingLoginPanel) {
-      landingLoginPanel.hidden = false;
-      feishuLoginButton?.focus();
-    }
-  });
-
-  feishuLoginButton?.addEventListener("click", () => {
+    const enterButton = document.getElementById("enterButton");
+    landingActions?.classList.add("is-authing");
+    enterButton.disabled = true;
+    enterButton.textContent = "飞书登录中...";
     window.sessionStorage.setItem("joincare_feishu_login", "demo");
-    window.location.href = "./site.html#home";
+    window.setTimeout(() => {
+      window.location.href = "./site.html#home";
+    }, 520);
   });
 
   document.getElementById("welcomeEnterButton").addEventListener("click", () => {

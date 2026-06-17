@@ -14,7 +14,6 @@ const {
   normalizeTrainee,
   pickKeywordPair,
   pickKeywordPairAB,
-  resolveLandingCtaTarget,
   resolveAdjacentTraineeId,
   resolveDiscoverTarget,
   resolveWelcomeEntryTarget,
@@ -197,9 +196,26 @@ test("nextIntroState moves from intro to home", () => {
   assert.equal(nextIntroState({ skipped: true }), "home");
 });
 
-test("landing CTA opens the terminal boot welcome before manual persona entry", () => {
-  assert.equal(resolveLandingCtaTarget(), "welcome");
+test("landing CTA is wired for seamless Feishu auth", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+
+  assert.doesNotMatch(html, /landing-title-main/);
+  assert.doesNotMatch(html, /AI黑客松/);
+  assert.doesNotMatch(html, /feishuLoginButton/);
+  assert.match(appJs, /飞书登录中/);
+  assert.match(appJs, /site\.html#home/);
   assert.equal(resolveWelcomeEntryTarget(), "wall");
+});
+
+test("official site opens directly without the duplicate intro gate", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.doesNotMatch(html, /id="siteIntro"/);
+  assert.doesNotMatch(html, /id="siteSkip"/);
+  assert.doesNotMatch(html, /id="siteEnter"/);
+  assert.match(siteCss, /overflow-y:\s*auto/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {

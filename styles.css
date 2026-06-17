@@ -513,8 +513,8 @@ button:disabled {
 .landing-logo-container {
   position: absolute;
   left: 50%;
-  top: 28%;
-  width: min(36vw, 560px);
+  top: 26%;
+  width: min(38vw, 600px);
   max-width: calc(100vw - 72px);
   aspect-ratio: 2891 / 988;
   transform: translate(-50%, -50%);
@@ -542,7 +542,7 @@ button:disabled {
 .landing-title {
   position: absolute;
   left: 50%;
-  top: 53.5%;
+  top: 50%;
   transform: translate(-50%, -50%);
   display: flex;
   width: max-content;
@@ -550,7 +550,7 @@ button:disabled {
   margin: 0;
   flex-direction: column;
   align-items: center;
-  gap: clamp(8px, 1.4vh, 14px);
+  gap: clamp(12px, 1.8vh, 20px);
   color: #dffff5;
   font-family: var(--body);
   font-weight: 900;
@@ -564,28 +564,25 @@ button:disabled {
   white-space: nowrap;
 }
 
-.landing-title-main {
-  font-size: clamp(54px, 6.4vw, 110px);
-}
-
 .landing-title-cn {
   color: var(--neon-2);
-  font-size: clamp(22px, 2.2vw, 38px);
+  font-size: clamp(40px, 4.6vw, 82px);
   text-shadow:
     0 0 14px rgba(167, 255, 79, 0.5),
-    0 0 34px rgba(167, 255, 79, 0.18);
+    0 0 34px rgba(167, 255, 79, 0.28),
+    0 0 58px rgba(167, 255, 79, 0.16);
 }
 
 .landing-title-en {
   color: rgba(223, 255, 245, 0.92);
-  font-size: clamp(20px, 2.1vw, 34px);
+  font-size: clamp(28px, 3vw, 50px);
   font-weight: 800;
 }
 
 .landing-actions {
   position: absolute;
   left: 50%;
-  top: calc(81% - 50px);
+  top: calc(75% - 50px);
   transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
@@ -594,8 +591,19 @@ button:disabled {
   pointer-events: auto;
 }
 
-.landing-actions.is-login {
-  top: calc(82% - 50px);
+.landing-actions.is-authing {
+  top: calc(75% - 50px);
+}
+
+.landing-actions.is-authing .enter-button {
+  background: linear-gradient(90deg, #478d86, #a7ff4f, #478d86);
+  background-size: 220% 100%;
+  animation: authPulse 1200ms linear infinite;
+}
+
+@keyframes authPulse {
+  from { background-position: 0% 50%; }
+  to { background-position: 220% 50%; }
 }
 
 .enter-button,
@@ -2791,7 +2799,15 @@ button:disabled {
   }
 
   .landing-title {
-    font-size: clamp(42px, 13vw, 72px);
+    gap: 10px;
+  }
+
+  .landing-title-cn {
+    font-size: clamp(32px, 9.5vw, 54px);
+  }
+
+  .landing-title-en {
+    font-size: clamp(20px, 6vw, 32px);
   }
 
   .enter-button,
