@@ -6,6 +6,8 @@
   const FEISHU_LOGIN_REDIRECT = "./site.html#home";
   const DEFAULT_COUNTDOWN_DURATION_MS = 24 * 60 * 60 * 1000;
   const DEFAULT_COUNTDOWN_STORAGE_KEY = "joincare_mission_countdown_started_at_manual_v2";
+  const DEFAULT_ROADSHOW_DURATION_MS = 15 * 60 * 1000;
+  const DEFAULT_ROADSHOW_STORAGE_KEY = "joincare_roadshow_timer_started_at_manual_v1";
 
   async function fetchJson(url, options = {}) {
     const response = await fetch(url, {
@@ -194,6 +196,181 @@
     return writeLocalMissionCountdown({ storageKey, durationMs, startedAt: cleanStartedAt });
   }
 
+  function normalizeRoadshowState(
+    state = {},
+    { durationMs = DEFAULT_ROADSHOW_DURATION_MS, mode = "api" } = {},
+  ) {
+    const cleanDurationMs = Number(state.durationMs || durationMs);
+
+    return {
+      currentTeamId: state.currentTeamId || state.teamId || "marketing",
+      currentTeam: state.currentTeam || state.team || null,
+      nextTeamId: state.nextTeamId || "functions",
+      nextTeam: state.nextTeam || null,
+      phase: state.phase || "DEMO",
+      startedAt: toCountdownTimestamp(state.startedAt),
+      durationMs: Number.isFinite(cleanDurationMs) && cleanDurationMs > 0
+        ? cleanDurationMs
+        : DEFAULT_ROADSHOW_DURATION_MS,
+      serverNow: state.serverNow || "",
+      mode: state.mode || mode,
+    };
+  }
+
+  function readLocalRoadshow({ storageKey = DEFAULT_ROADSHOW_STORAGE_KEY, durationMs = DEFAULT_ROADSHOW_DURATION_MS } = {}) {
+    try {
+      return normalizeRoadshowState(
+        {
+          currentTeamId: root.localStorage?.getItem(`${storageKey}:team`) || "marketing",
+          nextTeamId: root.localStorage?.getItem(`${storageKey}:nextTeam`) || "functions",
+          startedAt: root.localStorage?.getItem(storageKey),
+          durationMs,
+        },
+        { durationMs, mode: "local" },
+      );
+    } catch {
+      return normalizeRoadshowState({ durationMs }, { durationMs, mode: "memory" });
+    }
+  }
+
+  function writeLocalRoadshow({
+    storageKey = DEFAULT_ROADSHOW_STORAGE_KEY,
+    durationMs = DEFAULT_ROADSHOW_DURATION_MS,
+    currentTeamId = "marketing",
+    nextTeamId = "functions",
+    startedAt,
+  } = {}) {
+    const state = normalizeRoadshowState({ currentTeamId, nextTeamId, startedAt, durationMs }, { durationMs, mode: "local" });
+
+    try {
+      if (state.currentTeamId) {
+        root.localStorage?.setItem(`${storageKey}:team`, state.currentTeamId);
+      }
+      if (state.nextTeamId) {
+        root.localStorage?.setItem(`${storageKey}:nextTeam`, state.nextTeamId);
+      }
+      if (state.startedAt) {
+        root.localStorage?.setItem(storageKey, String(state.startedAt));
+      }
+    } catch {
+      // localStorage is optional; keep the normalized state for this session.
+    }
+
+    return state;
+  }
+
+  async function loadRoadshow({
+    storageKey = DEFAULT_ROADSHOW_STORAGE_KEY,
+    durationMs = DEFAULT_ROADSHOW_DURATION_MS,
+  } = {}) {
+    if (root.JoincareRoadshowTimer && typeof root.JoincareRoadshowTimer.load === "function") {
+      try {
+        const bridgeState = await root.JoincareRoadshowTimer.load({ storageKey, durationMs });
+        return normalizeRoadshowState(bridgeState, { durationMs, mode: "bridge" });
+      } catch (error) {
+        console.warn(error);
+      }
+    }
+
+    try {
+      return normalizeRoadshowState(
+        await fetchJson("/api/roadshow"),
+        { durationMs, mode: "api" },
+      );
+    } catch (error) {
+      console.warn(error);
+    }
+
+    return readLocalRoadshow({ storageKey, durationMs });
+  }
+
+  async function startRoadshowTimer({
+    storageKey = DEFAULT_ROADSHOW_STORAGE_KEY,
+    durationMs = DEFAULT_ROADSHOW_DURATION_MS,
+    currentTeamId = "marketing",
+    nextTeamId = "functions",
+    startedAt = Date.now(),
+  } = {}) {
+    const cleanStartedAt = toCountdownTimestamp(startedAt) || Date.now();
+
+    if (root.JoincareRoadshowTimer && typeof root.JoincareRoadshowTimer.start === "function") {
+      try {
+        const bridgeState = await root.JoincareRoadshowTimer.start({
+          storageKey,
+          durationMs,
+          currentTeamId,
+          nextTeamId,
+          startedAt: cleanStartedAt,
+        });
+        return normalizeRoadshowState(bridgeState, { durationMs, mode: "bridge" });
+      } catch (error) {
+        console.warn(error);
+      }
+    }
+
+    try {
+      return normalizeRoadshowState(
+        await fetchJson("/api/roadshow/start", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            currentTeamId,
+            nextTeamId,
+            startedAt: new Date(cleanStartedAt).toISOString(),
+            durationMs,
+          }),
+        }),
+        { durationMs, mode: "api" },
+      );
+    } catch (error) {
+      console.warn(error);
+    }
+
+    return writeLocalRoadshow({ storageKey, durationMs, currentTeamId, nextTeamId, startedAt: cleanStartedAt });
+  }
+
+  function normalizeVoteResults(payload, fallback = []) {
+    const source = Array.isArray(payload)
+      ? { pointScale: [100, 85, 70, 55, 40], results: payload }
+      : payload || {};
+    const results = Array.isArray(source.results) ? source.results : fallback;
+    const pointScale = Array.isArray(source.pointScale) && source.pointScale.length
+      ? source.pointScale
+      : [100, 85, 70, 55, 40];
+
+    return {
+      pointScale,
+      results,
+      status: source.status || "voting",
+      windowLabel: source.windowLabel || "大众投票窗口开启中",
+      updatedAt: source.updatedAt || "",
+    };
+  }
+
+  async function loadVoteResults(fallback = []) {
+    const sources = [
+      () => fetchJson("/api/vote-results"),
+      () => fetchJson("./data/vote-results.json"),
+    ];
+
+    for (const source of sources) {
+      try {
+        const payload = normalizeVoteResults(await source(), fallback);
+        if (!Array.isArray(payload.results)) {
+          throw new Error("Vote results data must include a results array.");
+        }
+
+        return payload;
+      } catch (error) {
+        console.warn(error);
+      }
+    }
+
+    return normalizeVoteResults({ results: fallback });
+  }
+
   async function updateAdminStage(stageId) {
     return fetchJson("/api/admin/stage", {
       method: "PATCH",
@@ -297,12 +474,15 @@
     deleteTrainee,
     loadAdminState,
     loadMissionCountdown,
+    loadRoadshow,
     loadTeams,
     loadTrainees,
+    loadVoteResults,
     loginWithFeishu,
     saveSentence,
     updateAdminStage,
     startMissionCountdown,
+    startRoadshowTimer,
     updateTrainee,
   };
 });

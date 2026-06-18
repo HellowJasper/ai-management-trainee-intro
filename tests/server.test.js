@@ -235,6 +235,109 @@ test("API exposes mission countdown state and starts it on demand", async (t) =>
   assert.equal(nextState.startedAt, "2026-06-18T10:30:00.000Z");
 });
 
+test("API exposes current roadshow team state and starts its timer", async (t) => {
+  const publicRoot = path.join(__dirname, "..");
+  const roadshowRepository = {
+    startedAt: null,
+    async getState() {
+      return {
+        currentTeamId: "marketing",
+        currentTeam: {
+          id: "marketing",
+          name: "营销",
+          project: "智能客户洞察平台",
+        },
+        nextTeamId: "functions",
+        nextTeam: {
+          id: "functions",
+          name: "职能",
+          project: "职能流程自动化助手",
+        },
+        phase: "DEMO",
+        startedAt: this.startedAt,
+        durationMs: 15 * 60 * 1000,
+        serverNow: "2026-06-18T14:00:00.000Z",
+      };
+    },
+    async startRoadshow(payload = {}) {
+      if (!this.startedAt) {
+        this.startedAt = payload.startedAt || "2026-06-18T14:00:00.000Z";
+      }
+
+      return this.getState();
+    },
+  };
+  const server = createServer({ publicRoot, roadshowRepository });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const initialResponse = await fetch(`${baseUrl}/api/roadshow`);
+  const initialState = await initialResponse.json();
+
+  assert.equal(initialResponse.status, 200);
+  assert.equal(initialState.currentTeamId, "marketing");
+  assert.equal(initialState.currentTeam.name, "营销");
+  assert.equal(initialState.nextTeamId, "functions");
+  assert.equal(initialState.nextTeam.name, "职能");
+  assert.equal(initialState.startedAt, null);
+  assert.equal(initialState.durationMs, 900000);
+
+  const startResponse = await fetch(`${baseUrl}/api/roadshow/start`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      startedAt: "2026-06-18T14:02:00.000Z",
+    }),
+  });
+  const startedState = await startResponse.json();
+
+  assert.equal(startResponse.status, 200);
+  assert.equal(startedState.currentTeamId, "marketing");
+  assert.equal(startedState.startedAt, "2026-06-18T14:02:00.000Z");
+
+  const nextResponse = await fetch(`${baseUrl}/api/roadshow`);
+  const nextState = await nextResponse.json();
+
+  assert.equal(nextResponse.status, 200);
+  assert.equal(nextState.startedAt, "2026-06-18T14:02:00.000Z");
+});
+
+test("API lists vote results with the confirmed ranking point scale", async (t) => {
+  const publicRoot = path.join(__dirname, "..");
+  const voteResultsRepository = {
+    async listVoteResults() {
+      return {
+        pointScale: [100, 85, 70, 55, 40],
+        results: [
+          { id: "pharma", name: "药学", votes: 148 },
+          { id: "medicine", name: "医学", votes: 121 },
+          { id: "marketing", name: "营销", votes: 180 },
+          { id: "functions", name: "职能", votes: 67 },
+          { id: "production", name: "生产", votes: 92 },
+        ],
+      };
+    },
+  };
+  const server = createServer({ publicRoot, voteResultsRepository });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/vote-results`);
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(payload.pointScale, [100, 85, 70, 55, 40]);
+  assert.equal(payload.results.length, 5);
+  assert.deepEqual(
+    payload.results.map((team) => team.id),
+    ["pharma", "medicine", "marketing", "functions", "production"],
+  );
+});
+
 test("/admin serves the management console shell", async (t) => {
   const publicRoot = path.join(__dirname, "..");
   const server = createServer({ publicRoot });

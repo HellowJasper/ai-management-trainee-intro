@@ -44,9 +44,16 @@ const stages = [
   {
     id: "result",
     name: "结果发布",
-    subtitle: "结果揭晓与颁奖",
+    subtitle: "投票排名与赋分结果",
     status: "pending",
     time: "预计 05-24 17:30\n-",
+  },
+  {
+    id: "final",
+    name: "冠军展示",
+    subtitle: "综合得分与冠军队伍展示",
+    status: "pending",
+    time: "预计 05-24 18:00\n-",
   },
 ];
 

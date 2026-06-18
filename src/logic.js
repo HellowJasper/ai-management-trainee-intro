@@ -281,6 +281,121 @@
     };
   }
 
+  function getRoadshowTimerState({
+    startedAt,
+    now = Date.now(),
+    durationMs = 15 * 60 * 1000,
+  } = {}) {
+    const startTime = Number.isFinite(Number(startedAt)) ? Number(startedAt) : Number(now);
+    const currentTime = Number.isFinite(Number(now)) ? Number(now) : startTime;
+    const totalDuration = Math.max(1, Number(durationMs) || 15 * 60 * 1000);
+    const elapsedMs = Math.max(0, currentTime - startTime);
+    const remainingMs = Math.max(0, totalDuration - elapsedMs);
+    const remainingSeconds = Math.floor(remainingMs / 1000);
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+
+    return {
+      minutes: String(minutes).padStart(2, "0"),
+      seconds: String(seconds).padStart(2, "0"),
+      progress: Math.min(1, Number((elapsedMs / totalDuration).toFixed(3))),
+      remainingMs,
+      isComplete: remainingMs === 0,
+    };
+  }
+
+  function computeVoteRanking(results = [], pointScale = []) {
+    const list = Array.isArray(results) ? results : [];
+    const scale = Array.isArray(pointScale) ? pointScale : [];
+    const totalVotes = list.reduce((sum, item) => {
+      const votes = Number(item?.votes);
+      return sum + (Number.isFinite(votes) && votes > 0 ? votes : 0);
+    }, 0);
+
+    return [...list]
+      .map((item, originalIndex) => ({
+        ...item,
+        votes: Number.isFinite(Number(item?.votes)) && Number(item?.votes) > 0 ? Number(item.votes) : 0,
+        originalIndex,
+      }))
+      .sort((a, b) => {
+        if (b.votes !== a.votes) {
+          return b.votes - a.votes;
+        }
+        return a.originalIndex - b.originalIndex;
+      })
+      .map((item, index) => {
+        const { originalIndex, ...team } = item;
+        const voteShare = totalVotes > 0 ? Number((team.votes / totalVotes).toFixed(4)) : 0;
+
+        return {
+          ...team,
+          rank: index + 1,
+          voteShare,
+          votePoints: Number(scale[index]) || 0,
+          totalVotes,
+        };
+      });
+  }
+
+  function getExpertScoreValue(expert) {
+    if (Array.isArray(expert)) {
+      const validScores = expert
+        .map((score) => Number(score))
+        .filter((score) => Number.isFinite(score));
+
+      if (!validScores.length) {
+        return 0;
+      }
+
+      const average = validScores.reduce((sum, score) => sum + score, 0) / validScores.length;
+      return Number(average.toFixed(2));
+    }
+
+    const score = Number(expert);
+    return Number.isFinite(score) ? score : 0;
+  }
+
+  function computeFinalResults(results = [], pointScale = []) {
+    const ranking = computeVoteRanking(results, pointScale);
+
+    return ranking
+      .map((team, index) => {
+        const expertScore = getExpertScoreValue(team.expert);
+        const totalScore = Number((expertScore * 0.7 + team.votePoints * 0.3).toFixed(2));
+
+        return {
+          ...team,
+          expertScore,
+          totalScore,
+          originalFinalIndex: index,
+        };
+      })
+      .sort((a, b) => {
+        if (b.totalScore !== a.totalScore) {
+          return b.totalScore - a.totalScore;
+        }
+        if (b.expertScore !== a.expertScore) {
+          return b.expertScore - a.expertScore;
+        }
+        if (b.votePoints !== a.votePoints) {
+          return b.votePoints - a.votePoints;
+        }
+        if (a.rank !== b.rank) {
+          return a.rank - b.rank;
+        }
+        return a.originalFinalIndex - b.originalFinalIndex;
+      })
+      .map((team, index) => {
+        const { originalFinalIndex, ...rest } = team;
+        return {
+          ...rest,
+          rank: index + 1,
+          isChampion: index === 0,
+        };
+      });
+  }
+
   function resolveWelcomeEntryTarget() {
     return "wall";
   }
@@ -300,8 +415,9 @@
       speech: "home",
       tracks: "discover",
       team: "team",
-      vote: "home",
-      result: "home",
+      vote: "vote",
+      result: "vote-result",
+      final: "final-result",
     };
 
     return stageViews[stageId] || "";
@@ -379,9 +495,12 @@
     computeArcLayout,
     computeDockTransforms,
     computePhotoWallMetrics,
+    computeVoteRanking,
+    computeFinalResults,
     getFeishuLoginUiState,
     getIntroTiming,
     getMissionCountdownState,
+    getRoadshowTimerState,
     nextIntroState,
     normalizeTrainee,
     pickKeywordPair,

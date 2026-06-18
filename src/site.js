@@ -7,6 +7,8 @@
   "use strict";
   const D = root.ScreenData;
   const VOTE_KEY = "joincare_hackathon_vote";
+  const TEAM_KEY = "joincare_hackathon_team";
+  const JUDGE_KEY = "joincare_hackathon_judge_scores";
   const PHASE = "published"; // voting | published —— 投票期不显示排名，公布后才出最终排行
   let TRAINEES = [];
 
@@ -14,6 +16,11 @@
   const pad = (n) => String(n).padStart(2, "0");
   const fmtHMS = (s) => `${pad((s / 3600) | 0)}<i>:</i>${pad(((s % 3600) / 60) | 0)}<i>:</i>${pad(s % 60)}`;
   const votedTeam = () => root.localStorage.getItem(VOTE_KEY);
+  const joinedTeam = () => root.localStorage.getItem(TEAM_KEY);
+  const getTeam = (id) => D.teams.find((t) => t.id === id);
+  const readJson = (key, fallback) => {
+    try { return JSON.parse(root.localStorage.getItem(key) || JSON.stringify(fallback)); } catch (e) { return fallback; }
+  };
 
   function avatar(p, size, cls) {
     const s = size || 44;
@@ -32,6 +39,12 @@
     play: '<circle cx="12" cy="12" r="9"/><path d="M10 9l5 3-5 3z" fill="currentColor"/>',
     link: '<path d="M10 14a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/>',
     lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+    user: '<circle cx="12" cy="8" r="3.2"/><path d="M5 20a7 7 0 0 1 14 0"/>',
+    calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/>',
+    rocket: '<path d="M12 15l-3 3-3-3 3-3M12 15l5-5a7 7 0 0 0-3-3l-5 5"/><path d="M14 7l3-3 3 1-2 4"/>',
+    upload: '<path d="M12 16V4M7 9l5-5 5 5"/><path d="M5 20h14"/>',
+    stage: '<path d="M4 19h16M7 19V8h10v11M9 8V5h6v3"/><path d="M10 12h4"/>',
+    check: '<path d="M20 6L9 17l-5-5"/>',
   };
   const ICON = (name, accent) => `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="${accent}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${G[name] || G.code}</svg>`;
 
@@ -57,7 +70,7 @@
         <h1 class="hero-title">AI创新黑客松</h1>
         <p class="hero-slogan">三天，把 AI 创意做成可运行系统</p>
         <p class="hero-desc">健康元药业 2026 AI 管培生黑客松 · 五大赛道、真实业务挑战。认识参赛伙伴，浏览他们真实可运行的作品，为你支持的团队投票。</p>
-        <div class="hero-ctas"><a class="btn-primary" data-nav="gallery">进入作品展厅 ♥</a><a class="btn-ghost" data-nav="people">认识参赛伙伴 ➔</a></div>
+        <div class="hero-ctas"><a class="btn-primary" data-nav="gallery">进入作品展厅 ♥</a><a class="btn-ghost" data-nav="team">立即组队 ➔</a></div>
       </div>
       <aside class="hero-panel glass">
         <div class="hp-row"><span class="live-dot"></span><span class="hp-label">当前阶段 · LIVE</span></div>
@@ -90,10 +103,12 @@
       </div>
     </section>
 
-    <section class="container sec"><div class="sec-cap"><span></span>了解大赛 · ABOUT</div>
-      <div class="entry-grid two">
-        <a class="entry-card" data-nav="brief" style="--accent:#6ad7ff;--rgb:106,215,255"><span class="entry-ic">${ICON("target", "#6ad7ff")}</span><div class="entry-tx"><b>大赛介绍<i>ABOUT</i></b><span>赛制 · 三天全流程 · 评分机制</span></div><span class="entry-go">➔</span></a>
-        <a class="entry-card" data-nav="tracks" style="--accent:#c79bff;--rgb:199,155,255"><span class="entry-ic">${ICON("doc", "#c79bff")}</span><div class="entry-tx"><b>五大赛道<i>TRACKS</i></b><span>临床/药学/生产/营销/职能 + 讲解文档</span></div><span class="entry-go">➔</span></a>
+    <section class="container sec"><div class="sec-cap"><span></span>参赛入口 · ACTIONS</div>
+      <div class="entry-grid four">
+        <a class="entry-card" data-nav="schedule" style="--accent:#6ad7ff;--rgb:106,215,255"><span class="entry-ic">${ICON("calendar", "#6ad7ff")}</span><div class="entry-tx"><b>赛程介绍<i>SCHEDULE</i></b><span>三天流程 · 赛事机制 · 关键节点</span></div><span class="entry-go">➔</span></a>
+        <a class="entry-card" data-nav="team" style="--accent:#c79bff;--rgb:199,155,255"><span class="entry-ic">${ICON("team", "#c79bff")}</span><div class="entry-tx"><b>报名组队<i>TEAM</i></b><span>赛道容量 · 技术顾问 · 队员状态</span></div><span class="entry-go">➔</span></a>
+        <a class="entry-card" data-nav="vote" style="--accent:var(--neon-2);--rgb:167,255,79"><span class="entry-ic">${ICON("vote", "var(--neon-2)")}</span><div class="entry-tx"><b>投票状态<i>VOTE</i></b><span>一人一票 · 当前选择 · 票数分布</span></div><span class="entry-go">➔</span></a>
+        <a class="entry-card" data-nav="judge" style="--accent:var(--warning);--rgb:246,255,129"><span class="entry-ic">${ICON("scale", "var(--warning)")}</span><div class="entry-tx"><b>评委评分<i>JUDGE</i></b><span>五维评分 · 草稿保存 · 演示入口</span></div><span class="entry-go">➔</span></a>
       </div>
     </section>`;
   }
@@ -167,6 +182,137 @@
     <section class="container sec"><div class="sec-cap"><span></span>赛事机制</div><div class="mech2-grid">${mech}</div></section>`;
   }
 
+  /* ---- 我的 ----------------------------------------------------------- */
+  function renderMe() {
+    const myTeam = getTeam(joinedTeam());
+    const myVote = getTeam(votedTeam());
+    const draft = readJson(JUDGE_KEY, {});
+    const scoredTeams = D.teams.filter((t) => draft[t.id] && Object.keys(draft[t.id]).length).length;
+    const cards = [
+      { label: "当前身份", value: "大众用户", sub: "演示版默认身份，可进入评委评分预览", icon: "user", accent: "var(--neon)", nav: "judge" },
+      { label: "组队状态", value: myTeam ? myTeam.name : "未加入队伍", sub: myTeam ? `${myTeam.trackCode} · ${myTeam.track}` : "可选择一个赛道队伍加入", icon: "team", accent: "var(--neon-2)", nav: "team" },
+      { label: "投票状态", value: myVote ? `已投 ${myVote.name}` : "尚未投票", sub: myVote ? myVote.project : "前往作品展厅或投票页完成", icon: "vote", accent: "#6ad7ff", nav: "vote" },
+      { label: "评分草稿", value: `${scoredTeams}/${D.teams.length} 队`, sub: "本地保存，不影响正式结果", icon: "scale", accent: "var(--warning)", nav: "judge" },
+    ].map((c) => `<a class="status-card glass" data-nav="${c.nav}" style="--accent:${c.accent}"><span class="status-ic">${ICON(c.icon, c.accent)}</span><small>${esc(c.label)}</small><b>${esc(c.value)}</b><em>${esc(c.sub)}</em></a>`).join("");
+    const quick = [
+      ["team", "报名组队", "查看队伍容量与成员"],
+      ["schedule", "赛程进度", "确认关键节点"],
+      ["gallery", "作品展厅", "查看作品详情"],
+      ["vote", "我的投票", "核对投票状态"],
+      ["judge", "评委评分", "保存评分草稿"],
+      ["result", "最终排行", "查看综合结果"],
+    ].map(([nav, title, sub]) => `<a class="quick-link" data-nav="${nav}"><b>${esc(title)}</b><span>${esc(sub)}</span><i>➔</i></a>`).join("");
+
+    return `${pageHead("我的", "身份、组队、投票与评分入口集中管理", "MY DESK")}
+    <section class="container sec me-dashboard">
+      <div class="status-strip">
+        <span class="status-chip on">${myTeam ? "已组队" : "待组队"}</span>
+        <span class="status-chip ${myVote ? "on" : ""}">${myVote ? "已投票" : "待投票"}</span>
+        <span class="status-chip">评委演示入口</span>
+      </div>
+      <div class="dash-grid">${cards}</div>
+      <div class="quick-panel glass"><div class="sec-cap"><span></span>快捷入口</div><div class="quick-grid">${quick}</div></div>
+    </section>`;
+  }
+
+  /* ---- 赛程 / 大赛介绍 ----------------------------------------------- */
+  function renderSchedule() {
+    const days = D.flowDays.map((d, i) => `<div class="flow-step"><div class="fs-badge">${esc(d.day)}<i>${esc(d.en)}</i></div><div class="fs-ic">${ICON(d.icon, "var(--neon)")}</div><b>${esc(d.title)}</b><p>${d.lines.map(esc).join("<br>")}</p><span class="fs-time">${esc(d.time)}</span>${i < 2 ? '<span class="fs-arrow">➔</span>' : ""}</div>`).join("");
+    const timeline = D.timeline.map((item, i) => `<div class="timeline-item ${i < 5 ? "done" : "todo"}"><span>${ICON(item.icon, i < 5 ? "var(--neon)" : "var(--muted)")}</span><b>${esc(item.time)}</b><em>${esc(item.label)}</em></div>`).join("");
+    const mech = D.mechanism.map((c) => `<div class="mech2 glass" style="--accent:${c.accent};--rgb:${c.rgb}"><div class="m2-top"><span>${esc(c.label)}<i>${esc(c.en)}</i></span>${ICON(c.icon, c.accent)}</div><b>${esc(c.headline)}</b><span class="m2-sub">${esc(c.sub)}</span></div>`).join("");
+    const dims = D.dimensions.map((d) => `<li><b>${esc(d.label)}</b><span>${esc(d.en)} · ${d.weight}%</span></li>`).join("");
+
+    return `${pageHead("赛程与大赛介绍", "三天流程、赛事机制、评分维度与关键节点", "SCHEDULE")}
+    <section class="container sec schedule-board">
+      <div class="schedule-live glass">
+        <div><span class="status-chip on">当前阶段</span><h2>大众投票进行中</h2><p>作品提交已完成，评委评分与大众投票同步进行。最终结果将在 Demo Day 颁奖环节公布。</p></div>
+        <div class="schedule-count"><span>距投票截止</span><b data-countdown data-remain="6353">${fmtHMS(6353)}</b></div>
+      </div>
+      <div class="sec-cap"><span></span>三天全流程</div><div class="flow-row">${days}</div>
+      <div class="sec-cap"><span></span>关键节点</div><div class="timeline-grid">${timeline}</div>
+      <div class="sec-cap"><span></span>赛事机制</div><div class="mech2-grid">${mech}</div>
+      <div class="score-note glass"><div><span class="status-chip">评分规则</span><h3>综合得分 = 专家评审 70% + 大众投票赋分 30%</h3><p>专家评审按五个维度打分；大众投票按票数排名转换为赋分。</p></div><ul>${dims}</ul></div>
+    </section>`;
+  }
+
+  /* ---- 报名 / 组队 ---------------------------------------------------- */
+  function renderTeam() {
+    const selected = joinedTeam();
+    const selectedTeam = getTeam(selected);
+    const tracks = D.tracks.map((t) => `<div class="track-mini" style="--accent:${t.accent};--rgb:${t.rgb}"><b>${esc(t.code)}</b><span>${esc(t.name)}</span><em>${esc(t.mentor)}</em></div>`).join("");
+    const teams = D.teams.map((t) => {
+      const count = 1 + t.members.length;
+      const mine = selectedTeam && selectedTeam.id === t.id;
+      const full = count >= t.capacity;
+      const disabled = selectedTeam && !mine ? "disabled" : (full && !mine ? "disabled" : "");
+      const roster = [{ ...t.advisor, role: "技术顾问" }, ...t.members.map((m) => ({ ...m, role: "组员" }))]
+        .map((p) => `<span class="team-avatar">${avatar(p, 34)}<i>${esc(p.name)}</i></span>`).join("");
+      return `<article class="team-card glass ${mine ? "mine" : ""}" style="--accent:${t.accent};--rgb:${t.rgb}">
+        <div class="team-head"><span class="status-chip ${mine ? "on" : ""}">${mine ? "我的队伍" : t.trackCode}</span><b>${esc(t.name)}</b><em>${esc(t.track)}</em></div>
+        <h3>${esc(t.project)}</h3><p>${esc(t.pitch)}</p>
+        <div class="team-roster">${roster}</div>
+        <div class="team-foot"><span>${count}/${t.capacity} 人 · ${full ? "已满员" : "可加入"}</span><button class="team-join ${mine ? "is-joined" : ""}" data-join-team="${t.id}" ${disabled}>${mine ? "已加入" : (full ? "已满员" : "加入队伍")}</button></div>
+      </article>`;
+    }).join("");
+
+    return `${pageHead("报名与组队", "选择赛道队伍，查看技术顾问、成员与容量状态", "TEAM")}
+    <section class="container sec team-board">
+      <div class="team-status glass"><div><span class="status-chip ${selectedTeam ? "on" : ""}">${selectedTeam ? "已选择队伍" : "未选择队伍"}</span><h2>${selectedTeam ? esc(selectedTeam.name) : "请选择一个队伍加入"}</h2><p>${selectedTeam ? esc(selectedTeam.project) : "演示版会把选择保存在本地浏览器，用于“我的”页面同步状态。"}</p></div><a class="btn-ghost" data-nav="schedule">查看赛程</a></div>
+      <div class="sec-cap"><span></span>赛道容量</div><div class="track-mini-grid">${tracks}</div>
+      <div class="sec-cap"><span></span>队伍列表</div><div class="team-grid">${teams}</div>
+    </section>`;
+  }
+
+  /* ---- 投票状态 ------------------------------------------------------- */
+  function renderVote() {
+    const voted = getTeam(votedTeam());
+    const total = D.teams.reduce((s, t) => s + t.votes, 0);
+    const max = Math.max(...D.teams.map((t) => t.votes));
+    const rows = [...D.teams].sort((a, b) => b.votes - a.votes).map((t, i) => {
+      const mine = voted && voted.id === t.id;
+      const pct = total ? ((t.votes / total) * 100).toFixed(1) : 0;
+      const width = ((t.votes / max) * 100).toFixed(2);
+      return `<div class="vote-row ${mine ? "mine" : ""}" style="--accent:${t.accent};--rgb:${t.rgb};--vote-width:${width}%"><span class="vote-rank">${pad(i + 1)}</span><div class="vote-info"><b>${esc(t.name)}${mine ? '<i>我的选择</i>' : ""}</b><em>${esc(t.project)}</em><span class="vote-meter"><i></i></span></div><strong>${t.votes.toLocaleString()}</strong><small>${pct}%</small></div>`;
+    }).join("");
+    const cta = voted
+      ? `<a class="btn-primary" data-nav="result">查看最终排行</a>`
+      : `<a class="btn-primary" data-nav="gallery">去作品展厅投票 ♥</a>`;
+
+    return `${pageHead("投票状态", "一人一票，投票选择与票数分布实时同步", "VOTE")}
+    <section class="container sec vote-board">
+      <div class="vote-overview glass">
+        <div><span class="status-chip ${voted ? "on" : ""}">${voted ? "已投票" : "待投票"}</span><h2>${voted ? `你已支持「${esc(voted.name)}」` : "尚未投出你的票"}</h2><p>${voted ? esc(voted.project) : "进入作品展厅查看详情后，为最想支持的团队投出一票。"}</p></div>
+        <div class="vote-total"><span>当前总票数</span><b>${total.toLocaleString()}</b></div>
+        ${cta}
+      </div>
+      <div class="vote-rule glass"><span class="status-chip">规则</span><p>每位用户仅可投一票；大众投票按票数排名转换为赋分，并以 30% 权重计入最终综合得分。</p></div>
+      <div class="vote-list">${rows}</div>
+    </section>`;
+  }
+
+  /* ---- 评委评分 ------------------------------------------------------- */
+  function renderJudge() {
+    const draft = readJson(JUDGE_KEY, {});
+    const head = D.dimensions.map((d) => `<span>${esc(d.label)}<i>${d.weight}%</i></span>`).join("");
+    const rows = D.teams.map((t) => {
+      const inputs = D.dimensions.map((d, i) => {
+        const val = draft[t.id] && draft[t.id][i] != null ? draft[t.id][i] : "";
+        return `<label><span>${esc(d.label)}</span><input class="judge-score" type="number" min="0" max="100" step="1" value="${esc(val)}" data-score="${t.id}:${i}" /></label>`;
+      }).join("");
+      return `<article class="judge-row glass" style="--accent:${t.accent};--rgb:${t.rgb}">
+        <div class="judge-team"><span class="status-chip">${esc(t.trackCode)}</span><b>${esc(t.name)}</b><em>${esc(t.project)}</em></div>
+        <div class="judge-input-grid">${inputs}</div>
+      </article>`;
+    }).join("");
+
+    return `${pageHead("评委评分", "五维评分草稿演示，数据仅保存在本地浏览器", "JUDGE")}
+    <section class="container sec judge-board">
+      <div class="judge-toolbar glass"><div><span class="status-chip on">演示入口</span><h2>评委评分表</h2><p>输入 0-100 分并保存草稿；正式评审仍以后台系统为准。</p></div><button class="judge-save" data-judge-save>保存评分草稿</button></div>
+      <div class="judge-head">${head}</div>
+      <div class="judge-list">${rows}</div>
+    </section>`;
+  }
+
   /* ---- 赛道 ----------------------------------------------------------- */
   function renderTracks() {
     const cards = D.tracks.map((t) => `<article class="tk2 glass tk2-h" style="--accent:${t.accent};--rgb:${t.rgb}"><div class="tk2-l"><span class="tk2-code">${esc(t.code)}</span><span class="tk2-ic">${ICON(t.icon, t.accent)}</span></div><div class="tk2-m"><h3>${esc(t.name)} <i class="tk2-en">${esc(t.en)}</i></h3><p class="tk2-focus">${esc(t.focus)}</p></div><div class="tk2-pains">${t.pains.map((p) => `<span>${esc(p)}</span>`).join("")}</div><div class="tk2-r"><span class="tk2-mentor">主讲 · ${esc(t.mentor)}</span><a href="${esc(t.doc)}" target="_blank" rel="noopener">赛道讲解文档 ➔</a></div></article>`).join("");
@@ -230,6 +376,12 @@
           <div class="wk-cap">作品交付 · DELIVERY</div>
           <a class="wk-doc" href="${L.page}" target="_blank" rel="noopener"><span class="wk-li">${ICON("doc", "var(--void)")}</span><span class="wk-doc-tx"><b>飞书作品页文档</b><span>项目介绍 · 功能 · 使用说明</span></span><i>➔</i></a>
           <div class="wk-sublinks"><a href="${L.gitlab}" target="_blank" rel="noopener">${ICON("code", "var(--neon)")}GitLab 仓库</a><a href="${L.video}" target="_blank" rel="noopener">${ICON("play", "var(--neon)")}演示视频</a></div>
+          <div class="wk-status-list">
+            <div><span>提交状态</span><b>${t.submitted ? "已提交" : "待补交"}</b></div>
+            <div><span>当前票数</span><b>${t.votes.toLocaleString()}</b></div>
+            <div><span>交付形式</span><b>仓库 / 文档 / 视频</b></div>
+            <div><span>作品赛道</span><b>${esc(t.trackCode)} · ${esc(t.track)}</b></div>
+          </div>
           <div class="wk-vote">${voteBtn}</div>
         </div>
       </aside>
@@ -273,9 +425,14 @@
   const VIEWS = [
     { key: "home", label: "首页", render: renderHome },
     { key: "people", label: "新生看板", render: renderPeople },
-    { key: "tracks", label: "赛道", render: renderTracks },
+    { key: "schedule", label: "赛程", render: renderSchedule },
+    { key: "team", label: "组队", render: renderTeam },
     { key: "gallery", label: "作品展厅", render: renderGallery },
+    { key: "vote", label: "投票", render: renderVote },
     { key: "result", label: "最终排行", render: () => renderResult(location.search.indexOf("preview") >= 0) },
+    { key: "me", label: "我的", render: renderMe, hidden: true },
+    { key: "tracks", label: "赛道", render: renderTracks, hidden: true },
+    { key: "judge", label: "评委评分", render: renderJudge, hidden: true },
     { key: "brief", label: "大赛介绍", render: renderBrief, hidden: true },
   ];
 
@@ -322,19 +479,42 @@
     toast(`已为「${team.name}」投票成功 ♥`);
     route();
   }
+  function joinTeam(id) {
+    const team = getTeam(id); if (!team) return;
+    root.localStorage.setItem(TEAM_KEY, id);
+    toast(`已加入「${team.name}」`);
+    route(false);
+  }
+  function saveJudgeDraft() {
+    const draft = {};
+    doc.querySelectorAll("[data-score]").forEach((input) => {
+      const [teamId, dim] = String(input.dataset.score || "").split(":");
+      if (!teamId) return;
+      const value = input.value === "" ? "" : Math.max(0, Math.min(100, +input.value || 0));
+      if (!draft[teamId]) draft[teamId] = {};
+      draft[teamId][dim] = value;
+      input.value = value;
+    });
+    root.localStorage.setItem(JUDGE_KEY, JSON.stringify(draft));
+    toast("评分草稿已保存");
+  }
 
   function bind() {
     navLinks.innerHTML = VIEWS.filter((v) => !v.hidden).map((v) => `<a data-nav="${v.key}" href="#${v.key}">${v.label}</a>`).join("");
     doc.addEventListener("click", (e) => {
       const work = e.target.closest("[data-work]");
       const vote = e.target.closest("[data-vote]");
+      const team = e.target.closest("[data-join-team]");
+      const judgeSave = e.target.closest("[data-judge-save]");
       const nav = e.target.closest("[data-nav]");
       const prev = e.target.closest("[data-preview]");
       if (vote) { castVote(vote.dataset.vote); return; }
+      if (team) { joinTeam(team.dataset.joinTeam); return; }
+      if (judgeSave) { saveJudgeDraft(); return; }
       if (work) { showWork(work.dataset.work); return; }
       if (nav) { e.preventDefault(); go(nav.dataset.nav); return; }
       if (prev) { main.innerHTML = renderResult(true); setActive("result"); return; }
-      if (e.target.closest("#navLogin")) { toast("登录后绑定角色（选手/评委/大众）— 演示版默认大众身份"); return; }
+      if (e.target.closest("#navLogin")) { go("me"); return; }
       if (e.target.closest("#navBurger")) { navLinks.classList.toggle("open"); return; }
     });
     root.addEventListener("hashchange", () => route(false));

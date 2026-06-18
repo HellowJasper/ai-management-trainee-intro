@@ -1,0 +1,58 @@
+{
+  "pointScale": [100, 85, 70, 55, 40],
+  "status": "voting",
+  "windowLabel": "大众投票窗口开启中",
+  "updatedAt": "2026-06-18T20:30:00.000+08:00",
+  "results": [
+    {
+      "id": "pharma",
+      "name": "药学",
+      "track": "PHARMACEUTICALS",
+      "project": "药物信息检索助手",
+      "color": "var(--neon)",
+      "colorRgb": "40, 255, 200",
+      "votes": 148,
+      "expert": 91.6
+    },
+    {
+      "id": "medicine",
+      "name": "医学",
+      "track": "CLINICAL MEDICINE",
+      "project": "医学资料问答中枢",
+      "color": "rgb(205, 255, 92)",
+      "colorRgb": "205, 255, 92",
+      "votes": 121,
+      "expert": 89.8
+    },
+    {
+      "id": "marketing",
+      "name": "营销",
+      "track": "SALES & MARKETING",
+      "project": "全域内容生成引擎",
+      "color": "rgb(100, 232, 214)",
+      "colorRgb": "100, 232, 214",
+      "votes": 180,
+      "expert": 93.2
+    },
+    {
+      "id": "functions",
+      "name": "职能",
+      "track": "GENERAL FUNCTIONS",
+      "project": "职能流程自动化助手",
+      "color": "var(--neon-2)",
+      "colorRgb": "167, 255, 79",
+      "votes": 67,
+      "expert": 87.4
+    },
+    {
+      "id": "production",
+      "name": "生产",
+      "track": "PRODUCTION & MANUFACTURING",
+      "project": "生产排产与质量预警看板",
+      "color": "rgb(110, 235, 150)",
+      "colorRgb": "110, 235, 150",
+      "votes": 92,
+      "expert": 88.9
+    }
+  ]
+}

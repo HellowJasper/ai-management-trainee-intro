@@ -1,0 +1,27 @@
+{
+  "currentTeamId": "marketing",
+  "currentTeam": {
+    "id": "marketing",
+    "index": "03",
+    "name": "营销",
+    "nameEn": "SALES & MARKETING",
+    "hostDepartment": "健康品事业部",
+    "project": "全域内容生成引擎",
+    "color": "rgb(100, 232, 214)",
+    "colorRgb": "100, 232, 214"
+  },
+  "nextTeamId": "functions",
+  "nextTeam": {
+    "id": "functions",
+    "index": "04",
+    "name": "职能",
+    "nameEn": "GENERAL FUNCTIONS",
+    "hostDepartment": "董事长办公室",
+    "project": "职能流程自动化助手",
+    "color": "var(--neon-2)",
+    "colorRgb": "167, 255, 79"
+  },
+  "phase": "DEMO",
+  "startedAt": null,
+  "durationMs": 900000
+}

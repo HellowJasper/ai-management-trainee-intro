@@ -3,8 +3,10 @@ const http = require("node:http");
 const path = require("node:path");
 const { createAdminStateRepository } = require("./adminStateRepository");
 const { createMissionCountdownRepository } = require("./missionCountdownRepository");
+const { createRoadshowRepository } = require("./roadshowRepository");
 const { createTeamRepository } = require("./teamRepository");
 const { createTraineeRepository } = require("./traineeRepository");
+const { createVoteResultsRepository } = require("./voteResultsRepository");
 
 const DEFAULT_PUBLIC_ROOT = path.join(__dirname, "..");
 const DEFAULT_PORT = 5173;
@@ -93,6 +95,8 @@ async function routeApi(
   adminStateRepository,
   teamRepository,
   missionCountdownRepository,
+  roadshowRepository,
+  voteResultsRepository,
 ) {
   const segments = url.pathname.split("/").filter(Boolean);
 
@@ -134,6 +138,22 @@ async function routeApi(
   if (url.pathname === "/api/mission-countdown/start" && request.method === "POST") {
     const payload = await readJsonBody(request);
     sendJson(response, 200, await missionCountdownRepository.startCountdown(payload));
+    return true;
+  }
+
+  if (url.pathname === "/api/roadshow" && request.method === "GET") {
+    sendJson(response, 200, await roadshowRepository.getState());
+    return true;
+  }
+
+  if (url.pathname === "/api/roadshow/start" && request.method === "POST") {
+    const payload = await readJsonBody(request);
+    sendJson(response, 200, await roadshowRepository.startRoadshow(payload));
+    return true;
+  }
+
+  if (url.pathname === "/api/vote-results" && request.method === "GET") {
+    sendJson(response, 200, await voteResultsRepository.listVoteResults());
     return true;
   }
 
@@ -252,6 +272,8 @@ function createServer({
   adminStateRepository = createAdminStateRepository(),
   teamRepository = createTeamRepository(),
   missionCountdownRepository = createMissionCountdownRepository(),
+  roadshowRepository = createRoadshowRepository(),
+  voteResultsRepository = createVoteResultsRepository(),
 } = {}) {
   const resolvedPublicRoot = path.resolve(publicRoot);
 
@@ -268,6 +290,8 @@ function createServer({
           adminStateRepository,
           teamRepository,
           missionCountdownRepository,
+          roadshowRepository,
+          voteResultsRepository,
         );
         if (!handled) {
           sendJson(response, 404, {

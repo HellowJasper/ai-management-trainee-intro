@@ -12,6 +12,9 @@ const {
   getIntroTiming,
   getFeishuLoginUiState,
   getMissionCountdownState,
+  getRoadshowTimerState,
+  computeVoteRanking,
+  computeFinalResults,
   nextIntroState,
   normalizeTrainee,
   pickKeywordPair,
@@ -242,6 +245,243 @@ test("official site opens directly without the duplicate intro gate", () => {
   assert.match(siteCss, /overflow-y:\s*auto/);
 });
 
+test("official site exposes all requested PC pages in the SPA router", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /const TEAM_KEY = "joincare_hackathon_team"/);
+  assert.match(siteJs, /const JUDGE_KEY = "joincare_hackathon_judge_scores"/);
+  assert.match(siteJs, /function renderMe\(/);
+  assert.match(siteJs, /function renderTeam\(/);
+  assert.match(siteJs, /function renderSchedule\(/);
+  assert.match(siteJs, /function renderVote\(/);
+  assert.match(siteJs, /function renderJudge\(/);
+
+  assert.match(siteJs, /key:\s*"schedule", label:\s*"赛程"/);
+  assert.match(siteJs, /key:\s*"team", label:\s*"组队"/);
+  assert.match(siteJs, /key:\s*"vote", label:\s*"投票"/);
+  assert.match(siteJs, /key:\s*"judge", label:\s*"评委评分"/);
+});
+
+test("stage screen routing opens the vote progress and result screens", () => {
+  assert.equal(resolveStageScreenView("vote"), "vote");
+  assert.equal(resolveStageScreenView("result"), "vote-result");
+  assert.equal(resolveStageScreenView("final"), "final-result");
+});
+
+test("computeVoteRanking sorts votes and applies the confirmed point scale", () => {
+  const ranking = computeVoteRanking(
+    [
+      { id: "production", name: "生产", votes: 92 },
+      { id: "pharma", name: "药学", votes: 148 },
+      { id: "medicine", name: "医学", votes: 121 },
+      { id: "functions", name: "职能", votes: 67 },
+      { id: "marketing", name: "营销", votes: 180 },
+    ],
+    [100, 85, 70, 55, 40],
+  );
+
+  assert.deepEqual(
+    ranking.map((team) => team.id),
+    ["marketing", "pharma", "medicine", "production", "functions"],
+  );
+  assert.deepEqual(
+    ranking.map((team) => team.votePoints),
+    [100, 85, 70, 55, 40],
+  );
+  assert.equal(ranking[4].votePoints, 40);
+  assert.equal(ranking[0].rank, 1);
+  assert.equal(ranking[0].totalVotes, 608);
+  assert.equal(ranking[0].voteShare, 0.2961);
+});
+
+test("computeFinalResults combines expert average and vote rank points into a unique champion", () => {
+  const finalResults = computeFinalResults(
+    [
+      { id: "production", name: "生产", votes: 92, expert: 91.2 },
+      { id: "pharma", name: "药学", votes: 148, expert: 94.6 },
+      { id: "medicine", name: "医学", votes: 121, expert: 96.4 },
+      { id: "functions", name: "职能", votes: 67, expert: 89.7 },
+      { id: "marketing", name: "营销", votes: 180, expert: 93.1 },
+    ],
+    [100, 85, 70, 55, 40],
+  );
+
+  assert.equal(finalResults.length, 5);
+  assert.deepEqual(
+    finalResults.map((team) => team.id),
+    ["marketing", "pharma", "medicine", "production", "functions"],
+  );
+  assert.equal(finalResults[0].rank, 1);
+  assert.equal(finalResults[0].votePoints, 100);
+  assert.equal(finalResults[0].expertScore, 93.1);
+  assert.equal(finalResults[0].totalScore, 95.17);
+  assert.equal(finalResults[1].totalScore, 91.72);
+  assert.equal(finalResults[2].totalScore, 88.48);
+  assert.ok(finalResults[0].totalScore > finalResults[1].totalScore);
+  assert.equal(finalResults.filter((team) => team.isChampion).length, 1);
+  assert.equal(finalResults[0].isChampion, true);
+});
+
+test("main screen wires vote progress and vote result stages", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+
+  assert.match(html, /id="voteStage"/);
+  assert.match(html, /id="voteResultStage"/);
+  assert.match(html, /data-view-target="vote"/);
+  assert.match(html, /data-view-target="vote-result"/);
+  assert.match(html, /id="voteProgressList"/);
+  assert.match(html, /id="voteResultTable"/);
+  assert.match(appJs, /const voteStage = document\.getElementById\("voteStage"\)/);
+  assert.match(appJs, /voteResult:\s*document\.getElementById\("voteResultStage"\)/);
+  assert.match(appJs, /vote:\s*createRain\("voteRain"/);
+  assert.match(appJs, /"view-vote-result"/);
+  assert.match(appJs, /loadVoteResults/);
+  assert.match(appJs, /computeVoteRanking/);
+  assert.match(dataJs, /async function loadVoteResults/);
+  assert.match(dataJs, /\/api\/vote-results/);
+  assert.match(dataJs, /\.\/data\/vote-results\.json/);
+  assert.match(css, /\.app-shell\[data-view="vote"\]\s*>\s*\.vote-stage/);
+  assert.match(css, /\.app-shell\[data-view="vote-result"\]\s*>\s*\.vote-result-stage/);
+});
+
+test("final result stage wires the champion showcase after vote result", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+
+  assert.match(html, /id="finalResultStage"/);
+  assert.match(html, /最终结果 · 冠军展示/);
+  assert.match(html, /data-view-target="final-result">FINAL RESULT<\/button>/);
+  assert.match(html, /id="finalResultChampion"/);
+  assert.match(html, /id="finalResultLeaderboard"/);
+  assert.match(appJs, /finalResult:\s*document\.getElementById\("finalResultStage"\)/);
+  assert.match(appJs, /"view-final-result"/);
+  assert.match(appJs, /computeFinalResults/);
+  assert.doesNotMatch(appJs, /finalResultLeaderboard\.innerHTML\s*=\s*finalResults\.map/);
+  assert.match(adminJs, /id:\s*"final"/);
+  assert.match(adminJs, /name:\s*"冠军展示"/);
+  assert.match(css, /\.app-shell\[data-view="final-result"\]\s*>\s*\.final-result-stage/);
+});
+
+test("final result styling exposes ceremony layout hooks", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+
+  assert.match(css, /\.final-result-stage\s*\{/);
+  assert.match(css, /\.final-result-champion\s*\{/);
+  assert.match(css, /\.final-result-score strong\s*\{/);
+  assert.match(css, /\.final-result-leaderboard\s*\{/);
+  assert.match(css, /\.final-result-score-grid\s*\{/);
+  assert.match(css, /\.final-result-context\s*\{/);
+  assert.match(css, /\.final-result-row\.is-champion\s*\{/);
+});
+
+test("vote progress stage keeps all five ranking rows inside one screen", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+
+  assert.match(css, /\.vote-progress-cockpit\s*\{[^}]*grid-template-rows:\s*auto minmax\(0,\s*1fr\)/s);
+  assert.match(css, /\.vote-progress-cockpit\s*\{[^}]*max-height:\s*calc\(100vh - clamp\(142px,\s*15vh,\s*178px\)\)/s);
+  assert.match(css, /\.vote-progress-layout\s*\{[^}]*height:\s*min\(690px,\s*100%\)/s);
+  assert.match(css, /\.vote-progress-list\s*\{[^}]*grid-template-rows:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/s);
+  assert.match(css, /\.vote-progress-row\s*\{[^}]*min-height:\s*0/s);
+});
+
+test("vote total orbit centers the numeric total independently from its label", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+
+  assert.match(css, /\.vote-total-orbit strong\s*\{[^}]*position:\s*absolute/s);
+  assert.match(css, /\.vote-total-orbit strong\s*\{[^}]*left:\s*50%/s);
+  assert.match(css, /\.vote-total-orbit strong\s*\{[^}]*top:\s*50%/s);
+  assert.match(css, /\.vote-total-orbit strong\s*\{[^}]*transform:\s*translate\(-50%,\s*-50%\)/s);
+  assert.match(css, /\.vote-total-orbit > span\s*\{[^}]*position:\s*absolute/s);
+  assert.match(css, /\.vote-total-orbit > span\s*\{[^}]*bottom:\s*clamp\(26px,\s*3\.2vw,\s*42px\)/s);
+});
+
+test("vote command status reads as a lightweight HUD indicator", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+
+  assert.match(css, /\.vote-command-bar strong\s*\{[^}]*justify-self:\s*center/s);
+  assert.match(css, /\.vote-command-bar strong\s*\{[^}]*border:\s*0/s);
+  assert.match(css, /\.vote-command-bar strong\s*\{[^}]*background:\s*transparent/s);
+  assert.match(css, /\.vote-command-bar strong\s*\{[^}]*font-size:\s*clamp\(12px,\s*0\.78vw,\s*14px\)/s);
+  assert.match(css, /\.vote-command-bar strong\s*\{[^}]*box-shadow:\s*none/s);
+  assert.doesNotMatch(css, /\.vote-command-bar strong\s*\{[^}]*border-radius:\s*999px/s);
+  assert.match(css, /\.vote-command-bar strong::before\s*\{[^}]*content:\s*""/s);
+  assert.match(css, /\.vote-command-bar strong::after\s*\{[^}]*linear-gradient\(90deg,\s*transparent,\s*rgba\(40,\s*255,\s*200,\s*0\.72\),\s*transparent\)/s);
+});
+
+test("vote result screens reserve footer safe area", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+
+  assert.match(css, /\.vote-result-stage\s*\{[^}]*--result-footer-safe:\s*clamp\(112px,\s*12vh,\s*146px\)/s);
+  assert.match(css, /\.vote-result-stage\s*\{[^}]*--result-cockpit-height:\s*min\(742px,\s*calc\(100vh - clamp\(158px,\s*16vh,\s*190px\)\)\)/s);
+  assert.match(css, /\.vote-result-hub-wrap\s*\{[^}]*padding-bottom:\s*var\(--result-footer-safe\)/s);
+  assert.match(css, /\.vote-result-cockpit\s*\{[^}]*height:\s*var\(--result-cockpit-height\)/s);
+  assert.match(css, /\.vote-result-cockpit\s*\{[^}]*max-height:\s*var\(--result-cockpit-height\)/s);
+});
+
+test("vote result ranking table keeps five rows readable in compressed viewports", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+
+  assert.match(css, /\.vote-result-board\s*\{[^}]*gap:\s*clamp\(10px,\s*1vh,\s*16px\)/s);
+  assert.match(css, /\.vote-result-table\s*\{[^}]*grid-template-rows:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/s);
+  assert.match(css, /\.vote-result-table\s*\{[^}]*align-content:\s*stretch/s);
+  assert.match(css, /\.vote-result-table\s*\{[^}]*gap:\s*clamp\(9px,\s*1vh,\s*12px\)/s);
+  assert.match(css, /\.vote-result-row\s*\{[^}]*min-height:\s*0/s);
+  assert.match(css, /\.vote-result-row\s*\{[^}]*padding:\s*clamp\(10px,\s*1\.1vh,\s*14px\) 16px/s);
+  assert.match(css, /\.vote-result-row\s*\{[^}]*overflow:\s*hidden/s);
+});
+
+test("final result screen reserves enough vertical room for the champion showcase", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+
+  assert.match(css, /\.final-result-stage\s*\{[^}]*--final-result-footer-safe:\s*clamp\(92px,\s*9vh,\s*116px\)/s);
+  assert.match(css, /\.final-result-stage\s*\{[^}]*--final-result-cockpit-height:\s*min\(760px,\s*calc\(100vh - clamp\(162px,\s*17vh,\s*204px\)\)\)/s);
+  assert.match(css, /\.final-result-hub-wrap\s*\{[^}]*padding-top:\s*clamp\(72px,\s*7vh,\s*92px\)[^}]*padding-bottom:\s*var\(--final-result-footer-safe\)/s);
+  assert.match(css, /\.final-result-cockpit\s*\{[^}]*height:\s*var\(--final-result-cockpit-height\)/s);
+  assert.match(css, /\.final-result-cockpit\s*\{[^}]*max-height:\s*var\(--final-result-cockpit-height\)/s);
+  assert.match(css, /\.final-result-champion\s*\{[^}]*gap:\s*clamp\(9px,\s*1\.15vh,\s*16px\)[^}]*padding:\s*clamp\(22px,\s*2\.6vw,\s*38px\)/s);
+  assert.match(css, /\.final-result-score strong\s*\{[^}]*font-size:\s*clamp\(66px,\s*6vw,\s*116px\)/s);
+  assert.match(css, /@media \(max-height:\s*780px\)\s*\{[\s\S]*?\.final-result-champion\s*\{[^}]*gap:\s*7px[^}]*padding:\s*clamp\(18px,\s*2vw,\s*28px\)/s);
+  assert.match(css, /@media \(max-height:\s*780px\)\s*\{[\s\S]*?\.final-result-score strong\s*\{[^}]*font-size:\s*clamp\(58px,\s*5\.2vw,\s*96px\)/s);
+});
+
+test("official site wires my page, team join and judge score interactions", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /if \(e\.target\.closest\("#navLogin"\)\) \{ go\("me"\); return; \}/);
+  assert.match(siteJs, /data-join-team/);
+  assert.match(siteJs, /function joinTeam\(/);
+  assert.match(siteJs, /data-judge-save/);
+  assert.match(siteJs, /function saveJudgeDraft\(/);
+});
+
+test("official site has desktop styling hooks for the added PC pages", () => {
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  [".me-dashboard", ".team-board", ".schedule-board", ".vote-board", ".judge-board", ".status-chip"].forEach((selector) => {
+    assert.match(siteCss, new RegExp(selector.replace(".", "\\.")));
+  });
+});
+
+test("team page uses a symmetric five-column desktop layout", () => {
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.match(siteCss, /\.team-grid\s*{[\s\S]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(siteCss, /\.team-card\s*{[\s\S]*min-height:\s*440px/);
+  assert.match(siteCss, /\.team-roster\s*{[\s\S]*justify-content:\s*center/);
+});
+
+test("official site cache keys are bumped after PC page expansion", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
+
+  assert.match(html, /src\/site\.css\?v=20260618-01/);
+  assert.match(html, /src\/site\.js\?v=20260618-01/);
+});
+
 test("terminal boot welcome stage is wired into the HTML", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
 
@@ -312,6 +552,14 @@ test("landing hero uses the merged two-line cinematic hierarchy", () => {
   assert.match(enterButtonBlock, /border-radius:\s*8px/);
 });
 
+test("home demo final nav opens the roadshow timer stage", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  const navBlock = html.match(/<nav class="hackathon-nav"[\s\S]*?<\/nav>/)?.[0] || "";
+
+  assert.match(navBlock, /<button type="button" data-view-target="roadshow">DEMO FINAL<\/button>/);
+  assert.doesNotMatch(navBlock, /data-discover-target="awards">DEMO&amp;AWARDS/);
+});
+
 test("getIntroTiming keeps the loading hold and crossfade durations explicit", () => {
   assert.deepEqual(getIntroTiming(), {
     holdMs: 4000,
@@ -330,8 +578,8 @@ test("resolveStageScreenView maps admin stages to existing screen views", () => 
   assert.equal(resolveStageScreenView("speech"), "home");
   assert.equal(resolveStageScreenView("tracks"), "discover");
   assert.equal(resolveStageScreenView("team"), "team");
-  assert.equal(resolveStageScreenView("vote"), "home");
-  assert.equal(resolveStageScreenView("result"), "home");
+  assert.equal(resolveStageScreenView("vote"), "vote");
+  assert.equal(resolveStageScreenView("result"), "vote-result");
   assert.equal(resolveStageScreenView("unknown"), "");
 });
 
@@ -441,6 +689,66 @@ test("team header opens the mission countdown stage", () => {
   assert.match(css, /\.countdown-start-button/);
 });
 
+test("countdown header opens a current roadshow team timer stage", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+  const countdownSection = html.match(/<section class="countdown-stage"[\s\S]*?<\/section>\s*<section class="roadshow-stage"/)?.[0] || "";
+  const roadshowSection = html.match(/<section class="roadshow-stage"[\s\S]*?<\/section>\s*<\/main>/)?.[0] || "";
+
+  assert.match(countdownSection, /<button class="cohort-mark" type="button" data-view-target="roadshow">ROADSHOW TIMER<\/button>/);
+  assert.match(roadshowSection, /id="roadshowStage"/);
+  assert.match(roadshowSection, /id="roadshowRain"/);
+  assert.match(roadshowSection, /id="roadshowTeamName"/);
+  assert.match(roadshowSection, /id="roadshowMinutes">15<\/span>/);
+  assert.match(roadshowSection, /id="roadshowSeconds"/);
+  assert.match(roadshowSection, /id="roadshowStartButton"/);
+  assert.match(roadshowSection, /class="roadshow-cockpit"/);
+  assert.match(roadshowSection, /class="roadshow-command-bar"/);
+  assert.match(roadshowSection, /id="roadshowCommandStatus"/);
+  assert.match(roadshowSection, /class="roadshow-command-grid"/);
+  assert.match(roadshowSection, /class="roadshow-control-stack"/);
+  assert.match(roadshowSection, /class="roadshow-phase-panel"/);
+  assert.match(roadshowSection, /class="roadshow-timer-diagnostics"/);
+  assert.match(roadshowSection, /class="roadshow-phase-status"/);
+  assert.match(roadshowSection, /class="roadshow-next-team"/);
+  assert.match(roadshowSection, /id="roadshowNextTeamName"/);
+  assert.match(roadshowSection, /CURRENT ROADSHOW TEAM/);
+  assert.match(roadshowSection, /data-view-target="countdown"[\s\S]*?BACK TO MISSION TIMER/);
+  assert.match(roadshowSection, /data-view-target="vote"[\s\S]*?VOTE PROGRESS/);
+  assert.match(appJs, /roadshow:\s*document\.getElementById\("roadshowStage"\)/);
+  assert.match(appJs, /roadshow:\s*createRain\("roadshowRain"/);
+  assert.match(appJs, /renderRoadshowStage/);
+  assert.match(appJs, /roadshow-member-seat/);
+  assert.match(appJs, /roadshow-member-avatar/);
+  assert.match(appJs, /is-placeholder/);
+  assert.match(appJs, /has-photo/);
+  assert.match(appJs, /roadshow-member-copy/);
+  assert.match(appJs, /roadshow-member-status/);
+  assert.match(appJs, /resolveNextRoadshowTeam/);
+  assert.match(appJs, /syncRoadshowTimer/);
+  assert.match(appJs, /handleRoadshowStart/);
+  assert.match(dataJs, /async function loadRoadshow/);
+  assert.match(dataJs, /async function startRoadshowTimer/);
+  assert.match(dataJs, /nextTeamId/);
+  assert.match(dataJs, /nextTeam/);
+  assert.match(dataJs, /fetchJson\("\/api\/roadshow"\)/);
+  assert.match(dataJs, /fetchJson\("\/api\/roadshow\/start"/);
+  assert.match(css, /\.app-shell\[data-view="roadshow"\]\s*>\s*\.roadshow-stage/);
+  assert.match(css, /\.roadshow-cockpit/);
+  assert.match(css, /\.roadshow-command-grid/);
+  assert.match(css, /\.roadshow-control-stack/);
+  assert.match(css, /\.roadshow-current-team/);
+  assert.match(css, /\.roadshow-member-seat/);
+  assert.match(css, /\.roadshow-member-avatar/);
+  assert.match(css, /\.roadshow-member-avatar\.is-placeholder/);
+  assert.match(css, /\.roadshow-member-avatar\.has-photo/);
+  assert.match(css, /\.roadshow-member-status/);
+  assert.match(css, /\.roadshow-timer-digits/);
+  assert.doesNotMatch(css, /\.app-shell\.view-roadshow\s+\.roadshow-stage\s*>\s*\.stage-header[\s\S]*?display:\s*none/);
+});
+
 test("mission countdown state formats a 24 hour window", () => {
   const countdown = getMissionCountdownState({
     startedAt: Date.parse("2026-01-01T00:00:00.000Z"),
@@ -461,6 +769,34 @@ test("mission countdown state formats a 24 hour window", () => {
     now: Date.parse("2026-01-02T00:00:01.000Z"),
   }), {
     hours: "00",
+    minutes: "00",
+    seconds: "00",
+    progress: 1,
+    remainingMs: 0,
+    isComplete: true,
+  });
+});
+
+test("roadshow timer state formats a backend controlled fifteen minute presentation window", () => {
+  const timer = getRoadshowTimerState({
+    startedAt: Date.parse("2026-01-01T00:00:00.000Z"),
+    now: Date.parse("2026-01-01T00:01:14.000Z"),
+    durationMs: 15 * 60 * 1000,
+  });
+
+  assert.deepEqual(timer, {
+    minutes: "13",
+    seconds: "46",
+    progress: 0.082,
+    remainingMs: 826000,
+    isComplete: false,
+  });
+
+  assert.deepEqual(getRoadshowTimerState({
+    startedAt: Date.parse("2026-01-01T00:00:00.000Z"),
+    now: Date.parse("2026-01-01T00:15:01.000Z"),
+    durationMs: 15 * 60 * 1000,
+  }), {
     minutes: "00",
     seconds: "00",
     progress: 1,
