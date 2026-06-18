@@ -1742,3 +1742,75 @@
     padding-bottom: 8px;
   }
 }
+
+@media (max-width: 680px) {
+  .mh-grid {
+    margin-top: 12px;
+  }
+  .mh-card {
+    min-height: 118px;
+  }
+  .mh-people {
+    min-height: 138px;
+  }
+  .mh-agenda {
+    display: grid;
+    gap: 8px;
+    margin: 14px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .mh-agenda li {
+    display: grid;
+    grid-template-columns: 78px 1fr;
+    gap: 10px;
+    align-items: baseline;
+    min-width: 0;
+  }
+  .mh-agenda b {
+    color: var(--neon);
+    font-size: 12px;
+    line-height: 1.25;
+  }
+  .mh-agenda span {
+    color: var(--text-soft);
+    font-size: 12.5px;
+    line-height: 1.35;
+  }
+  .mobile-swipe-deck {
+    overflow: visible;
+    height: min(66vh, 570px);
+    min-height: 506px;
+  }
+  .mobile-card-active {
+    inset: 0 0 28px;
+    z-index: 4;
+  }
+  .mobile-card-ghost {
+    top: 30px;
+    bottom: 54px;
+    width: calc(100% - 32px);
+    opacity: 0.42;
+  }
+  .mobile-card-ghost.ghost-left {
+    left: -58px;
+    right: auto;
+    transform: rotate(-7deg) scale(0.88);
+    transform-origin: 72% 64%;
+    z-index: 2;
+  }
+  .mobile-card-ghost.ghost-right {
+    right: -58px;
+    left: auto;
+    transform: rotate(7deg) scale(0.88);
+    transform-origin: 28% 64%;
+    z-index: 3;
+  }
+  .mobile-card-ghost .mobile-card-photo {
+    object-fit: contain;
+    object-position: center top;
+  }
+  .mobile-card-photo-wrap {
+    min-height: 348px;
+  }
+}

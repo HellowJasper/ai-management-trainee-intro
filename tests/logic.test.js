@@ -280,6 +280,8 @@ test("mobile site opens on event home and uses a natural swipe-card browser", ()
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
   assert.match(siteJs, /function renderMobileHome\(/);
+  assert.match(siteJs, /36小时，把 AI 创意做成可运行系统/);
+  assert.match(siteJs, /class="mh-agenda"/);
   assert.match(siteJs, /function renderMobilePeople\(/);
   assert.match(siteJs, /function renderMobileTraineeDetail\(/);
   assert.match(siteJs, /function setMobileTrainee\(/);
@@ -296,10 +298,22 @@ test("mobile site opens on event home and uses a natural swipe-card browser", ()
   assert.match(siteCss, /\.mobile-people-stage/);
   assert.match(siteCss, /\.mobile-profile-detail/);
   assert.match(siteCss, /\.mobile-swipe-deck/);
+  assert.match(siteCss, /\.mobile-card-ghost\.ghost-left/);
+  assert.match(siteCss, /\.mobile-card-ghost\.ghost-right/);
   assert.match(siteCss, /\.mobile-card-photo\s*{[\s\S]*object-fit:\s*contain/);
   assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.site-body\[data-view="home"\] \.hero,[\s\S]*\.site-body\[data-view="home"\] \.sec\s*{[\s\S]*display:\s*none/);
   assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.mobile-people-stage\s*{[\s\S]*display:\s*flex/);
+  assert.doesNotMatch(siteJs, /class="mh-stats"/);
+  assert.doesNotMatch(siteJs, /const topWork/);
   assert.doesNotMatch(siteJs, /data-mobile-card-nav/);
+});
+
+test("event copy consistently describes the hackathon as 36 hours", () => {
+  const files = ["../src/site.js", "../src/screen.js", "../src/screen-data.js", "../src/screen.css", "../site.html"];
+  const joined = files.map((file) => fs.readFileSync(path.join(__dirname, file), "utf8")).join("\n");
+
+  assert.match(joined, /36小时/);
+  assert.doesNotMatch(joined, /三天|3天/);
 });
 
 test("site removes low-value team capacity and work delivery buttons", () => {
@@ -332,8 +346,8 @@ test("role authorization is completed at entry and protects sensitive actions", 
 test("official site cache keys are bumped after mobile shell expansion", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260618-05/);
-  assert.match(html, /src\/site\.js\?v=20260618-05/);
+  assert.match(html, /src\/site\.css\?v=20260618-06/);
+  assert.match(html, /src\/site\.js\?v=20260618-06/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {

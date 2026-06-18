@@ -128,37 +128,31 @@
   function renderMobileHome(totalVotes) {
     const list = traineeList();
     const sample = list.slice(0, 4).map((p) => `<span><img src="${traineeIdImage(p)}" alt="${esc(p.name)}" /></span>`).join("");
-    const topWork = D.teams.slice().sort((a, b) => b.votes - a.votes)[0] || D.teams[0];
+    const agenda = D.flowDays.map((d) => `<li><b>${esc(d.day)}</b><span>${esc(d.title)}</span></li>`).join("");
     return `<section class="mobile-home">
       <div class="mh-hero">
         <span class="hero-kicker"><span class="live-dot"></span>LIVE · HACKATHON 2026</span>
         <h1>AI创新黑客松</h1>
-        <p>三天，把 AI 创意做成可运行系统</p>
+        <p>36小时，把 AI 创意做成可运行系统</p>
         <div class="mh-live glass">
-          <div><span>当前阶段</span><b>大众投票进行中</b></div>
+          <div><span>当前阶段</span><b>作品展评进行中</b></div>
           <strong data-countdown data-remain="6353">${fmtHMS(6353)}</strong>
         </div>
-      </div>
-      <div class="mh-stats">
-        <span><b>${D.stats.teams}</b><em>队伍</em></span>
-        <span><b>${list.length || D.stats.members}</b><em>新人</em></span>
-        <span><b>${D.stats.tracks}</b><em>赛道</em></span>
-        <span><b>${totalVotes.toLocaleString()}</b><em>票</em></span>
       </div>
       <div class="mh-grid">
         <a class="mh-card mh-people glass" data-nav="people">
           <div class="mh-card-top"><span>新人参赛选手</span><b>${list.length || D.stats.members} 位</b></div>
           <div class="mh-faces">${sample}</div>
         </a>
-        <a class="mh-card mh-work glass" data-nav="gallery" style="--accent:${topWork.accent};--rgb:${topWork.rgb}">
-          <div class="mh-card-top"><span>作品展厅</span><b>${esc(topWork.trackCode)}</b></div>
-          <h3>${esc(topWork.project)}</h3>
-          <p>${esc(topWork.name)} · ${topWork.votes.toLocaleString()} 票</p>
-        </a>
         <a class="mh-card mh-schedule glass" data-nav="schedule">
-          <div class="mh-card-top"><span>赛程进展</span><b>DAY 3</b></div>
-          <h3>路演与投票</h3>
-          <p>作品展示、现场交流、最终结果发布</p>
+          <div class="mh-card-top"><span>这个比赛是什么</span><b>36H</b></div>
+          <h3>从课题发布到 Demo Day</h3>
+          <ul class="mh-agenda">${agenda}</ul>
+        </a>
+        <a class="mh-card mh-work glass" data-nav="gallery" style="--accent:var(--neon-2);--rgb:167,255,79">
+          <div class="mh-card-top"><span>作品展评</span><b>${D.teams.length} 组</b></div>
+          <h3>查看现场作品</h3>
+          <p>浏览各组 Demo、作品说明与投票状态。</p>
         </a>
       </div>
     </section>`;
@@ -175,7 +169,7 @@
       <div class="hero-copy">
         <span class="hero-kicker"><span class="live-dot"></span>LIVE · HACKATHON_PROTOCOL_2026</span>
         <h1 class="hero-title">AI创新黑客松</h1>
-        <p class="hero-slogan">三天，把 AI 创意做成可运行系统</p>
+        <p class="hero-slogan">36小时，把 AI 创意做成可运行系统</p>
         <p class="hero-desc">健康元药业 2026 AI 管培生黑客松 · 五大赛道、真实业务挑战。认识参赛伙伴，浏览他们真实可运行的作品，为你支持的团队投票。</p>
         <div class="hero-ctas"><a class="btn-primary" data-nav="gallery">进入作品展厅 ♥</a><a class="btn-ghost" data-nav="team">立即组队 ➔</a></div>
       </div>
@@ -212,7 +206,7 @@
 
     <section class="container sec"><div class="sec-cap"><span></span>参赛入口 · ACTIONS</div>
       <div class="entry-grid four">
-        <a class="entry-card" data-nav="schedule" style="--accent:#6ad7ff;--rgb:106,215,255"><span class="entry-ic">${ICON("calendar", "#6ad7ff")}</span><div class="entry-tx"><b>赛程介绍<i>SCHEDULE</i></b><span>三天流程 · 赛事机制 · 关键节点</span></div><span class="entry-go">➔</span></a>
+        <a class="entry-card" data-nav="schedule" style="--accent:#6ad7ff;--rgb:106,215,255"><span class="entry-ic">${ICON("calendar", "#6ad7ff")}</span><div class="entry-tx"><b>赛程介绍<i>SCHEDULE</i></b><span>36小时议程 · 赛事机制 · 关键节点</span></div><span class="entry-go">➔</span></a>
         <a class="entry-card" data-nav="team" style="--accent:#c79bff;--rgb:199,155,255"><span class="entry-ic">${ICON("team", "#c79bff")}</span><div class="entry-tx"><b>报名组队<i>TEAM</i></b><span>技术顾问 · 队员状态 · 作品方向</span></div><span class="entry-go">➔</span></a>
         <a class="entry-card" data-nav="vote" style="--accent:var(--neon-2);--rgb:167,255,79"><span class="entry-ic">${ICON("vote", "var(--neon-2)")}</span><div class="entry-tx"><b>投票状态<i>VOTE</i></b><span>一人一票 · 当前选择 · 票数分布</span></div><span class="entry-go">➔</span></a>
         <a class="entry-card" data-nav="judge" style="--accent:var(--warning);--rgb:246,255,129"><span class="entry-ic">${ICON("scale", "var(--warning)")}</span><div class="entry-tx"><b>评委评分<i>JUDGE</i></b><span>五维评分 · 草稿保存 · 演示入口</span></div><span class="entry-go">➔</span></a>
@@ -238,8 +232,8 @@
     if (MOBILE_TRAINEE_INDEX < 0 || MOBILE_TRAINEE_INDEX >= list.length) MOBILE_TRAINEE_INDEX = 0;
     const p = list[MOBILE_TRAINEE_INDEX];
     if (MOBILE_TRAINEE_DETAIL) return renderMobileTraineeDetail(p, list);
+    const prevOne = list[(MOBILE_TRAINEE_INDEX - 1 + list.length) % list.length];
     const nextOne = list[(MOBILE_TRAINEE_INDEX + 1) % list.length];
-    const nextTwo = list[(MOBILE_TRAINEE_INDEX + 2) % list.length];
     const tags = toolTags(p.aiPartners || p.favoriteAI).map((x) => `<span>${esc(shortText(x, 12))}</span>`).join("");
     const dots = list.map((item, i) => `<span class="${i === MOBILE_TRAINEE_INDEX ? "on" : ""}"></span>`).join("");
 
@@ -250,10 +244,10 @@
         <span class="mobile-card-index">${pad(MOBILE_TRAINEE_INDEX + 1)} / ${pad(list.length)}</span>
       </header>
       <div class="mobile-swipe-deck" data-mobile-swipe-deck>
-        <article class="mobile-person-card mobile-card-ghost ghost-two" aria-hidden="true">
-          <img class="mobile-card-photo" src="${traineeIdImage(nextTwo)}" alt="" />
+        <article class="mobile-person-card mobile-card-ghost ghost-left" aria-hidden="true">
+          <img class="mobile-card-photo" src="${traineeIdImage(prevOne)}" alt="" />
         </article>
-        <article class="mobile-person-card mobile-card-ghost ghost-one" aria-hidden="true">
+        <article class="mobile-person-card mobile-card-ghost ghost-right" aria-hidden="true">
           <img class="mobile-card-photo" src="${traineeIdImage(nextOne)}" alt="" />
         </article>
         <article class="mobile-person-card mobile-card-active" data-mobile-card-detail>
@@ -428,8 +422,8 @@
   function renderBrief() {
     const days = D.flowDays.map((d, i) => `<div class="flow-step"><div class="fs-badge">${esc(d.day)}<i>${esc(d.en)}</i></div><div class="fs-ic">${ICON(d.icon, "var(--neon)")}</div><b>${esc(d.title)}</b><p>${d.lines.map(esc).join("<br>")}</p><span class="fs-time">${esc(d.time)}</span>${i < 2 ? '<span class="fs-arrow">➔</span>' : ""}</div>`).join("");
     const mech = D.mechanism.map((c) => `<div class="mech2 glass" style="--accent:${c.accent};--rgb:${c.rgb}"><div class="m2-top"><span>${esc(c.label)}<i>${esc(c.en)}</i></span>${ICON(c.icon, c.accent)}</div><b>${esc(c.headline)}</b><span class="m2-sub">${esc(c.sub)}</span></div>`).join("");
-    return `${pageHead("大赛介绍与全流程", "三天，把 AI 创意做成可运行系统", "ABOUT")}
-    <section class="container sec"><div class="sec-cap"><span></span>三天 · 全流程</div><div class="flow-row">${days}</div></section>
+    return `${pageHead("大赛介绍与全流程", "36小时，把 AI 创意做成可运行系统", "ABOUT")}
+    <section class="container sec"><div class="sec-cap"><span></span>36小时 · 全流程</div><div class="flow-row">${days}</div></section>
     <section class="container sec"><div class="sec-cap"><span></span>赛事机制</div><div class="mech2-grid">${mech}</div></section>`;
   }
 
@@ -474,13 +468,13 @@
     const mech = D.mechanism.map((c) => `<div class="mech2 glass" style="--accent:${c.accent};--rgb:${c.rgb}"><div class="m2-top"><span>${esc(c.label)}<i>${esc(c.en)}</i></span>${ICON(c.icon, c.accent)}</div><b>${esc(c.headline)}</b><span class="m2-sub">${esc(c.sub)}</span></div>`).join("");
     const dims = D.dimensions.map((d) => `<li><b>${esc(d.label)}</b><span>${esc(d.en)} · ${d.weight}%</span></li>`).join("");
 
-    return `${pageHead("赛程与大赛介绍", "三天流程、赛事机制、评分维度与关键节点", "SCHEDULE")}
+    return `${pageHead("赛程与大赛介绍", "36小时议程、赛事机制、评分维度与关键节点", "SCHEDULE")}
     <section class="container sec schedule-board">
       <div class="schedule-live glass">
         <div><span class="status-chip on">当前阶段</span><h2>大众投票进行中</h2><p>作品提交已完成，评委评分与大众投票同步进行。最终结果将在 Demo Day 颁奖环节公布。</p></div>
         <div class="schedule-count"><span>距投票截止</span><b data-countdown data-remain="6353">${fmtHMS(6353)}</b></div>
       </div>
-      <div class="sec-cap"><span></span>三天全流程</div><div class="flow-row">${days}</div>
+      <div class="sec-cap"><span></span>36小时全流程</div><div class="flow-row">${days}</div>
       <div class="sec-cap"><span></span>关键节点</div><div class="timeline-grid">${timeline}</div>
       <div class="sec-cap"><span></span>赛事机制</div><div class="mech2-grid">${mech}</div>
       <div class="score-note glass"><div><span class="status-chip">评分规则</span><h3>综合得分 = 专家评审 70% + 大众投票赋分 30%</h3><p>专家评审按五个维度打分；大众投票按票数排名转换为赋分。</p></div><ul>${dims}</ul></div>
