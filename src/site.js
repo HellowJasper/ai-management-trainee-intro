@@ -13,6 +13,7 @@
   const PHASE = "published"; // voting | published —— 投票期不显示排名，公布后才出最终排行
   let TRAINEES = [];
   let MOBILE_TRAINEE_INDEX = 0;
+  let MOBILE_TRAINEE_DETAIL = false;
   let pendingAuthTarget = null;
 
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -63,7 +64,9 @@
   });
   const isMobileView = () => root.matchMedia("(max-width: 680px)").matches;
   const traineeList = () => TRAINEES || [];
-  const traineeImage = (p) => esc((p && (p.idPhoto || p.photo)) || "");
+  const traineeIdImage = (p) => esc((p && (p.idPhoto || p.photo)) || "");
+  const traineeLifeImage = (p) => esc((p && (p.photo || p.memeImage || p.idPhoto)) || "");
+  const traineeImage = traineeIdImage;
   const shortText = (s, n) => {
     const v = String(s || "").replace(/\s+/g, " ").trim();
     return v.length > n ? `${v.slice(0, n)}...` : v;
@@ -102,32 +105,61 @@
     showAuthGate(target);
     return false;
   }
-  function syncRoleFromUrl() {
-    const role = new URLSearchParams(root.location.search).get("role");
-    if (["public", "player", "judge"].includes(role) && !currentRole()) root.localStorage.setItem(ROLE_KEY, role);
+  function authParams() {
+    return new URLSearchParams(root.location.search);
+  }
+  function wantsAuthChooser() {
+    return authParams().get("auth") === "choose";
+  }
+  function hydrateRole() {
+    const params = authParams();
+    const role = params.get("role");
+    if (["public", "player", "judge"].includes(role)) {
+      root.localStorage.setItem(ROLE_KEY, role);
+      return;
+    }
+    if (wantsAuthChooser()) {
+      root.localStorage.removeItem(ROLE_KEY);
+      return;
+    }
+    if (!currentRole()) root.localStorage.setItem(ROLE_KEY, "public");
   }
 
-  function renderMobileTraineeOverview() {
+  function renderMobileHome(totalVotes) {
     const list = traineeList();
-    if (!list.length) {
-      return `<section class="mobile-trainee-overview"><div class="container"><div class="mto-empty">新人资料加载中</div></div></section>`;
-    }
-    const departments = new Set(list.map((p) => p.department).filter(Boolean)).size;
-    const cards = list.map((p, i) => `<button class="mto-card" type="button" data-mobile-trainee="${esc(p.id)}">
-      <span class="mto-photo"><img src="${traineeImage(p)}" alt="${esc(p.name)}" /></span>
-      <b>${esc(p.name)}</b>
-      <em>${esc(shortText(p.department, 8))}</em>
-      <i>${pad(i + 1)}</i>
-    </button>`).join("");
-    return `<section class="mobile-trainee-overview">
-      <div class="container mto-shell">
-        <div class="mto-head">
-          <div><span class="ph-en">PEOPLE FIRST</span><h1>新人一览</h1><p>先认识本届 ${list.length} 位 AI 管培生，再进入滑卡浏览。</p></div>
-          <div class="mto-count"><b>${list.length}</b><span>新人</span></div>
+    const sample = list.slice(0, 4).map((p) => `<span><img src="${traineeIdImage(p)}" alt="${esc(p.name)}" /></span>`).join("");
+    const topWork = D.teams.slice().sort((a, b) => b.votes - a.votes)[0] || D.teams[0];
+    return `<section class="mobile-home">
+      <div class="mh-hero">
+        <span class="hero-kicker"><span class="live-dot"></span>LIVE · HACKATHON 2026</span>
+        <h1>AI创新黑客松</h1>
+        <p>三天，把 AI 创意做成可运行系统</p>
+        <div class="mh-live glass">
+          <div><span>当前阶段</span><b>大众投票进行中</b></div>
+          <strong data-countdown data-remain="6353">${fmtHMS(6353)}</strong>
         </div>
-        <div class="mto-stats"><span>${departments} 个部门</span><span>AI 搭子档案</span><span>滑卡浏览</span></div>
-        <div class="mto-grid">${cards}</div>
-        <button class="mto-start" type="button" data-nav="people">进入滑卡浏览</button>
+      </div>
+      <div class="mh-stats">
+        <span><b>${D.stats.teams}</b><em>队伍</em></span>
+        <span><b>${list.length || D.stats.members}</b><em>新人</em></span>
+        <span><b>${D.stats.tracks}</b><em>赛道</em></span>
+        <span><b>${totalVotes.toLocaleString()}</b><em>票</em></span>
+      </div>
+      <div class="mh-grid">
+        <a class="mh-card mh-people glass" data-nav="people">
+          <div class="mh-card-top"><span>新人参赛选手</span><b>${list.length || D.stats.members} 位</b></div>
+          <div class="mh-faces">${sample}</div>
+        </a>
+        <a class="mh-card mh-work glass" data-nav="gallery" style="--accent:${topWork.accent};--rgb:${topWork.rgb}">
+          <div class="mh-card-top"><span>作品展厅</span><b>${esc(topWork.trackCode)}</b></div>
+          <h3>${esc(topWork.project)}</h3>
+          <p>${esc(topWork.name)} · ${topWork.votes.toLocaleString()} 票</p>
+        </a>
+        <a class="mh-card mh-schedule glass" data-nav="schedule">
+          <div class="mh-card-top"><span>赛程进展</span><b>DAY 3</b></div>
+          <h3>路演与投票</h3>
+          <p>作品展示、现场交流、最终结果发布</p>
+        </a>
       </div>
     </section>`;
   }
@@ -139,7 +171,7 @@
       .map((p) => avatar({ name: p.name, avatar: p.idPhoto || p.photo || p.avatar }, 46, "stack")).join("");
     const workTags = D.teams.map((t) => `<span class="wt-tag" style="--accent:${t.accent};--rgb:${t.rgb}">${esc(t.name)}</span>`).join("");
 
-    return `${renderMobileTraineeOverview()}<section class="hero"><div class="container hero-grid">
+    return `${renderMobileHome(totalVotes)}<section class="hero"><div class="container hero-grid">
       <div class="hero-copy">
         <span class="hero-kicker"><span class="live-dot"></span>LIVE · HACKATHON_PROTOCOL_2026</span>
         <h1 class="hero-title">AI创新黑客松</h1>
@@ -205,36 +237,28 @@
     }
     if (MOBILE_TRAINEE_INDEX < 0 || MOBILE_TRAINEE_INDEX >= list.length) MOBILE_TRAINEE_INDEX = 0;
     const p = list[MOBILE_TRAINEE_INDEX];
+    if (MOBILE_TRAINEE_DETAIL) return renderMobileTraineeDetail(p, list);
     const nextOne = list[(MOBILE_TRAINEE_INDEX + 1) % list.length];
     const nextTwo = list[(MOBILE_TRAINEE_INDEX + 2) % list.length];
     const tags = toolTags(p.aiPartners || p.favoriteAI).map((x) => `<span>${esc(shortText(x, 12))}</span>`).join("");
-    const rail = list.map((item, i) => `<button class="mobile-rail-item ${i === MOBILE_TRAINEE_INDEX ? "on" : ""}" type="button" data-mobile-trainee="${esc(item.id)}" aria-label="${esc(item.name)}">
-      <span style="background-image:url('${traineeImage(item)}')"></span><b>${esc(item.name.slice(0, 1))}</b>
-    </button>`).join("");
-    const backFields = [
-      ["专业背景", p.background],
-      ["AI 搭子", p.aiPartners],
-      ["AI 超能力", p.aiPower],
-      ["想让 AI 解决", p.aiProblem],
-      ["有趣事实", p.funFact],
-    ].filter((x) => x[1]).map(([label, value]) => `<section><span>${esc(label)}</span><p>${esc(value)}</p></section>`).join("");
+    const dots = list.map((item, i) => `<span class="${i === MOBILE_TRAINEE_INDEX ? "on" : ""}"></span>`).join("");
 
     return `<section class="mobile-people-stage" id="mobilePeopleStage">
       <header class="mobile-people-head">
-        <button class="mobile-back-link" type="button" data-nav="home">新人一览</button>
-        <div><span class="ph-en">SWIPE CARDS</span><h1>滑卡认识新人</h1></div>
+        <button class="mobile-back-link" type="button" data-nav="home">首页</button>
+        <div><span class="ph-en">ROSTER CARDS</span><h1>新人卡组</h1></div>
         <span class="mobile-card-index">${pad(MOBILE_TRAINEE_INDEX + 1)} / ${pad(list.length)}</span>
       </header>
       <div class="mobile-swipe-deck" data-mobile-swipe-deck>
         <article class="mobile-person-card mobile-card-ghost ghost-two" aria-hidden="true">
-          <img class="mobile-card-photo" src="${traineeImage(nextTwo)}" alt="" />
+          <img class="mobile-card-photo" src="${traineeIdImage(nextTwo)}" alt="" />
         </article>
         <article class="mobile-person-card mobile-card-ghost ghost-one" aria-hidden="true">
-          <img class="mobile-card-photo" src="${traineeImage(nextOne)}" alt="" />
+          <img class="mobile-card-photo" src="${traineeIdImage(nextOne)}" alt="" />
         </article>
-        <article class="mobile-person-card mobile-card-active">
+        <article class="mobile-person-card mobile-card-active" data-mobile-card-detail>
           <div class="mobile-card-photo-wrap">
-            <img class="mobile-card-photo" src="${traineeImage(p)}" alt="${esc(p.name)}" />
+            <img class="mobile-card-photo" src="${traineeIdImage(p)}" alt="${esc(p.name)}" />
           </div>
           <div class="mobile-person-main">
             <span>${esc(p.department || "")}</span>
@@ -245,16 +269,36 @@
           <div class="mobile-tool-tags">${tags}</div>
         </article>
       </div>
-      <div class="mobile-card-controls">
-        <button type="button" data-mobile-card-nav="-1">上一位</button>
-        <button type="button" data-mobile-card-nav="1">换一位</button>
-        <button type="button" data-mobile-card-nav="1">下一位</button>
-      </div>
-      <div class="mobile-card-profile">
-        <div class="mobile-profile-top"><b>${esc(p.name)}的档案</b><span>${esc(roleName(currentRole()))}</span></div>
-        <div class="mobile-back-fields">${backFields}</div>
-      </div>
-      <div class="mobile-trainee-rail">${rail}</div>
+      <div class="mobile-card-progress">${dots}</div>
+    </section>`;
+  }
+  function renderMobileTraineeDetail(p, list) {
+    const tags = toolTags(p.aiPartners || p.favoriteAI).map((x) => `<span>${esc(shortText(x, 12))}</span>`).join("");
+    const fields = [
+      ["专业背景", p.background],
+      ["AI 搭子", p.aiPartners],
+      ["AI 超能力", p.aiPower],
+      ["想让 AI 解决", p.aiProblem],
+      ["有趣事实", p.funFact],
+    ].filter((x) => x[1]).map(([label, value]) => `<section><span>${esc(label)}</span><p>${esc(value)}</p></section>`).join("");
+    return `<section class="mobile-profile-detail" id="mobilePeopleStage">
+      <header class="mobile-detail-head">
+        <button type="button" data-mobile-detail-close aria-label="返回新人卡组">‹</button>
+        <span>${pad(MOBILE_TRAINEE_INDEX + 1)} / ${pad(list.length)}</span>
+      </header>
+      <article class="mobile-detail-card">
+        <div class="mobile-detail-photo">
+          <img src="${traineeLifeImage(p)}" alt="${esc(p.name)}" />
+        </div>
+        <div class="mobile-detail-name">
+          <span>${esc(p.department || "")}</span>
+          <h1>${esc(p.name)}</h1>
+          <em>${esc(p.romanName || "")}</em>
+        </div>
+        <p>${esc(shortText(p.favoriteAI || p.aiPartners || p.aiPower, 88))}</p>
+        <div class="mobile-tool-tags">${tags}</div>
+      </article>
+      <div class="mobile-back-fields">${fields}</div>
     </section>`;
   }
   function renderMobilePeopleIntoMain() {
@@ -266,12 +310,22 @@
     const list = traineeList();
     const next = list.findIndex((p) => p.id === id);
     if (next >= 0) MOBILE_TRAINEE_INDEX = next;
+    MOBILE_TRAINEE_DETAIL = false;
     renderMobilePeopleIntoMain();
   }
   function moveMobileTrainee(delta) {
     const list = traineeList();
     if (!list.length) return;
     MOBILE_TRAINEE_INDEX = (MOBILE_TRAINEE_INDEX + delta + list.length) % list.length;
+    MOBILE_TRAINEE_DETAIL = false;
+    renderMobilePeopleIntoMain();
+  }
+  function showMobileTraineeDetail() {
+    MOBILE_TRAINEE_DETAIL = true;
+    renderMobilePeopleIntoMain();
+  }
+  function closeMobileTraineeDetail() {
+    MOBILE_TRAINEE_DETAIL = false;
     renderMobilePeopleIntoMain();
   }
   function setupMobilePeople() {
@@ -284,6 +338,8 @@
     if (!deck) return;
     let startX = 0;
     let activePointer = null;
+    let moved = false;
+    let suppressClick = false;
     const clear = () => {
       startX = 0;
       activePointer = null;
@@ -293,21 +349,29 @@
     deck.addEventListener("pointerdown", (e) => {
       startX = e.clientX;
       activePointer = e.pointerId;
+      moved = false;
       deck.setPointerCapture && deck.setPointerCapture(e.pointerId);
     });
     deck.addEventListener("pointermove", (e) => {
       if (activePointer !== e.pointerId) return;
       const dx = Math.max(-96, Math.min(96, e.clientX - startX));
+      if (Math.abs(dx) > 8) moved = true;
       deck.style.setProperty("--swipe-x", `${dx}px`);
       deck.style.setProperty("--swipe-rot", `${dx / 16}deg`);
     });
     deck.addEventListener("pointerup", (e) => {
       if (activePointer !== e.pointerId) return;
       const dx = e.clientX - startX;
+      const shouldMove = Math.abs(dx) > 54;
+      suppressClick = moved || shouldMove;
       clear();
-      if (Math.abs(dx) > 54) moveMobileTrainee(dx < 0 ? 1 : -1);
+      if (shouldMove) moveMobileTrainee(dx < 0 ? 1 : -1);
+      root.setTimeout(() => { suppressClick = false; moved = false; }, 80);
     });
     deck.addEventListener("pointercancel", clear);
+    deck.addEventListener("click", () => {
+      if (!suppressClick) showMobileTraineeDetail();
+    });
   }
   function getArcStyle(l) {
     return `--arc-x:${l.x}px;--arc-lift:${l.lift}px;--arc-rot:${l.rotation};--arc-yaw:${l.rotation * 1.65};--arc-z:${l.zIndex};--arc-scale:${l.scale}`;
@@ -621,11 +685,25 @@
     { key: "brief", label: "大赛介绍", render: renderBrief, hidden: true },
   ];
   const MOBILE_TABS = [
-    { key: "home", label: "新人", icon: "target" },
+    { key: "home", label: "首页", icon: "target" },
+    { key: "people", label: "新人", icon: "user" },
+    { key: "schedule", label: "赛程", icon: "calendar" },
+    { key: "gallery", label: "作品", icon: "doc" },
+    { key: "me", label: "我的", icon: "team" },
+  ];
+  const MOBILE_TABS_PLAYER = [
+    { key: "home", label: "首页", icon: "target" },
     { key: "schedule", label: "赛程", icon: "calendar" },
     { key: "team", label: "组队", icon: "team" },
     { key: "gallery", label: "作品", icon: "doc" },
-    { key: "me", label: "角色", icon: "user" },
+    { key: "me", label: "我的", icon: "user" },
+  ];
+  const MOBILE_TABS_JUDGE = [
+    { key: "home", label: "首页", icon: "target" },
+    { key: "people", label: "新人", icon: "user" },
+    { key: "schedule", label: "赛程", icon: "calendar" },
+    { key: "gallery", label: "作品", icon: "doc" },
+    { key: "judge", label: "评分", icon: "scale" },
   ];
 
   const main = doc.getElementById("siteMain");
@@ -634,10 +712,20 @@
   let rain = null;
   let lastMobileView = isMobileView();
 
+  function mobileTabs() {
+    if (currentRole() === "player") return MOBILE_TABS_PLAYER;
+    if (currentRole() === "judge") return MOBILE_TABS_JUDGE;
+    return MOBILE_TABS;
+  }
+  function renderMobileTabbar() {
+    if (!mobileTabbar) return;
+    mobileTabbar.innerHTML = mobileTabs().map((v) => `<a data-nav="${v.key}" href="#${v.key}"><span aria-hidden="true">${ICON(v.icon, "currentColor")}</span><b>${esc(v.label)}</b></a>`).join("");
+  }
+
   function setActive(key) {
     navLinks.querySelectorAll("a").forEach((a) => a.classList.toggle("on", a.dataset.nav === key));
     if (mobileTabbar) {
-      const tabKey = key === "people" ? "home" : (key === "vote" || key === "result" ? "gallery" : key);
+      const tabKey = key === "vote" || key === "result" ? "gallery" : key;
       mobileTabbar.querySelectorAll("a").forEach((a) => a.classList.toggle("on", a.dataset.nav === tabKey));
     }
     doc.body.dataset.view = key;
@@ -712,21 +800,20 @@
 
   function bind() {
     navLinks.innerHTML = VIEWS.filter((v) => !v.hidden).map((v) => `<a data-nav="${v.key}" href="#${v.key}">${v.label}</a>`).join("");
-    if (mobileTabbar) {
-      mobileTabbar.innerHTML = MOBILE_TABS.map((v) => `<a data-nav="${v.key}" href="#${v.key}"><span aria-hidden="true">${ICON(v.icon, "currentColor")}</span><b>${esc(v.label)}</b></a>`).join("");
-    }
+    renderMobileTabbar();
     doc.addEventListener("click", (e) => {
       const work = e.target.closest("[data-work]");
       const vote = e.target.closest("[data-vote]");
       const team = e.target.closest("[data-join-team]");
       const judgeSave = e.target.closest("[data-judge-save]");
       const mobileTrainee = e.target.closest("[data-mobile-trainee]");
-      const mobileCardNav = e.target.closest("[data-mobile-card-nav]");
+      const mobileDetailClose = e.target.closest("[data-mobile-detail-close]");
       const authRole = e.target.closest("[data-auth-role]");
       const nav = e.target.closest("[data-nav]");
       const prev = e.target.closest("[data-preview]");
       if (authRole) {
         root.localStorage.setItem(ROLE_KEY, authRole.dataset.authRole);
+        renderMobileTabbar();
         closeAuthGate();
         toast(`已进入「${roleName(authRole.dataset.authRole)}」视角`);
         const target = pendingAuthTarget;
@@ -740,7 +827,7 @@
         if (doc.body.dataset.view !== "people") go("people");
         return;
       }
-      if (mobileCardNav) { e.preventDefault(); moveMobileTrainee(+mobileCardNav.dataset.mobileCardNav || 0); return; }
+      if (mobileDetailClose) { e.preventDefault(); closeMobileTraineeDetail(); return; }
       if (vote) { castVote(vote.dataset.vote); return; }
       if (team) { joinTeam(team.dataset.joinTeam); return; }
       if (judgeSave) { saveJudgeDraft(); return; }
@@ -772,10 +859,10 @@
   async function init() {
     if (root.CodeRain) { rain = root.CodeRain.createCodeRain(doc.getElementById("siteRain"), { glyphs: "010101AIJOINCARE{}[]<>".split(""), fontSize: 16, fade: "rgba(2,8,14,0.06)" }); rain.start(); }
     await loadTrainees();
-    syncRoleFromUrl();
+    hydrateRole();
     bind();
     route(false);
-    if (!currentRole()) showAuthGate("entry");
+    if (wantsAuthChooser()) showAuthGate("entry");
     root.setInterval(tick, 1000);
   }
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", init); else init();

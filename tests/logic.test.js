@@ -275,27 +275,31 @@ test("official site includes a mobile app shell with bottom tab navigation", () 
   assert.match(siteCss, /\.mobile-tabbar\s+a\s*{[\s\S]*min-width:\s*0/);
 });
 
-test("mobile site puts trainee overview first and uses a dedicated swipe-card browser", () => {
+test("mobile site opens on event home and uses a natural swipe-card browser", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteJs, /function renderMobileTraineeOverview\(/);
+  assert.match(siteJs, /function renderMobileHome\(/);
   assert.match(siteJs, /function renderMobilePeople\(/);
+  assert.match(siteJs, /function renderMobileTraineeDetail\(/);
   assert.match(siteJs, /function setMobileTrainee\(/);
   assert.match(siteJs, /function bindMobileSwipeDeck\(/);
   assert.match(siteJs, /pointerdown/);
   assert.match(siteJs, /pointerup/);
-  assert.match(siteJs, /data-mobile-trainee/);
   assert.match(siteJs, /data-mobile-swipe-deck/);
-  assert.match(siteJs, /data-mobile-card-nav/);
+  assert.match(siteJs, /data-mobile-card-detail/);
+  assert.match(siteJs, /data-mobile-detail-close/);
   assert.match(siteJs, /mobile-card-photo/);
+  assert.match(siteJs, /traineeLifeImage/);
   assert.match(siteJs, /root\.matchMedia\("\(max-width: 680px\)"\)/);
-  assert.match(siteCss, /\.mobile-trainee-overview/);
+  assert.match(siteCss, /\.mobile-home/);
   assert.match(siteCss, /\.mobile-people-stage/);
+  assert.match(siteCss, /\.mobile-profile-detail/);
   assert.match(siteCss, /\.mobile-swipe-deck/);
   assert.match(siteCss, /\.mobile-card-photo\s*{[\s\S]*object-fit:\s*contain/);
-  assert.match(siteCss, /@media \(min-width:\s*681px\)[\s\S]*\.mobile-trainee-overview\s*{[\s\S]*display:\s*none/);
+  assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.site-body\[data-view="home"\] \.hero,[\s\S]*\.site-body\[data-view="home"\] \.sec\s*{[\s\S]*display:\s*none/);
   assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.mobile-people-stage\s*{[\s\S]*display:\s*flex/);
+  assert.doesNotMatch(siteJs, /data-mobile-card-nav/);
 });
 
 test("site removes low-value team capacity and work delivery buttons", () => {
@@ -313,19 +317,23 @@ test("role authorization is completed at entry and protects sensitive actions", 
 
   assert.match(siteJs, /const ROLE_KEY = "joincare_hackathon_role"/);
   assert.match(siteJs, /function currentRole\(/);
+  assert.match(siteJs, /function hydrateRole\(/);
   assert.match(siteJs, /function requireAuth\(/);
   assert.match(siteJs, /function showAuthGate\(/);
+  assert.match(siteJs, /wantsAuthChooser\(\)/);
+  assert.match(siteJs, /root\.localStorage\.setItem\(ROLE_KEY, "public"\)/);
   assert.match(siteJs, /data-auth-role/);
   assert.match(siteJs, /if \(!requireAuth\("vote"\)\) return/);
   assert.match(siteJs, /if \(!requireAuth\("team"\)\) return/);
   assert.match(siteJs, /if \(!requireAuth\("judge"\)\) return/);
+  assert.doesNotMatch(siteJs, /if \(!currentRole\(\)\) showAuthGate\("entry"\)/);
 });
 
 test("official site cache keys are bumped after mobile shell expansion", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260618-04/);
-  assert.match(html, /src\/site\.js\?v=20260618-04/);
+  assert.match(html, /src\/site\.css\?v=20260618-05/);
+  assert.match(html, /src\/site\.js\?v=20260618-05/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {

@@ -32,7 +32,7 @@
 .nav-login:hover { background: rgba(40, 255, 200, 0.16); border-color: var(--line-strong); }
 .nav-burger { display: none; margin-left: auto; background: none; border: 0; color: var(--neon); font-size: 24px; cursor: pointer; }
 .mobile-tabbar { display: none; }
-.mobile-trainee-overview, .mobile-people-stage { display: none; }
+.mobile-home, .mobile-trainee-overview, .mobile-people-stage, .mobile-profile-detail { display: none; }
 
 /* ---- main ---- */
 .site-main { position: relative; z-index: 1; min-height: calc(100vh - 68px); padding-bottom: 60px; }
@@ -1401,5 +1401,344 @@
   .gl2-h .gl2-shot .gl2-cover-name {
     font-size: 24px;
     line-height: 1.18;
+  }
+}
+
+/* =======================================================================
+ *  v5：移动端首页回归活动入口 + 自然滑卡/生活照详情
+ * ===================================================================== */
+@media (max-width: 680px) {
+  .site-body[data-view="home"] .hero,
+  .site-body[data-view="home"] .sec {
+    display: none;
+  }
+
+  .mobile-home {
+    display: block;
+    position: relative;
+    z-index: 1;
+    width: min(calc(100vw - 28px), 362px);
+    min-height: calc(100vh - 58px);
+    margin-left: 14px;
+    padding: 18px 0 calc(112px + env(safe-area-inset-bottom));
+    box-sizing: border-box;
+  }
+  .mh-hero {
+    min-height: 250px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 24px 18px;
+    border-radius: 24px;
+    border: 1px solid rgba(103, 255, 213, 0.18);
+    background:
+      radial-gradient(circle at 78% 16%, rgba(167, 255, 79, 0.14), transparent 30%),
+      radial-gradient(circle at 20% 0%, rgba(40, 255, 200, 0.16), transparent 34%),
+      linear-gradient(145deg, rgba(7, 24, 28, 0.98), rgba(4, 10, 14, 0.98));
+    box-shadow: 0 26px 62px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  .mh-hero h1 {
+    margin: 18px 0 8px;
+    font-family: var(--display);
+    font-size: 45px;
+    line-height: 0.95;
+    color: #eafff8;
+    text-shadow: 0 0 28px rgba(40, 255, 200, 0.38);
+  }
+  .mh-hero p {
+    margin: 0;
+    color: var(--text-soft);
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  .mh-live {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 22px;
+    padding: 14px;
+    border-radius: 16px;
+  }
+  .mh-live span,
+  .mh-card-top span {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 900;
+  }
+  .mh-live b {
+    display: block;
+    margin-top: 5px;
+    color: #fff;
+    font-size: 17px;
+  }
+  .mh-live strong {
+    color: var(--neon);
+    font-family: var(--display);
+    font-size: 22px;
+    white-space: nowrap;
+  }
+  .mh-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .mh-stats span {
+    min-width: 0;
+    padding: 11px 6px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.035);
+    text-align: center;
+  }
+  .mh-stats b {
+    display: block;
+    color: var(--neon);
+    font-family: var(--display);
+    font-size: 23px;
+    line-height: 1;
+  }
+  .mh-stats em {
+    display: block;
+    margin-top: 5px;
+    color: var(--muted);
+    font-style: normal;
+    font-size: 11px;
+  }
+  .mh-grid {
+    display: grid;
+    gap: 10px;
+  }
+  .mh-card {
+    min-height: 128px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 16px;
+    border-radius: 18px;
+    color: var(--text);
+    text-decoration: none;
+  }
+  .mh-card-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .mh-card-top b {
+    color: var(--neon);
+    font-family: var(--display);
+    font-size: 19px;
+  }
+  .mh-faces {
+    display: flex;
+    align-items: flex-end;
+    min-height: 68px;
+    padding-top: 12px;
+  }
+  .mh-faces span {
+    width: 62px;
+    height: 70px;
+    margin-right: -10px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 18px;
+    border: 1px solid rgba(40, 255, 200, 0.28);
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.22);
+  }
+  .mh-faces img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center top;
+  }
+  .mh-work {
+    border-color: rgba(var(--rgb), 0.24);
+    background:
+      radial-gradient(circle at 86% 20%, rgba(var(--rgb), 0.16), transparent 34%),
+      rgba(255, 255, 255, 0.035);
+  }
+  .mh-card h3 {
+    margin: 18px 0 8px;
+    color: #fff;
+    font-size: 20px;
+    line-height: 1.25;
+  }
+  .mh-card p {
+    margin: 0;
+    color: var(--text-soft);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .mobile-trainee-overview {
+    display: none;
+  }
+  .mobile-people-stage {
+    width: min(calc(100vw - 28px), 362px);
+    min-height: calc(100vh - 58px);
+    margin-left: 14px;
+    padding: 14px 0 calc(104px + env(safe-area-inset-bottom));
+    gap: 14px;
+  }
+  .mobile-people-head h1 {
+    font-size: 28px;
+  }
+  .mobile-swipe-deck {
+    height: min(68vh, 590px);
+    min-height: 520px;
+  }
+  .mobile-person-card {
+    border-radius: 28px;
+  }
+  .mobile-card-active {
+    inset: 0 0 34px 0;
+    cursor: pointer;
+  }
+  .mobile-card-ghost.ghost-one {
+    inset: 0 8px 16px;
+    transform: translateY(30px) scale(0.97) rotate(2deg);
+    opacity: 0.48;
+  }
+  .mobile-card-ghost.ghost-two {
+    inset: 0 16px 2px;
+    transform: translateY(52px) scale(0.93) rotate(-3deg);
+    opacity: 0.3;
+  }
+  .mobile-card-photo-wrap {
+    flex: 1 1 auto;
+    min-height: 360px;
+    max-height: none;
+    padding: 12px 12px 0;
+  }
+  .mobile-person-main {
+    padding: 15px 18px 0;
+  }
+  .mobile-person-main h2 {
+    font-size: 38px;
+  }
+  .mobile-person-line {
+    margin-top: 8px;
+  }
+  .mobile-tool-tags {
+    margin-top: 9px;
+    padding-bottom: 16px;
+  }
+  .mobile-card-controls,
+  .mobile-card-profile,
+  .mobile-trainee-rail {
+    display: none;
+  }
+  .mobile-card-progress {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    padding: 2px 0 0;
+  }
+  .mobile-card-progress span {
+    width: 5px;
+    height: 5px;
+    border-radius: 99px;
+    background: rgba(255, 255, 255, 0.22);
+    transition: width 180ms ease, background 180ms ease;
+  }
+  .mobile-card-progress span.on {
+    width: 20px;
+    background: var(--neon);
+    box-shadow: 0 0 10px rgba(40, 255, 200, 0.48);
+  }
+
+  .mobile-profile-detail {
+    position: relative;
+    z-index: 1;
+    width: min(calc(100vw - 28px), 362px);
+    min-height: calc(100vh - 58px);
+    margin-left: 14px;
+    padding: 14px 0 calc(104px + env(safe-area-inset-bottom));
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .mobile-detail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .mobile-detail-head button {
+    width: 42px;
+    height: 42px;
+    border: 1px solid rgba(103, 255, 213, 0.2);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--neon);
+    font-size: 28px;
+    line-height: 1;
+  }
+  .mobile-detail-head span {
+    color: var(--neon);
+    font-family: var(--display);
+    font-size: 17px;
+  }
+  .mobile-detail-card {
+    overflow: hidden;
+    border-radius: 28px;
+    border: 1px solid rgba(103, 255, 213, 0.2);
+    background: linear-gradient(180deg, rgba(10, 27, 30, 0.98), rgba(3, 9, 13, 0.98));
+    box-shadow: 0 26px 60px rgba(0, 0, 0, 0.48);
+  }
+  .mobile-detail-photo {
+    height: min(54vh, 430px);
+    min-height: 340px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 50% 10%, rgba(40, 255, 200, 0.12), transparent 42%),
+      rgba(255, 255, 255, 0.025);
+  }
+  .mobile-detail-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center center;
+    display: block;
+  }
+  .mobile-detail-name {
+    padding: 16px 18px 0;
+  }
+  .mobile-detail-name span {
+    display: inline-flex;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: rgba(40, 255, 200, 0.1);
+    color: var(--neon);
+    font-size: 11px;
+    font-weight: 900;
+  }
+  .mobile-detail-name h1 {
+    margin: 10px 0 2px;
+    color: #fff;
+    font-family: var(--display);
+    font-size: 42px;
+    line-height: 0.95;
+  }
+  .mobile-detail-name em {
+    color: var(--text-soft);
+    font-style: normal;
+    font-size: 13px;
+  }
+  .mobile-detail-card > p {
+    margin: 12px 18px 0;
+    color: var(--text-soft);
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+  .mobile-profile-detail .mobile-back-fields {
+    padding-bottom: 8px;
   }
 }
