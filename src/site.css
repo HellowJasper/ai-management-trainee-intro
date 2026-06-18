@@ -220,11 +220,6 @@
 .score-note li b { display: block; font-size: 14px; }
 .score-note li span { display: block; margin-top: 5px; color: var(--muted); font-size: 11px; line-height: 1.35; }
 
-.track-mini-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
-.track-mini { padding: 16px; border-radius: 14px; border: 1px solid rgba(var(--rgb), 0.22); border-top: 3px solid var(--accent); background: rgba(var(--rgb), 0.055); }
-.track-mini b { display: block; font-family: var(--display); font-size: 26px; color: var(--accent); }
-.track-mini span { display: block; margin-top: 6px; font-weight: 800; }
-.track-mini em { display: block; margin-top: 6px; color: var(--muted); font-style: normal; font-size: 12px; }
 .team-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
 .team-card { display: flex; flex-direction: column; gap: 12px; min-height: 440px; padding: 18px 16px; border-top: 3px solid var(--accent); }
 .team-card.mine { border-color: var(--neon-2); box-shadow: 0 0 30px rgba(167, 255, 79, 0.12); }
@@ -302,7 +297,7 @@
   .entry-grid, .mech2-grid, .dash-grid, .team-grid { grid-template-columns: repeat(2, 1fr); }
   .tk2-grid { grid-template-columns: repeat(3, 1fr); }
   .hw-grid, .gl2-grid, .flow-row { grid-template-columns: repeat(2, 1fr); }
-  .timeline-grid, .track-mini-grid, .quick-grid { grid-template-columns: repeat(2, 1fr); }
+  .timeline-grid, .quick-grid { grid-template-columns: repeat(2, 1fr); }
   .score-note, .vote-overview, .judge-row { grid-template-columns: 1fr; }
   .judge-head { display: none; }
   .judge-input-grid { grid-template-columns: repeat(3, 1fr); }
@@ -314,7 +309,7 @@
   .nav-links.open { display: flex; }
   .nav-burger { display: block; }
   .nav-login, .nav-phase { display: none; }
-  .entry-grid, .mech2-grid, .tk2-grid, .hw-grid, .gl2-grid, .flow-row, .dash-grid, .team-grid, .timeline-grid, .track-mini-grid, .quick-grid, .judge-input-grid, .score-note ul { grid-template-columns: 1fr; }
+  .entry-grid, .mech2-grid, .tk2-grid, .hw-grid, .gl2-grid, .flow-row, .dash-grid, .team-grid, .timeline-grid, .quick-grid, .judge-input-grid, .score-note ul { grid-template-columns: 1fr; }
   .schedule-live, .team-status, .vote-overview, .judge-toolbar, .team-foot { align-items: flex-start; flex-direction: column; }
   .schedule-count, .vote-total { text-align: left; }
   .rk-row { grid-template-columns: auto 1fr auto; }
@@ -613,11 +608,6 @@
 .wk-doc-tx b { display: block; font-size: 16px; }
 .wk-doc-tx span { font-size: 12px; opacity: 0.8; }
 .wk-doc i { margin-left: auto; font-style: normal; font-size: 18px; }
-.wk-sublinks { display: flex; gap: 10px; margin-bottom: 16px; }
-.wk-sublinks a { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 11px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.03); color: var(--text-soft); text-decoration: none; font-size: 13px; }
-.wk-sublinks a svg { width: 18px; height: 18px; }
-.wk-sublinks a:hover { border-color: var(--line-strong); color: var(--neon); }
-
 /* =======================================================================
  *  横向排版（赛道 + 作品展厅）—— 1080P 铺满
  * ===================================================================== */
@@ -766,11 +756,6 @@
   .timeline-grid { gap: 10px; }
   .timeline-item { min-height: 96px; }
   .score-note ul { grid-template-columns: 1fr; }
-  .track-mini-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .track-mini { padding: 14px; }
-  .track-mini b { font-size: 23px; }
-  .track-mini span { font-size: 13px; line-height: 1.35; }
-
   .team-grid { grid-template-columns: 1fr; gap: 12px; }
   .team-card { min-height: auto; padding: 18px; }
   .team-head { min-height: 0; }
@@ -812,7 +797,7 @@
   .wk-carousel { overflow: hidden; }
   .wkc-slide { min-height: 220px; padding: 34px 22px; }
   .wkc-arrow { width: 38px; height: 38px; }
-  .wkc-foot, .wk-sublinks { flex-direction: column; align-items: stretch; }
+  .wkc-foot { flex-direction: column; align-items: stretch; }
   .wk-people { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .wk-status-list { grid-template-columns: 1fr; }
 
@@ -848,7 +833,7 @@
 }
 
 /* =======================================================================
- *  移动端重做：新人一览优先 + 独立翻卡浏览
+ *  移动端重做：新人一览优先 + 独立滑卡浏览
  * ===================================================================== */
 @media (max-width: 680px) {
   .site-body[data-view="home"] .hero { display: none; }
@@ -1258,5 +1243,163 @@
   .mobile-card-empty {
     margin: auto;
     color: var(--muted);
+  }
+}
+
+/* =======================================================================
+ *  v4：移动端滑卡重做 + 入口鉴权
+ * ===================================================================== */
+.auth-gate { position: fixed; inset: 0; z-index: 180; display: none; place-items: center; padding: 18px; box-sizing: border-box; }
+.auth-gate.show { display: grid; }
+.auth-gate-backdrop { position: absolute; inset: 0; background: rgba(2, 8, 14, 0.76); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.auth-card { position: relative; z-index: 1; width: min(420px, 100%); padding: 24px; border-radius: 20px; }
+.auth-card h2 { margin: 10px 0 8px; font-family: var(--display); font-size: 34px; color: #fff; }
+.auth-card p { margin: 0 0 18px; color: var(--text-soft); line-height: 1.6; }
+.auth-role-grid { display: grid; gap: 10px; }
+.auth-role-grid button { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 58px; border-radius: 14px; border: 1px solid rgba(103, 255, 213, 0.18); background: rgba(255, 255, 255, 0.045); color: var(--text); padding: 12px 14px; text-align: left; }
+.auth-role-grid button:hover { border-color: rgba(40, 255, 200, 0.46); background: rgba(40, 255, 200, 0.09); }
+.auth-role-grid b { font-size: 16px; }
+.auth-role-grid span { color: var(--text-soft); font-size: 12px; }
+
+.gl2-cover-label { position: relative; z-index: 1; font-family: var(--nav-pixel); font-size: 9px; letter-spacing: 0.12em; color: var(--accent); }
+.gl2-cover-name { position: relative; z-index: 1; max-width: 100%; }
+.gl2-shot em { position: relative; z-index: 1; color: var(--text-soft); font-style: normal; font-size: 13px; }
+
+@media (max-width: 680px) {
+  .mto-photo {
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 20%, rgba(40, 255, 200, 0.12), rgba(2, 8, 14, 0.36));
+  }
+  .mto-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center top;
+    display: block;
+  }
+  .mobile-people-stage {
+    overflow: visible;
+    gap: 12px;
+    padding: 12px 0 calc(100px + env(safe-area-inset-bottom));
+  }
+  .mobile-people-head {
+    padding: 0;
+  }
+  .mobile-people-head .ph-en { letter-spacing: 0.18em; }
+  .mobile-people-head h1 { font-size: 27px; }
+  .mobile-swipe-deck {
+    --swipe-x: 0px;
+    --swipe-rot: 0deg;
+    position: relative;
+    height: min(58vh, 500px);
+    min-height: 458px;
+    touch-action: pan-y;
+    perspective: 1100px;
+  }
+  .mobile-person-card {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: 26px;
+    border: 1px solid rgba(103, 255, 213, 0.22);
+    background:
+      radial-gradient(circle at 18% 12%, rgba(40, 255, 200, 0.18), transparent 34%),
+      linear-gradient(180deg, rgba(8, 24, 28, 0.98), rgba(3, 9, 13, 0.98));
+    box-shadow:
+      0 26px 60px rgba(0, 0, 0, 0.52),
+      0 0 34px rgba(40, 255, 200, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+  .mobile-card-active {
+    display: flex;
+    flex-direction: column;
+    transform: translateX(var(--swipe-x)) rotate(var(--swipe-rot));
+    transition: transform 180ms ease;
+    z-index: 3;
+  }
+  .mobile-card-ghost {
+    pointer-events: none;
+    opacity: 0.42;
+    filter: saturate(0.82) brightness(0.72);
+  }
+  .mobile-card-ghost.ghost-one { transform: translateY(14px) scale(0.94) rotate(2deg); z-index: 2; }
+  .mobile-card-ghost.ghost-two { transform: translateY(28px) scale(0.88) rotate(-3deg); z-index: 1; opacity: 0.26; }
+  .mobile-card-photo-wrap {
+    position: relative;
+    flex: 0 0 min(42vh, 356px);
+    min-height: 302px;
+    max-height: 366px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    padding: 10px 10px 0;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 36%),
+      radial-gradient(circle at 50% 24%, rgba(40, 255, 200, 0.16), transparent 44%);
+  }
+  .mobile-card-photo {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    object-fit: contain;
+    object-position: center center;
+    display: block;
+    filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.32));
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+  .mobile-card-ghost .mobile-card-photo {
+    object-fit: cover;
+    object-position: center top;
+  }
+  .mobile-person-main {
+    padding: 13px 18px 0;
+    background: linear-gradient(180deg, rgba(3, 12, 14, 0.72), rgba(3, 12, 14, 0.98));
+  }
+  .mobile-person-main h2 { font-size: 34px; }
+  .mobile-person-line { margin-top: 7px; }
+  .mobile-tool-tags { margin-top: 8px; padding-bottom: 14px; }
+  .mobile-card-controls {
+    grid-template-columns: 1fr 1.2fr 1fr;
+  }
+  .mobile-card-controls button {
+    min-height: 44px;
+    border-color: rgba(103, 255, 213, 0.22);
+  }
+  .mobile-card-profile {
+    border: 1px solid rgba(103, 255, 213, 0.16);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.035);
+    padding: 16px;
+  }
+  .mobile-profile-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .mobile-profile-top b {
+    color: #fff;
+    font-size: 18px;
+  }
+  .mobile-profile-top span {
+    color: var(--neon);
+    font-size: 12px;
+    font-weight: 900;
+  }
+  .mobile-trainee-rail {
+    padding-bottom: 10px;
+  }
+  .gl2-h .gl2-shot {
+    min-height: 160px;
+    gap: 7px;
+  }
+  .gl2-h .gl2-shot .gl2-cover-name {
+    font-size: 24px;
+    line-height: 1.18;
   }
 }

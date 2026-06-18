@@ -9,20 +9,23 @@
   const VOTE_KEY = "joincare_hackathon_vote";
   const TEAM_KEY = "joincare_hackathon_team";
   const JUDGE_KEY = "joincare_hackathon_judge_scores";
+  const ROLE_KEY = "joincare_hackathon_role";
   const PHASE = "published"; // voting | published —— 投票期不显示排名，公布后才出最终排行
   let TRAINEES = [];
   let MOBILE_TRAINEE_INDEX = 0;
-  let MOBILE_CARD_FLIPPED = false;
+  let pendingAuthTarget = null;
 
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const pad = (n) => String(n).padStart(2, "0");
   const fmtHMS = (s) => `${pad((s / 3600) | 0)}<i>:</i>${pad(((s % 3600) / 60) | 0)}<i>:</i>${pad(s % 60)}`;
   const votedTeam = () => root.localStorage.getItem(VOTE_KEY);
   const joinedTeam = () => root.localStorage.getItem(TEAM_KEY);
+  function currentRole() { return root.localStorage.getItem(ROLE_KEY); }
   const getTeam = (id) => D.teams.find((t) => t.id === id);
   const readJson = (key, fallback) => {
     try { return JSON.parse(root.localStorage.getItem(key) || JSON.stringify(fallback)); } catch (e) { return fallback; }
   };
+  const roleName = (role) => ({ player: "参赛选手", judge: "专家评委", public: "大众评委" }[role] || "待鉴权");
 
   function avatar(p, size, cls) {
     const s = size || 44;
@@ -67,6 +70,43 @@
   };
   const toolTags = (s) => String(s || "").split(/[，、,\n/]+/).map((x) => x.trim()).filter(Boolean).slice(0, 3);
 
+  function showAuthGate(target) {
+    if (currentRole()) return true;
+    pendingAuthTarget = target && target !== "entry" ? target : pendingAuthTarget;
+    let gate = doc.getElementById("authGate");
+    if (!gate) {
+      gate = doc.createElement("div");
+      gate.id = "authGate";
+      gate.className = "auth-gate";
+      doc.body.appendChild(gate);
+    }
+    gate.innerHTML = `<div class="auth-gate-backdrop"></div><section class="auth-card glass">
+      <span class="ph-en">ENTRY AUTH</span>
+      <h2>进入活动现场</h2>
+      <p>选择身份后，后续页面将按权限自动开放。</p>
+      <div class="auth-role-grid">
+        <button type="button" data-auth-role="public"><b>大众评委</b><span>浏览作品 · 投票</span></button>
+        <button type="button" data-auth-role="player"><b>参赛选手</b><span>组队 · 提交作品</span></button>
+        <button type="button" data-auth-role="judge"><b>专家评委</b><span>评分 · 评语</span></button>
+      </div>
+    </section>`;
+    gate.classList.add("show");
+    return false;
+  }
+  function closeAuthGate() {
+    const gate = doc.getElementById("authGate");
+    if (gate) gate.classList.remove("show");
+  }
+  function requireAuth(target) {
+    if (currentRole()) return true;
+    showAuthGate(target);
+    return false;
+  }
+  function syncRoleFromUrl() {
+    const role = new URLSearchParams(root.location.search).get("role");
+    if (["public", "player", "judge"].includes(role) && !currentRole()) root.localStorage.setItem(ROLE_KEY, role);
+  }
+
   function renderMobileTraineeOverview() {
     const list = traineeList();
     if (!list.length) {
@@ -74,7 +114,7 @@
     }
     const departments = new Set(list.map((p) => p.department).filter(Boolean)).size;
     const cards = list.map((p, i) => `<button class="mto-card" type="button" data-mobile-trainee="${esc(p.id)}">
-      <span class="mto-photo" style="background-image:url('${traineeImage(p)}')"></span>
+      <span class="mto-photo"><img src="${traineeImage(p)}" alt="${esc(p.name)}" /></span>
       <b>${esc(p.name)}</b>
       <em>${esc(shortText(p.department, 8))}</em>
       <i>${pad(i + 1)}</i>
@@ -82,12 +122,12 @@
     return `<section class="mobile-trainee-overview">
       <div class="container mto-shell">
         <div class="mto-head">
-          <div><span class="ph-en">PEOPLE FIRST</span><h1>新人一览</h1><p>先认识本届 ${list.length} 位 AI 管培生，再进入翻卡浏览。</p></div>
+          <div><span class="ph-en">PEOPLE FIRST</span><h1>新人一览</h1><p>先认识本届 ${list.length} 位 AI 管培生，再进入滑卡浏览。</p></div>
           <div class="mto-count"><b>${list.length}</b><span>新人</span></div>
         </div>
-        <div class="mto-stats"><span>${departments} 个部门</span><span>AI 搭子档案</span><span>翻卡浏览</span></div>
+        <div class="mto-stats"><span>${departments} 个部门</span><span>AI 搭子档案</span><span>滑卡浏览</span></div>
         <div class="mto-grid">${cards}</div>
-        <button class="mto-start" type="button" data-nav="people">进入翻卡浏览</button>
+        <button class="mto-start" type="button" data-nav="people">进入滑卡浏览</button>
       </div>
     </section>`;
   }
@@ -141,7 +181,7 @@
     <section class="container sec"><div class="sec-cap"><span></span>参赛入口 · ACTIONS</div>
       <div class="entry-grid four">
         <a class="entry-card" data-nav="schedule" style="--accent:#6ad7ff;--rgb:106,215,255"><span class="entry-ic">${ICON("calendar", "#6ad7ff")}</span><div class="entry-tx"><b>赛程介绍<i>SCHEDULE</i></b><span>三天流程 · 赛事机制 · 关键节点</span></div><span class="entry-go">➔</span></a>
-        <a class="entry-card" data-nav="team" style="--accent:#c79bff;--rgb:199,155,255"><span class="entry-ic">${ICON("team", "#c79bff")}</span><div class="entry-tx"><b>报名组队<i>TEAM</i></b><span>赛道容量 · 技术顾问 · 队员状态</span></div><span class="entry-go">➔</span></a>
+        <a class="entry-card" data-nav="team" style="--accent:#c79bff;--rgb:199,155,255"><span class="entry-ic">${ICON("team", "#c79bff")}</span><div class="entry-tx"><b>报名组队<i>TEAM</i></b><span>技术顾问 · 队员状态 · 作品方向</span></div><span class="entry-go">➔</span></a>
         <a class="entry-card" data-nav="vote" style="--accent:var(--neon-2);--rgb:167,255,79"><span class="entry-ic">${ICON("vote", "var(--neon-2)")}</span><div class="entry-tx"><b>投票状态<i>VOTE</i></b><span>一人一票 · 当前选择 · 票数分布</span></div><span class="entry-go">➔</span></a>
         <a class="entry-card" data-nav="judge" style="--accent:var(--warning);--rgb:246,255,129"><span class="entry-ic">${ICON("scale", "var(--warning)")}</span><div class="entry-tx"><b>评委评分<i>JUDGE</i></b><span>五维评分 · 草稿保存 · 演示入口</span></div><span class="entry-go">➔</span></a>
       </div>
@@ -165,6 +205,8 @@
     }
     if (MOBILE_TRAINEE_INDEX < 0 || MOBILE_TRAINEE_INDEX >= list.length) MOBILE_TRAINEE_INDEX = 0;
     const p = list[MOBILE_TRAINEE_INDEX];
+    const nextOne = list[(MOBILE_TRAINEE_INDEX + 1) % list.length];
+    const nextTwo = list[(MOBILE_TRAINEE_INDEX + 2) % list.length];
     const tags = toolTags(p.aiPartners || p.favoriteAI).map((x) => `<span>${esc(shortText(x, 12))}</span>`).join("");
     const rail = list.map((item, i) => `<button class="mobile-rail-item ${i === MOBILE_TRAINEE_INDEX ? "on" : ""}" type="button" data-mobile-trainee="${esc(item.id)}" aria-label="${esc(item.name)}">
       <span style="background-image:url('${traineeImage(item)}')"></span><b>${esc(item.name.slice(0, 1))}</b>
@@ -180,32 +222,37 @@
     return `<section class="mobile-people-stage" id="mobilePeopleStage">
       <header class="mobile-people-head">
         <button class="mobile-back-link" type="button" data-nav="home">新人一览</button>
-        <div><span class="ph-en">FLIP CARDS</span><h1>翻卡认识新人</h1></div>
+        <div><span class="ph-en">SWIPE CARDS</span><h1>滑卡认识新人</h1></div>
         <span class="mobile-card-index">${pad(MOBILE_TRAINEE_INDEX + 1)} / ${pad(list.length)}</span>
       </header>
-      <article class="mobile-flip-card ${MOBILE_CARD_FLIPPED ? "is-flipped" : ""}" data-mobile-card-flip role="button" tabindex="0" aria-label="点击翻面查看新人档案">
-        <div class="mobile-flip-inner">
-          <div class="mobile-card-face mobile-card-front">
-            <div class="mobile-portrait" style="background-image:url('${traineeImage(p)}')"></div>
-            <div class="mobile-person-main">
-              <span>${esc(p.department || "")}</span>
-              <h2>${esc(p.name)}</h2>
-              <em>${esc(p.romanName || "")}</em>
-            </div>
-            <p class="mobile-person-line">${esc(shortText(p.favoriteAI || p.aiPartners || p.aiPower, 62))}</p>
-            <div class="mobile-tool-tags">${tags}</div>
-            <small>PROFILE CARD</small>
+      <div class="mobile-swipe-deck" data-mobile-swipe-deck>
+        <article class="mobile-person-card mobile-card-ghost ghost-two" aria-hidden="true">
+          <img class="mobile-card-photo" src="${traineeImage(nextTwo)}" alt="" />
+        </article>
+        <article class="mobile-person-card mobile-card-ghost ghost-one" aria-hidden="true">
+          <img class="mobile-card-photo" src="${traineeImage(nextOne)}" alt="" />
+        </article>
+        <article class="mobile-person-card mobile-card-active">
+          <div class="mobile-card-photo-wrap">
+            <img class="mobile-card-photo" src="${traineeImage(p)}" alt="${esc(p.name)}" />
           </div>
-          <div class="mobile-card-face mobile-card-back">
-            <div class="mobile-back-top"><b>${esc(p.name)}的档案</b><span>BACK SIDE</span></div>
-            <div class="mobile-back-fields">${backFields}</div>
+          <div class="mobile-person-main">
+            <span>${esc(p.department || "")}</span>
+            <h2>${esc(p.name)}</h2>
+            <em>${esc(p.romanName || "")}</em>
           </div>
-        </div>
-      </article>
+          <p class="mobile-person-line">${esc(shortText(p.favoriteAI || p.aiPartners || p.aiPower, 62))}</p>
+          <div class="mobile-tool-tags">${tags}</div>
+        </article>
+      </div>
       <div class="mobile-card-controls">
         <button type="button" data-mobile-card-nav="-1">上一位</button>
-        <button type="button" data-mobile-card-flip>${MOBILE_CARD_FLIPPED ? "回到正面" : "翻到背面"}</button>
+        <button type="button" data-mobile-card-nav="1">换一位</button>
         <button type="button" data-mobile-card-nav="1">下一位</button>
+      </div>
+      <div class="mobile-card-profile">
+        <div class="mobile-profile-top"><b>${esc(p.name)}的档案</b><span>${esc(roleName(currentRole()))}</span></div>
+        <div class="mobile-back-fields">${backFields}</div>
       </div>
       <div class="mobile-trainee-rail">${rail}</div>
     </section>`;
@@ -219,23 +266,48 @@
     const list = traineeList();
     const next = list.findIndex((p) => p.id === id);
     if (next >= 0) MOBILE_TRAINEE_INDEX = next;
-    MOBILE_CARD_FLIPPED = false;
     renderMobilePeopleIntoMain();
   }
   function moveMobileTrainee(delta) {
     const list = traineeList();
     if (!list.length) return;
     MOBILE_TRAINEE_INDEX = (MOBILE_TRAINEE_INDEX + delta + list.length) % list.length;
-    MOBILE_CARD_FLIPPED = false;
-    renderMobilePeopleIntoMain();
-  }
-  function flipMobileTrainee() {
-    MOBILE_CARD_FLIPPED = !MOBILE_CARD_FLIPPED;
     renderMobilePeopleIntoMain();
   }
   function setupMobilePeople() {
     const stage = doc.getElementById("mobilePeopleStage");
     if (stage) stage.style.setProperty("--mobile-card-index", MOBILE_TRAINEE_INDEX);
+    bindMobileSwipeDeck();
+  }
+  function bindMobileSwipeDeck() {
+    const deck = doc.querySelector("[data-mobile-swipe-deck]");
+    if (!deck) return;
+    let startX = 0;
+    let activePointer = null;
+    const clear = () => {
+      startX = 0;
+      activePointer = null;
+      deck.style.setProperty("--swipe-x", "0px");
+      deck.style.setProperty("--swipe-rot", "0deg");
+    };
+    deck.addEventListener("pointerdown", (e) => {
+      startX = e.clientX;
+      activePointer = e.pointerId;
+      deck.setPointerCapture && deck.setPointerCapture(e.pointerId);
+    });
+    deck.addEventListener("pointermove", (e) => {
+      if (activePointer !== e.pointerId) return;
+      const dx = Math.max(-96, Math.min(96, e.clientX - startX));
+      deck.style.setProperty("--swipe-x", `${dx}px`);
+      deck.style.setProperty("--swipe-rot", `${dx / 16}deg`);
+    });
+    deck.addEventListener("pointerup", (e) => {
+      if (activePointer !== e.pointerId) return;
+      const dx = e.clientX - startX;
+      clear();
+      if (Math.abs(dx) > 54) moveMobileTrainee(dx < 0 ? 1 : -1);
+    });
+    deck.addEventListener("pointercancel", clear);
   }
   function getArcStyle(l) {
     return `--arc-x:${l.x}px;--arc-lift:${l.lift}px;--arc-rot:${l.rotation};--arc-yaw:${l.rotation * 1.65};--arc-z:${l.zIndex};--arc-scale:${l.scale}`;
@@ -303,14 +375,15 @@
     const myVote = getTeam(votedTeam());
     const draft = readJson(JUDGE_KEY, {});
     const scoredTeams = D.teams.filter((t) => draft[t.id] && Object.keys(draft[t.id]).length).length;
+    const role = currentRole();
     const cards = [
-      { label: "当前身份", value: "大众用户", sub: "演示版默认身份，可进入评委评分预览", icon: "user", accent: "var(--neon)", nav: "judge" },
+      { label: "当前身份", value: roleName(role), sub: role ? "权限已在入口完成同步" : "进入首页完成身份同步", icon: "user", accent: "var(--neon)", nav: "judge" },
       { label: "组队状态", value: myTeam ? myTeam.name : "未加入队伍", sub: myTeam ? `${myTeam.trackCode} · ${myTeam.track}` : "可选择一个赛道队伍加入", icon: "team", accent: "var(--neon-2)", nav: "team" },
       { label: "投票状态", value: myVote ? `已投 ${myVote.name}` : "尚未投票", sub: myVote ? myVote.project : "前往作品展厅或投票页完成", icon: "vote", accent: "#6ad7ff", nav: "vote" },
       { label: "评分草稿", value: `${scoredTeams}/${D.teams.length} 队`, sub: "本地保存，不影响正式结果", icon: "scale", accent: "var(--warning)", nav: "judge" },
     ].map((c) => `<a class="status-card glass" data-nav="${c.nav}" style="--accent:${c.accent}"><span class="status-ic">${ICON(c.icon, c.accent)}</span><small>${esc(c.label)}</small><b>${esc(c.value)}</b><em>${esc(c.sub)}</em></a>`).join("");
     const quick = [
-      ["team", "报名组队", "查看队伍容量与成员"],
+      ["team", "报名组队", "查看队伍与成员"],
       ["schedule", "赛程进度", "确认关键节点"],
       ["gallery", "作品展厅", "查看作品详情"],
       ["vote", "我的投票", "核对投票状态"],
@@ -354,7 +427,6 @@
   function renderTeam() {
     const selected = joinedTeam();
     const selectedTeam = getTeam(selected);
-    const tracks = D.tracks.map((t) => `<div class="track-mini" style="--accent:${t.accent};--rgb:${t.rgb}"><b>${esc(t.code)}</b><span>${esc(t.name)}</span><em>${esc(t.mentor)}</em></div>`).join("");
     const teams = D.teams.map((t) => {
       const count = 1 + t.members.length;
       const mine = selectedTeam && selectedTeam.id === t.id;
@@ -370,10 +442,9 @@
       </article>`;
     }).join("");
 
-    return `${pageHead("报名与组队", "选择赛道队伍，查看技术顾问、成员与容量状态", "TEAM")}
+    return `${pageHead("报名与组队", "选择赛道队伍，查看技术顾问、成员与作品方向", "TEAM")}
     <section class="container sec team-board">
       <div class="team-status glass"><div><span class="status-chip ${selectedTeam ? "on" : ""}">${selectedTeam ? "已选择队伍" : "未选择队伍"}</span><h2>${selectedTeam ? esc(selectedTeam.name) : "请选择一个队伍加入"}</h2><p>${selectedTeam ? esc(selectedTeam.project) : "演示版会把选择保存在本地浏览器，用于“我的”页面同步状态。"}</p></div><a class="btn-ghost" data-nav="schedule">查看赛程</a></div>
-      <div class="sec-cap"><span></span>赛道容量</div><div class="track-mini-grid">${tracks}</div>
       <div class="sec-cap"><span></span>队伍列表</div><div class="team-grid">${teams}</div>
     </section>`;
   }
@@ -444,7 +515,7 @@
         ? `<button class="gl2-vote ${isVoted ? "is-voted" : "dim"}" disabled>${isVoted ? "✓ 已投" : "已投票"}</button>`
         : `<button class="gl2-vote" data-vote="${t.id}">投票 ♥</button>`;
       const stack = (t.stack || []).map((s) => `<span>${esc(s)}</span>`).join("");
-      return `<article class="gl2-card glass gl2-h ${isVoted ? "voted" : ""}" data-work="${t.id}" style="--accent:${t.accent};--rgb:${t.rgb}"><div class="gl2-shot"><span class="gl2-dots"></span><h3>${esc(t.project)}</h3><span class="gl2-bars"></span><span class="gl2-hover">点击查看作品详情 ➔</span></div><div class="gl2-mid"><div class="gl2-id"><b>${esc(t.name)}</b><span class="gl2-track2">${esc(t.trackCode)} · ${esc(t.track)}</span></div><p class="gl2-pitch">${esc(t.pitch || "")}</p><div class="gl2-stack2">${stack}</div><div class="gl2-avas">${avas}</div></div><div class="gl2-right"><div class="gl2-vcount"><b>${t.votes.toLocaleString()}</b><span>实时票数</span></div><span class="gl2-detail" data-work="${t.id}">查看详情 ➔</span>${btn}</div></article>`;
+      return `<article class="gl2-card glass gl2-h ${isVoted ? "voted" : ""}" data-work="${t.id}" style="--accent:${t.accent};--rgb:${t.rgb}"><div class="gl2-shot"><span class="gl2-dots"></span><span class="gl2-cover-label">${esc(t.trackCode)} PROJECT</span><h3 class="gl2-cover-name">${esc(t.project)}</h3><em>${esc(t.name)}</em><span class="gl2-bars"></span><span class="gl2-hover">点击查看作品详情 ➔</span></div><div class="gl2-mid"><div class="gl2-id"><b>${esc(t.name)}</b><span class="gl2-track2">${esc(t.trackCode)} · ${esc(t.track)}</span></div><p class="gl2-pitch">${esc(t.pitch || "")}</p><div class="gl2-stack2">${stack}</div><div class="gl2-avas">${avas}</div></div><div class="gl2-right"><div class="gl2-vcount"><b>${t.votes.toLocaleString()}</b><span>实时票数</span></div><span class="gl2-detail" data-work="${t.id}">查看详情 ➔</span>${btn}</div></article>`;
     }).join("");
     const banner = voted
       ? `<div class="vote-banner ok"><span class="live-dot"></span>感谢投票！你已为 <b>${esc((D.teams.find((t) => t.id === voted) || {}).name || "")}</b> 投出一票 — 一人一票。</div>`
@@ -490,11 +561,10 @@
         <div class="wk-card glass">
           <div class="wk-cap">作品交付 · DELIVERY</div>
           <a class="wk-doc" href="${L.page}" target="_blank" rel="noopener"><span class="wk-li">${ICON("doc", "var(--void)")}</span><span class="wk-doc-tx"><b>飞书作品页文档</b><span>项目介绍 · 功能 · 使用说明</span></span><i>➔</i></a>
-          <div class="wk-sublinks"><a href="${L.gitlab}" target="_blank" rel="noopener">${ICON("code", "var(--neon)")}GitLab 仓库</a><a href="${L.video}" target="_blank" rel="noopener">${ICON("play", "var(--neon)")}演示视频</a></div>
           <div class="wk-status-list">
             <div><span>提交状态</span><b>${t.submitted ? "已提交" : "待补交"}</b></div>
             <div><span>当前票数</span><b>${t.votes.toLocaleString()}</b></div>
-            <div><span>交付形式</span><b>仓库 / 文档 / 视频</b></div>
+            <div><span>交付形式</span><b>飞书作品页</b></div>
             <div><span>作品赛道</span><b>${esc(t.trackCode)} · ${esc(t.track)}</b></div>
           </div>
           <div class="wk-vote">${voteBtn}</div>
@@ -576,6 +646,13 @@
   }
   function go(key, push) {
     const v = VIEWS.find((x) => x.key === key) || VIEWS[0];
+    const protectedView = { me: true, vote: true, judge: true };
+    if (protectedView[v.key] && !currentRole()) {
+      main.innerHTML = renderHome();
+      setActive("home");
+      showAuthGate(v.key);
+      return;
+    }
     main.innerHTML = v.render();
     setActive(v.key);
     if (v.key === "people") {
@@ -603,6 +680,7 @@
     root.clearTimeout(t._h); t._h = root.setTimeout(() => t.classList.remove("show"), 2600);
   }
   function castVote(id) {
+    if (!requireAuth("vote")) return;
     if (votedTeam()) return;
     const team = D.teams.find((t) => t.id === id); if (!team) return;
     team.votes += 1;
@@ -611,12 +689,14 @@
     route();
   }
   function joinTeam(id) {
+    if (!requireAuth("team")) return;
     const team = getTeam(id); if (!team) return;
     root.localStorage.setItem(TEAM_KEY, id);
     toast(`已加入「${team.name}」`);
     route(false);
   }
   function saveJudgeDraft() {
+    if (!requireAuth("judge")) return;
     const draft = {};
     doc.querySelectorAll("[data-score]").forEach((input) => {
       const [teamId, dim] = String(input.dataset.score || "").split(":");
@@ -641,10 +721,19 @@
       const team = e.target.closest("[data-join-team]");
       const judgeSave = e.target.closest("[data-judge-save]");
       const mobileTrainee = e.target.closest("[data-mobile-trainee]");
-      const mobileFlip = e.target.closest("[data-mobile-card-flip]");
       const mobileCardNav = e.target.closest("[data-mobile-card-nav]");
+      const authRole = e.target.closest("[data-auth-role]");
       const nav = e.target.closest("[data-nav]");
       const prev = e.target.closest("[data-preview]");
+      if (authRole) {
+        root.localStorage.setItem(ROLE_KEY, authRole.dataset.authRole);
+        closeAuthGate();
+        toast(`已进入「${roleName(authRole.dataset.authRole)}」视角`);
+        const target = pendingAuthTarget;
+        pendingAuthTarget = null;
+        if (target && VIEWS.some((v) => v.key === target)) go(target);
+        return;
+      }
       if (mobileTrainee) {
         e.preventDefault();
         setMobileTrainee(mobileTrainee.dataset.mobileTrainee);
@@ -652,7 +741,6 @@
         return;
       }
       if (mobileCardNav) { e.preventDefault(); moveMobileTrainee(+mobileCardNav.dataset.mobileCardNav || 0); return; }
-      if (mobileFlip) { e.preventDefault(); flipMobileTrainee(); return; }
       if (vote) { castVote(vote.dataset.vote); return; }
       if (team) { joinTeam(team.dataset.joinTeam); return; }
       if (judgeSave) { saveJudgeDraft(); return; }
@@ -684,8 +772,10 @@
   async function init() {
     if (root.CodeRain) { rain = root.CodeRain.createCodeRain(doc.getElementById("siteRain"), { glyphs: "010101AIJOINCARE{}[]<>".split(""), fontSize: 16, fade: "rgba(2,8,14,0.06)" }); rain.start(); }
     await loadTrainees();
+    syncRoleFromUrl();
     bind();
     route(false);
+    if (!currentRole()) showAuthGate("entry");
     root.setInterval(tick, 1000);
   }
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", init); else init();
