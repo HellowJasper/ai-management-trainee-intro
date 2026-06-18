@@ -11,6 +11,7 @@
     holdMs: 4000,
     exitMs: 1200,
   });
+  const feishuLoginSessionKey = "joincare_feishu_login";
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -246,6 +247,14 @@
     return "welcome";
   }
 
+  function getFeishuLoginUiState(state = "idle") {
+    return {
+      buttonLabel: state === "authenticating" ? "正在登录飞书" : "解锁任务",
+      statusText: "",
+      sessionKey: feishuLoginSessionKey,
+    };
+  }
+
   function resolveWelcomeEntryTarget() {
     return "wall";
   }
@@ -344,6 +353,7 @@
     computeArcLayout,
     computeDockTransforms,
     computePhotoWallMetrics,
+    getFeishuLoginUiState,
     getIntroTiming,
     nextIntroState,
     normalizeTrainee,

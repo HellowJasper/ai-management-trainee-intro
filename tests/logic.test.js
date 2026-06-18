@@ -10,6 +10,7 @@ const {
   computeDockTransforms,
   computePhotoWallMetrics,
   getIntroTiming,
+  getFeishuLoginUiState,
   nextIntroState,
   normalizeTrainee,
   pickKeywordPair,
@@ -203,13 +204,31 @@ test("nextIntroState moves from intro to home", () => {
 test("landing CTA is wired for seamless Feishu auth", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
   const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
 
   assert.doesNotMatch(html, /landing-title-main/);
   assert.doesNotMatch(html, /AI黑客松/);
   assert.doesNotMatch(html, /feishuLoginButton/);
-  assert.match(appJs, /飞书登录中/);
+  assert.doesNotMatch(html, /landingAuthStatus/);
+  assert.match(html, /<button class="enter-button" type="button" id="enterButton"[^>]*>解锁任务<\/button>/);
+  assert.match(appJs, /loginWithFeishu/);
+  assert.match(dataJs, /JoincareFeishuAuth/);
   assert.match(appJs, /site\.html#home/);
   assert.equal(resolveWelcomeEntryTarget(), "wall");
+});
+
+test("Feishu login UI state keeps the unlock CTA and live login status copy", () => {
+  assert.deepEqual(getFeishuLoginUiState("idle"), {
+    buttonLabel: "解锁任务",
+    statusText: "",
+    sessionKey: "joincare_feishu_login",
+  });
+
+  assert.deepEqual(getFeishuLoginUiState("authenticating"), {
+    buttonLabel: "正在登录飞书",
+    statusText: "",
+    sessionKey: "joincare_feishu_login",
+  });
 });
 
 test("official site opens directly without the duplicate intro gate", () => {
@@ -278,7 +297,7 @@ test("landing hero uses the merged two-line cinematic hierarchy", () => {
   assert.doesNotMatch(html, /AI黑客松<\/span>/);
   assert.match(html, /<span class="landing-title-cn">AI创新黑客松大赛2026<\/span>/);
   assert.match(html, /<span class="landing-title-en">AI Innovation Hackathon 2026<\/span>/);
-  assert.match(html, /<button class="enter-button" type="button" id="enterButton">开始<\/button>/);
+  assert.match(html, /<button class="enter-button" type="button" id="enterButton"[^>]*>解锁任务<\/button>/);
   assert.match(logoBlock, /top:\s*26%/);
   assert.match(logoBlock, /width:\s*min\(38vw,\s*600px\)/);
   assert.match(css, /\.landing-stage::before\s*{[\s\S]*?centered light field/);
@@ -385,36 +404,80 @@ test("team formation screen is wired as a dedicated five-sector stage", () => {
   assert.match(dataJs, /fetchJson\("\.\/data\/teams\.json"\)/);
 });
 
-test("team formation screen uses a restrained five-column command cabin layout", () => {
+test("team formation screen uses a squad-card role claiming layout", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
   const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
   const stageBlock = css.match(/\.team-stage\s*{[\s\S]*?\n}/)?.[0] || "";
   const wrapBlock = css.match(/\.team-hub-wrap\s*{[\s\S]*?\n}/)?.[0] || "";
   const gridBlock = css.match(/\.team-grid\s*{[\s\S]*?\n}/)?.[0] || "";
-  const trackBlock = css.match(/\.team-track-card\s*{[\s\S]*?\n}/)?.[0] || "";
-  const advisorBlock = css.match(/\.team-advisor-card\s*{[\s\S]*?\n}/)?.[0] || "";
-  const memberListBlock = css.match(/\.team-member-list\s*{[\s\S]*?\n}/)?.[0] || "";
-  const memberCardBlock = css.match(/\.team-member-card\s*{[\s\S]*?\n}/)?.[0] || "";
-  const avatarBlock = css.match(/\.team-member-avatar\s*{[\s\S]*?\n}/)?.[0] || "";
+  const squadBlock = css.match(/\.team-squad-card\s*{[\s\S]*?\n}/)?.[0] || "";
+  const advisorSlotBlock = css.match(/\.team-advisor-slot\s*{[\s\S]*?\n}/)?.[0] || "";
+  const roleGridBlock = css.match(/\.team-role-grid\s*{[\s\S]*?\n}/)?.[0] || "";
+  const roleSlotBlock = css.match(/\.team-role-slot\s*{[\s\S]*?\n}/)?.[0] || "";
+  const roleAvatarBlock = css.match(/\.team-role-avatar\s*{[\s\S]*?\n}/)?.[0] || "";
+  const roleCopyBlock = css.match(/\.team-role-copy\s*{[\s\S]*?\n}/)?.[0] || "";
+  const roleMainBlock = css.match(/\.team-role-main\s*{[\s\S]*?\n}/)?.[0] || "";
+  const roleChipBlock = css.match(/\.team-role-chip\s*{[\s\S]*?\n}/)?.[0] || "";
+  const claimButtonBlock = css.match(/\.team-claim-button\s*{[\s\S]*?\n}/)?.[0] || "";
+  const roleActionBlock = css.match(/\.team-role-action\s*{[\s\S]*?\n}/)?.[0] || "";
+  const cardFooterBlock = css.match(/\.team-card-footer\s*{[\s\S]*?\n}/)?.[0] || "";
 
   assert.match(stageBlock, /grid-template-rows:\s*auto 1fr auto/);
+  assert.doesNotMatch(html, /team-hub-desc/);
+  assert.doesNotMatch(html, /先抢赛道，再认领岗位职责/);
   assert.match(css, /\.app-shell\[data-view="team"\]\s*>\s*\.team-stage/);
   assert.match(css, /\.app-shell\.view-team\s*>\s*\.team-stage/);
-  assert.match(wrapBlock, /padding:\s*clamp\(70px,\s*7\.4vh,\s*96px\)\s+clamp\(28px,\s*3\.8vw,\s*56px\)\s+clamp\(56px,\s*6\.2vh,\s*76px\)/);
+  assert.match(wrapBlock, /padding:\s*clamp\(72px,\s*7\.8vh,\s*102px\)\s+clamp\(32px,\s*4vw,\s*64px\)\s+clamp\(58px,\s*6\.4vh,\s*78px\)/);
   assert.match(gridBlock, /grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/);
-  assert.match(gridBlock, /height:\s*min\(640px,\s*calc\(100vh - 250px\)\)/);
-  assert.match(trackBlock, /grid-template-rows:\s*auto auto minmax\(0,\s*1fr\)/);
-  assert.match(trackBlock, /border-top:\s*1px solid rgba\(var\(--team-color-rgb\),\s*0\.58\)/);
-  assert.match(trackBlock, /background:[\s\S]*rgba\(3,\s*14,\s*18,\s*0\.76\)/);
-  assert.doesNotMatch(trackBlock, /0 20px 50px/);
-  assert.match(css, /\.team-role-label\s*{[\s\S]*?color:\s*var\(--team-color\)/);
-  assert.match(advisorBlock, /grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/);
-  assert.match(advisorBlock, /background:[\s\S]*rgba\(var\(--team-color-rgb\),\s*0\.08\)/);
-  assert.match(advisorBlock, /min-height:\s*clamp\(92px,\s*10\.6vh,\s*120px\)/);
-  assert.match(memberListBlock, /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
-  assert.match(memberListBlock, /grid-template-rows:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
-  assert.match(memberCardBlock, /grid-template-columns:\s*1fr/);
-  assert.match(memberCardBlock, /align-content:\s*space-between/);
-  assert.match(avatarBlock, /background-image:\s*var\(--avatar-image\)/);
+  assert.match(gridBlock, /height:\s*min\(660px,\s*calc\(100vh - 252px\)\)/);
+  assert.match(squadBlock, /grid-template-rows:\s*auto auto minmax\(0,\s*1fr\) auto/);
+  assert.match(squadBlock, /border-top:\s*1px solid rgba\(var\(--team-color-rgb\),\s*0\.62\)/);
+  assert.match(squadBlock, /background:[\s\S]*rgba\(3,\s*14,\s*18,\s*0\.72\)/);
+  assert.doesNotMatch(squadBlock, /0 20px 50px/);
+  assert.doesNotMatch(appJs, /team-advisor-card/);
+  assert.doesNotMatch(appJs, /TRACK ADVISOR/);
+  assert.doesNotMatch(css, /\.team-advisor-card/);
+  assert.doesNotMatch(css, /\.team-role-label/);
+  assert.match(appJs, /advisorFilledCount/);
+  assert.match(appJs, /TEAM_ROLE_BLUEPRINT\.length \+ 1/);
+  assert.match(appJs, /team-advisor-slot/);
+  assert.match(appJs, /LEAD/);
+  assert.match(appJs, /isClaimedAdvisor/);
+  assert.match(appJs, /data-role-key="advisor"/);
+  assert.match(appJs, /抢顾问位/);
+  assert.match(appJs, /我的顾问位/);
+  assert.doesNotMatch(appJs, /已报名/);
+  assert.match(advisorSlotBlock, /margin:\s*clamp\(7px,\s*0\.85vh,\s*10px\)\s+0/);
+  assert.match(advisorSlotBlock, /border-color:\s*rgba\(var\(--team-color-rgb\),\s*0\.28\)/);
+  assert.match(advisorSlotBlock, /background:[\s\S]*rgba\(var\(--team-color-rgb\),\s*0\.1\)/);
+  assert.match(roleGridBlock, /grid-template-columns:\s*1fr/);
+  assert.match(roleGridBlock, /grid-template-rows:\s*repeat\(4,\s*minmax\(58px,\s*1fr\)\)/);
+  assert.match(roleGridBlock, /gap:\s*clamp\(8px,\s*0\.75vw,\s*12px\)/);
+  assert.match(roleSlotBlock, /grid-template-columns:\s*auto minmax\(0,\s*1fr\) auto/);
+  assert.match(roleSlotBlock, /align-items:\s*center/);
+  assert.match(roleAvatarBlock, /background-image:\s*var\(--avatar-image\)/);
+  assert.match(roleCopyBlock, /display:\s*grid/);
+  assert.match(roleCopyBlock, /align-content:\s*center/);
+  assert.match(roleMainBlock, /display:\s*flex/);
+  assert.match(roleMainBlock, /align-items:\s*center/);
+  assert.match(roleMainBlock, /gap:\s*8px/);
+  assert.doesNotMatch(roleChipBlock, /margin-bottom/);
+  assert.match(claimButtonBlock, /min-height:\s*clamp\(30px,\s*3\.6vh,\s*38px\)/);
+  assert.match(roleActionBlock, /border:\s*1px solid rgba\(var\(--team-color-rgb\),\s*0\.24\)/);
+  assert.doesNotMatch(roleActionBlock, /grid-column:\s*1\s*\/\s*-1/);
+  assert.doesNotMatch(css, /\.team-role-status/);
+  assert.match(cardFooterBlock, /margin-top:\s*clamp\(7px,\s*0\.8vh,\s*10px\)/);
+  assert.doesNotMatch(appJs, /team-action-status/);
+  assert.doesNotMatch(css, /\.team-action-status/);
+  assert.match(appJs, /TEAM_ROLE_BLUEPRINT/);
+  assert.match(appJs, /team-squad-card/);
+  assert.match(appJs, /data-track-id="\$\{escapeAttribute\(team\.id \|\| ""\)\}"/);
+  assert.match(appJs, /team-role-slot/);
+  assert.match(appJs, /team-role-main/);
+  assert.match(appJs, /team-claim-button/);
+  assert.match(appJs, /data-team-action="claim-track"/);
+  assert.match(appJs, /data-team-action="claim-role"/);
 });
 
 test("business scenario cards use the requested 02-03-04 accent rotation", () => {

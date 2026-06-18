@@ -3,6 +3,8 @@
   root.AppApi = api;
   root.AppData = api;
 })(typeof globalThis !== "undefined" ? globalThis : window, function createDataLoader(root) {
+  const FEISHU_LOGIN_REDIRECT = "./site.html#home";
+
   async function fetchJson(url, options = {}) {
     const response = await fetch(url, {
       cache: "no-store",
@@ -77,6 +79,47 @@
     });
   }
 
+  function readFeishuSession(sessionKey) {
+    try {
+      return root.sessionStorage?.getItem(sessionKey) || "";
+    } catch {
+      return "";
+    }
+  }
+
+  function writeFeishuSession(sessionKey, value) {
+    try {
+      root.sessionStorage?.setItem(sessionKey, value);
+    } catch {
+      // Ignore storage failures so the later real Feishu integration can still decide the redirect.
+    }
+  }
+
+  async function loginWithFeishu({ redirectUrl = FEISHU_LOGIN_REDIRECT, sessionKey = "joincare_feishu_login" } = {}) {
+    const existingSession = readFeishuSession(sessionKey);
+    if (existingSession) {
+      return {
+        authenticated: true,
+        firstLoginRequired: false,
+        mode: "cached",
+        redirectUrl,
+      };
+    }
+
+    if (root.JoincareFeishuAuth && typeof root.JoincareFeishuAuth.login === "function") {
+      return root.JoincareFeishuAuth.login({ redirectUrl, sessionKey });
+    }
+
+    writeFeishuSession(sessionKey, "placeholder");
+
+    return {
+      authenticated: true,
+      firstLoginRequired: true,
+      mode: "placeholder",
+      redirectUrl,
+    };
+  }
+
   async function saveSentence(traineeId, sentence) {
     const trainee = await fetchJson(`/api/trainees/${encodeURIComponent(traineeId)}/sentence`, {
       method: "PATCH",
@@ -130,6 +173,7 @@
     loadAdminState,
     loadTeams,
     loadTrainees,
+    loginWithFeishu,
     saveSentence,
     updateAdminStage,
     updateTrainee,

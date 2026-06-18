@@ -262,8 +262,37 @@ const libraryB = [
   "Bug"
 ];
 
+const TEAM_ROLE_BLUEPRINT = [
+  {
+    key: "business",
+    label: "业务洞察",
+    labelEn: "BIZ",
+    description: "拆解场景价值，定义问题边界",
+  },
+  {
+    key: "ai-dev",
+    label: "AI开发",
+    labelEn: "DEV",
+    description: "搭建模型流程，完成原型能力",
+  },
+  {
+    key: "design",
+    label: "产品设计",
+    labelEn: "UX",
+    description: "设计交互路径，打磨演示界面",
+  },
+  {
+    key: "pitch",
+    label: "路演运营",
+    labelEn: "PITCH",
+    description: "组织答辩叙事，统筹现场协作",
+  },
+];
+
 let traineeState = window.AppLogic.positionJasperAtCenter(fallbackTrainees.map(window.AppLogic.normalizeTrainee));
 let teamState = [];
+let selectedTeamId = "";
+let selectedTeamRoleKey = "";
 let selectedId = traineeState.find((t) => t.id === "jasper")?.id || traineeState[0].id;
 let currentKeywords = [];
 let drawStage = 0; // 0: not drawn, 1: A drawn, 2: both A and B drawn
@@ -303,6 +332,7 @@ const discoverButton = document.getElementById("discoverButton");
 const discoverMenu = document.getElementById("discoverMenu");
 const discoverPanel = document.getElementById("discoverPanel");
 const landingActions = document.getElementById("landingActions");
+const enterButton = document.getElementById("enterButton");
 
 const rainRenderers = {
   intro: typeof window.IntroSequence !== "undefined"
@@ -627,46 +657,101 @@ function renderTeamFormation() {
     .map((team) => {
       const advisor = team.advisor || {};
       const members = Array.isArray(team.members) ? team.members.slice(0, 4) : [];
-      const memberSlots = Array.from({ length: 4 }, (_, index) => members[index] || {
-        name: `待定队友 ${index + 1}`,
-        department: "待分配",
-        role: `队友 ${String(index + 1).padStart(2, "0")}`,
-      });
+      const advisorFilledCount = advisor.name ? 1 : 0;
+      const totalSeats = TEAM_ROLE_BLUEPRINT.length + 1;
+      const roleSlots = TEAM_ROLE_BLUEPRINT.map((role, index) => ({
+        ...role,
+        member: members[index] || {
+          name: "待定队友",
+          department: "待分配",
+          photo: "",
+        },
+      }));
+      const filledCount = advisorFilledCount + members.filter((member) => member?.name).length;
+      const isSelectedTeam = selectedTeamId === team.id;
+      const isClaimedAdvisor = isSelectedTeam && selectedTeamRoleKey === "advisor";
 
       return `
-        <article class="team-track-card" style="--team-color: ${escapeAttribute(team.color || "var(--neon)")}; --team-color-rgb: ${escapeAttribute(team.colorRgb || "40, 255, 200")};">
+        <article class="team-squad-card${isSelectedTeam ? " is-selected" : ""}" data-track-id="${escapeAttribute(team.id || "")}" style="--team-color: ${escapeAttribute(team.color || "var(--neon)")}; --team-color-rgb: ${escapeAttribute(team.colorRgb || "40, 255, 200")};">
           <header class="team-track-head">
             <span class="team-track-index">${escapeHtml(team.index || "")}</span>
             <div>
               <h3>${escapeHtml(team.name || "")}</h3>
               <span>${escapeHtml(team.nameEn || "")}</span>
             </div>
+            <span class="team-seat-meter">${filledCount}/${totalSeats}</span>
           </header>
-          <section class="team-advisor-card">
-            <span class="team-role-label">TRACK ADVISOR</span>
-            <strong>${escapeHtml(advisor.name || "赛道顾问")}</strong>
-            <p>${escapeHtml(advisor.department || team.hostDepartment || "")}</p>
+          <section class="team-role-slot team-advisor-slot${isClaimedAdvisor ? " is-claimed" : ""}">
+            <div class="team-role-avatar" style="--avatar-image: ${cssUrl(advisor.photo || advisor.avatar || advisor.idPhoto || "")}">
+              <span>${escapeHtml(String(advisor.name || "?").slice(0, 1))}</span>
+            </div>
+            <div class="team-role-copy">
+              <div class="team-role-main">
+                <span class="team-role-chip">LEAD</span>
+                <strong>赛道顾问</strong>
+              </div>
+              <p>赛道牵头选手，协调业务方向</p>
+              <small>${escapeHtml(advisor.name || "待定选手")} · ${escapeHtml(advisor.department || team.hostDepartment || "待分配")}</small>
+            </div>
+            <button class="team-role-action" type="button" data-team-action="claim-role" data-track-id="${escapeAttribute(team.id || "")}" data-role-key="advisor" aria-label="${escapeAttribute(`抢占${team.name || "赛道"}赛道顾问位`)}">
+              ${isClaimedAdvisor ? "我的顾问位" : "抢顾问位"}
+            </button>
           </section>
-          <div class="team-member-list">
-            ${memberSlots
-              .map((member) => `
-                <section class="team-member-card">
-                  <div class="team-member-avatar" style="--avatar-image: ${cssUrl(member.photo)}">
-                    <span>${escapeHtml(String(member.name || "?").slice(0, 1))}</span>
-                  </div>
-                  <div class="team-member-meta">
-                    <span>${escapeHtml(member.role || "队友")}</span>
-                    <strong>${escapeHtml(member.name || "待定队友")}</strong>
-                    <p>${escapeHtml(member.department || "待分配")}</p>
-                  </div>
-                </section>
-              `)
+          <div class="team-role-grid">
+            ${roleSlots
+              .map(({ key, label, labelEn, description, member }) => {
+                const isClaimedRole = isSelectedTeam && selectedTeamRoleKey === key;
+
+                return `
+                  <section class="team-role-slot${isClaimedRole ? " is-claimed" : ""}">
+                    <div class="team-role-avatar" style="--avatar-image: ${cssUrl(member.photo)}">
+                      <span>${escapeHtml(String(member.name || "?").slice(0, 1))}</span>
+                    </div>
+                    <div class="team-role-copy">
+                      <div class="team-role-main">
+                        <span class="team-role-chip">${escapeHtml(labelEn)}</span>
+                        <strong>${escapeHtml(label)}</strong>
+                      </div>
+                      <p>${escapeHtml(description)}</p>
+                      <small>${escapeHtml(member.name || "待定队友")} · ${escapeHtml(member.department || "待分配")}</small>
+                    </div>
+                    <button class="team-role-action" type="button" data-team-action="claim-role" data-track-id="${escapeAttribute(team.id || "")}" data-role-key="${escapeAttribute(key)}" aria-label="${escapeAttribute(`认领${team.name || "赛道"}${label}职责`)}">
+                      ${isClaimedRole ? "我的职责" : "认领职责"}
+                    </button>
+                  </section>
+                `;
+              })
               .join("")}
           </div>
+          <footer class="team-card-footer">
+            <button class="team-claim-button" type="button" data-team-action="claim-track" data-track-id="${escapeAttribute(team.id || "")}" data-track-name="${escapeAttribute(team.name || "赛道")}">
+              ${isSelectedTeam ? "赛道已锁定" : "抢占赛道"}
+            </button>
+          </footer>
         </article>
       `;
     })
     .join("");
+}
+
+function handleTeamAction(actionButton) {
+  const action = actionButton.dataset.teamAction;
+  const trackId = actionButton.dataset.trackId || "";
+
+  if (!trackId) return;
+
+  selectedTeamId = trackId;
+
+  if (action === "claim-track") {
+    selectedTeamRoleKey = "";
+    renderTeamFormation();
+    return;
+  }
+
+  if (action === "claim-role") {
+    selectedTeamRoleKey = actionButton.dataset.roleKey || "";
+    renderTeamFormation();
+  }
 }
 
 function resetDock() {
@@ -1001,6 +1086,37 @@ function startAdminStatePolling() {
   adminPollTimer = window.setInterval(pollAdminState, 3000);
 }
 
+function setLandingAuthState(state) {
+  const authState = window.AppLogic.getFeishuLoginUiState(state);
+  landingActions?.classList.toggle("is-authing", state === "authenticating");
+  landingActions?.setAttribute("data-auth-state", state);
+
+  if (enterButton) {
+    enterButton.disabled = state === "authenticating";
+    enterButton.textContent = authState.buttonLabel;
+  }
+
+}
+
+async function handleLandingEntry() {
+  const authState = window.AppLogic.getFeishuLoginUiState("authenticating");
+  setLandingAuthState("authenticating");
+
+  try {
+    const result = await window.AppData.loginWithFeishu({
+      redirectUrl: "./site.html#home",
+      sessionKey: authState.sessionKey,
+    });
+    const redirectUrl = result?.redirectUrl || "./site.html#home";
+    window.setTimeout(() => {
+      window.location.href = redirectUrl;
+    }, 520);
+  } catch (error) {
+    console.warn("Feishu login failed.", error);
+    setLandingAuthState("idle");
+  }
+}
+
 function bindEvents() {
   document.getElementById("skipIntroButton").addEventListener("click", () => {
     startIntroExit(true);
@@ -1010,16 +1126,7 @@ function bindEvents() {
     landingStage.classList.toggle("backdrop-mode");
   });
 
-  document.getElementById("enterButton").addEventListener("click", () => {
-    const enterButton = document.getElementById("enterButton");
-    landingActions?.classList.add("is-authing");
-    enterButton.disabled = true;
-    enterButton.textContent = "飞书登录中...";
-    window.sessionStorage.setItem("joincare_feishu_login", "demo");
-    window.setTimeout(() => {
-      window.location.href = "./site.html#home";
-    }, 520);
-  });
+  enterButton.addEventListener("click", handleLandingEntry);
 
   document.getElementById("welcomeEnterButton").addEventListener("click", () => {
     setView(window.AppLogic.resolveWelcomeEntryTarget());
@@ -1067,9 +1174,14 @@ function bindEvents() {
     const profileNavDirection = event.target.closest("[data-profile-nav]")?.dataset.profileNav;
     const viewTarget = event.target.dataset.viewTarget;
     const discoverTarget = event.target.dataset.discoverTarget;
+    const teamActionButton = event.target.closest("[data-team-action]");
 
     if (profileNavDirection && detailLayer.classList.contains("is-open")) {
       switchAdjacentProfile(profileNavDirection);
+      return;
+    }
+    if (teamActionButton) {
+      handleTeamAction(teamActionButton);
       return;
     }
     if (action === "close") {
