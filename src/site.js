@@ -11,6 +11,8 @@
   const JUDGE_KEY = "joincare_hackathon_judge_scores";
   const PHASE = "published"; // voting | published —— 投票期不显示排名，公布后才出最终排行
   let TRAINEES = [];
+  let MOBILE_TRAINEE_INDEX = 0;
+  let MOBILE_CARD_FLIPPED = false;
 
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const pad = (n) => String(n).padStart(2, "0");
@@ -56,6 +58,39 @@
     page: `https://joincare.feishu.cn/docx/work-${t.id}`,
     video: `https://joincare.feishu.cn/file/demo-${t.id}`,
   });
+  const isMobileView = () => root.matchMedia("(max-width: 680px)").matches;
+  const traineeList = () => TRAINEES || [];
+  const traineeImage = (p) => esc((p && (p.idPhoto || p.photo)) || "");
+  const shortText = (s, n) => {
+    const v = String(s || "").replace(/\s+/g, " ").trim();
+    return v.length > n ? `${v.slice(0, n)}...` : v;
+  };
+  const toolTags = (s) => String(s || "").split(/[，、,\n/]+/).map((x) => x.trim()).filter(Boolean).slice(0, 3);
+
+  function renderMobileTraineeOverview() {
+    const list = traineeList();
+    if (!list.length) {
+      return `<section class="mobile-trainee-overview"><div class="container"><div class="mto-empty">新人资料加载中</div></div></section>`;
+    }
+    const departments = new Set(list.map((p) => p.department).filter(Boolean)).size;
+    const cards = list.map((p, i) => `<button class="mto-card" type="button" data-mobile-trainee="${esc(p.id)}">
+      <span class="mto-photo" style="background-image:url('${traineeImage(p)}')"></span>
+      <b>${esc(p.name)}</b>
+      <em>${esc(shortText(p.department, 8))}</em>
+      <i>${pad(i + 1)}</i>
+    </button>`).join("");
+    return `<section class="mobile-trainee-overview">
+      <div class="container mto-shell">
+        <div class="mto-head">
+          <div><span class="ph-en">PEOPLE FIRST</span><h1>新人一览</h1><p>先认识本届 ${list.length} 位 AI 管培生，再进入翻卡浏览。</p></div>
+          <div class="mto-count"><b>${list.length}</b><span>新人</span></div>
+        </div>
+        <div class="mto-stats"><span>${departments} 个部门</span><span>AI 搭子档案</span><span>翻卡浏览</span></div>
+        <div class="mto-grid">${cards}</div>
+        <button class="mto-start" type="button" data-nav="people">进入翻卡浏览</button>
+      </div>
+    </section>`;
+  }
 
   /* ---- 首页：人 + 作品 两条主线 -------------------------------------- */
   function renderHome() {
@@ -64,7 +99,7 @@
       .map((p) => avatar({ name: p.name, avatar: p.idPhoto || p.photo || p.avatar }, 46, "stack")).join("");
     const workTags = D.teams.map((t) => `<span class="wt-tag" style="--accent:${t.accent};--rgb:${t.rgb}">${esc(t.name)}</span>`).join("");
 
-    return `<section class="hero"><div class="container hero-grid">
+    return `${renderMobileTraineeOverview()}<section class="hero"><div class="container hero-grid">
       <div class="hero-copy">
         <span class="hero-kicker"><span class="live-dot"></span>LIVE · HACKATHON_PROTOCOL_2026</span>
         <h1 class="hero-title">AI创新黑客松</h1>
@@ -116,11 +151,91 @@
   /* ---- 新生看板（复用照片墙轮盘 + 点击看详情）------------------------ */
   let WALL = [];
   function renderPeople() {
+    if (isMobileView()) return renderMobilePeople();
     return `<section class="people-stage">
       <header class="people-head"><span class="ph-en">PEOPLE</span><h1>新生看板</h1><p>认识本届 AI 管培生 · 移动鼠标浏览，点击头像查看完整档案</p></header>
       <div class="photo-wall-wrap"><div class="photo-wall" id="peopleWall"></div></div>
       <div class="people-hint">← 滑动浏览 · 点击头像查看 TA 的完整档案 →</div>
     </section>`;
+  }
+  function renderMobilePeople() {
+    const list = traineeList();
+    if (!list.length) {
+      return `<section class="mobile-people-stage"><div class="mobile-card-empty">新人资料加载中</div></section>`;
+    }
+    if (MOBILE_TRAINEE_INDEX < 0 || MOBILE_TRAINEE_INDEX >= list.length) MOBILE_TRAINEE_INDEX = 0;
+    const p = list[MOBILE_TRAINEE_INDEX];
+    const tags = toolTags(p.aiPartners || p.favoriteAI).map((x) => `<span>${esc(shortText(x, 12))}</span>`).join("");
+    const rail = list.map((item, i) => `<button class="mobile-rail-item ${i === MOBILE_TRAINEE_INDEX ? "on" : ""}" type="button" data-mobile-trainee="${esc(item.id)}" aria-label="${esc(item.name)}">
+      <span style="background-image:url('${traineeImage(item)}')"></span><b>${esc(item.name.slice(0, 1))}</b>
+    </button>`).join("");
+    const backFields = [
+      ["专业背景", p.background],
+      ["AI 搭子", p.aiPartners],
+      ["AI 超能力", p.aiPower],
+      ["想让 AI 解决", p.aiProblem],
+      ["有趣事实", p.funFact],
+    ].filter((x) => x[1]).map(([label, value]) => `<section><span>${esc(label)}</span><p>${esc(value)}</p></section>`).join("");
+
+    return `<section class="mobile-people-stage" id="mobilePeopleStage">
+      <header class="mobile-people-head">
+        <button class="mobile-back-link" type="button" data-nav="home">新人一览</button>
+        <div><span class="ph-en">FLIP CARDS</span><h1>翻卡认识新人</h1></div>
+        <span class="mobile-card-index">${pad(MOBILE_TRAINEE_INDEX + 1)} / ${pad(list.length)}</span>
+      </header>
+      <article class="mobile-flip-card ${MOBILE_CARD_FLIPPED ? "is-flipped" : ""}" data-mobile-card-flip role="button" tabindex="0" aria-label="点击翻面查看新人档案">
+        <div class="mobile-flip-inner">
+          <div class="mobile-card-face mobile-card-front">
+            <div class="mobile-portrait" style="background-image:url('${traineeImage(p)}')"></div>
+            <div class="mobile-person-main">
+              <span>${esc(p.department || "")}</span>
+              <h2>${esc(p.name)}</h2>
+              <em>${esc(p.romanName || "")}</em>
+            </div>
+            <p class="mobile-person-line">${esc(shortText(p.favoriteAI || p.aiPartners || p.aiPower, 62))}</p>
+            <div class="mobile-tool-tags">${tags}</div>
+            <small>PROFILE CARD</small>
+          </div>
+          <div class="mobile-card-face mobile-card-back">
+            <div class="mobile-back-top"><b>${esc(p.name)}的档案</b><span>BACK SIDE</span></div>
+            <div class="mobile-back-fields">${backFields}</div>
+          </div>
+        </div>
+      </article>
+      <div class="mobile-card-controls">
+        <button type="button" data-mobile-card-nav="-1">上一位</button>
+        <button type="button" data-mobile-card-flip>${MOBILE_CARD_FLIPPED ? "回到正面" : "翻到背面"}</button>
+        <button type="button" data-mobile-card-nav="1">下一位</button>
+      </div>
+      <div class="mobile-trainee-rail">${rail}</div>
+    </section>`;
+  }
+  function renderMobilePeopleIntoMain() {
+    if (doc.body.dataset.view !== "people" || !isMobileView()) return;
+    main.innerHTML = renderMobilePeople();
+    setActive("people");
+  }
+  function setMobileTrainee(id) {
+    const list = traineeList();
+    const next = list.findIndex((p) => p.id === id);
+    if (next >= 0) MOBILE_TRAINEE_INDEX = next;
+    MOBILE_CARD_FLIPPED = false;
+    renderMobilePeopleIntoMain();
+  }
+  function moveMobileTrainee(delta) {
+    const list = traineeList();
+    if (!list.length) return;
+    MOBILE_TRAINEE_INDEX = (MOBILE_TRAINEE_INDEX + delta + list.length) % list.length;
+    MOBILE_CARD_FLIPPED = false;
+    renderMobilePeopleIntoMain();
+  }
+  function flipMobileTrainee() {
+    MOBILE_CARD_FLIPPED = !MOBILE_CARD_FLIPPED;
+    renderMobilePeopleIntoMain();
+  }
+  function setupMobilePeople() {
+    const stage = doc.getElementById("mobilePeopleStage");
+    if (stage) stage.style.setProperty("--mobile-card-index", MOBILE_TRAINEE_INDEX);
   }
   function getArcStyle(l) {
     return `--arc-x:${l.x}px;--arc-lift:${l.lift}px;--arc-rot:${l.rotation};--arc-yaw:${l.rotation * 1.65};--arc-z:${l.zIndex};--arc-scale:${l.scale}`;
@@ -436,7 +551,7 @@
     { key: "brief", label: "大赛介绍", render: renderBrief, hidden: true },
   ];
   const MOBILE_TABS = [
-    { key: "home", label: "首页", icon: "target" },
+    { key: "home", label: "新人", icon: "target" },
     { key: "schedule", label: "赛程", icon: "calendar" },
     { key: "team", label: "组队", icon: "team" },
     { key: "gallery", label: "作品", icon: "doc" },
@@ -447,11 +562,12 @@
   const navLinks = doc.getElementById("navLinks");
   const mobileTabbar = doc.getElementById("mobileTabbar");
   let rain = null;
+  let lastMobileView = isMobileView();
 
   function setActive(key) {
     navLinks.querySelectorAll("a").forEach((a) => a.classList.toggle("on", a.dataset.nav === key));
     if (mobileTabbar) {
-      const tabKey = key === "vote" || key === "result" ? "gallery" : key;
+      const tabKey = key === "people" ? "home" : (key === "vote" || key === "result" ? "gallery" : key);
       mobileTabbar.querySelectorAll("a").forEach((a) => a.classList.toggle("on", a.dataset.nav === tabKey));
     }
     doc.body.dataset.view = key;
@@ -462,7 +578,10 @@
     const v = VIEWS.find((x) => x.key === key) || VIEWS[0];
     main.innerHTML = v.render();
     setActive(v.key);
-    if (v.key === "people") setupWall();
+    if (v.key === "people") {
+      if (isMobileView()) setupMobilePeople();
+      else setupWall();
+    }
     if (push !== false && location.hash.slice(1) !== v.key) history.pushState(null, "", `#${v.key}`);
   }
   function showWork(id, push) {
@@ -521,8 +640,19 @@
       const vote = e.target.closest("[data-vote]");
       const team = e.target.closest("[data-join-team]");
       const judgeSave = e.target.closest("[data-judge-save]");
+      const mobileTrainee = e.target.closest("[data-mobile-trainee]");
+      const mobileFlip = e.target.closest("[data-mobile-card-flip]");
+      const mobileCardNav = e.target.closest("[data-mobile-card-nav]");
       const nav = e.target.closest("[data-nav]");
       const prev = e.target.closest("[data-preview]");
+      if (mobileTrainee) {
+        e.preventDefault();
+        setMobileTrainee(mobileTrainee.dataset.mobileTrainee);
+        if (doc.body.dataset.view !== "people") go("people");
+        return;
+      }
+      if (mobileCardNav) { e.preventDefault(); moveMobileTrainee(+mobileCardNav.dataset.mobileCardNav || 0); return; }
+      if (mobileFlip) { e.preventDefault(); flipMobileTrainee(); return; }
       if (vote) { castVote(vote.dataset.vote); return; }
       if (team) { joinTeam(team.dataset.joinTeam); return; }
       if (judgeSave) { saveJudgeDraft(); return; }
@@ -534,7 +664,16 @@
     });
     root.addEventListener("hashchange", () => route(false));
     root.addEventListener("scroll", () => doc.getElementById("siteNav").classList.toggle("scrolled", root.scrollY > 20));
-    root.addEventListener("resize", () => { rain && rain.resize(); if (doc.body.dataset.view === "people") renderWall(); });
+    root.addEventListener("resize", () => {
+      rain && rain.resize();
+      const nowMobile = isMobileView();
+      if (doc.body.dataset.view === "people") {
+        if (nowMobile !== lastMobileView) route(false);
+        else if (nowMobile) setupMobilePeople();
+        else renderWall();
+      }
+      lastMobileView = nowMobile;
+    });
   }
 
   function tick() { doc.querySelectorAll("[data-countdown]").forEach((el) => { let r = Math.max(0, (+el.dataset.remain || 0) - 1); el.dataset.remain = r; el.innerHTML = fmtHMS(r); }); }

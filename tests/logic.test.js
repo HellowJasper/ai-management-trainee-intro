@@ -275,11 +275,30 @@ test("official site includes a mobile app shell with bottom tab navigation", () 
   assert.match(siteCss, /\.mobile-tabbar\s+a\s*{[\s\S]*min-width:\s*0/);
 });
 
+test("mobile site puts trainee overview first and uses a dedicated flip-card browser", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.match(siteJs, /function renderMobileTraineeOverview\(/);
+  assert.match(siteJs, /function renderMobilePeople\(/);
+  assert.match(siteJs, /function setMobileTrainee\(/);
+  assert.match(siteJs, /function flipMobileTrainee\(/);
+  assert.match(siteJs, /data-mobile-trainee/);
+  assert.match(siteJs, /data-mobile-card-flip/);
+  assert.match(siteJs, /data-mobile-card-nav/);
+  assert.match(siteJs, /root\.matchMedia\("\(max-width: 680px\)"\)/);
+  assert.match(siteCss, /\.mobile-trainee-overview/);
+  assert.match(siteCss, /\.mobile-people-stage/);
+  assert.match(siteCss, /\.mobile-flip-card/);
+  assert.match(siteCss, /@media \(min-width:\s*681px\)[\s\S]*\.mobile-trainee-overview\s*{[\s\S]*display:\s*none/);
+  assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.mobile-people-stage\s*{[\s\S]*display:\s*flex/);
+});
+
 test("official site cache keys are bumped after mobile shell expansion", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260618-02/);
-  assert.match(html, /src\/site\.js\?v=20260618-02/);
+  assert.match(html, /src\/site\.css\?v=20260618-03/);
+  assert.match(html, /src\/site\.js\?v=20260618-03/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
