@@ -253,6 +253,14 @@ test("official site has desktop styling hooks for the added PC pages", () => {
   });
 });
 
+test("team page uses a symmetric five-column desktop layout", () => {
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.match(siteCss, /\.team-grid\s*{[\s\S]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(siteCss, /\.team-card\s*{[\s\S]*min-height:\s*440px/);
+  assert.match(siteCss, /\.team-roster\s*{[\s\S]*justify-content:\s*center/);
+});
+
 test("official site cache keys are bumped after PC page expansion", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
