@@ -218,6 +218,48 @@ test("official site opens directly without the duplicate intro gate", () => {
   assert.match(siteCss, /overflow-y:\s*auto/);
 });
 
+test("official site exposes all requested PC pages in the SPA router", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /const TEAM_KEY = "joincare_hackathon_team"/);
+  assert.match(siteJs, /const JUDGE_KEY = "joincare_hackathon_judge_scores"/);
+  assert.match(siteJs, /function renderMe\(/);
+  assert.match(siteJs, /function renderTeam\(/);
+  assert.match(siteJs, /function renderSchedule\(/);
+  assert.match(siteJs, /function renderVote\(/);
+  assert.match(siteJs, /function renderJudge\(/);
+
+  assert.match(siteJs, /key:\s*"schedule", label:\s*"赛程"/);
+  assert.match(siteJs, /key:\s*"team", label:\s*"组队"/);
+  assert.match(siteJs, /key:\s*"vote", label:\s*"投票"/);
+  assert.match(siteJs, /key:\s*"judge", label:\s*"评委评分"/);
+});
+
+test("official site wires my page, team join and judge score interactions", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /if \(e\.target\.closest\("#navLogin"\)\) \{ go\("me"\); return; \}/);
+  assert.match(siteJs, /data-join-team/);
+  assert.match(siteJs, /function joinTeam\(/);
+  assert.match(siteJs, /data-judge-save/);
+  assert.match(siteJs, /function saveJudgeDraft\(/);
+});
+
+test("official site has desktop styling hooks for the added PC pages", () => {
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  [".me-dashboard", ".team-board", ".schedule-board", ".vote-board", ".judge-board", ".status-chip"].forEach((selector) => {
+    assert.match(siteCss, new RegExp(selector.replace(".", "\\.")));
+  });
+});
+
+test("official site cache keys are bumped after PC page expansion", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
+
+  assert.match(html, /src\/site\.css\?v=20260618-01/);
+  assert.match(html, /src\/site\.js\?v=20260618-01/);
+});
+
 test("terminal boot welcome stage is wired into the HTML", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
 
