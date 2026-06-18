@@ -261,11 +261,25 @@ test("team page uses a symmetric five-column desktop layout", () => {
   assert.match(siteCss, /\.team-roster\s*{[\s\S]*justify-content:\s*center/);
 });
 
-test("official site cache keys are bumped after PC page expansion", () => {
+test("official site includes a mobile app shell with bottom tab navigation", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.match(html, /id="mobileTabbar"/);
+  assert.match(siteJs, /const MOBILE_TABS = \[/);
+  assert.match(siteJs, /mobileTabbar\.innerHTML/);
+  assert.match(siteJs, /mobileTabbar\.querySelectorAll\("a"\)/);
+  assert.match(siteCss, /\.mobile-tabbar/);
+  assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.mobile-tabbar\s*{[\s\S]*position:\s*fixed/);
+  assert.match(siteCss, /\.mobile-tabbar\s+a\s*{[\s\S]*min-width:\s*0/);
+});
+
+test("official site cache keys are bumped after mobile shell expansion", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260618-01/);
-  assert.match(html, /src\/site\.js\?v=20260618-01/);
+  assert.match(html, /src\/site\.css\?v=20260618-02/);
+  assert.match(html, /src\/site\.js\?v=20260618-02/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {

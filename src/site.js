@@ -203,7 +203,7 @@
       ["result", "最终排行", "查看综合结果"],
     ].map(([nav, title, sub]) => `<a class="quick-link" data-nav="${nav}"><b>${esc(title)}</b><span>${esc(sub)}</span><i>➔</i></a>`).join("");
 
-    return `${pageHead("我的", "身份、组队、投票与评分入口集中管理", "MY DESK")}
+    return `${pageHead("角色工作台", "身份、组队、投票与评分入口按角色分权", "ROLE DESK")}
     <section class="container sec me-dashboard">
       <div class="status-strip">
         <span class="status-chip on">${myTeam ? "已组队" : "待组队"}</span>
@@ -435,13 +435,25 @@
     { key: "judge", label: "评委评分", render: renderJudge, hidden: true },
     { key: "brief", label: "大赛介绍", render: renderBrief, hidden: true },
   ];
+  const MOBILE_TABS = [
+    { key: "home", label: "首页", icon: "target" },
+    { key: "schedule", label: "赛程", icon: "calendar" },
+    { key: "team", label: "组队", icon: "team" },
+    { key: "gallery", label: "作品", icon: "doc" },
+    { key: "me", label: "角色", icon: "user" },
+  ];
 
   const main = doc.getElementById("siteMain");
   const navLinks = doc.getElementById("navLinks");
+  const mobileTabbar = doc.getElementById("mobileTabbar");
   let rain = null;
 
   function setActive(key) {
     navLinks.querySelectorAll("a").forEach((a) => a.classList.toggle("on", a.dataset.nav === key));
+    if (mobileTabbar) {
+      const tabKey = key === "vote" || key === "result" ? "gallery" : key;
+      mobileTabbar.querySelectorAll("a").forEach((a) => a.classList.toggle("on", a.dataset.nav === tabKey));
+    }
     doc.body.dataset.view = key;
     navLinks.classList.remove("open");
     root.scrollTo({ top: 0, behavior: "auto" });
@@ -501,6 +513,9 @@
 
   function bind() {
     navLinks.innerHTML = VIEWS.filter((v) => !v.hidden).map((v) => `<a data-nav="${v.key}" href="#${v.key}">${v.label}</a>`).join("");
+    if (mobileTabbar) {
+      mobileTabbar.innerHTML = MOBILE_TABS.map((v) => `<a data-nav="${v.key}" href="#${v.key}"><span aria-hidden="true">${ICON(v.icon, "currentColor")}</span><b>${esc(v.label)}</b></a>`).join("");
+    }
     doc.addEventListener("click", (e) => {
       const work = e.target.closest("[data-work]");
       const vote = e.target.closest("[data-vote]");
