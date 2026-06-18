@@ -308,12 +308,33 @@ let countdownTimer = null;
 let countdownStartedAt = null;
 let countdownDurationMs = 24 * 60 * 60 * 1000;
 let countdownLoadRequestId = 0;
+let roadshowTimer = null;
+let roadshowState = {
+  currentTeamId: "marketing",
+  currentTeam: null,
+  nextTeamId: "functions",
+  nextTeam: null,
+  phase: "DEMO",
+  startedAt: 0,
+  durationMs: 15 * 60 * 1000,
+};
+let roadshowLoadRequestId = 0;
+let voteResultsState = {
+  pointScale: [100, 85, 70, 55, 40],
+  results: [],
+  status: "voting",
+  windowLabel: "大众投票窗口开启中",
+  updatedAt: "",
+};
+let voteResultsLoadRequestId = 0;
 
 const introTiming = window.AppLogic.getIntroTiming();
 const INTRO_HOLD_MS = introTiming.holdMs;
 const INTRO_EXIT_MS = introTiming.exitMs;
 const COUNTDOWN_STORAGE_KEY = "joincare_mission_countdown_started_at_manual_v2";
 const COUNTDOWN_DURATION_MS = 24 * 60 * 60 * 1000;
+const ROADSHOW_STORAGE_KEY = "joincare_roadshow_timer_started_at_manual_v1";
+const ROADSHOW_DURATION_MS = 15 * 60 * 1000;
 
 const appShell = document.querySelector(".app-shell");
 const introStage = document.getElementById("introStage");
@@ -322,6 +343,10 @@ const welcomeStage = document.getElementById("welcomeStage");
 const personaWallStage = document.getElementById("personaWallStage");
 const teamStage = document.getElementById("teamStage");
 const countdownStage = document.getElementById("countdownStage");
+const roadshowStage = document.getElementById("roadshowStage");
+const voteStage = document.getElementById("voteStage");
+const voteResultStage = document.getElementById("voteResultStage");
+const finalResultStage = document.getElementById("finalResultStage");
 const photoWall = document.getElementById("photoWall");
 const teamGrid = document.getElementById("teamGrid");
 const countdownHours = document.getElementById("countdownHours");
@@ -330,6 +355,32 @@ const countdownSeconds = document.getElementById("countdownSeconds");
 const countdownStatus = document.getElementById("countdownStatus");
 const countdownProgress = document.getElementById("countdownProgress");
 const countdownStartButton = document.getElementById("countdownStartButton");
+const roadshowTeamCode = document.getElementById("roadshowTeamCode");
+const roadshowTeamName = document.getElementById("roadshowTeamName");
+const roadshowProject = document.getElementById("roadshowProject");
+const roadshowTrackName = document.getElementById("roadshowTrackName");
+const roadshowPhase = document.getElementById("roadshowPhase");
+const roadshowRoster = document.getElementById("roadshowRoster");
+const roadshowCommandStatus = document.getElementById("roadshowCommandStatus");
+const roadshowNextTeamName = document.getElementById("roadshowNextTeamName");
+const roadshowNextProject = document.getElementById("roadshowNextProject");
+const roadshowTimerTeam = document.getElementById("roadshowTimerTeam");
+const roadshowTimerPhase = document.getElementById("roadshowTimerPhase");
+const roadshowTimerNext = document.getElementById("roadshowTimerNext");
+const roadshowMinutes = document.getElementById("roadshowMinutes");
+const roadshowSeconds = document.getElementById("roadshowSeconds");
+const roadshowProgress = document.getElementById("roadshowProgress");
+const roadshowStartButton = document.getElementById("roadshowStartButton");
+const voteWindowStatus = document.getElementById("voteWindowStatus");
+const voteTotalCount = document.getElementById("voteTotalCount");
+const voteTotalOrbit = document.getElementById("voteTotalOrbit");
+const voteProgressList = document.getElementById("voteProgressList");
+const voteWinnerPanel = document.getElementById("voteWinnerPanel");
+const voteResultTable = document.getElementById("voteResultTable");
+const votePointScale = document.getElementById("votePointScale");
+const finalResultChampion = document.getElementById("finalResultChampion");
+const finalResultLeaderboard = document.getElementById("finalResultLeaderboard");
+const finalResultPointScale = document.getElementById("finalResultPointScale");
 const detailLayer = document.getElementById("detailLayer");
 const challengeLayer = document.getElementById("challengeLayer");
 const drawCard = document.querySelector(".draw-card");
@@ -359,6 +410,10 @@ const rainRenderers = {
   discover: createRain("discoverRain", { fontSize: 18, fade: "rgba(2, 8, 14, 0.04)" }),
   team: createRain("teamRain", { fontSize: 18, fade: "rgba(2, 8, 14, 0.04)" }),
   countdown: createRain("countdownRain", { fontSize: 18, density: 0.68, fade: "rgba(2, 8, 14, 0.045)" }),
+  roadshow: createRain("roadshowRain", { fontSize: 18, density: 0.7, fade: "rgba(2, 8, 14, 0.045)" }),
+  vote: createRain("voteRain", { fontSize: 18, density: 0.72, fade: "rgba(2, 8, 14, 0.045)" }),
+  voteResult: createRain("voteResultRain", { fontSize: 18, density: 0.66, fade: "rgba(2, 8, 14, 0.045)" }),
+  finalResult: createRain("finalResultRain", { fontSize: 18, density: 0.6, fade: "rgba(2, 8, 14, 0.045)" }),
 };
 
 const discoverParticles = typeof window.createParticles === "function"
@@ -382,6 +437,10 @@ const viewStages = {
   discover: document.getElementById("discoverStage"),
   team: document.getElementById("teamStage"),
   countdown: document.getElementById("countdownStage"),
+  roadshow: document.getElementById("roadshowStage"),
+  vote: document.getElementById("voteStage"),
+  voteResult: document.getElementById("voteResultStage"),
+  finalResult: document.getElementById("finalResultStage"),
 };
 
 function createRain(id, options) {
@@ -412,6 +471,10 @@ function syncStages(view) {
   setStageActive(viewStages.discover, view === "discover");
   setStageActive(viewStages.team, view === "team");
   setStageActive(viewStages.countdown, view === "countdown");
+  setStageActive(viewStages.roadshow, view === "roadshow");
+  setStageActive(viewStages.vote, view === "vote");
+  setStageActive(viewStages.voteResult, view === "vote-result");
+  setStageActive(viewStages.finalResult, view === "final-result");
 }
 
 function syncRain(view) {
@@ -431,8 +494,16 @@ function syncRain(view) {
                 : view === "team"
                   ? ["team"]
                   : view === "countdown"
-                    ? ["countdown"]
-                    : ["wall"]
+                  ? ["countdown"]
+                  : view === "roadshow"
+                    ? ["roadshow"]
+                    : view === "vote"
+                      ? ["vote"]
+                      : view === "vote-result"
+                        ? ["voteResult"]
+                        : view === "final-result"
+                          ? ["finalResult"]
+                        : ["wall"]
   );
 
   Object.entries(rainRenderers).forEach(([key, rain]) => {
@@ -469,7 +540,7 @@ function startIntroExit(skipped = false) {
   introStage.style.pointerEvents = "none";
 
   appShell.dataset.view = "intro-exit";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown", "view-roadshow", "view-vote", "view-vote-result", "view-final-result");
   appShell.classList.add("view-intro-exit");
 
   rainRenderers.home?.resize();
@@ -502,7 +573,7 @@ function selectedTrainee() {
 function setView(view) {
   appView = view;
   appShell.dataset.view = view;
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown", "view-roadshow", "view-vote", "view-vote-result", "view-final-result");
   appShell.classList.add(`view-${view}`);
   syncStages(view);
 
@@ -517,6 +588,14 @@ function setView(view) {
     syncCountdownClock();
   } else {
     stopCountdownClock();
+  }
+  if (view === "roadshow") {
+    syncRoadshowTimer();
+  } else {
+    stopRoadshowTimer();
+  }
+  if (view === "vote" || view === "vote-result" || view === "final-result") {
+    syncVoteResults();
   }
   discoverPanel.classList.remove("is-visible");
 }
@@ -898,6 +977,457 @@ function stopCountdownClock() {
   countdownTimer = null;
 }
 
+function applyRoadshowState(state = {}) {
+  const nextStartedAt = Number(state.startedAt);
+  const nextDurationMs = Number(state.durationMs);
+
+  roadshowState = {
+    ...roadshowState,
+    ...state,
+    currentTeamId: state.currentTeamId || roadshowState.currentTeamId || "marketing",
+    currentTeam: state.currentTeam || roadshowState.currentTeam,
+    nextTeamId: state.nextTeamId || roadshowState.nextTeamId || "functions",
+    nextTeam: state.nextTeam || roadshowState.nextTeam,
+    phase: state.phase || roadshowState.phase || "DEMO",
+    startedAt: Number.isFinite(nextStartedAt) && nextStartedAt > 0 ? nextStartedAt : 0,
+    durationMs: Number.isFinite(nextDurationMs) && nextDurationMs > 0
+      ? nextDurationMs
+      : ROADSHOW_DURATION_MS,
+  };
+
+  return { ...roadshowState };
+}
+
+function resolveRoadshowTeam() {
+  const teamId = roadshowState.currentTeamId || selectedTeamId || "marketing";
+  const dataTeam = teamState.find((team) => team.id === teamId) || teamState[2] || teamState[0] || {};
+  const stateTeam = roadshowState.currentTeam || {};
+
+  return {
+    ...dataTeam,
+    ...stateTeam,
+    id: stateTeam.id || dataTeam.id || teamId,
+    index: stateTeam.index || dataTeam.index || dataTeam.trackCode || "03",
+    name: stateTeam.name || dataTeam.name || "当前路演队伍",
+    nameEn: stateTeam.nameEn || dataTeam.nameEn || dataTeam.track || "LIVE ROADSHOW",
+    project: stateTeam.project || dataTeam.project || dataTeam.hostDepartment || "AI 创新解决方案路演中",
+    color: stateTeam.color || dataTeam.color || "var(--neon)",
+    colorRgb: stateTeam.colorRgb || dataTeam.colorRgb || dataTeam.rgb || "40, 255, 200",
+    advisor: dataTeam.advisor || {},
+    members: Array.isArray(dataTeam.members) ? dataTeam.members : [],
+  };
+}
+
+function resolveNextRoadshowTeam() {
+  const currentTeam = resolveRoadshowTeam();
+  const stateTeam = roadshowState.nextTeam || {};
+  const nextTeamId = roadshowState.nextTeamId || stateTeam.id || "";
+  const byId = teamState.find((team) => team.id === nextTeamId);
+  const currentIndex = teamState.findIndex((team) => team.id === currentTeam.id);
+  const fallback = currentIndex >= 0
+    ? teamState[(currentIndex + 1) % teamState.length]
+    : teamState.find((team) => team.id !== currentTeam.id) || {};
+  const dataTeam = byId || fallback || {};
+
+  return {
+    ...dataTeam,
+    ...stateTeam,
+    id: stateTeam.id || dataTeam.id || nextTeamId,
+    name: stateTeam.name || dataTeam.name || "待定队伍",
+    project: stateTeam.project || dataTeam.project || dataTeam.hostDepartment || "等待后端控场指定",
+  };
+}
+
+function formatRoadshowDuration(durationMs = ROADSHOW_DURATION_MS) {
+  const totalSeconds = Math.max(0, Math.floor((Number(durationMs) || ROADSHOW_DURATION_MS) / 1000));
+  return {
+    minutes: String(Math.floor(totalSeconds / 60)).padStart(2, "0"),
+    seconds: String(totalSeconds % 60).padStart(2, "0"),
+  };
+}
+
+function renderRoadshowStage() {
+  if (!roadshowTeamName) return;
+
+  const team = resolveRoadshowTeam();
+  const nextTeam = resolveNextRoadshowTeam();
+  const roster = [team.advisor, ...team.members]
+    .filter((member) => member && member.name)
+    .slice(0, 5);
+
+  roadshowStage?.style.setProperty("--roadshow-color", team.color || "var(--neon)");
+  roadshowStage?.style.setProperty("--roadshow-color-rgb", team.colorRgb || "40, 255, 200");
+
+  if (roadshowTeamCode) roadshowTeamCode.textContent = String(team.index || "03").padStart(2, "0");
+  roadshowTeamName.textContent = team.name || "当前路演队伍";
+  if (roadshowProject) roadshowProject.textContent = team.project || "AI 创新解决方案路演中";
+  if (roadshowTrackName) roadshowTrackName.textContent = team.nameEn || team.track || "LIVE ROADSHOW";
+  if (roadshowPhase) roadshowPhase.textContent = roadshowState.phase || "DEMO";
+  if (roadshowNextTeamName) roadshowNextTeamName.textContent = nextTeam.name || "待定队伍";
+  if (roadshowNextProject) roadshowNextProject.textContent = nextTeam.project || "等待后端控场指定";
+  if (roadshowTimerTeam) roadshowTimerTeam.textContent = team.name || "当前队伍";
+  if (roadshowTimerPhase) roadshowTimerPhase.textContent = roadshowState.phase || "DEMO";
+  if (roadshowTimerNext) roadshowTimerNext.textContent = nextTeam.name || "待定队伍";
+  if (roadshowRoster) {
+    roadshowRoster.innerHTML = roster.map((member, index) => {
+      const seatLabel = index === 0 ? "LEAD" : `S${String(index + 1).padStart(2, "0")}`;
+      const avatarUrl = member.photo || member.avatar || member.idPhoto || "";
+      const avatarState = avatarUrl ? "has-photo" : "is-placeholder";
+      const avatarMark = index === 0 ? "赛" : String(member.name || "?").slice(0, 1);
+
+      return `
+      <div class="roadshow-member" data-member-seat="${escapeAttribute(seatLabel)}">
+        <span class="roadshow-member-seat">${escapeHtml(seatLabel)}</span>
+        <span class="roadshow-member-avatar ${avatarState}" data-avatar-mark="${escapeAttribute(avatarMark)}" style="--avatar-image: ${cssUrl(avatarUrl)}" aria-hidden="true"></span>
+        <span class="roadshow-member-copy">
+          <b>${escapeHtml(member.name || `队员 ${index + 1}`)}</b>
+          <em>${escapeHtml(member.department || member.role || "路演成员")}</em>
+        </span>
+        <span class="roadshow-member-status">${escapeHtml(index === 0 ? "ON" : "READY")}</span>
+      </div>
+    `;
+    }).join("");
+  }
+}
+
+function readRoadshowStartedAt() {
+  return Number(roadshowState.startedAt) || 0;
+}
+
+async function loadRoadshowState() {
+  try {
+    return applyRoadshowState(await window.AppData.loadRoadshow({
+      storageKey: ROADSHOW_STORAGE_KEY,
+      durationMs: ROADSHOW_DURATION_MS,
+    }));
+  } catch (error) {
+    console.warn("Roadshow state failed to load.", error);
+    return applyRoadshowState(roadshowState);
+  }
+}
+
+function renderRoadshowTimer() {
+  renderRoadshowStage();
+
+  const startedAt = readRoadshowStartedAt();
+
+  if (!startedAt) {
+    const readyTimer = formatRoadshowDuration(roadshowState.durationMs);
+    if (roadshowMinutes) roadshowMinutes.textContent = readyTimer.minutes;
+    if (roadshowSeconds) roadshowSeconds.textContent = readyTimer.seconds;
+    if (roadshowProgress) roadshowProgress.style.transform = "scaleX(0)";
+    if (roadshowStartButton) {
+      roadshowStartButton.disabled = false;
+      roadshowStartButton.textContent = "START ROADSHOW";
+    }
+    if (roadshowCommandStatus) roadshowCommandStatus.textContent = "STANDBY";
+    return;
+  }
+
+  const timer = window.AppLogic.getRoadshowTimerState({
+    startedAt,
+    durationMs: roadshowState.durationMs,
+  });
+
+  if (roadshowMinutes) roadshowMinutes.textContent = timer.minutes;
+  if (roadshowSeconds) roadshowSeconds.textContent = timer.seconds;
+  if (roadshowProgress) roadshowProgress.style.transform = `scaleX(${timer.progress})`;
+  if (roadshowStartButton) {
+    roadshowStartButton.disabled = true;
+    roadshowStartButton.textContent = timer.isComplete ? "ROADSHOW COMPLETE" : "ROADSHOW RUNNING";
+  }
+  if (roadshowCommandStatus) {
+    roadshowCommandStatus.textContent = timer.isComplete ? "COMPLETE" : "ON AIR";
+  }
+}
+
+async function syncRoadshowTimer() {
+  const requestId = ++roadshowLoadRequestId;
+  await loadRoadshowState();
+  if (requestId !== roadshowLoadRequestId) {
+    return;
+  }
+
+  renderRoadshowTimer();
+  if (!readRoadshowStartedAt()) {
+    stopRoadshowTimer();
+    return;
+  }
+  startRoadshowTimer();
+}
+
+async function handleRoadshowStart() {
+  if (roadshowStartButton) {
+    roadshowStartButton.disabled = true;
+    roadshowStartButton.textContent = "STARTING ROADSHOW";
+  }
+
+  if (!readRoadshowStartedAt()) {
+    const team = resolveRoadshowTeam();
+    try {
+      applyRoadshowState(await window.AppData.startRoadshowTimer({
+        storageKey: ROADSHOW_STORAGE_KEY,
+        durationMs: roadshowState.durationMs || ROADSHOW_DURATION_MS,
+        currentTeamId: team.id || roadshowState.currentTeamId,
+        nextTeamId: resolveNextRoadshowTeam().id || roadshowState.nextTeamId,
+        startedAt: Date.now(),
+      }));
+    } catch (error) {
+      console.warn("Roadshow timer start failed.", error);
+      applyRoadshowState({
+        currentTeamId: team.id || roadshowState.currentTeamId,
+        startedAt: Date.now(),
+        durationMs: roadshowState.durationMs || ROADSHOW_DURATION_MS,
+      });
+    }
+  }
+
+  startRoadshowTimer();
+}
+
+function startRoadshowTimer() {
+  window.clearInterval(roadshowTimer);
+  renderRoadshowTimer();
+  roadshowTimer = window.setInterval(renderRoadshowTimer, 1000);
+}
+
+function stopRoadshowTimer() {
+  window.clearInterval(roadshowTimer);
+  roadshowTimer = null;
+}
+
+function applyVoteResultsState(payload = {}) {
+  voteResultsState = {
+    pointScale: Array.isArray(payload.pointScale) && payload.pointScale.length
+      ? payload.pointScale
+      : [100, 85, 70, 55, 40],
+    results: Array.isArray(payload.results) ? payload.results : [],
+    status: payload.status || "voting",
+    windowLabel: payload.windowLabel || "大众投票窗口开启中",
+    updatedAt: payload.updatedAt || "",
+  };
+
+  return { ...voteResultsState };
+}
+
+function getVoteRanking() {
+  return window.AppLogic.computeVoteRanking(voteResultsState.results, voteResultsState.pointScale);
+}
+
+function getFinalResults() {
+  return window.AppLogic.computeFinalResults(voteResultsState.results, voteResultsState.pointScale);
+}
+
+async function loadVoteResultsState() {
+  try {
+    return applyVoteResultsState(await window.AppData.loadVoteResults(voteResultsState.results));
+  } catch (error) {
+    console.warn("Vote results failed to load.", error);
+    return applyVoteResultsState(voteResultsState);
+  }
+}
+
+function renderVoteProgress() {
+  const ranking = getVoteRanking();
+  const totalVotes = ranking[0]?.totalVotes || 0;
+
+  if (voteWindowStatus) voteWindowStatus.textContent = voteResultsState.windowLabel || "VOTING";
+  if (voteTotalCount) voteTotalCount.textContent = `${totalVotes} VOTES`;
+  if (voteTotalOrbit) voteTotalOrbit.textContent = String(totalVotes).padStart(3, "0");
+
+  if (!voteProgressList) return;
+  if (!ranking.length) {
+    voteProgressList.innerHTML = `
+      <div class="vote-empty-state">
+        <span>VOTE DATA</span>
+        <strong>SYNCING...</strong>
+      </div>
+    `;
+    return;
+  }
+
+  voteProgressList.innerHTML = ranking.map((team) => {
+    const percent = Math.round(team.voteShare * 1000) / 10;
+
+    return `
+      <article class="vote-progress-row" style="--vote-color: ${escapeAttribute(team.color || "var(--neon)")}; --vote-color-rgb: ${escapeAttribute(team.colorRgb || "40, 255, 200")}; --vote-share: ${team.voteShare};">
+        <div class="vote-row-rank">#${team.rank}</div>
+        <div class="vote-row-copy">
+          <strong>${escapeHtml(team.name || "待定队伍")}</strong>
+          <span>${escapeHtml(team.track || team.nameEn || "AI HACKATHON TEAM")}</span>
+        </div>
+        <div class="vote-row-meter" aria-hidden="true"><i></i></div>
+        <div class="vote-row-count">
+          <strong>${team.votes}</strong>
+          <span>${percent.toFixed(1)}%</span>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function renderVoteResult() {
+  const ranking = getVoteRanking();
+  const winner = ranking[0] || {};
+  const scaleText = voteResultsState.pointScale.join(" / ");
+
+  if (votePointScale) votePointScale.textContent = scaleText;
+
+  if (voteWinnerPanel) {
+    voteWinnerPanel.style.setProperty("--vote-color", winner.color || "var(--neon)");
+    voteWinnerPanel.style.setProperty("--vote-color-rgb", winner.colorRgb || "40, 255, 200");
+    voteWinnerPanel.innerHTML = ranking.length ? `
+      <span class="vote-kicker">TOP RANKED BY PUBLIC VOTE</span>
+      <div class="vote-winner-rank">#${winner.rank}</div>
+      <h2>${escapeHtml(winner.name || "待定队伍")}</h2>
+      <p>${escapeHtml(winner.project || "AI 创新解决方案")}</p>
+      <div class="vote-winner-stats">
+        <section>
+          <span>票数</span>
+          <strong>${winner.votes}</strong>
+        </section>
+        <section>
+          <span>排名赋分</span>
+          <strong>${winner.votePoints}</strong>
+        </section>
+      </div>
+    ` : `
+      <span class="vote-kicker">TOP RANKED BY PUBLIC VOTE</span>
+      <h2>等待投票数据</h2>
+      <p>结果同步后自动生成排名与赋分。</p>
+    `;
+  }
+
+  if (!voteResultTable) return;
+  voteResultTable.innerHTML = ranking.map((team) => {
+    const percent = Math.round(team.voteShare * 1000) / 10;
+
+    return `
+      <article class="vote-result-row${team.rank === 1 ? " is-winner" : ""}" style="--vote-color: ${escapeAttribute(team.color || "var(--neon)")}; --vote-color-rgb: ${escapeAttribute(team.colorRgb || "40, 255, 200")};">
+        <span class="vote-result-rank">${team.rank}</span>
+        <div class="vote-result-team">
+          <strong>${escapeHtml(team.name || "待定队伍")}</strong>
+          <span>${escapeHtml(team.track || team.nameEn || "")} / ${escapeHtml(team.project || "")}</span>
+        </div>
+        <div class="vote-result-number">
+          <span>票数</span>
+          <strong>${team.votes}</strong>
+        </div>
+        <div class="vote-result-number vote-result-share">
+          <span>占比</span>
+          <strong>${percent.toFixed(1)}%</strong>
+        </div>
+        <div class="vote-result-points">
+          <span>排名赋分</span>
+          <strong>${team.votePoints}</strong>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function renderFinalResult() {
+  const finalResults = getFinalResults();
+  const champion = finalResults[0] || {};
+  const scaleText = voteResultsState.pointScale.join(" / ");
+
+  if (finalResultPointScale) finalResultPointScale.textContent = scaleText;
+
+  if (finalResultChampion) {
+    finalResultChampion.style.setProperty("--vote-color", champion.color || "var(--neon)");
+    finalResultChampion.style.setProperty("--vote-color-rgb", champion.colorRgb || "40, 255, 200");
+    finalResultChampion.innerHTML = finalResults.length ? `
+      <span class="vote-kicker">OVERALL CHAMPION</span>
+      <div class="final-result-emblem">#1</div>
+      <h2>${escapeHtml(champion.name || "待定队伍")}</h2>
+      <p>${escapeHtml(champion.project || "AI 创新解决方案")}</p>
+      <div class="final-result-score">
+        <span>综合得分</span>
+        <strong>${champion.totalScore.toFixed(2)}</strong>
+      </div>
+      <div class="final-result-metrics">
+        <section>
+          <span>专家评审均分</span>
+          <strong>${champion.expertScore.toFixed(1)}</strong>
+        </section>
+        <section>
+          <span>大众票数</span>
+          <strong>${champion.votes}</strong>
+        </section>
+        <section>
+          <span>大众赋分</span>
+          <strong>${champion.votePoints}</strong>
+        </section>
+      </div>
+    ` : `
+      <span class="vote-kicker">OVERALL CHAMPION</span>
+      <h2>等待最终结果</h2>
+      <p>投票与评审数据同步后展示冠军。</p>
+    `;
+  }
+
+  if (!finalResultLeaderboard) return;
+  if (!finalResults.length) {
+    finalResultLeaderboard.innerHTML = `
+      <article class="final-result-row is-empty">
+        <div class="final-result-team">
+          <strong>等待冠军数据</strong>
+          <span>综合得分同步后展示冠军队伍。</span>
+        </div>
+      </article>
+    `;
+    return;
+  }
+
+  const expertWeighted = Number((champion.expertScore * 0.7).toFixed(2));
+  const voteWeighted = Number((champion.votePoints * 0.3).toFixed(2));
+
+  finalResultLeaderboard.innerHTML = `
+    <article class="final-result-row is-champion" style="--vote-color: ${escapeAttribute(champion.color || "var(--neon)")}; --vote-color-rgb: ${escapeAttribute(champion.colorRgb || "40, 255, 200")};">
+      <div class="final-result-rank">冠军</div>
+      <div class="final-result-team">
+        <strong>${escapeHtml(champion.name || "待定队伍")}</strong>
+        <span>${escapeHtml(champion.track || champion.nameEn || "")} / ${escapeHtml(champion.project || "")}</span>
+      </div>
+      <div class="final-result-total">
+        <span>TOTAL</span>
+        <strong>${champion.totalScore.toFixed(2)}</strong>
+      </div>
+    </article>
+    <div class="final-result-score-grid">
+      <section>
+        <span>专家权重 70%</span>
+        <strong>${expertWeighted.toFixed(2)}</strong>
+      </section>
+      <section>
+        <span>大众权重 30%</span>
+        <strong>${voteWeighted.toFixed(2)}</strong>
+      </section>
+      <section>
+        <span>综合得分</span>
+        <strong>${champion.totalScore.toFixed(2)}</strong>
+      </section>
+    </div>
+    <div class="final-result-context">
+      <span>CHAMPION PROFILE</span>
+      <strong>${escapeHtml(champion.project || "AI 创新解决方案")}</strong>
+      <p>${escapeHtml(champion.name || "冠军队伍")} 已在综合评分中位列第一，本页用于大屏最终展示。</p>
+    </div>
+  `;
+}
+
+async function syncVoteResults() {
+  const requestId = ++voteResultsLoadRequestId;
+  await loadVoteResultsState();
+  if (requestId !== voteResultsLoadRequestId) {
+    return;
+  }
+
+  renderVoteProgress();
+  renderVoteResult();
+  renderFinalResult();
+}
+
 function resetDock() {
   const cards = Array.from(photoWall.querySelectorAll(".profile-card"));
   cards.forEach((card) => {
@@ -1001,7 +1531,7 @@ function openDetail(id) {
   detailLayer.setAttribute("aria-hidden", "false");
   syncDetailMotion(true);
   appShell.dataset.view = "detail";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown", "view-roadshow", "view-vote", "view-vote-result", "view-final-result");
   appShell.classList.add("view-detail");
 }
 
@@ -1010,7 +1540,7 @@ function closeDetail() {
   detailLayer.classList.remove("is-open");
   detailLayer.setAttribute("aria-hidden", "true");
   appShell.dataset.view = appView === "home" ? "home" : "wall";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown", "view-roadshow", "view-vote", "view-vote-result", "view-final-result");
   appShell.classList.add(appView === "home" ? "view-home" : "view-wall");
   syncStages(appView === "home" ? "home" : "wall");
   syncRain(appView === "home" ? "home" : "wall");
@@ -1138,7 +1668,7 @@ function openChallenge() {
   challengeLayer.setAttribute("aria-hidden", "false");
   syncChallengeMotion(true);
   appShell.dataset.view = "challenge";
-    appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown");
+    appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown", "view-roadshow", "view-vote", "view-vote-result", "view-final-result");
   appShell.classList.add("view-challenge");
 
   if (trainee.previousPairs.length > 0) {
@@ -1162,7 +1692,7 @@ function closeChallenge() {
   drawWordsButton.disabled = false;
   redrawWordsButton.disabled = false;
   appShell.dataset.view = "detail";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown", "view-roadshow", "view-vote", "view-vote-result", "view-final-result");
   appShell.classList.add("view-detail");
   syncStages("detail");
   syncRain("detail");
@@ -1272,6 +1802,7 @@ function bindEvents() {
 
   enterButton.addEventListener("click", handleLandingEntry);
   countdownStartButton?.addEventListener("click", handleCountdownStart);
+  roadshowStartButton?.addEventListener("click", handleRoadshowStart);
 
   document.getElementById("welcomeEnterButton").addEventListener("click", () => {
     setView(window.AppLogic.resolveWelcomeEntryTarget());
@@ -1445,9 +1976,17 @@ async function initApp() {
 
   traineeState = window.AppLogic.positionJasperAtCenter(await window.AppData.loadTrainees(fallbackTrainees));
   teamState = await window.AppData.loadTeams([]);
+  applyRoadshowState(await window.AppData.loadRoadshow({
+    storageKey: ROADSHOW_STORAGE_KEY,
+    durationMs: ROADSHOW_DURATION_MS,
+  }));
+  applyVoteResultsState(await window.AppData.loadVoteResults([]));
   selectedId = traineeState.find((t) => t.id === "jasper")?.id || traineeState[0]?.id || "";
   renderPhotoWall();
   renderTeamFormation();
+  renderRoadshowStage();
+  renderVoteProgress();
+  renderVoteResult();
   resetDock();
   startAdminStatePolling();
 }
