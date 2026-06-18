@@ -2871,6 +2871,253 @@ button:disabled {
   mix-blend-mode: screen;
 }
 
+/* ==========================================================================
+   Mission Countdown Stage
+   ========================================================================== */
+
+.countdown-stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 520ms ease, visibility 520ms ease;
+  z-index: 14;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(40, 255, 200, 0.12), transparent 42%),
+    radial-gradient(circle at 50% 46%, rgba(167, 255, 79, 0.06), transparent 30%),
+    linear-gradient(180deg, rgba(2, 18, 20, 0.72), rgba(2, 8, 14, 0.98)),
+    var(--void);
+}
+
+.app-shell[data-view="countdown"] > .countdown-stage,
+.app-shell.view-countdown > .countdown-stage {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.app-shell.view-countdown > .home-stage {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+.countdown-rain {
+  z-index: 1;
+  opacity: 0.38;
+  mix-blend-mode: screen;
+}
+
+.countdown-hub-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: clamp(18px, 3vh, 34px);
+  padding: clamp(76px, 8vh, 104px) clamp(28px, 4vw, 64px) clamp(58px, 6vh, 78px);
+}
+
+.countdown-kicker {
+  color: var(--neon);
+  font-family: var(--nav-pixel);
+  font-size: clamp(8px, 0.72vw, 12px);
+  letter-spacing: 0.14em;
+  text-shadow: 0 0 16px rgba(40, 255, 200, 0.26);
+}
+
+.mission-countdown-core {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  width: min(1040px, 86vw);
+  padding: clamp(30px, 5vh, 58px) clamp(24px, 4vw, 56px);
+  border-top: 1px solid rgba(103, 255, 213, 0.42);
+  border-bottom: 1px solid rgba(103, 255, 213, 0.32);
+  background:
+    linear-gradient(90deg, transparent, rgba(40, 255, 200, 0.055), transparent),
+    rgba(2, 12, 15, 0.16);
+}
+
+.mission-countdown-core::before,
+.mission-countdown-core::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: min(72vw, 880px);
+  height: 1px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent, rgba(234, 255, 248, 0.54), transparent);
+  box-shadow: 0 0 18px rgba(40, 255, 200, 0.22);
+  pointer-events: none;
+}
+
+.mission-countdown-core::before {
+  top: 0;
+}
+
+.mission-countdown-core::after {
+  bottom: 0;
+}
+
+.countdown-orbit {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: min(52vw, 520px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background:
+    conic-gradient(from 0deg, transparent 0 66%, rgba(40, 255, 200, 0.36), rgba(167, 255, 79, 0.42), transparent 82% 100%);
+  -webkit-mask: radial-gradient(circle, transparent 58%, #000 59%, #000 62%, transparent 63%);
+  mask: radial-gradient(circle, transparent 58%, #000 59%, #000 62%, transparent 63%);
+  opacity: 0.5;
+  animation: countdownSweep 8s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes countdownSweep {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.countdown-status {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 clamp(12px, 2vh, 20px);
+  color: rgba(167, 255, 79, 0.86);
+  font-family: var(--nav-pixel);
+  font-size: clamp(8px, 0.62vw, 10px);
+  letter-spacing: 0.12em;
+}
+
+.countdown-digits {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: clamp(8px, 1.4vw, 22px);
+  color: rgba(238, 255, 249, 0.98);
+  font-family: "Arial Black", Impact, var(--display);
+  font-size: clamp(72px, 10.5vw, 172px);
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: 0.02em;
+  text-shadow:
+    0 0 22px rgba(234, 255, 248, 0.34),
+    0 0 48px rgba(40, 255, 200, 0.26);
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown-digits i {
+  color: rgba(40, 255, 200, 0.78);
+  font-style: normal;
+  transform: translateY(-0.06em);
+}
+
+.countdown-labels {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(30px, 6vw, 96px);
+  width: min(760px, 76vw);
+  margin-top: clamp(12px, 2vh, 20px);
+  color: rgba(213, 238, 238, 0.54);
+  font-family: var(--nav-pixel);
+  font-size: clamp(7px, 0.58vw, 9px);
+  letter-spacing: 0.1em;
+  text-align: center;
+}
+
+.countdown-progress {
+  position: relative;
+  z-index: 1;
+  width: min(720px, 74vw);
+  height: 4px;
+  margin-top: clamp(20px, 3.2vh, 32px);
+  border: 1px solid rgba(103, 255, 213, 0.18);
+  background: rgba(2, 8, 14, 0.62);
+  overflow: hidden;
+}
+
+.countdown-progress span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--neon), var(--neon-2));
+  box-shadow: 0 0 18px rgba(40, 255, 200, 0.3);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 420ms linear;
+}
+
+.countdown-start-button {
+  position: relative;
+  z-index: 1;
+  min-width: min(320px, 74vw);
+  min-height: clamp(34px, 4.2vh, 44px);
+  margin-top: clamp(18px, 3vh, 30px);
+  padding: 0 22px;
+  border: 1px solid rgba(103, 255, 213, 0.46);
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, rgba(40, 255, 200, 0.12), rgba(167, 255, 79, 0.18), rgba(40, 255, 200, 0.12)),
+    rgba(2, 12, 15, 0.68);
+  color: rgba(234, 255, 248, 0.92);
+  font-family: var(--nav-pixel);
+  font-size: clamp(8px, 0.64vw, 11px);
+  letter-spacing: 0.08em;
+  box-shadow:
+    inset 0 0 20px rgba(40, 255, 200, 0.1),
+    0 0 24px rgba(40, 255, 200, 0.12);
+  transition: color 180ms ease, background 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.countdown-start-button:hover,
+.countdown-start-button:focus-visible {
+  border-color: rgba(167, 255, 79, 0.78);
+  color: #03100e;
+  background: var(--neon-2);
+  box-shadow: 0 0 28px rgba(167, 255, 79, 0.24);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.countdown-start-button:disabled {
+  color: rgba(234, 255, 248, 0.68);
+  border-color: rgba(103, 255, 213, 0.28);
+  background: rgba(2, 12, 15, 0.58);
+  box-shadow: inset 0 0 18px rgba(40, 255, 200, 0.08);
+  cursor: default;
+  transform: none;
+}
+
+.countdown-brief {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-content: center;
+  gap: clamp(8px, 1vw, 16px);
+}
+
+.countdown-brief span {
+  min-height: 24px;
+  padding: 5px 10px;
+  border: 1px solid rgba(103, 255, 213, 0.26);
+  border-radius: 999px;
+  background: rgba(5, 20, 24, 0.48);
+  color: rgba(225, 248, 245, 0.66);
+  font-family: var(--nav-pixel);
+  font-size: clamp(7px, 0.56vw, 9px);
+  letter-spacing: 0.04em;
+}
+
 .team-hub-wrap {
   position: absolute;
   inset: 0;
@@ -3366,6 +3613,36 @@ button:disabled {
 
   .team-stage {
     overflow: auto;
+  }
+
+  .countdown-stage {
+    overflow: auto;
+  }
+
+  .countdown-hub-wrap {
+    position: relative;
+    min-height: 100vh;
+    padding: 82px 18px 34px;
+  }
+
+  .mission-countdown-core {
+    width: min(100%, 680px);
+    padding: 28px 14px;
+  }
+
+  .countdown-digits {
+    gap: 6px;
+    font-size: clamp(48px, 16vw, 88px);
+  }
+
+  .countdown-labels {
+    width: 100%;
+    gap: 14px;
+  }
+
+  .countdown-brief {
+    grid-template-columns: 1fr;
+    width: min(360px, 88vw);
   }
 
   .team-hub-wrap {

@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
 const { createAdminStateRepository } = require("./adminStateRepository");
+const { createMissionCountdownRepository } = require("./missionCountdownRepository");
 const { createTeamRepository } = require("./teamRepository");
 const { createTraineeRepository } = require("./traineeRepository");
 
@@ -84,7 +85,15 @@ function decodePathname(pathname) {
   }
 }
 
-async function routeApi(request, response, url, repository, adminStateRepository, teamRepository) {
+async function routeApi(
+  request,
+  response,
+  url,
+  repository,
+  adminStateRepository,
+  teamRepository,
+  missionCountdownRepository,
+) {
   const segments = url.pathname.split("/").filter(Boolean);
 
   if (request.method === "OPTIONS") {
@@ -114,6 +123,17 @@ async function routeApi(request, response, url, repository, adminStateRepository
 
   if (url.pathname === "/api/teams" && request.method === "GET") {
     sendJson(response, 200, await teamRepository.listTeams());
+    return true;
+  }
+
+  if (url.pathname === "/api/mission-countdown" && request.method === "GET") {
+    sendJson(response, 200, await missionCountdownRepository.getState());
+    return true;
+  }
+
+  if (url.pathname === "/api/mission-countdown/start" && request.method === "POST") {
+    const payload = await readJsonBody(request);
+    sendJson(response, 200, await missionCountdownRepository.startCountdown(payload));
     return true;
   }
 
@@ -231,6 +251,7 @@ function createServer({
   repository = createTraineeRepository(),
   adminStateRepository = createAdminStateRepository(),
   teamRepository = createTeamRepository(),
+  missionCountdownRepository = createMissionCountdownRepository(),
 } = {}) {
   const resolvedPublicRoot = path.resolve(publicRoot);
 
@@ -239,7 +260,15 @@ function createServer({
 
     try {
       if (url.pathname === "/api" || url.pathname.startsWith("/api/")) {
-        const handled = await routeApi(request, response, url, repository, adminStateRepository, teamRepository);
+        const handled = await routeApi(
+          request,
+          response,
+          url,
+          repository,
+          adminStateRepository,
+          teamRepository,
+          missionCountdownRepository,
+        );
         if (!handled) {
           sendJson(response, 404, {
             error: {

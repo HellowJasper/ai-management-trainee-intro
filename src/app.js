@@ -304,10 +304,16 @@ let introExitTimer = null;
 let isIntroExiting = false;
 let lastAdminStageSyncKey = "";
 let adminPollTimer = null;
+let countdownTimer = null;
+let countdownStartedAt = null;
+let countdownDurationMs = 24 * 60 * 60 * 1000;
+let countdownLoadRequestId = 0;
 
 const introTiming = window.AppLogic.getIntroTiming();
 const INTRO_HOLD_MS = introTiming.holdMs;
 const INTRO_EXIT_MS = introTiming.exitMs;
+const COUNTDOWN_STORAGE_KEY = "joincare_mission_countdown_started_at_manual_v2";
+const COUNTDOWN_DURATION_MS = 24 * 60 * 60 * 1000;
 
 const appShell = document.querySelector(".app-shell");
 const introStage = document.getElementById("introStage");
@@ -315,8 +321,15 @@ const landingStage = document.getElementById("landingStage");
 const welcomeStage = document.getElementById("welcomeStage");
 const personaWallStage = document.getElementById("personaWallStage");
 const teamStage = document.getElementById("teamStage");
+const countdownStage = document.getElementById("countdownStage");
 const photoWall = document.getElementById("photoWall");
 const teamGrid = document.getElementById("teamGrid");
+const countdownHours = document.getElementById("countdownHours");
+const countdownMinutes = document.getElementById("countdownMinutes");
+const countdownSeconds = document.getElementById("countdownSeconds");
+const countdownStatus = document.getElementById("countdownStatus");
+const countdownProgress = document.getElementById("countdownProgress");
+const countdownStartButton = document.getElementById("countdownStartButton");
 const detailLayer = document.getElementById("detailLayer");
 const challengeLayer = document.getElementById("challengeLayer");
 const drawCard = document.querySelector(".draw-card");
@@ -345,6 +358,7 @@ const rainRenderers = {
   challenge: createRain("challengeRain", { fontSize: 18, fade: "rgba(2, 8, 14, 0.05)" }),
   discover: createRain("discoverRain", { fontSize: 18, fade: "rgba(2, 8, 14, 0.04)" }),
   team: createRain("teamRain", { fontSize: 18, fade: "rgba(2, 8, 14, 0.04)" }),
+  countdown: createRain("countdownRain", { fontSize: 18, density: 0.68, fade: "rgba(2, 8, 14, 0.045)" }),
 };
 
 const discoverParticles = typeof window.createParticles === "function"
@@ -367,6 +381,7 @@ const viewStages = {
   wall: personaWallStage,
   discover: document.getElementById("discoverStage"),
   team: document.getElementById("teamStage"),
+  countdown: document.getElementById("countdownStage"),
 };
 
 function createRain(id, options) {
@@ -396,6 +411,7 @@ function syncStages(view) {
   setStageActive(viewStages.wall, ["wall", "detail", "challenge"].includes(view));
   setStageActive(viewStages.discover, view === "discover");
   setStageActive(viewStages.team, view === "team");
+  setStageActive(viewStages.countdown, view === "countdown");
 }
 
 function syncRain(view) {
@@ -414,7 +430,9 @@ function syncRain(view) {
                 ? ["discover"]
                 : view === "team"
                   ? ["team"]
-                  : ["wall"]
+                  : view === "countdown"
+                    ? ["countdown"]
+                    : ["wall"]
   );
 
   Object.entries(rainRenderers).forEach(([key, rain]) => {
@@ -451,7 +469,7 @@ function startIntroExit(skipped = false) {
   introStage.style.pointerEvents = "none";
 
   appShell.dataset.view = "intro-exit";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown");
   appShell.classList.add("view-intro-exit");
 
   rainRenderers.home?.resize();
@@ -484,7 +502,7 @@ function selectedTrainee() {
 function setView(view) {
   appView = view;
   appShell.dataset.view = view;
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown");
   appShell.classList.add(`view-${view}`);
   syncStages(view);
 
@@ -495,6 +513,11 @@ function setView(view) {
 
   syncRain(view);
   syncParticles(view);
+  if (view === "countdown") {
+    syncCountdownClock();
+  } else {
+    stopCountdownClock();
+  }
   discoverPanel.classList.remove("is-visible");
 }
 
@@ -754,6 +777,127 @@ function handleTeamAction(actionButton) {
   }
 }
 
+function readCountdownStartedAt() {
+  return Number(countdownStartedAt) || 0;
+}
+
+function applyCountdownState(state = {}) {
+  const nextStartedAt = Number(state.startedAt);
+  const nextDurationMs = Number(state.durationMs);
+
+  countdownStartedAt = Number.isFinite(nextStartedAt) && nextStartedAt > 0 ? nextStartedAt : 0;
+  countdownDurationMs = Number.isFinite(nextDurationMs) && nextDurationMs > 0
+    ? nextDurationMs
+    : COUNTDOWN_DURATION_MS;
+
+  return {
+    startedAt: countdownStartedAt,
+    durationMs: countdownDurationMs,
+  };
+}
+
+async function loadCountdownState() {
+  try {
+    return applyCountdownState(await window.AppData.loadMissionCountdown({
+      storageKey: COUNTDOWN_STORAGE_KEY,
+      durationMs: COUNTDOWN_DURATION_MS,
+    }));
+  } catch (error) {
+    console.warn("Mission countdown state failed to load.", error);
+    return applyCountdownState({
+      startedAt: countdownStartedAt,
+      durationMs: countdownDurationMs,
+    });
+  }
+}
+
+function renderCountdownClock() {
+  const startedAt = readCountdownStartedAt();
+
+  if (!startedAt) {
+    if (countdownHours) countdownHours.textContent = "24";
+    if (countdownMinutes) countdownMinutes.textContent = "00";
+    if (countdownSeconds) countdownSeconds.textContent = "00";
+    if (countdownProgress) countdownProgress.style.transform = "scaleX(0)";
+    if (countdownStatus) countdownStatus.textContent = "READY TO START";
+    if (countdownStartButton) {
+      countdownStartButton.disabled = false;
+      countdownStartButton.textContent = "START MISSION";
+    }
+    return;
+  }
+
+  const countdown = window.AppLogic.getMissionCountdownState({
+    startedAt,
+    durationMs: countdownDurationMs,
+  });
+
+  if (countdownHours) countdownHours.textContent = countdown.hours;
+  if (countdownMinutes) countdownMinutes.textContent = countdown.minutes;
+  if (countdownSeconds) countdownSeconds.textContent = countdown.seconds;
+  if (countdownProgress) countdownProgress.style.transform = `scaleX(${countdown.progress})`;
+  if (countdownStatus) {
+    countdownStatus.textContent = countdown.isComplete
+      ? "MISSION WINDOW COMPLETE"
+      : "24H BUILD WINDOW ACTIVE";
+  }
+  if (countdownStartButton) {
+    countdownStartButton.disabled = true;
+    countdownStartButton.textContent = countdown.isComplete ? "MISSION COMPLETE" : "MISSION RUNNING";
+  }
+}
+
+async function syncCountdownClock() {
+  const requestId = ++countdownLoadRequestId;
+  await loadCountdownState();
+  if (requestId !== countdownLoadRequestId) {
+    return;
+  }
+
+  renderCountdownClock();
+  if (!readCountdownStartedAt()) {
+    stopCountdownClock();
+    return;
+  }
+  startCountdownClock();
+}
+
+async function handleCountdownStart() {
+  if (countdownStartButton) {
+    countdownStartButton.disabled = true;
+    countdownStartButton.textContent = "STARTING MISSION";
+  }
+
+  if (!readCountdownStartedAt()) {
+    try {
+      applyCountdownState(await window.AppData.startMissionCountdown({
+        storageKey: COUNTDOWN_STORAGE_KEY,
+        durationMs: COUNTDOWN_DURATION_MS,
+        startedAt: Date.now(),
+      }));
+    } catch (error) {
+      console.warn("Mission countdown start failed.", error);
+      applyCountdownState({
+        startedAt: Date.now(),
+        durationMs: COUNTDOWN_DURATION_MS,
+      });
+    }
+  }
+
+  startCountdownClock();
+}
+
+function startCountdownClock() {
+  window.clearInterval(countdownTimer);
+  renderCountdownClock();
+  countdownTimer = window.setInterval(renderCountdownClock, 1000);
+}
+
+function stopCountdownClock() {
+  window.clearInterval(countdownTimer);
+  countdownTimer = null;
+}
+
 function resetDock() {
   const cards = Array.from(photoWall.querySelectorAll(".profile-card"));
   cards.forEach((card) => {
@@ -857,7 +1001,7 @@ function openDetail(id) {
   detailLayer.setAttribute("aria-hidden", "false");
   syncDetailMotion(true);
   appShell.dataset.view = "detail";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown");
   appShell.classList.add("view-detail");
 }
 
@@ -866,7 +1010,7 @@ function closeDetail() {
   detailLayer.classList.remove("is-open");
   detailLayer.setAttribute("aria-hidden", "true");
   appShell.dataset.view = appView === "home" ? "home" : "wall";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown");
   appShell.classList.add(appView === "home" ? "view-home" : "view-wall");
   syncStages(appView === "home" ? "home" : "wall");
   syncRain(appView === "home" ? "home" : "wall");
@@ -994,7 +1138,7 @@ function openChallenge() {
   challengeLayer.setAttribute("aria-hidden", "false");
   syncChallengeMotion(true);
   appShell.dataset.view = "challenge";
-    appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team");
+    appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown");
   appShell.classList.add("view-challenge");
 
   if (trainee.previousPairs.length > 0) {
@@ -1018,7 +1162,7 @@ function closeChallenge() {
   drawWordsButton.disabled = false;
   redrawWordsButton.disabled = false;
   appShell.dataset.view = "detail";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown");
   appShell.classList.add("view-detail");
   syncStages("detail");
   syncRain("detail");
@@ -1127,6 +1271,7 @@ function bindEvents() {
   });
 
   enterButton.addEventListener("click", handleLandingEntry);
+  countdownStartButton?.addEventListener("click", handleCountdownStart);
 
   document.getElementById("welcomeEnterButton").addEventListener("click", () => {
     setView(window.AppLogic.resolveWelcomeEntryTarget());

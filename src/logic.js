@@ -12,6 +12,7 @@
     exitMs: 1200,
   });
   const feishuLoginSessionKey = "joincare_feishu_login";
+  const missionCountdownDurationMs = 24 * 60 * 60 * 1000;
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -255,6 +256,31 @@
     };
   }
 
+  function getMissionCountdownState({
+    startedAt,
+    now = Date.now(),
+    durationMs = missionCountdownDurationMs,
+  } = {}) {
+    const startTime = Number.isFinite(Number(startedAt)) ? Number(startedAt) : Number(now);
+    const currentTime = Number.isFinite(Number(now)) ? Number(now) : startTime;
+    const totalDuration = Math.max(1, Number(durationMs) || missionCountdownDurationMs);
+    const elapsedMs = Math.max(0, currentTime - startTime);
+    const remainingMs = Math.max(0, totalDuration - elapsedMs);
+    const remainingSeconds = Math.floor(remainingMs / 1000);
+    const hours = Math.floor(remainingSeconds / 3600);
+    const minutes = Math.floor((remainingSeconds % 3600) / 60);
+    const seconds = remainingSeconds % 60;
+
+    return {
+      hours: String(hours).padStart(2, "0"),
+      minutes: String(minutes).padStart(2, "0"),
+      seconds: String(seconds).padStart(2, "0"),
+      progress: Math.min(1, Number((elapsedMs / totalDuration).toFixed(4))),
+      remainingMs,
+      isComplete: remainingMs === 0,
+    };
+  }
+
   function resolveWelcomeEntryTarget() {
     return "wall";
   }
@@ -355,6 +381,7 @@
     computePhotoWallMetrics,
     getFeishuLoginUiState,
     getIntroTiming,
+    getMissionCountdownState,
     nextIntroState,
     normalizeTrainee,
     pickKeywordPair,

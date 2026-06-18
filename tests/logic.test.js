@@ -11,6 +11,7 @@ const {
   computePhotoWallMetrics,
   getIntroTiming,
   getFeishuLoginUiState,
+  getMissionCountdownState,
   nextIntroState,
   normalizeTrainee,
   pickKeywordPair,
@@ -402,6 +403,70 @@ test("team formation screen is wired as a dedicated five-sector stage", () => {
   assert.match(dataJs, /async function loadTeams/);
   assert.match(dataJs, /fetchJson\("\/api\/teams"\)/);
   assert.match(dataJs, /fetchJson\("\.\/data\/teams\.json"\)/);
+});
+
+test("team header opens the mission countdown stage", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+  const teamSection = html.match(/<section class="team-stage"[\s\S]*?<\/section>\s*<\/main>/)?.[0] || "";
+  const countdownSection = html.match(/<section class="countdown-stage"[\s\S]*?<\/section>\s*<\/main>/)?.[0] || "";
+
+  assert.match(teamSection, /<button class="cohort-mark" type="button" data-view-target="countdown">MISSION COUNTDOWN<\/button>/);
+  assert.match(countdownSection, /id="countdownStage"/);
+  assert.match(countdownSection, /id="countdownRain"/);
+  assert.match(countdownSection, /id="countdownHours"/);
+  assert.match(countdownSection, /id="countdownMinutes"/);
+  assert.match(countdownSection, /id="countdownSeconds"/);
+  assert.match(countdownSection, /id="countdownStartButton"/);
+  assert.match(countdownSection, /START MISSION/);
+  assert.match(countdownSection, /data-view-target="team"[\s\S]*?BACK TO TEAM FORMATION/);
+  assert.match(appJs, /countdown:\s*document\.getElementById\("countdownStage"\)/);
+  assert.match(appJs, /countdown:\s*createRain\("countdownRain"/);
+  assert.match(appJs, /handleCountdownStart/);
+  assert.match(appJs, /joincare_mission_countdown_started_at_manual_v2/);
+  assert.match(appJs, /window\.AppData\.loadMissionCountdown/);
+  assert.match(appJs, /window\.AppData\.startMissionCountdown/);
+  assert.match(appJs, /startCountdownClock/);
+  assert.match(appJs, /stopCountdownClock/);
+  assert.match(appJs, /if\s*\(!readCountdownStartedAt\(\)\)\s*{[\s\S]*?stopCountdownClock\(\);/);
+  assert.match(dataJs, /async function loadMissionCountdown/);
+  assert.match(dataJs, /async function startMissionCountdown/);
+  assert.match(dataJs, /fetchJson\("\/api\/mission-countdown"\)/);
+  assert.match(dataJs, /fetchJson\("\/api\/mission-countdown\/start"/);
+  assert.match(dataJs, /JoincareMissionCountdown/);
+  assert.match(css, /\.app-shell\[data-view="countdown"\]\s*>\s*\.countdown-stage/);
+  assert.match(css, /\.mission-countdown-core/);
+  assert.match(css, /\.countdown-start-button/);
+});
+
+test("mission countdown state formats a 24 hour window", () => {
+  const countdown = getMissionCountdownState({
+    startedAt: Date.parse("2026-01-01T00:00:00.000Z"),
+    now: Date.parse("2026-01-01T06:15:09.000Z"),
+  });
+
+  assert.deepEqual(countdown, {
+    hours: "17",
+    minutes: "44",
+    seconds: "51",
+    progress: 0.2605,
+    remainingMs: 63891000,
+    isComplete: false,
+  });
+
+  assert.deepEqual(getMissionCountdownState({
+    startedAt: Date.parse("2026-01-01T00:00:00.000Z"),
+    now: Date.parse("2026-01-02T00:00:01.000Z"),
+  }), {
+    hours: "00",
+    minutes: "00",
+    seconds: "00",
+    progress: 1,
+    remainingMs: 0,
+    isComplete: true,
+  });
 });
 
 test("team formation screen uses a squad-card role claiming layout", () => {

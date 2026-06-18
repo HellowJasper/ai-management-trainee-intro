@@ -182,6 +182,59 @@ test("API lists team formation tracks for backend-controlled grouping", async (t
   });
 });
 
+test("API exposes mission countdown state and starts it on demand", async (t) => {
+  const publicRoot = path.join(__dirname, "..");
+  const missionCountdownRepository = {
+    startedAt: null,
+    async getState() {
+      return {
+        startedAt: this.startedAt,
+        durationMs: 24 * 60 * 60 * 1000,
+        serverNow: "2026-06-18T10:00:00.000Z",
+      };
+    },
+    async startCountdown(payload = {}) {
+      if (!this.startedAt) {
+        this.startedAt = payload.startedAt || "2026-06-18T10:00:00.000Z";
+      }
+
+      return this.getState();
+    },
+  };
+  const server = createServer({ publicRoot, missionCountdownRepository });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const initialResponse = await fetch(`${baseUrl}/api/mission-countdown`);
+  const initialState = await initialResponse.json();
+
+  assert.equal(initialResponse.status, 200);
+  assert.equal(initialState.startedAt, null);
+  assert.equal(initialState.durationMs, 86400000);
+
+  const startResponse = await fetch(`${baseUrl}/api/mission-countdown/start`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      startedAt: "2026-06-18T10:30:00.000Z",
+    }),
+  });
+  const startedState = await startResponse.json();
+
+  assert.equal(startResponse.status, 200);
+  assert.equal(startedState.startedAt, "2026-06-18T10:30:00.000Z");
+  assert.equal(startedState.durationMs, 86400000);
+
+  const nextResponse = await fetch(`${baseUrl}/api/mission-countdown`);
+  const nextState = await nextResponse.json();
+
+  assert.equal(nextResponse.status, 200);
+  assert.equal(nextState.startedAt, "2026-06-18T10:30:00.000Z");
+});
+
 test("/admin serves the management console shell", async (t) => {
   const publicRoot = path.join(__dirname, "..");
   const server = createServer({ publicRoot });
