@@ -10,9 +10,9 @@
 
   // ---- 36小时主流程 ---------------------------------------------------
   const FLOW_DAYS = [
-    { day: "DAY 1 下午", en: "KICKOFF", icon: "team", title: "Kick-off · 课题发布 · 组队", lines: ["IT负责人项目发布 · 规则说明", "业务部门课题发布", "自由组队 & Ideation Workshop"], time: "1:00 – 5:30 PM" },
+    { day: "DAY 1", en: "KICKOFF", icon: "team", title: "Kick-off · 课题发布 · 组队", lines: ["IT负责人项目发布 · 规则说明", "业务部门课题发布", "自由组队 & Ideation Workshop"], time: "1:00 – 5:30 PM" },
     { day: "DAY 2", en: "DEMO PREP", icon: "code", title: "Demo preparation", lines: ["需求分析", "AI方案设计", "Demo制作 · 路演材料准备"], time: "全天" },
-    { day: "DAY 3 上午", en: "DEMO DAY", icon: "stage", title: "Demo Day · 展示 · 评议 · 颁奖", lines: ["技术检查 · 活动开场", "5组 Demo 展示", "投票 · 评委评议 · 结果公布"], time: "8:30 – 11:50 AM" },
+    { day: "DAY 3", en: "DEMO DAY", icon: "stage", title: "Demo Day · 展示 · 评议 · 颁奖", lines: ["技术检查 · 活动开场", "5组 Demo 展示", "投票 · 评委评议 · 结果公布"], time: "8:30 – 11:50 AM" },
   ];
 
   // ---- 赛事机制卡 ------------------------------------------------------

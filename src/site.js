@@ -37,7 +37,7 @@
   const G = {
     target: '<circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.6"/>',
     doc: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/>',
-    vote: '<path d="M12 20s-7-4.3-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 4.7-7 9-7 9z"/>',
+    vote: '<path d="M7 11v9H4v-9z"/><path d="M7 11l4-7a2 2 0 0 1 2 2v4h5a2 2 0 0 1 2 2l-1 6a2 2 0 0 1-2 2H7z"/>',
     trophy: '<path d="M7 5h10v3a5 5 0 0 1-10 0z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/><path d="M12 13v4M9 20h6"/>',
     team: '<circle cx="9" cy="9" r="2.4"/><circle cx="15" cy="9" r="2.4"/><path d="M5 18a4 4 0 0 1 8 0M11 18a4 4 0 0 1 8 0"/>',
     code: '<path d="M9 8l-4 4 4 4M15 8l4 4-4 4"/>',
@@ -127,8 +127,12 @@
 
   function renderMobileHome(totalVotes) {
     const list = traineeList();
-    const sample = list.slice(0, 4).map((p) => `<span><img src="${traineeIdImage(p)}" alt="${esc(p.name)}" /></span>`).join("");
-    const agenda = D.flowDays.map((d) => `<li><b>${esc(d.day)}</b><span>${esc(d.title)}</span></li>`).join("");
+    const sample = list.slice(0, 8).map((p, i) => `<span style="--i:${i};--lift:${i % 2}"><img src="${traineeIdImage(p)}" alt="${esc(p.name)}" /></span>`).join("");
+    const agenda = [
+      ["DAY 1", "发布挑战，完成组队"],
+      ["DAY 2", "集中制作可运行 Demo"],
+      ["DAY 3", "路演展评，投票颁奖"],
+    ].map(([day, text]) => `<li><b>${day}</b><span>${text}</span></li>`).join("");
     return `<section class="mobile-home">
       <div class="mh-hero">
         <span class="hero-kicker"><span class="live-dot"></span>LIVE · HACKATHON 2026</span>
@@ -141,12 +145,14 @@
       </div>
       <div class="mh-grid">
         <a class="mh-card mh-people glass" data-nav="people">
-          <div class="mh-card-top"><span>新人参赛选手</span><b>${list.length || D.stats.members} 位</b></div>
+          <div class="mh-card-top"><span>参赛伙伴图鉴</span><b>CARDS</b></div>
+          <h3>认识这一届 AI 星锐</h3>
+          <p>证件照卡组快速浏览，点开后看生活照和完整档案。</p>
           <div class="mh-faces">${sample}</div>
         </a>
         <a class="mh-card mh-schedule glass" data-nav="schedule">
-          <div class="mh-card-top"><span>这个比赛是什么</span><b>36H</b></div>
-          <h3>从课题发布到 Demo Day</h3>
+          <div class="mh-card-top"><span>活动议程</span><b>36H</b></div>
+          <h3>看懂比赛怎么进行</h3>
           <ul class="mh-agenda">${agenda}</ul>
         </a>
         <a class="mh-card mh-work glass" data-nav="gallery" style="--accent:var(--neon-2);--rgb:167,255,79">
@@ -171,7 +177,7 @@
         <h1 class="hero-title">AI创新黑客松</h1>
         <p class="hero-slogan">36小时，把 AI 创意做成可运行系统</p>
         <p class="hero-desc">健康元药业 2026 AI 管培生黑客松 · 五大赛道、真实业务挑战。认识参赛伙伴，浏览他们真实可运行的作品，为你支持的团队投票。</p>
-        <div class="hero-ctas"><a class="btn-primary" data-nav="gallery">进入作品展厅 ♥</a><a class="btn-ghost" data-nav="team">立即组队 ➔</a></div>
+        <div class="hero-ctas"><a class="btn-primary" data-nav="gallery">进入作品展厅</a><a class="btn-ghost" data-nav="team">立即组队 ➔</a></div>
       </div>
       <aside class="hero-panel glass">
         <div class="hp-row"><span class="live-dot"></span><span class="hp-label">当前阶段 · LIVE</span></div>
@@ -232,22 +238,26 @@
     if (MOBILE_TRAINEE_INDEX < 0 || MOBILE_TRAINEE_INDEX >= list.length) MOBILE_TRAINEE_INDEX = 0;
     const p = list[MOBILE_TRAINEE_INDEX];
     if (MOBILE_TRAINEE_DETAIL) return renderMobileTraineeDetail(p, list);
-    const prevOne = list[(MOBILE_TRAINEE_INDEX - 1 + list.length) % list.length];
     const nextOne = list[(MOBILE_TRAINEE_INDEX + 1) % list.length];
+    const nextTwo = list[(MOBILE_TRAINEE_INDEX + 2) % list.length];
+    const nextThree = list[(MOBILE_TRAINEE_INDEX + 3) % list.length];
     const tags = toolTags(p.aiPartners || p.favoriteAI).map((x) => `<span>${esc(shortText(x, 12))}</span>`).join("");
     const dots = list.map((item, i) => `<span class="${i === MOBILE_TRAINEE_INDEX ? "on" : ""}"></span>`).join("");
 
     return `<section class="mobile-people-stage" id="mobilePeopleStage">
       <header class="mobile-people-head">
         <button class="mobile-back-link" type="button" data-nav="home">首页</button>
-        <div><span class="ph-en">ROSTER CARDS</span><h1>新人卡组</h1></div>
+        <div><span class="ph-en">ROSTER CARDS</span><h1>星锐卡组</h1></div>
         <span class="mobile-card-index">${pad(MOBILE_TRAINEE_INDEX + 1)} / ${pad(list.length)}</span>
       </header>
       <div class="mobile-swipe-deck" data-mobile-swipe-deck>
-        <article class="mobile-person-card mobile-card-ghost ghost-left" aria-hidden="true">
-          <img class="mobile-card-photo" src="${traineeIdImage(prevOne)}" alt="" />
+        <article class="mobile-person-card mobile-card-ghost ghost-three" aria-hidden="true">
+          <img class="mobile-card-photo" src="${traineeIdImage(nextThree)}" alt="" />
         </article>
-        <article class="mobile-person-card mobile-card-ghost ghost-right" aria-hidden="true">
+        <article class="mobile-person-card mobile-card-ghost ghost-two" aria-hidden="true">
+          <img class="mobile-card-photo" src="${traineeIdImage(nextTwo)}" alt="" />
+        </article>
+        <article class="mobile-person-card mobile-card-ghost ghost-one" aria-hidden="true">
           <img class="mobile-card-photo" src="${traineeIdImage(nextOne)}" alt="" />
         </article>
         <article class="mobile-person-card mobile-card-active" data-mobile-card-detail>
@@ -488,20 +498,23 @@
     const teams = D.teams.map((t) => {
       const count = 1 + t.members.length;
       const mine = selectedTeam && selectedTeam.id === t.id;
-      const full = count >= t.capacity;
-      const disabled = selectedTeam && !mine ? "disabled" : (full && !mine ? "disabled" : "");
+      const disabled = selectedTeam && !mine ? "disabled" : "";
       const roster = [{ ...t.advisor, role: "技术顾问" }, ...t.members.map((m) => ({ ...m, role: "组员" }))]
-        .map((p) => `<span class="team-avatar">${avatar(p, 34)}<i>${esc(p.name)}</i></span>`).join("");
+        .map((p) => `<span class="team-avatar">${avatar(p, 34)}<i>${esc(p.role)} · ${esc(p.name)}</i></span>`).join("");
       return `<article class="team-card glass ${mine ? "mine" : ""}" style="--accent:${t.accent};--rgb:${t.rgb}">
         <div class="team-head"><span class="status-chip ${mine ? "on" : ""}">${mine ? "我的队伍" : t.trackCode}</span><b>${esc(t.name)}</b><em>${esc(t.track)}</em></div>
         <h3>${esc(t.project)}</h3><p>${esc(t.pitch)}</p>
         <div class="team-roster">${roster}</div>
-        <div class="team-foot"><span>${count}/${t.capacity} 人 · ${full ? "已满员" : "可加入"}</span><button class="team-join ${mine ? "is-joined" : ""}" data-join-team="${t.id}" ${disabled}>${mine ? "已加入" : (full ? "已满员" : "加入队伍")}</button></div>
+        <div class="team-foot"><span>${count} 名成员已就位 · ${t.submitted ? "作品已提交" : "Demo 制作中"}</span><button class="team-join ${mine ? "is-joined" : ""}" data-join-team="${t.id}" ${disabled}>${mine ? "已加入" : "选择队伍"}</button></div>
       </article>`;
     }).join("");
 
     return `${pageHead("报名与组队", "选择赛道队伍，查看技术顾问、成员与作品方向", "TEAM")}
     <section class="container sec team-board">
+      <div class="team-live-strip glass">
+        <div><span class="status-chip on">TEAM FORMATION HUB</span><h2>五队横向组队看板</h2><p>参考大屏组队方案，五条赛道对称呈现，技术顾问、业务洞察、AI 开发、产品设计、路演运营等职责在队伍内沉淀。</p></div>
+        <div class="team-countdown"><span>任务倒计时</span><b data-countdown data-remain="129600">${fmtHMS(129600)}</b><em>组队锁定后进入 36H Demo preparation</em></div>
+      </div>
       <div class="team-status glass"><div><span class="status-chip ${selectedTeam ? "on" : ""}">${selectedTeam ? "已选择队伍" : "未选择队伍"}</span><h2>${selectedTeam ? esc(selectedTeam.name) : "请选择一个队伍加入"}</h2><p>${selectedTeam ? esc(selectedTeam.project) : "演示版会把选择保存在本地浏览器，用于“我的”页面同步状态。"}</p></div><a class="btn-ghost" data-nav="schedule">查看赛程</a></div>
       <div class="sec-cap"><span></span>队伍列表</div><div class="team-grid">${teams}</div>
     </section>`;
@@ -520,7 +533,7 @@
     }).join("");
     const cta = voted
       ? `<a class="btn-primary" data-nav="result">查看最终排行</a>`
-      : `<a class="btn-primary" data-nav="gallery">去作品展厅投票 ♥</a>`;
+      : `<a class="btn-primary" data-nav="gallery">去作品展厅加油</a>`;
 
     return `${pageHead("投票状态", "一人一票，投票选择与票数分布实时同步", "VOTE")}
     <section class="container sec vote-board">
@@ -540,8 +553,8 @@
     const head = D.dimensions.map((d) => `<span>${esc(d.label)}<i>${d.weight}%</i></span>`).join("");
     const rows = D.teams.map((t) => {
       const inputs = D.dimensions.map((d, i) => {
-        const val = draft[t.id] && draft[t.id][i] != null ? draft[t.id][i] : "";
-        return `<label><span>${esc(d.label)}</span><input class="judge-score" type="number" min="0" max="100" step="1" value="${esc(val)}" data-score="${t.id}:${i}" /></label>`;
+        const val = draft[t.id] && draft[t.id][i] != null && draft[t.id][i] !== "" ? draft[t.id][i] : 80;
+        return `<label class="judge-slider" style="--score-pct:${esc(val)}%"><div class="judge-slider-top"><em>${esc(d.label)}</em><b data-score-value="${t.id}:${i}">${esc(val)}</b></div><input class="judge-score" type="range" min="0" max="100" step="1" value="${esc(val)}" data-score="${t.id}:${i}" /><small><i></i></small></label>`;
       }).join("");
       return `<article class="judge-row glass" style="--accent:${t.accent};--rgb:${t.rgb}">
         <div class="judge-team"><span class="status-chip">${esc(t.trackCode)}</span><b>${esc(t.name)}</b><em>${esc(t.project)}</em></div>
@@ -551,7 +564,7 @@
 
     return `${pageHead("评委评分", "五维评分草稿演示，数据仅保存在本地浏览器", "JUDGE")}
     <section class="container sec judge-board">
-      <div class="judge-toolbar glass"><div><span class="status-chip on">演示入口</span><h2>评委评分表</h2><p>输入 0-100 分并保存草稿；正式评审仍以后台系统为准。</p></div><button class="judge-save" data-judge-save>保存评分草稿</button></div>
+      <div class="judge-toolbar glass"><div><span class="status-chip on">演示入口</span><h2>评委评分表</h2><p>拖动滑杆完成 0-100 分五维评分；正式评审仍以后台系统为准。</p></div><button class="judge-save" data-judge-save>保存评分草稿</button></div>
       <div class="judge-head">${head}</div>
       <div class="judge-list">${rows}</div>
     </section>`;
@@ -571,13 +584,13 @@
       const isVoted = voted === t.id;
       const btn = voted
         ? `<button class="gl2-vote ${isVoted ? "is-voted" : "dim"}" disabled>${isVoted ? "✓ 已投" : "已投票"}</button>`
-        : `<button class="gl2-vote" data-vote="${t.id}">投票 ♥</button>`;
+        : `<button class="gl2-vote" data-vote="${t.id}">为TA加油</button>`;
       const stack = (t.stack || []).map((s) => `<span>${esc(s)}</span>`).join("");
       return `<article class="gl2-card glass gl2-h ${isVoted ? "voted" : ""}" data-work="${t.id}" style="--accent:${t.accent};--rgb:${t.rgb}"><div class="gl2-shot"><span class="gl2-dots"></span><span class="gl2-cover-label">${esc(t.trackCode)} PROJECT</span><h3 class="gl2-cover-name">${esc(t.project)}</h3><em>${esc(t.name)}</em><span class="gl2-bars"></span><span class="gl2-hover">点击查看作品详情 ➔</span></div><div class="gl2-mid"><div class="gl2-id"><b>${esc(t.name)}</b><span class="gl2-track2">${esc(t.trackCode)} · ${esc(t.track)}</span></div><p class="gl2-pitch">${esc(t.pitch || "")}</p><div class="gl2-stack2">${stack}</div><div class="gl2-avas">${avas}</div></div><div class="gl2-right"><div class="gl2-vcount"><b>${t.votes.toLocaleString()}</b><span>实时票数</span></div><span class="gl2-detail" data-work="${t.id}">查看详情 ➔</span>${btn}</div></article>`;
     }).join("");
     const banner = voted
       ? `<div class="vote-banner ok"><span class="live-dot"></span>感谢投票！你已为 <b>${esc((D.teams.find((t) => t.id === voted) || {}).name || "")}</b> 投出一票 — 一人一票。</div>`
-      : `<div class="vote-banner"><span class="live-dot"></span>投票进行中 · 一人一票 · 点卡片看团队与作品详情，点「投票 ♥」支持团队。</div>`;
+      : `<div class="vote-banner"><span class="live-dot"></span>投票进行中 · 一人一票 · 点卡片看团队与作品详情，点「为TA加油」支持团队。</div>`;
     return `${pageHead("作品展示大厅", "五支队伍 · 五大赛道 · 真实可运行作品", "GALLERY")}${banner}<section class="container sec"><div class="gl2-grid horizontal">${cards}</div></section>`;
   }
 
@@ -593,7 +606,7 @@
     const stack = (t.stack || []).map((s) => `<span>${esc(s)}</span>`).join("");
     const voteBtn = voted
       ? `<button class="btn-primary ${isVoted ? "" : "dim"}" disabled>${isVoted ? "✓ 已投此队" : "投票已用"}</button>`
-      : `<button class="btn-primary" data-vote="${t.id}">为这支队伍投票 ♥</button>`;
+      : `<button class="btn-primary" data-vote="${t.id}">为这支队伍加油</button>`;
     const slides = [["主界面", "产品核心流程"], ["数据看板", "关键指标可视化"], ["AI 能力", "模型推理与结果"]];
     const slideEls = slides.map((s, i) => `<div class="wkc-slide ${i === 0 ? "on" : ""}"><span class="gl2-dots"></span><h3>${esc(t.project)}</h3><span class="wkc-cap">${esc(s[0])} · ${esc(s[1])}</span><span class="gl2-bars"></span></div>`).join("");
     const dotEls = slides.map((_, i) => `<button class="wkc-dot ${i === 0 ? "on" : ""}" data-cgoto="${i}" aria-label="第 ${i + 1} 张"></button>`).join("");
@@ -648,7 +661,7 @@
   function renderResult(forcePreview) {
     if (PHASE !== "published" && !forcePreview) {
       return `${pageHead("最终排行", "综合得分 = 专家评审 70% + 大众投票赋分 30%", "RESULT")}
-      <section class="container sec"><div class="rk-locked glass"><span class="rk-lock-ic">${ICON("lock", "var(--neon)")}</span><h2>结果待公布</h2><p>投票尚未结束，最终排行将在颁奖环节由现场统一揭晓。<br>当前请前往作品展厅，为你支持的团队投票。</p><div class="rk-locked-cta"><a class="btn-primary" data-nav="gallery">去作品展厅投票 ♥</a><button class="btn-ghost" data-preview="1">预览最终榜（演示）</button></div></div></section>`;
+      <section class="container sec"><div class="rk-locked glass"><span class="rk-lock-ic">${ICON("lock", "var(--neon)")}</span><h2>结果待公布</h2><p>投票尚未结束，最终排行将在颁奖环节由现场统一揭晓。<br>当前请前往作品展厅，为你支持的团队投票。</p><div class="rk-locked-cta"><a class="btn-primary" data-nav="gallery">去作品展厅加油</a><button class="btn-ghost" data-preview="1">预览最终榜（演示）</button></div></div></section>`;
     }
     const ranked = D.computeRanking();
     const max = Math.max(...ranked.map((t) => t.total));
@@ -680,7 +693,7 @@
   ];
   const MOBILE_TABS = [
     { key: "home", label: "首页", icon: "target" },
-    { key: "people", label: "新人", icon: "user" },
+    { key: "people", label: "星锐", icon: "user" },
     { key: "schedule", label: "赛程", icon: "calendar" },
     { key: "gallery", label: "作品", icon: "doc" },
     { key: "me", label: "我的", icon: "team" },
@@ -694,7 +707,7 @@
   ];
   const MOBILE_TABS_JUDGE = [
     { key: "home", label: "首页", icon: "target" },
-    { key: "people", label: "新人", icon: "user" },
+    { key: "people", label: "星锐", icon: "user" },
     { key: "schedule", label: "赛程", icon: "calendar" },
     { key: "gallery", label: "作品", icon: "doc" },
     { key: "judge", label: "评分", icon: "scale" },
@@ -767,7 +780,7 @@
     const team = D.teams.find((t) => t.id === id); if (!team) return;
     team.votes += 1;
     root.localStorage.setItem(VOTE_KEY, id);
-    toast(`已为「${team.name}」投票成功 ♥`);
+    toast(`已为「${team.name}」投票成功`);
     route();
   }
   function joinTeam(id) {
@@ -787,9 +800,18 @@
       if (!draft[teamId]) draft[teamId] = {};
       draft[teamId][dim] = value;
       input.value = value;
+      updateJudgeRange(input);
     });
     root.localStorage.setItem(JUDGE_KEY, JSON.stringify(draft));
     toast("评分草稿已保存");
+  }
+  function updateJudgeRange(input) {
+    if (!input || !input.dataset || !input.dataset.score) return;
+    const value = Math.max(0, Math.min(100, +input.value || 0));
+    const box = input.closest(".judge-slider");
+    if (box) box.style.setProperty("--score-pct", `${value}%`);
+    const output = doc.querySelector(`[data-score-value="${input.dataset.score}"]`);
+    if (output) output.textContent = value;
   }
 
   function bind() {
@@ -830,6 +852,10 @@
       if (prev) { main.innerHTML = renderResult(true); setActive("result"); return; }
       if (e.target.closest("#navLogin")) { go("me"); return; }
       if (e.target.closest("#navBurger")) { navLinks.classList.toggle("open"); return; }
+    });
+    doc.addEventListener("input", (e) => {
+      const score = e.target.closest("[data-score]");
+      if (score) updateJudgeRange(score);
     });
     root.addEventListener("hashchange", () => route(false));
     root.addEventListener("scroll", () => doc.getElementById("siteNav").classList.toggle("scrolled", root.scrollY > 20));

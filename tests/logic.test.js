@@ -281,6 +281,9 @@ test("mobile site opens on event home and uses a natural swipe-card browser", ()
 
   assert.match(siteJs, /function renderMobileHome\(/);
   assert.match(siteJs, /36小时，把 AI 创意做成可运行系统/);
+  assert.match(siteJs, /参赛伙伴图鉴/);
+  assert.match(siteJs, /看懂比赛怎么进行/);
+  assert.match(siteJs, /key: "people", label: "星锐"/);
   assert.match(siteJs, /class="mh-agenda"/);
   assert.match(siteJs, /function renderMobilePeople\(/);
   assert.match(siteJs, /function renderMobileTraineeDetail\(/);
@@ -298,12 +301,14 @@ test("mobile site opens on event home and uses a natural swipe-card browser", ()
   assert.match(siteCss, /\.mobile-people-stage/);
   assert.match(siteCss, /\.mobile-profile-detail/);
   assert.match(siteCss, /\.mobile-swipe-deck/);
-  assert.match(siteCss, /\.mobile-card-ghost\.ghost-left/);
-  assert.match(siteCss, /\.mobile-card-ghost\.ghost-right/);
+  assert.match(siteCss, /\.mobile-card-ghost\.ghost-one/);
+  assert.match(siteCss, /\.mobile-card-ghost\.ghost-two/);
+  assert.match(siteCss, /\.mobile-card-ghost\.ghost-three/);
   assert.match(siteCss, /\.mobile-card-photo\s*{[\s\S]*object-fit:\s*contain/);
   assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.site-body\[data-view="home"\] \.hero,[\s\S]*\.site-body\[data-view="home"\] \.sec\s*{[\s\S]*display:\s*none/);
   assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.mobile-people-stage\s*{[\s\S]*display:\s*flex/);
   assert.doesNotMatch(siteJs, /class="mh-stats"/);
+  assert.doesNotMatch(siteJs, /新人参赛选手/);
   assert.doesNotMatch(siteJs, /const topWork/);
   assert.doesNotMatch(siteJs, /data-mobile-card-nav/);
 });
@@ -314,6 +319,20 @@ test("event copy consistently describes the hackathon as 36 hours", () => {
 
   assert.match(joined, /36小时/);
   assert.doesNotMatch(joined, /三天|3天/);
+  assert.doesNotMatch(joined, /DAY 1 下午|DAY 3 上午/);
+});
+
+test("mobile voting and judge scoring avoid heart cues and use draggable sliders", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const screenJs = fs.readFileSync(path.join(__dirname, "../src/screen.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.doesNotMatch(`${siteJs}\n${screenJs}`, /♥/);
+  assert.match(siteJs, /type="range"/);
+  assert.match(siteJs, /function updateJudgeRange\(/);
+  assert.match(siteCss, /\.judge-slider/);
+  assert.match(siteCss, /\.team-live-strip/);
+  assert.match(siteCss, /\.mobile-tabbar\s*{[\s\S]*bottom:\s*0/);
 });
 
 test("site removes low-value team capacity and work delivery buttons", () => {
@@ -346,8 +365,8 @@ test("role authorization is completed at entry and protects sensitive actions", 
 test("official site cache keys are bumped after mobile shell expansion", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260618-06/);
-  assert.match(html, /src\/site\.js\?v=20260618-06/);
+  assert.match(html, /src\/site\.css\?v=20260618-08/);
+  assert.match(html, /src\/site\.js\?v=20260618-08/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {

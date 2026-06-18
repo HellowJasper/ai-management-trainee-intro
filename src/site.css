@@ -1814,3 +1814,282 @@
     min-height: 348px;
   }
 }
+
+/* =======================================================================
+ *  v6：移动端深化稿 + PC 组队/评分交互优化
+ * ===================================================================== */
+.team-live-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 22px;
+  align-items: center;
+  padding: 24px;
+}
+.team-live-strip h2 {
+  margin: 10px 0 6px;
+  font-size: clamp(24px, 2.2vw, 34px);
+  color: #fff;
+}
+.team-live-strip p {
+  margin: 0;
+  max-width: 760px;
+  color: var(--text-soft);
+  line-height: 1.65;
+}
+.team-countdown {
+  min-width: 230px;
+  text-align: right;
+}
+.team-countdown span,
+.team-countdown em {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
+.team-countdown b {
+  display: block;
+  margin: 7px 0 5px;
+  font-family: var(--display);
+  font-size: clamp(34px, 3.4vw, 54px);
+  color: var(--neon);
+  line-height: 1;
+  text-shadow: 0 0 24px rgba(40, 255, 200, 0.34);
+}
+.team-countdown b i { font-style: normal; opacity: 0.55; }
+
+.judge-input-grid {
+  gap: 12px;
+}
+.judge-slider {
+  --score-pct: 80%;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-height: 98px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.035);
+}
+.judge-slider > span { display: none; }
+.judge-slider-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.judge-slider-top em {
+  min-width: 0;
+  color: var(--text-soft);
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 800;
+}
+.judge-slider-top b {
+  color: var(--accent);
+  font-family: var(--display);
+  font-size: 25px;
+  line-height: 1;
+}
+.judge-score[type="range"] {
+  width: 100%;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  outline: none;
+  accent-color: var(--accent);
+  -webkit-appearance: none;
+  appearance: none;
+}
+.judge-score[type="range"]::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent) 0 var(--score-pct), rgba(255, 255, 255, 0.1) var(--score-pct) 100%);
+}
+.judge-score[type="range"]::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent) 0 var(--score-pct), rgba(255, 255, 255, 0.1) var(--score-pct) 100%);
+}
+.judge-score[type="range"]::-webkit-slider-thumb {
+  width: 22px;
+  height: 22px;
+  margin-top: -7px;
+  border: 2px solid rgba(2, 8, 14, 0.86);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 18px rgba(var(--rgb), 0.42);
+  -webkit-appearance: none;
+  appearance: none;
+}
+.judge-score[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(2, 8, 14, 0.86);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 18px rgba(var(--rgb), 0.42);
+}
+.judge-slider small {
+  display: block;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.judge-slider small i {
+  display: block;
+  width: var(--score-pct);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(var(--rgb), 0.45), var(--accent));
+}
+
+@media (max-width: 1080px) {
+  .team-live-strip {
+    grid-template-columns: 1fr;
+  }
+  .team-countdown {
+    text-align: left;
+  }
+}
+
+@media (max-width: 680px) {
+  .mobile-tabbar {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: none;
+    padding: 7px 8px calc(7px + env(safe-area-inset-bottom));
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 18px 18px 0 0;
+    transform: none;
+  }
+  .site-main,
+  .site-body[data-view="gallery"] .site-main,
+  .site-body[data-view="result"] .site-main {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  }
+  .mh-hero {
+    min-height: 226px;
+  }
+  .mh-card {
+    min-height: 126px;
+  }
+  .mh-people {
+    position: relative;
+    min-height: 164px;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 90% 16%, rgba(40, 255, 200, 0.12), transparent 30%),
+      rgba(255, 255, 255, 0.032);
+  }
+  .mh-people h3 {
+    margin: 13px 0 6px;
+    max-width: 210px;
+  }
+  .mh-people p {
+    max-width: 210px;
+  }
+  .mh-faces {
+    position: absolute;
+    right: -12px;
+    bottom: 12px;
+    min-height: 0;
+    width: 142px;
+    height: 72px;
+    padding: 0;
+    opacity: 0.62;
+    transform: scale(0.82);
+    transform-origin: right bottom;
+  }
+  .mh-faces span {
+    position: absolute;
+    right: calc(var(--i) * 10px);
+    bottom: calc(var(--lift) * 9px);
+    width: 40px;
+    height: 48px;
+    margin: 0;
+    border-radius: 13px;
+    border-color: rgba(103, 255, 213, 0.18);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.18);
+  }
+  .mh-faces img {
+    object-fit: cover;
+    opacity: 0.72;
+    filter: grayscale(1) saturate(0.72);
+  }
+  .mh-agenda li {
+    grid-template-columns: 58px 1fr;
+  }
+  .mobile-people-stage {
+    width: min(calc(100vw - 16px), 390px);
+    margin-left: 8px;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+  .mobile-swipe-deck {
+    height: min(67vh, 584px);
+    min-height: 518px;
+    overflow: visible;
+  }
+  .mobile-card-active {
+    inset: 0 42px 26px 0;
+    z-index: 5;
+  }
+  .mobile-card-ghost {
+    top: 24px;
+    bottom: 50px;
+    left: auto;
+    width: calc(100% - 66px);
+    opacity: 0.28;
+    filter: saturate(0.78) brightness(0.72);
+  }
+  .mobile-card-ghost.ghost-one {
+    right: 14px;
+    z-index: 4;
+    transform: translateX(34px) translateY(12px) scale(0.94) rotate(4deg);
+    transform-origin: 22% 70%;
+    opacity: 0.42;
+  }
+  .mobile-card-ghost.ghost-two {
+    right: -4px;
+    z-index: 3;
+    transform: translateX(56px) translateY(26px) scale(0.9) rotate(7deg);
+    transform-origin: 18% 72%;
+    opacity: 0.28;
+  }
+  .mobile-card-ghost.ghost-three {
+    right: -20px;
+    z-index: 2;
+    transform: translateX(78px) translateY(40px) scale(0.86) rotate(10deg);
+    transform-origin: 16% 76%;
+    opacity: 0.16;
+  }
+  .mobile-card-ghost .mobile-card-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+  }
+  .mobile-card-photo-wrap {
+    min-height: 356px;
+  }
+  .judge-toolbar {
+    position: static;
+  }
+  .judge-input-grid {
+    grid-template-columns: 1fr;
+  }
+  .judge-slider {
+    min-height: 86px;
+  }
+  .judge-slider > span {
+    display: none;
+  }
+}
