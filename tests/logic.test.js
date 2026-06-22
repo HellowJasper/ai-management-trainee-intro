@@ -106,6 +106,17 @@ test("computePhotoWallMetrics keeps twelve tarot cards in one row", () => {
   assert.ok(metrics.maxRotation <= 8.0);
 });
 
+test("computePhotoWallMetrics keeps fourteen trainee cards inside the mobile viewport", () => {
+  const metrics = computePhotoWallMetrics({
+    total: 14,
+    viewportWidth: 652,
+    viewportHeight: 817,
+  });
+
+  assert.ok(metrics.visualWidth <= metrics.availableWidth);
+  assert.ok(metrics.step > 0);
+});
+
 test("twelve profile cards form one connected arc centered on the sixth card", () => {
   const metrics = computePhotoWallMetrics({
     total: 12,
@@ -503,8 +514,18 @@ test("mobile site opens on event home and uses a natural swipe-card browser", ()
   assert.match(siteJs, /function renderMobileTraineeDetail\(/);
   assert.match(siteJs, /function setMobileTrainee\(/);
   assert.match(siteJs, /function bindMobileSwipeDeck\(/);
+  assert.match(siteJs, /let MOBILE_TRAINEE_IS_TRANSITIONING = false/);
+  assert.match(siteJs, /let MOBILE_TRAINEE_SHOULD_ENTER = false/);
   assert.match(siteJs, /pointerdown/);
   assert.match(siteJs, /pointerup/);
+  assert.match(siteJs, /function renderMobilePeopleIntoMain\(\)\s*{[\s\S]*?main\.innerHTML = renderMobilePeople\(\);[\s\S]*?setActive\("people"\);[\s\S]*?setupMobilePeople\(\);[\s\S]*?}/);
+  assert.match(siteJs, /deck\.classList\.add\("is-animating"\)/);
+  assert.match(siteJs, /deck\.classList\.add\("is-entering"\)/);
+  assert.match(siteJs, /MOBILE_TRAINEE_SHOULD_ENTER = true/);
+  assert.match(siteJs, /deck\.style\.setProperty\("--swipe-x", "0px"\);\s*deck\.style\.setProperty\("--swipe-rot", "0deg"\);\s*deck\.classList\.add\("is-animating"\)/);
+  assert.doesNotMatch(siteJs, /--swipe-fade-x/);
+  assert.doesNotMatch(siteJs, /--swipe-exit-x/);
+  assert.doesNotMatch(siteJs, /118vw/);
   assert.match(siteJs, /data-mobile-swipe-deck/);
   assert.match(siteJs, /data-mobile-card-detail/);
   assert.match(siteJs, /data-mobile-detail-close/);
@@ -513,12 +534,30 @@ test("mobile site opens on event home and uses a natural swipe-card browser", ()
   assert.match(siteJs, /root\.matchMedia\("\(max-width: 680px\)"\)/);
   assert.match(siteCss, /\.mobile-home/);
   assert.match(siteCss, /\.mobile-people-stage/);
+  assert.match(siteCss, /\.mobile-people-stage,\n\s*\.mobile-profile-detail\s*{[\s\S]*?width:\s*min\(calc\(100% - 24px\),\s*410px\)/);
   assert.match(siteCss, /\.mobile-profile-detail/);
   assert.match(siteCss, /\.mobile-swipe-deck/);
+  assert.match(siteCss, /\.mobile-swipe-deck\.is-animating \.mobile-card-active/);
+  assert.match(siteCss, /\.mobile-swipe-deck\.is-entering \.mobile-card-active/);
+  assert.match(siteCss, /@keyframes mobileCardFadeIn/);
+  assert.match(siteCss, /\.mobile-swipe-deck\.is-animating \.mobile-card-active\s*{[\s\S]*?opacity:\s*0/);
+  assert.match(siteCss, /\.mobile-swipe-deck\.is-animating \.mobile-card-ghost[\s\S]*?opacity:\s*0/);
+  assert.match(siteCss, /\.mobile-swipe-deck\.is-entering \.mobile-card-ghost[\s\S]*?opacity:\s*0/);
+  assert.match(siteCss, /\.mobile-swipe-deck\.is-animating \.mobile-card-ghost[\s\S]*?visibility:\s*hidden/);
+  assert.match(siteCss, /\.mobile-swipe-deck\.is-entering \.mobile-card-ghost[\s\S]*?visibility:\s*hidden/);
+  assert.doesNotMatch(siteCss, /--swipe-fade-x/);
+  assert.doesNotMatch(siteCss, /118vw/);
+  assert.match(siteCss, /\.mobile-card-active\s*{[\s\S]*?inset:\s*0 clamp\(16px,\s*4vw,\s*22px\) 26px/);
   assert.match(siteCss, /\.mobile-card-ghost\.ghost-one/);
+  assert.match(siteCss, /\.mobile-card-ghost\.ghost-one\s*{[\s\S]*?right:\s*auto/);
   assert.match(siteCss, /\.mobile-card-ghost\.ghost-two/);
+  assert.match(siteCss, /\.mobile-card-ghost\.ghost-two\s*{[\s\S]*?right:\s*auto/);
   assert.match(siteCss, /\.mobile-card-ghost\.ghost-three/);
   assert.match(siteCss, /\.mobile-card-photo\s*{[\s\S]*object-fit:\s*contain/);
+  const mobileFadeOutBlock = siteCss.match(/\.mobile-swipe-deck\.is-animating \.mobile-card-active\s*{[\s\S]*?\n  }/)?.[0] || "";
+  const mobileFadeInBlock = siteCss.match(/@keyframes mobileCardFadeIn\s*{[\s\S]*?\n  }\n\n  \.mobile-person-main/)?.[0] || "";
+  assert.doesNotMatch(mobileFadeOutBlock, /scale\(/);
+  assert.doesNotMatch(mobileFadeInBlock, /scale\(/);
   assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.site-body\[data-view="home"\] \.hero,[\s\S]*\.site-body\[data-view="home"\] \.sec\s*{[\s\S]*display:\s*none/);
   assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.mobile-people-stage\s*{[\s\S]*display:\s*flex/);
   assert.doesNotMatch(siteJs, /class="mh-stats"/);
@@ -579,8 +618,8 @@ test("role authorization is completed at entry and protects sensitive actions", 
 test("official site cache keys are bumped after mobile shell expansion", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260622-mobile-fit/);
-  assert.match(html, /src\/site\.js\?v=20260622-mobile-fit/);
+  assert.match(html, /src\/site\.css\?v=20260622-mobile-ghost-fade/);
+  assert.match(html, /src\/site\.js\?v=20260622-mobile-ghost-fade/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
@@ -752,6 +791,15 @@ test("team formation screen is wired as a dedicated five-sector stage", () => {
   assert.match(dataJs, /async function loadTeams/);
   assert.match(dataJs, /fetchJson\("\/api\/teams"\)/);
   assert.match(dataJs, /fetchJson\("\.\/data\/teams\.json"\)/);
+});
+
+test("team formation keeps static fallback content while backend teams sync", () => {
+  const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+
+  assert.match(appJs, /function getFallbackTeamState\(/);
+  assert.match(appJs, /let teamState = getFallbackTeamState\(\)/);
+  assert.match(appJs, /window\.AppData\.loadTeams\(getFallbackTeamState\(\)\)/);
+  assert.doesNotMatch(appJs, /window\.AppData\.loadTeams\(\[\]\)/);
 });
 
 test("team header opens the mission countdown stage", () => {
@@ -1086,18 +1134,22 @@ test("getDetailOrder sorts trainees according to the predefined order from the l
     { id: "chen-xulin" },
     { id: "gu-lingqian" },
     { id: "zhan-meiling" },
+    { id: "zhao-yiming" },
     { id: "jasper" },
-    { id: "zhang-rui" }
+    { id: "zhang-rui" },
+    { id: "wu-shuo" }
   ];
 
   const ordered = getDetailOrder(trainees);
-  assert.equal(ordered.length, 6);
+  assert.equal(ordered.length, 8);
   assert.equal(ordered[0].id, "jasper");
   assert.equal(ordered[1].id, "zhang-rui");
   assert.equal(ordered[2].id, "gu-lingqian");
   assert.equal(ordered[3].id, "li-beibei");
   assert.equal(ordered[4].id, "zhan-meiling");
   assert.equal(ordered[5].id, "chen-xulin");
+  assert.equal(ordered[6].id, "wu-shuo");
+  assert.equal(ordered[7].id, "zhao-yiming");
 
   // Fallback behavior for unknown IDs (should maintain relative order after predefined ones)
   const traineesFallback = [
@@ -1109,4 +1161,23 @@ test("getDetailOrder sorts trainees according to the predefined order from the l
   assert.equal(orderedFallback[0].id, "jasper");
   assert.equal(orderedFallback[1].id, "unknown-1");
   assert.equal(orderedFallback[2].id, "unknown-2");
+});
+
+test("latest trainee data imports all fourteen profile records with local media", () => {
+  const dataPath = path.join(__dirname, "../data/trainees.json");
+  const trainees = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+  const ids = trainees.map((trainee) => trainee.id);
+
+  assert.equal(trainees.length, 14);
+  assert.deepEqual(ids.slice(-2), ["wu-shuo", "zhao-yiming"]);
+
+  for (const id of ["wu-shuo", "zhao-yiming"]) {
+    const trainee = trainees.find((item) => item.id === id);
+    assert.ok(trainee, `${id} should exist in trainees.json`);
+
+    for (const field of ["photo", "idPhoto", "memeImage"]) {
+      const relativePath = trainee[field].replace(/^\.\//, "");
+      assert.ok(fs.existsSync(path.join(__dirname, "..", relativePath)), `${field} should exist for ${id}`);
+    }
+  }
 });

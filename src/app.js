@@ -214,6 +214,42 @@ const fallbackTrainees = [
     "memeText": "重度人文社科爱好者",
     "portrait": "linear-gradient(145deg, #101712 0%, #2fb879 48%, #f4ff80 100%)",
     "idPhoto": "./assets/trainees/chen-xulin/idPhoto.png"
+  },
+  {
+    "id": "wu-shuo",
+    "department": "药学研发中心",
+    "departmentEn": "PHARMA R&D",
+    "name": "吴烁",
+    "romanName": "Wu Shuo",
+    "background": "我毕业于中国科学院大学生物技术与工程专业，主攻生物信息方向",
+    "aiPartners": "ChatGPT，Deepseek，豆包，Gemini，元宝",
+    "favoriteAI": "Codex--我的最强帮手",
+    "aiProblem": "帮我写代码和debug",
+    "aiPower": "无限token，可以想做什么做什么",
+    "funFact": "能睡12个小时",
+    "photo": "./assets/trainees/wu-shuo/photo.jpg",
+    "memeImage": "./assets/trainees/wu-shuo/meme.png",
+    "memeText": "能睡12个小时",
+    "portrait": "linear-gradient(145deg, #041311 0%, #0c6f5e 48%, #d5fff4 100%)",
+    "idPhoto": "./assets/trainees/wu-shuo/idPhoto.jpg"
+  },
+  {
+    "id": "zhao-yiming",
+    "department": "药学研发中心",
+    "departmentEn": "PHARMA R&D",
+    "name": "赵一鸣",
+    "romanName": "Zhao Yiming",
+    "background": "我毕业于广东药科大学智能医学专业，主攻机器学习和人工智能应用方向",
+    "aiPartners": "ChatGPT(codex)、claude、gemini、hermes、openclaw、即梦、Midjourney、kimi、trae、马维斯、qclaw、workbuddy等",
+    "favoriteAI": "hermes–我的万能个人助理",
+    "aiProblem": "彻底接管工作中那些“格式化、流转性”的沟通与对接消耗。我希望AI能像一个无形的齿轮，自动拉齐跨部门的数据壁垒、追踪繁琐的审批流、提炼冗长的会议关键点。让人类的大脑从机械的流程执行中彻底解脱出来，把所有的精力收敛到真正高价值的“本质创造”与业务洞察上",
+    "aiPower": "数字agent影分身\n为什么？\n人的精力是极其有限的，我希望的超能力是：每当遇到一个明确的业务痛点，我能瞬间裂变出一个专属的数字智能体agent替我驻扎在业务流中分析和试错。它负责扛下所有的重复对接和机械测试，而我只需要作为主控大脑，去调用对应的agent",
+    "funFact": "宁愿熬夜花3小时做一套自动化脚本，也不想连续5分钟手动复制粘贴的效率强迫症",
+    "photo": "./assets/trainees/zhao-yiming/photo.jpg",
+    "memeImage": "./assets/trainees/zhao-yiming/meme.jpg",
+    "memeText": "宁愿熬夜花3小时做一套自动化脚本，也不想连续5分钟手动复制粘贴的效率强迫症",
+    "portrait": "linear-gradient(145deg, #08100c 0%, #6a9f16 48%, #f1ff9b 100%)",
+    "idPhoto": "./assets/trainees/zhao-yiming/idPhoto.jpg"
   }
 ];
 
@@ -289,8 +325,84 @@ const TEAM_ROLE_BLUEPRINT = [
   },
 ];
 
+function fallbackMemberByName(name, role) {
+  const trainee = fallbackTrainees.find((item) => item.name === name);
+  return {
+    name,
+    department: trainee?.department || "",
+    role,
+    photo: trainee?.idPhoto || trainee?.photo || "",
+  };
+}
+
+function getFallbackTeamState() {
+  const teams = [
+    {
+      id: "pharma",
+      index: "01",
+      name: "药学",
+      nameEn: "PHARMACEUTICALS",
+      hostDepartment: "药学研发中心",
+      color: "var(--neon)",
+      colorRgb: "40, 255, 200",
+      advisor: { name: "赛道顾问 A", department: "药学研发中心", role: "赛道顾问" },
+      memberNames: ["黄钊强", "占美玲", "顾灵茜", "林艺新"],
+    },
+    {
+      id: "medicine",
+      index: "02",
+      name: "医学",
+      nameEn: "CLINICAL MEDICINE",
+      hostDepartment: "临床研发中心",
+      color: "rgb(205, 255, 92)",
+      colorRgb: "205, 255, 92",
+      advisor: { name: "赛道顾问 B", department: "临床研发中心", role: "赛道顾问" },
+      memberNames: ["许镁胜", "陈徐林", "唐靖沛", "张瑞"],
+    },
+    {
+      id: "marketing",
+      index: "03",
+      name: "营销",
+      nameEn: "SALES & MARKETING",
+      hostDepartment: "健康品事业部",
+      color: "rgb(100, 232, 214)",
+      colorRgb: "100, 232, 214",
+      advisor: { name: "赛道顾问 C", department: "健康品事业部", role: "赛道顾问" },
+      memberNames: ["李蓓蓓", "李丰", "张恒睿", "贾博深"],
+    },
+    {
+      id: "functions",
+      index: "04",
+      name: "职能",
+      nameEn: "GENERAL FUNCTIONS",
+      hostDepartment: "董事长办公室",
+      color: "var(--neon-2)",
+      colorRgb: "167, 255, 79",
+      advisor: { name: "赛道顾问 D", department: "董事长办公室", role: "赛道顾问" },
+      memberNames: ["张瑞", "唐靖沛", "李丰", "陈徐林"],
+    },
+    {
+      id: "production",
+      index: "05",
+      name: "生产",
+      nameEn: "PRODUCTION & MANUFACTURING",
+      hostDepartment: "生产管理中心",
+      color: "rgb(110, 235, 150)",
+      colorRgb: "110, 235, 150",
+      advisor: { name: "赛道顾问 E", department: "生产管理中心", role: "赛道顾问" },
+      memberNames: ["顾灵茜", "许镁胜", "李蓓蓓", "黄钊强"],
+    },
+  ];
+
+  return teams.map(({ memberNames, advisor, ...team }) => ({
+    ...team,
+    advisor: { ...advisor },
+    members: memberNames.map((name, index) => fallbackMemberByName(name, `队友 ${String(index + 1).padStart(2, "0")}`)),
+  }));
+}
+
 let traineeState = window.AppLogic.positionJasperAtCenter(fallbackTrainees.map(window.AppLogic.normalizeTrainee));
-let teamState = [];
+let teamState = getFallbackTeamState();
 let selectedTeamId = "";
 let selectedTeamRoleKey = "";
 let selectedId = traineeState.find((t) => t.id === "jasper")?.id || traineeState[0].id;
@@ -1975,7 +2087,7 @@ async function initApp() {
   }
 
   traineeState = window.AppLogic.positionJasperAtCenter(await window.AppData.loadTrainees(fallbackTrainees));
-  teamState = await window.AppData.loadTeams([]);
+  teamState = await window.AppData.loadTeams(getFallbackTeamState());
   applyRoadshowState(await window.AppData.loadRoadshow({
     storageKey: ROADSHOW_STORAGE_KEY,
     durationMs: ROADSHOW_DURATION_MS,

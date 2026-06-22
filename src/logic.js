@@ -126,9 +126,11 @@
     const cardPadding = clamp(cardWidth * 0.045, 7, 12);
     const cardGap = clamp(cardWidth * 0.04, 6, 10);
     const cardHeight = portraitHeight + metaHeight + cardGap + cardPadding * 2;
-    const readableStepMin = cardWidth * 0.28;
+    const denseMobileWall = width < 760 && count > 12;
+    const readableStepMin = cardWidth * (denseMobileWall ? 0.24 : 0.28);
     const readableStepMax = cardWidth * 0.72;
-    const idealStep = count === 1 ? 0 : Math.max(0, (availableWidth - 2.097 * cardWidth) / 9.79);
+    const arcFitDenominator = Math.max(1, count - 2.21);
+    const idealStep = count === 1 ? 0 : Math.max(0, (availableWidth - 2.097 * cardWidth) / arcFitDenominator);
     const step = Math.floor(clamp(idealStep, readableStepMin, readableStepMax) * 100) / 100;
     const splitGap = count % 2 === 0 ? Math.max(0, 1.097 * cardWidth - 1.21 * step) : 0;
     const visualWidth = count === 1 ? cardWidth : step * (count - 1) + cardWidth + splitGap;
@@ -479,6 +481,8 @@
       "li-beibei",
       "zhan-meiling",
       "chen-xulin",
+      "wu-shuo",
+      "zhao-yiming",
     ];
     return [...trainees].sort((a, b) => {
       const idxA = order.indexOf(a?.id);

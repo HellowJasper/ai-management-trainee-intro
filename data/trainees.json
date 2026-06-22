@@ -214,5 +214,41 @@
     "memeText": "重度人文社科爱好者",
     "portrait": "linear-gradient(145deg, #101712 0%, #2fb879 48%, #f4ff80 100%)",
     "idPhoto": "./assets/trainees/chen-xulin/idPhoto.png"
+  },
+  {
+    "id": "wu-shuo",
+    "department": "药学研发中心",
+    "departmentEn": "PHARMA R&D",
+    "name": "吴烁",
+    "romanName": "Wu Shuo",
+    "background": "我毕业于中国科学院大学生物技术与工程专业，主攻生物信息方向",
+    "aiPartners": "ChatGPT，Deepseek，豆包，Gemini，元宝",
+    "favoriteAI": "Codex--我的最强帮手",
+    "aiProblem": "帮我写代码和debug",
+    "aiPower": "无限token，可以想做什么做什么",
+    "funFact": "能睡12个小时",
+    "photo": "./assets/trainees/wu-shuo/photo.jpg",
+    "memeImage": "./assets/trainees/wu-shuo/meme.png",
+    "memeText": "能睡12个小时",
+    "portrait": "linear-gradient(145deg, #041311 0%, #0c6f5e 48%, #d5fff4 100%)",
+    "idPhoto": "./assets/trainees/wu-shuo/idPhoto.jpg"
+  },
+  {
+    "id": "zhao-yiming",
+    "department": "药学研发中心",
+    "departmentEn": "PHARMA R&D",
+    "name": "赵一鸣",
+    "romanName": "Zhao Yiming",
+    "background": "我毕业于广东药科大学智能医学专业，主攻机器学习和人工智能应用方向",
+    "aiPartners": "ChatGPT(codex)、claude、gemini、hermes、openclaw、即梦、Midjourney、kimi、trae、马维斯、qclaw、workbuddy等",
+    "favoriteAI": "hermes–我的万能个人助理",
+    "aiProblem": "彻底接管工作中那些“格式化、流转性”的沟通与对接消耗。我希望AI能像一个无形的齿轮，自动拉齐跨部门的数据壁垒、追踪繁琐的审批流、提炼冗长的会议关键点。让人类的大脑从机械的流程执行中彻底解脱出来，把所有的精力收敛到真正高价值的“本质创造”与业务洞察上",
+    "aiPower": "数字agent影分身\n为什么？\n人的精力是极其有限的，我希望的超能力是：每当遇到一个明确的业务痛点，我能瞬间裂变出一个专属的数字智能体agent替我驻扎在业务流中分析和试错。它负责扛下所有的重复对接和机械测试，而我只需要作为主控大脑，去调用对应的agent",
+    "funFact": "宁愿熬夜花3小时做一套自动化脚本，也不想连续5分钟手动复制粘贴的效率强迫症",
+    "photo": "./assets/trainees/zhao-yiming/photo.jpg",
+    "memeImage": "./assets/trainees/zhao-yiming/meme.jpg",
+    "memeText": "宁愿熬夜花3小时做一套自动化脚本，也不想连续5分钟手动复制粘贴的效率强迫症",
+    "portrait": "linear-gradient(145deg, #08100c 0%, #6a9f16 48%, #f1ff9b 100%)",
+    "idPhoto": "./assets/trainees/zhao-yiming/idPhoto.jpg"
   }
 ]

@@ -14,6 +14,8 @@
   let TRAINEES = [];
   let MOBILE_TRAINEE_INDEX = 0;
   let MOBILE_TRAINEE_DETAIL = false;
+  let MOBILE_TRAINEE_IS_TRANSITIONING = false;
+  let MOBILE_TRAINEE_SHOULD_ENTER = false;
   let pendingAuthTarget = null;
 
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -309,6 +311,7 @@
     if (doc.body.dataset.view !== "people" || !isMobileView()) return;
     main.innerHTML = renderMobilePeople();
     setActive("people");
+    setupMobilePeople();
   }
   function setMobileTrainee(id) {
     const list = traineeList();
@@ -335,6 +338,12 @@
   function setupMobilePeople() {
     const stage = doc.getElementById("mobilePeopleStage");
     if (stage) stage.style.setProperty("--mobile-card-index", MOBILE_TRAINEE_INDEX);
+    const deck = doc.querySelector("[data-mobile-swipe-deck]");
+    if (deck && MOBILE_TRAINEE_SHOULD_ENTER) {
+      deck.classList.add("is-entering");
+      MOBILE_TRAINEE_SHOULD_ENTER = false;
+      root.setTimeout(() => deck.classList.remove("is-entering"), 280);
+    }
     bindMobileSwipeDeck();
   }
   function bindMobileSwipeDeck() {
@@ -344,32 +353,57 @@
     let activePointer = null;
     let moved = false;
     let suppressClick = false;
+    let isAnimating = false;
     const clear = () => {
       startX = 0;
       activePointer = null;
+      deck.classList.remove("is-dragging");
       deck.style.setProperty("--swipe-x", "0px");
       deck.style.setProperty("--swipe-rot", "0deg");
     };
     deck.addEventListener("pointerdown", (e) => {
+      if (isAnimating || MOBILE_TRAINEE_IS_TRANSITIONING) return;
       startX = e.clientX;
       activePointer = e.pointerId;
       moved = false;
+      deck.classList.add("is-dragging");
       deck.setPointerCapture && deck.setPointerCapture(e.pointerId);
     });
     deck.addEventListener("pointermove", (e) => {
-      if (activePointer !== e.pointerId) return;
+      if (activePointer !== e.pointerId || isAnimating || MOBILE_TRAINEE_IS_TRANSITIONING) return;
       const dx = Math.max(-96, Math.min(96, e.clientX - startX));
       if (Math.abs(dx) > 8) moved = true;
       deck.style.setProperty("--swipe-x", `${dx}px`);
-      deck.style.setProperty("--swipe-rot", `${dx / 16}deg`);
+      deck.style.setProperty("--swipe-rot", `${dx / 28}deg`);
     });
     deck.addEventListener("pointerup", (e) => {
-      if (activePointer !== e.pointerId) return;
+      if (activePointer !== e.pointerId || isAnimating || MOBILE_TRAINEE_IS_TRANSITIONING) return;
       const dx = e.clientX - startX;
       const shouldMove = Math.abs(dx) > 54;
       suppressClick = moved || shouldMove;
+      if (shouldMove) {
+        isAnimating = true;
+        MOBILE_TRAINEE_IS_TRANSITIONING = true;
+        deck.classList.remove("is-dragging");
+        deck.style.setProperty("--swipe-x", "0px");
+        deck.style.setProperty("--swipe-rot", "0deg");
+        deck.classList.add("is-animating");
+        activePointer = null;
+        root.setTimeout(() => {
+          deck.classList.remove("is-animating");
+          clear();
+          MOBILE_TRAINEE_SHOULD_ENTER = true;
+          moveMobileTrainee(dx < 0 ? 1 : -1);
+          isAnimating = false;
+          root.setTimeout(() => {
+            MOBILE_TRAINEE_IS_TRANSITIONING = false;
+            suppressClick = false;
+            moved = false;
+          }, 110);
+        }, 240);
+        return;
+      }
       clear();
-      if (shouldMove) moveMobileTrainee(dx < 0 ? 1 : -1);
       root.setTimeout(() => { suppressClick = false; moved = false; }, 80);
     });
     deck.addEventListener("pointercancel", clear);
