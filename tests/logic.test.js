@@ -579,8 +579,8 @@ test("role authorization is completed at entry and protects sensitive actions", 
 test("official site cache keys are bumped after mobile shell expansion", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260618-08/);
-  assert.match(html, /src\/site\.js\?v=20260618-08/);
+  assert.match(html, /src\/site\.css\?v=20260622-mobile-fit/);
+  assert.match(html, /src\/site\.js\?v=20260622-mobile-fit/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {

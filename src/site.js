@@ -762,8 +762,15 @@
     setupCarousel();
     if (push !== false) history.pushState(null, "", `#work-${id}`);
   }
+  const HASH_ALIASES = {
+    final: "result",
+    champion: "result",
+    awards: "result",
+  };
+
   function route(push) {
-    const h = location.hash.slice(1);
+    const raw = location.hash.slice(1);
+    const h = HASH_ALIASES[raw] || raw;
     if (h.indexOf("work-") === 0) showWork(h.slice(5), false);
     else go(h || "home", false);
   }
