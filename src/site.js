@@ -240,9 +240,9 @@
     if (MOBILE_TRAINEE_INDEX < 0 || MOBILE_TRAINEE_INDEX >= list.length) MOBILE_TRAINEE_INDEX = 0;
     const p = list[MOBILE_TRAINEE_INDEX];
     if (MOBILE_TRAINEE_DETAIL) return renderMobileTraineeDetail(p, list);
+    const prevOne = list[(MOBILE_TRAINEE_INDEX - 1 + list.length) % list.length];
     const nextOne = list[(MOBILE_TRAINEE_INDEX + 1) % list.length];
-    const nextTwo = list[(MOBILE_TRAINEE_INDEX + 2) % list.length];
-    const nextThree = list[(MOBILE_TRAINEE_INDEX + 3) % list.length];
+    const nextTwo = list[(MOBILE_TRAINEE_INDEX + 2) % list.length]; // dummy for ghost-three
     const tags = toolTags(p.aiPartners || p.favoriteAI).map((x) => `<span>${esc(shortText(x, 12))}</span>`).join("");
     const dots = list.map((item, i) => `<span class="${i === MOBILE_TRAINEE_INDEX ? "on" : ""}"></span>`).join("");
 
@@ -252,28 +252,31 @@
         <div><span class="ph-en">ROSTER CARDS</span><h1>星锐卡组</h1></div>
         <span class="mobile-card-index">${pad(MOBILE_TRAINEE_INDEX + 1)} / ${pad(list.length)}</span>
       </header>
-      <div class="mobile-swipe-deck" data-mobile-swipe-deck>
-        <article class="mobile-person-card mobile-card-ghost ghost-three" aria-hidden="true">
-          <img class="mobile-card-photo" src="${traineeIdImage(nextThree)}" alt="" />
-        </article>
-        <article class="mobile-person-card mobile-card-ghost ghost-two" aria-hidden="true">
-          <img class="mobile-card-photo" src="${traineeIdImage(nextTwo)}" alt="" />
-        </article>
-        <article class="mobile-person-card mobile-card-ghost ghost-one" aria-hidden="true">
-          <img class="mobile-card-photo" src="${traineeIdImage(nextOne)}" alt="" />
-        </article>
-        <article class="mobile-person-card mobile-card-active" data-mobile-card-detail>
-          <div class="mobile-card-photo-wrap">
-            <img class="mobile-card-photo" src="${traineeIdImage(p)}" alt="${esc(p.name)}" />
-          </div>
-          <div class="mobile-person-main">
-            <span>${esc(p.department || "")}</span>
-            <h2>${esc(p.name)}</h2>
-            <em>${esc(p.romanName || "")}</em>
-          </div>
-          <p class="mobile-person-line">${esc(shortText(p.favoriteAI || p.aiPartners || p.aiPower, 62))}</p>
-          <div class="mobile-tool-tags">${tags}</div>
-        </article>
+      <div class="mobile-swipe-deck-wrap" style="position: relative; width: 100%;">
+        <button class="mobile-nav-arrow mobile-nav-arrow-left" type="button" data-mobile-nav="prev" aria-label="上一个">‹</button>
+        <button class="mobile-nav-arrow mobile-nav-arrow-right" type="button" data-mobile-nav="next" aria-label="下一个">›</button>
+        <div class="mobile-swipe-deck" data-mobile-swipe-deck>
+          <article class="mobile-person-card mobile-card-ghost ghost-three" aria-hidden="true">
+            <img class="mobile-card-photo" src="${traineeIdImage(nextTwo)}" alt="" />
+          </article>
+          <article class="mobile-person-card mobile-card-ghost ghost-two" aria-hidden="true">
+            <img class="mobile-card-photo" src="${traineeIdImage(prevOne)}" alt="" />
+          </article>
+          <article class="mobile-person-card mobile-card-ghost ghost-one" aria-hidden="true">
+            <img class="mobile-card-photo" src="${traineeIdImage(nextOne)}" alt="" />
+          </article>
+          <article class="mobile-person-card mobile-card-active" data-mobile-card-detail>
+            <div class="mobile-card-photo-wrap">
+              <img class="mobile-card-photo" src="${traineeIdImage(p)}" alt="${esc(p.name)}" />
+            </div>
+            <div class="mobile-person-main">
+              <span>${esc(p.department || "")}</span>
+              <h2>${esc(p.name)}</h2>
+            </div>
+            <p class="mobile-person-line">${esc(shortText(p.favoriteAI || p.aiPartners || p.aiPower, 62))}</p>
+            <div class="mobile-tool-tags">${tags}</div>
+          </article>
+        </div>
       </div>
       <div class="mobile-card-progress">${dots}</div>
     </section>`;
@@ -293,13 +296,16 @@
         <span>${pad(MOBILE_TRAINEE_INDEX + 1)} / ${pad(list.length)}</span>
       </header>
       <article class="mobile-detail-card">
-        <div class="mobile-detail-photo">
-          <img src="${traineeLifeImage(p)}" alt="${esc(p.name)}" />
+        <div class="mobile-detail-photo-wrap" style="position: relative; width: 100%;">
+          <button class="mobile-detail-nav-arrow mobile-detail-nav-arrow-left" type="button" data-mobile-detail-nav="prev" aria-label="上一个">‹</button>
+          <button class="mobile-detail-nav-arrow mobile-detail-nav-arrow-right" type="button" data-mobile-detail-nav="next" aria-label="下一个">›</button>
+          <div class="mobile-detail-photo">
+            <img src="${traineeLifeImage(p)}" alt="${esc(p.name)}" />
+          </div>
         </div>
         <div class="mobile-detail-name">
           <span>${esc(p.department || "")}</span>
           <h1>${esc(p.name)}</h1>
-          <em>${esc(p.romanName || "")}</em>
         </div>
         <p>${esc(shortText(p.favoriteAI || p.aiPartners || p.aiPower, 88))}</p>
         <div class="mobile-tool-tags">${tags}</div>
@@ -457,9 +463,39 @@
     const fields = F.filter((f) => f[1]).map((f) => `<section class="pm-field"><span>${esc(f[0])}</span><p>${esc(f[1])}</p></section>`).join("");
     let m = doc.getElementById("ppModal");
     if (!m) { m = doc.createElement("div"); m.id = "ppModal"; m.className = "pp-modal"; doc.body.appendChild(m); }
-    m.innerHTML = `<div class="pm-backdrop" data-close></div><article class="pm-card glass"><button class="pm-close" data-close>×</button><div class="pm-media" style="background-image:url('${esc(p.photo || p.idPhoto)}')"></div><div class="pm-info"><span class="pm-dept">${esc(p.department || "")}</span><h2>${esc(p.name)}</h2><span class="pm-roman">${esc(p.romanName || "")}</span><div class="pm-fields">${fields}</div></div></article>`;
+    m.innerHTML = `<div class="pm-backdrop" data-close></div>
+      <div class="pm-wrapper">
+        <button class="pm-nav-arrow pm-nav-arrow-left" type="button" data-pm-nav="prev" aria-label="上一个">‹</button>
+        <div class="pm-container glass">
+          <div class="pm-photo-card glass">
+            <div class="pm-photo-wrap">
+              <img src="${esc(p.photo || p.idPhoto)}" alt="${esc(p.name)}" />
+            </div>
+          </div>
+          <article class="pm-info-card glass">
+            <button class="pm-close" data-close>×</button>
+            <div class="pm-info">
+              <span class="pm-dept">${esc(p.department || "")}</span>
+              <h2>${esc(p.name)}</h2>
+              <div class="pm-fields">${fields}</div>
+            </div>
+          </article>
+        </div>
+        <button class="pm-nav-arrow pm-nav-arrow-right" type="button" data-pm-nav="next" aria-label="下一个">›</button>
+      </div>`;
     m.classList.add("show");
     m.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => m.classList.remove("show")));
+    m.querySelectorAll("[data-pm-nav]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const dir = btn.dataset.pmNav;
+        const currentIdx = TRAINEES.findIndex((x) => x.id === p.id);
+        if (currentIdx >= 0) {
+          const nextIdx = (currentIdx + (dir === "next" ? 1 : -1) + TRAINEES.length) % TRAINEES.length;
+          openTrainee(TRAINEES[nextIdx].id);
+        }
+      });
+    });
   }
 
   /* ---- 大赛介绍 ------------------------------------------------------- */
@@ -815,18 +851,89 @@
     t.textContent = msg; t.classList.add("show");
     root.clearTimeout(t._h); t._h = root.setTimeout(() => t.classList.remove("show"), 2600);
   }
-  function castVote(id) {
+  function showConfirmDialog(options) {
+    const { title, message, team, confirmText, onConfirm } = options;
+    let gate = doc.getElementById("confirmGate");
+    if (!gate) {
+      gate = doc.createElement("div");
+      gate.id = "confirmGate";
+      gate.className = "confirm-gate";
+      doc.body.appendChild(gate);
+    }
+    gate.innerHTML = `<div class="confirm-backdrop" data-close></div>
+      <div class="confirm-wrapper">
+        <div class="confirm-window glass" style="--accent: ${team.accent}; --rgb: ${team.rgb}">
+          <!-- Window Header -->
+          <div class="confirm-win-header">
+            <div class="confirm-win-dots">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div class="confirm-win-title">SYSTEM // ${esc(title)}</div>
+            <button class="confirm-close" data-close>×</button>
+          </div>
+          <div class="confirm-win-body">
+            <div class="confirm-team-section">
+              <span class="confirm-team-code" style="color: var(--accent); border-color: rgba(${team.rgb}, 0.3); background: rgba(${team.rgb}, 0.05);">${esc(team.trackCode)} · ${esc(team.track)}</span>
+              <h3 class="confirm-team-name">${esc(team.name)}</h3>
+              <p class="confirm-team-project">${esc(team.project)}</p>
+            </div>
+            <div class="confirm-action-section">
+              <p class="confirm-msg">${esc(message)}</p>
+              <div class="confirm-footer-flat">
+                <button class="btn-ghost confirm-btn-cancel" type="button" data-close>取消</button>
+                <button class="btn-primary confirm-btn-ok" type="button" id="confirmOkBtn">${esc(confirmText)}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    gate.classList.add("show");
+    const close = () => gate.classList.remove("show");
+    gate.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", close));
+    const okBtn = gate.querySelector("#confirmOkBtn");
+    if (okBtn) {
+      okBtn.addEventListener("click", () => {
+        close();
+        onConfirm();
+      });
+    }
+  }
+
+  function castVote(id, confirmed = false) {
     if (!requireAuth("vote")) return;
     if (votedTeam()) return;
     const team = D.teams.find((t) => t.id === id); if (!team) return;
+    if (!confirmed) {
+      showConfirmDialog({
+        title: "为TA加油",
+        message: "是否要为此队伍加油？",
+        team: team,
+        confirmText: "确定",
+        onConfirm: () => castVote(id, true)
+      });
+      return;
+    }
     team.votes += 1;
     root.localStorage.setItem(VOTE_KEY, id);
     toast(`已为「${team.name}」投票成功`);
     route();
   }
-  function joinTeam(id) {
+
+  function joinTeam(id, confirmed = false) {
     if (!requireAuth("team")) return;
     const team = getTeam(id); if (!team) return;
+    if (!confirmed) {
+      showConfirmDialog({
+        title: "加入队伍",
+        message: "是否要加入此队伍？",
+        team: team,
+        confirmText: "加入",
+        onConfirm: () => joinTeam(id, true)
+      });
+      return;
+    }
     root.localStorage.setItem(TEAM_KEY, id);
     toast(`已加入「${team.name}」`);
     route(false);
@@ -868,6 +975,19 @@
       const authRole = e.target.closest("[data-auth-role]");
       const nav = e.target.closest("[data-nav]");
       const prev = e.target.closest("[data-preview]");
+      const mobileNav = e.target.closest("[data-mobile-nav]");
+      if (mobileNav) {
+        e.preventDefault();
+        moveMobileTrainee(mobileNav.dataset.mobileNav === "next" ? 1 : -1);
+        return;
+      }
+      const mobileDetailNav = e.target.closest("[data-mobile-detail-nav]");
+      if (mobileDetailNav) {
+        e.preventDefault();
+        moveMobileTrainee(mobileDetailNav.dataset.mobileDetailNav === "next" ? 1 : -1);
+        showMobileTraineeDetail();
+        return;
+      }
       if (authRole) {
         root.localStorage.setItem(ROLE_KEY, authRole.dataset.authRole);
         renderMobileTabbar();
