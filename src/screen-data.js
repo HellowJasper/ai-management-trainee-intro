@@ -8,30 +8,33 @@
 
   const A = (id, file) => `./assets/trainees/${id}/${file}`;
 
-  // ---- 三天主流程 ------------------------------------------------------
+  // ---- 36小时主流程 ---------------------------------------------------
   const FLOW_DAYS = [
-    { day: "DAY 1", en: "KICKOFF", icon: "team", title: "启动 · 组队", lines: ["启动仪式 · 破冰 · 总裁讲话", "议程发布 · 赛道介绍 · 抢赛道"], time: "09:00 – 21:00" },
-    { day: "DAY 2", en: "BUILD", icon: "code", title: "封闭 · 开发", lines: ["自由选题 · 真实系统开发", "持续提交 · 当日交付"], time: "全天封闭" },
-    { day: "DAY 3", en: "DEMO DAY", icon: "stage", title: "路演 · 评分 · 颁奖", lines: ["现场路演 · 专家评审", "大众投票 · 冠军揭晓"], time: "10:00 – 18:00" },
+    { day: "DAY 1", en: "KICKOFF", icon: "team", title: "Kick-off · 课题发布 · 组队", lines: ["IT负责人项目发布 · 规则说明", "业务部门课题发布", "自由组队 & Ideation Workshop"], time: "1:00 – 5:30 PM" },
+    { day: "DAY 2", en: "DEMO PREP", icon: "code", title: "Demo preparation", lines: ["需求分析", "AI方案设计", "Demo制作 · 路演材料准备"], time: "全天" },
+    { day: "DAY 3", en: "DEMO DAY", icon: "stage", title: "Demo Day · 展示 · 评议 · 颁奖", lines: ["技术检查 · 活动开场", "5组 Demo 展示", "投票 · 评委评议 · 结果公布"], time: "8:30 – 11:50 AM" },
   ];
 
   // ---- 赛事机制卡 ------------------------------------------------------
   const MECHANISM = [
     { key: "format", icon: "target", label: "赛制", en: "FORMAT", headline: "只固定赛道", sub: "不固定题目 · 自由发现问题", accent: "var(--neon)", rgb: "40, 255, 200" },
-    { key: "delivery", icon: "code", label: "交付", en: "DELIVERY", headline: "真实可运行系统", sub: "GitLab 仓库 + 演示视频", accent: "var(--neon-2)", rgb: "167, 255, 79" },
+    { key: "delivery", icon: "code", label: "交付", en: "DELIVERY", headline: "真实可运行系统", sub: "飞书作品页 + 现场 Demo", accent: "var(--neon-2)", rgb: "167, 255, 79" },
     { key: "scoring", icon: "scale", label: "评分", en: "SCORING", headline: "专家 70% · 大众 30%", sub: "五维评审 + 排名赋分", accent: "#6ad7ff", rgb: "106, 215, 255" },
     { key: "prize", icon: "trophy", label: "奖项", en: "PRIZE", headline: "单一冠军", sub: "Grand Prize 冠军团队", accent: "var(--warning)", rgb: "246, 255, 129" },
   ];
 
   // ---- LIVE 实时赛程时间轴 --------------------------------------------
   const TIMELINE = [
-    { time: "D1 · 09:00", label: "大赛启动", icon: "rocket" },
-    { time: "D1 · 10:30", label: "赛道发布", icon: "doc" },
-    { time: "D1 · 18:00", label: "组队截止", icon: "team" },
-    { time: "D2 · 全天", label: "封闭开发", icon: "code" },
-    { time: "D2 · 24:00", label: "作品提交", icon: "upload" },
-    { time: "D3 · 10:00", label: "路演评审", icon: "stage" },
-    { time: "D3 · 16:30", label: "冠军颁奖", icon: "trophy" },
+    { time: "Day 1 · 1:00-1:30 PM", label: "IT负责人项目发布", icon: "rocket" },
+    { time: "Day 1 · 1:30-4:30 PM", label: "业务部门课题发布", icon: "doc" },
+    { time: "Day 1 · 4:30-5:30 PM", label: "自由组队 & Ideation Workshop", icon: "team" },
+    { time: "Day 2 · 全天", label: "Demo preparation", icon: "code" },
+    { time: "Day 3 · 8:30-9:00 AM", label: "技术检查 · 页面检查", icon: "check" },
+    { time: "Day 3 · 9:00-9:20 AM", label: "开场 · 致辞 · Demo 开始", icon: "stage" },
+    { time: "Day 3 · 9:20-11:00 AM", label: "5组 Demo 展示", icon: "play" },
+    { time: "Day 3 · 11:00-11:10 AM", label: "投票", icon: "vote" },
+    { time: "Day 3 · 11:10-11:20 AM", label: "评委评议", icon: "scale" },
+    { time: "Day 3 · 11:20-11:50 AM", label: "结果公布 · 颁奖 · closing · 合影", icon: "trophy" },
   ];
 
   // ---- 五条赛道（与飞书文档一致；doc 为讲解文档占位链接）----------------
@@ -153,7 +156,7 @@
       brandChip: "AI INNOVATION HACKATHON",
       protocol: "HACKATHON_PROTOCOL_2026",
       company: "健康元药业集团股份有限公司 · Joincare",
-      slogan: "三天，把 AI 创意做成可运行系统",
+      slogan: "36小时，把 AI 创意做成可运行系统",
       logo: "./assets/joincare-full-clean.png",
       icon: "./assets/joincare-icon-clean.png",
     },

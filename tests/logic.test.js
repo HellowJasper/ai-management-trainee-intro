@@ -475,11 +475,112 @@ test("team page uses a symmetric five-column desktop layout", () => {
   assert.match(siteCss, /\.team-roster\s*{[\s\S]*justify-content:\s*center/);
 });
 
-test("official site cache keys are bumped after PC page expansion", () => {
+test("official site includes a mobile app shell with bottom tab navigation", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.match(html, /id="mobileTabbar"/);
+  assert.match(siteJs, /const MOBILE_TABS = \[/);
+  assert.match(siteJs, /mobileTabbar\.innerHTML/);
+  assert.match(siteJs, /mobileTabbar\.querySelectorAll\("a"\)/);
+  assert.match(siteCss, /\.mobile-tabbar/);
+  assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.mobile-tabbar\s*{[\s\S]*position:\s*fixed/);
+  assert.match(siteCss, /\.mobile-tabbar\s+a\s*{[\s\S]*min-width:\s*0/);
+});
+
+test("mobile site opens on event home and uses a natural swipe-card browser", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.match(siteJs, /function renderMobileHome\(/);
+  assert.match(siteJs, /36小时，把 AI 创意做成可运行系统/);
+  assert.match(siteJs, /参赛伙伴图鉴/);
+  assert.match(siteJs, /看懂比赛怎么进行/);
+  assert.match(siteJs, /key: "people", label: "星锐"/);
+  assert.match(siteJs, /class="mh-agenda"/);
+  assert.match(siteJs, /function renderMobilePeople\(/);
+  assert.match(siteJs, /function renderMobileTraineeDetail\(/);
+  assert.match(siteJs, /function setMobileTrainee\(/);
+  assert.match(siteJs, /function bindMobileSwipeDeck\(/);
+  assert.match(siteJs, /pointerdown/);
+  assert.match(siteJs, /pointerup/);
+  assert.match(siteJs, /data-mobile-swipe-deck/);
+  assert.match(siteJs, /data-mobile-card-detail/);
+  assert.match(siteJs, /data-mobile-detail-close/);
+  assert.match(siteJs, /mobile-card-photo/);
+  assert.match(siteJs, /traineeLifeImage/);
+  assert.match(siteJs, /root\.matchMedia\("\(max-width: 680px\)"\)/);
+  assert.match(siteCss, /\.mobile-home/);
+  assert.match(siteCss, /\.mobile-people-stage/);
+  assert.match(siteCss, /\.mobile-profile-detail/);
+  assert.match(siteCss, /\.mobile-swipe-deck/);
+  assert.match(siteCss, /\.mobile-card-ghost\.ghost-one/);
+  assert.match(siteCss, /\.mobile-card-ghost\.ghost-two/);
+  assert.match(siteCss, /\.mobile-card-ghost\.ghost-three/);
+  assert.match(siteCss, /\.mobile-card-photo\s*{[\s\S]*object-fit:\s*contain/);
+  assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.site-body\[data-view="home"\] \.hero,[\s\S]*\.site-body\[data-view="home"\] \.sec\s*{[\s\S]*display:\s*none/);
+  assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.mobile-people-stage\s*{[\s\S]*display:\s*flex/);
+  assert.doesNotMatch(siteJs, /class="mh-stats"/);
+  assert.doesNotMatch(siteJs, /新人参赛选手/);
+  assert.doesNotMatch(siteJs, /const topWork/);
+  assert.doesNotMatch(siteJs, /data-mobile-card-nav/);
+});
+
+test("event copy consistently describes the hackathon as 36 hours", () => {
+  const files = ["../src/site.js", "../src/screen.js", "../src/screen-data.js", "../src/screen.css", "../site.html"];
+  const joined = files.map((file) => fs.readFileSync(path.join(__dirname, file), "utf8")).join("\n");
+
+  assert.match(joined, /36小时/);
+  assert.doesNotMatch(joined, /三天|3天/);
+  assert.doesNotMatch(joined, /DAY 1 下午|DAY 3 上午/);
+});
+
+test("mobile voting and judge scoring avoid heart cues and use draggable sliders", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const screenJs = fs.readFileSync(path.join(__dirname, "../src/screen.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.doesNotMatch(`${siteJs}\n${screenJs}`, /♥/);
+  assert.match(siteJs, /type="range"/);
+  assert.match(siteJs, /function updateJudgeRange\(/);
+  assert.match(siteCss, /\.judge-slider/);
+  assert.match(siteCss, /\.team-live-strip/);
+  assert.match(siteCss, /\.mobile-tabbar\s*{[\s\S]*bottom:\s*0/);
+});
+
+test("site removes low-value team capacity and work delivery buttons", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.doesNotMatch(siteJs, /赛道容量/);
+  assert.doesNotMatch(siteJs, /track-mini-grid/);
+  assert.doesNotMatch(siteJs, /GitLab 仓库/);
+  assert.doesNotMatch(siteJs, /演示视频/);
+  assert.doesNotMatch(siteJs, /wk-sublinks/);
+});
+
+test("role authorization is completed at entry and protects sensitive actions", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /const ROLE_KEY = "joincare_hackathon_role"/);
+  assert.match(siteJs, /function currentRole\(/);
+  assert.match(siteJs, /function hydrateRole\(/);
+  assert.match(siteJs, /function requireAuth\(/);
+  assert.match(siteJs, /function showAuthGate\(/);
+  assert.match(siteJs, /wantsAuthChooser\(\)/);
+  assert.match(siteJs, /root\.localStorage\.setItem\(ROLE_KEY, "public"\)/);
+  assert.match(siteJs, /data-auth-role/);
+  assert.match(siteJs, /if \(!requireAuth\("vote"\)\) return/);
+  assert.match(siteJs, /if \(!requireAuth\("team"\)\) return/);
+  assert.match(siteJs, /if \(!requireAuth\("judge"\)\) return/);
+  assert.doesNotMatch(siteJs, /if \(!currentRole\(\)\) showAuthGate\("entry"\)/);
+});
+
+test("official site cache keys are bumped after mobile shell expansion", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260618-01/);
-  assert.match(html, /src\/site\.js\?v=20260618-01/);
+  assert.match(html, /src\/site\.css\?v=20260618-08/);
+  assert.match(html, /src\/site\.js\?v=20260618-08/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
