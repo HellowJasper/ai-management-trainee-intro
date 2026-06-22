@@ -447,7 +447,7 @@
 .pm-info h2 { margin: 12px 0 2px; font-family: var(--display); font-size: 40px; color: #fff; text-shadow: 0 0 18px rgba(40,255,200,0.35); }
 .pm-roman { font-family: var(--nav-pixel); font-size: 11px; letter-spacing: 0.14em; color: var(--text-soft); }
 .pm-fields { margin-top: 22px; display: flex; flex-direction: column; gap: 16px; }
-.pm-field span { display: block; font-size: 13.5px; color: var(--neon-2); font-weight: 700; margin-bottom: 5px; }
+.pm-field span { display: block; font-size: 13.5px; color: var(--neon); font-weight: 700; margin-bottom: 5px; }
 .pm-field p { margin: 0; font-size: 14.5px; line-height: 1.65; color: var(--text-soft); white-space: pre-line; }
 @media (max-width: 680px) { .pm-card { grid-template-columns: 1fr; max-height: 92vh; } .pm-media { min-height: 240px; } }
 
