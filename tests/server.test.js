@@ -361,6 +361,47 @@ test("/admin serves the management console shell", async (t) => {
   assert.match(slashHtml, /大屏预览/);
 });
 
+test("mobile root requests serve the official mobile site while desktop keeps the big-screen shell", async (t) => {
+  const publicRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-static-root-"));
+  await fs.writeFile(path.join(publicRoot, "index.html"), "<!doctype html><title>BIG SCREEN</title>");
+  await fs.writeFile(path.join(publicRoot, "site.html"), "<!doctype html><title>MOBILE SITE</title>");
+
+  const server = createServer({ publicRoot });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const mobileResponse = await fetch(`${baseUrl}/`, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148",
+    },
+  });
+  const mobileHtml = await mobileResponse.text();
+
+  assert.equal(mobileResponse.status, 200);
+  assert.match(mobileHtml, /MOBILE SITE/);
+
+  const desktopResponse = await fetch(`${baseUrl}/`, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+    },
+  });
+  const desktopHtml = await desktopResponse.text();
+
+  assert.equal(desktopResponse.status, 200);
+  assert.match(desktopHtml, /BIG SCREEN/);
+
+  const forcedDesktopResponse = await fetch(`${baseUrl}/?screen=big`, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148",
+    },
+  });
+  const forcedDesktopHtml = await forcedDesktopResponse.text();
+
+  assert.equal(forcedDesktopResponse.status, 200);
+  assert.match(forcedDesktopHtml, /BIG SCREEN/);
+});
+
 test("API root returns a JSON 404 instead of falling through to static files", async (t) => {
   const publicRoot = path.join(__dirname, "..");
   const server = createServer({ publicRoot });

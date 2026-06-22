@@ -87,6 +87,18 @@ function decodePathname(pathname) {
   }
 }
 
+function isMobileRootRequest(request, url) {
+  if (url.pathname !== "/" || url.searchParams.get("screen") === "big") {
+    return false;
+  }
+
+  const userAgent = String(request.headers["user-agent"] || "");
+  const mobileClientHint = String(request.headers["sec-ch-ua-mobile"] || "");
+
+  return mobileClientHint.includes("?1")
+    || /\b(Android|iPhone|iPad|iPod|Mobile|MicroMessenger|Lark|Feishu)\b/i.test(userAgent);
+}
+
 async function routeApi(
   request,
   response,
@@ -210,12 +222,14 @@ function serveStatic(request, response, url, publicRoot) {
   }
 
   const decodedPathname = decodePathname(url.pathname);
-  const requestPath =
-    decodedPathname === "/"
-      ? "/index.html"
-      : decodedPathname === "/admin" || decodedPathname === "/admin/"
-        ? "/admin.html"
-        : decodedPathname;
+  let requestPath = decodedPathname;
+  if (isMobileRootRequest(request, url)) {
+    requestPath = "/site.html";
+  } else if (decodedPathname === "/") {
+    requestPath = "/index.html";
+  } else if (decodedPathname === "/admin" || decodedPathname === "/admin/") {
+    requestPath = "/admin.html";
+  }
   const filePath = path.resolve(publicRoot, `.${requestPath}`);
 
   if (!filePath.startsWith(`${publicRoot}${path.sep}`) && filePath !== publicRoot) {
