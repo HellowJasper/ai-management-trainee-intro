@@ -3800,6 +3800,8 @@ button:disabled {
 .vote-result-cockpit {
   width: min(1680px, 92vw);
   border: 1px solid rgba(103, 255, 213, 0.28);
+  border-radius: 16px;
+  overflow: hidden;
   background:
     linear-gradient(90deg, rgba(40, 255, 200, 0.09), transparent 20%, transparent 80%, rgba(167, 255, 79, 0.07)),
     repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.034) 0 1px, transparent 1px 20px),
@@ -3816,6 +3818,8 @@ button:disabled {
   gap: clamp(14px, 1.4vw, 22px);
   padding: clamp(14px, 1.55vw, 24px);
   border: 1px solid rgba(103, 255, 213, 0.28);
+  border-radius: 16px;
+  overflow: hidden;
   background:
     linear-gradient(90deg, rgba(40, 255, 200, 0.09), transparent 20%, transparent 80%, rgba(167, 255, 79, 0.07)),
     repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.034) 0 1px, transparent 1px 20px),
@@ -3912,6 +3916,7 @@ button:disabled {
 .final-result-sideboard,
 .final-result-row {
   border: 1px solid rgba(103, 255, 213, 0.26);
+  border-radius: 16px;
   background:
     linear-gradient(180deg, rgba(40, 255, 200, 0.1), transparent 34%),
     rgba(3, 13, 17, 0.72);
@@ -4297,6 +4302,7 @@ button:disabled {
   gap: 6px;
   padding: 12px 12px;
   border: 1px solid rgba(var(--vote-color-rgb), 0.2);
+  border-radius: var(--radius);
   background: rgba(2, 10, 14, 0.58);
 }
 
@@ -4411,6 +4417,7 @@ button:disabled {
   gap: 6px;
   padding: 14px;
   border: 1px solid rgba(103, 255, 213, 0.22);
+  border-radius: var(--radius);
   background:
     linear-gradient(180deg, rgba(40, 255, 200, 0.08), transparent 60%),
     rgba(2, 10, 14, 0.6);
