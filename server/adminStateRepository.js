@@ -71,6 +71,10 @@ function normalizeId(id) {
   return String(id || "").trim();
 }
 
+function normalizeDisplayTime(time) {
+  return String(time || "").trim();
+}
+
 function withStageStatuses(state) {
   const currentIndex = state.stages.findIndex((stage) => stage.id === state.currentStageId);
 
@@ -152,9 +156,42 @@ function createAdminStateRepository(dataPath = DEFAULT_DATA_PATH) {
     return nextState;
   }
 
+  async function updateDisplayTimes(payload = {}) {
+    const state = await readState();
+    const incomingStages = Array.isArray(payload.stages) ? payload.stages : [];
+    const updatedAt = new Date().toISOString();
+    const stageTimesById = new Map(
+      incomingStages
+        .map((stage) => [normalizeId(stage?.id), normalizeDisplayTime(stage?.time)])
+        .filter(([id]) => id),
+    );
+
+    const nextState = normalizeState({
+      ...state,
+      updatedAt,
+      stages: state.stages.map((stage) => (
+        stageTimesById.has(stage.id)
+          ? { ...stage, time: stageTimesById.get(stage.id) }
+          : stage
+      )),
+      logs: [
+        {
+          at: updatedAt,
+          actor: "admin",
+          message: "更新时间显示配置",
+        },
+        ...state.logs,
+      ],
+    });
+
+    await writeState(nextState);
+    return nextState;
+  }
+
   return {
     getState,
     setCurrentStage,
+    updateDisplayTimes,
   };
 }
 

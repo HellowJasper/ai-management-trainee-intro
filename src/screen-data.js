@@ -8,11 +8,10 @@
 
   const A = (id, file) => `./assets/trainees/${id}/${file}`;
 
-  // ---- 36小时主流程 ---------------------------------------------------
   const FLOW_DAYS = [
-    { day: "DAY 1", en: "KICKOFF", icon: "team", title: "启航时刻·挑战发布·自由组队", lines: ["从认识组织到理解业务挑战，", "完成团队组建，开启黑客松之旅"], time: "1:00 – 5:30 PM" },
+    { day: "DAY 1", en: "KICKOFF", icon: "team", title: "启航时刻·挑战发布·自由组队", lines: ["从认识组织到理解业务挑战，", "完成团队组建，开启黑客松之旅"], time: "" },
     { day: "DAY 2", en: "DEMO PREP", icon: "bulb", title: "方案共创·创新冲刺", lines: ["围绕真实业务场景开展方案设计、系统开发与成果打磨"], time: "" },
-    { day: "DAY 3", en: "SHOWCASE", icon: "trophy", title: "成果展示·评审投票·荣誉揭晓", lines: ["展示团队解决方案，专家评审与全员投票，共同见证最终荣誉揭晓。"], time: "8:30 – 11:50 AM" },
+    { day: "DAY 3", en: "SHOWCASE", icon: "trophy", title: "成果展示·评审投票·荣誉揭晓", lines: ["展示团队解决方案，专家评审与全员投票，共同见证最终荣誉揭晓。"], time: "" },
   ];
 
   // ---- 赛事机制卡 ------------------------------------------------------

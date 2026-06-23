@@ -381,6 +381,36 @@
     });
   }
 
+  async function updateAdminDisplayTimes(payload = {}) {
+    return fetchJson("/api/admin/display-times", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload || {}),
+    });
+  }
+
+  async function updateAdminMissionCountdown(payload = {}) {
+    return fetchJson("/api/admin/mission-countdown", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload || {}),
+    });
+  }
+
+  async function updateAdminRoadshow(payload = {}) {
+    return fetchJson("/api/admin/roadshow", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload || {}),
+    });
+  }
+
   function readFeishuSession(sessionKey) {
     try {
       return root.sessionStorage?.getItem(sessionKey) || "";
@@ -481,6 +511,9 @@
     loginWithFeishu,
     saveSentence,
     updateAdminStage,
+    updateAdminDisplayTimes,
+    updateAdminMissionCountdown,
+    updateAdminRoadshow,
     startMissionCountdown,
     startRoadshowTimer,
     updateTrainee,

@@ -390,13 +390,33 @@ test("team page treats tracks as fixed lanes and team names as editable", () => 
   assert.match(siteCss, /\.team-name-draft/);
 });
 
-test("team page explains that work submission belongs to the team workspace", () => {
+test("team cards route into a dedicated team workspace page", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
+  assert.match(siteJs, /function renderTeamWorkspace\(/);
+  assert.match(siteJs, /function showTeamWorkspace\(/);
+  assert.match(siteJs, /team-workspace-/);
+  assert.match(siteJs, /data-team-workspace/);
   assert.match(siteJs, /队伍工作台 \/ 作品提交/);
+  assert.match(siteJs, /进入工作台/);
+  assert.match(siteCss, /\.team-workspace/);
+});
+
+test("team workspace fields align with the public gallery work details", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
   assert.match(siteJs, /作品展厅只展示/);
-  assert.match(siteCss, /\.team-submit/);
+  assert.match(siteJs, /作品标题/);
+  assert.match(siteJs, /一句话介绍/);
+  assert.match(siteJs, /Demo 链接/);
+  assert.match(siteJs, /代码地址/);
+  assert.match(siteJs, /展示截图/);
+  assert.match(siteJs, /发布预览/);
+  assert.match(siteJs, /data-work-field/);
+  assert.match(siteCss, /\.workspace-form/);
+  assert.match(siteCss, /\.workspace-preview/);
 });
 
 test("stage screen routing opens the vote progress and result screens", () => {
@@ -875,15 +895,31 @@ test("admin state API helpers are exposed without swallowing failures", () => {
   assert.match(dataJs, /async function updateAdminStage\(stageId\)/);
   assert.match(dataJs, /fetchJson\("\/api\/admin\/stage",\s*{[\s\S]*method:\s*"PATCH"/);
   assert.match(dataJs, /body:\s*JSON\.stringify\(\{\s*stageId\s*\}\)/);
+  assert.match(dataJs, /async function updateAdminDisplayTimes\(payload/);
+  assert.match(dataJs, /fetchJson\("\/api\/admin\/display-times"/);
+  assert.match(dataJs, /async function updateAdminMissionCountdown\(payload/);
+  assert.match(dataJs, /fetchJson\("\/api\/admin\/mission-countdown"/);
+  assert.match(dataJs, /async function updateAdminRoadshow\(payload/);
+  assert.match(dataJs, /fetchJson\("\/api\/admin\/roadshow"/);
   assert.match(dataJs, /loadAdminState,/);
   assert.match(dataJs, /updateAdminStage,/);
+  assert.match(dataJs, /updateAdminDisplayTimes,/);
+  assert.match(dataJs, /updateAdminMissionCountdown,/);
+  assert.match(dataJs, /updateAdminRoadshow,/);
 });
 
 test("admin console publishes phase changes through the admin state API", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
   const js = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
 
   assert.match(js, /window\.AppData\.loadAdminState\(\)/);
   assert.match(js, /window\.AppData\.updateAdminStage\(stageId\)/);
+  assert.match(html, /id="saveDisplayTimesButton"/);
+  assert.match(html, /id="missionCountdownDuration"/);
+  assert.match(html, /id="roadshowDuration"/);
+  assert.match(js, /window\.AppData\.updateAdminDisplayTimes/);
+  assert.match(js, /window\.AppData\.updateAdminMissionCountdown/);
+  assert.match(js, /window\.AppData\.updateAdminRoadshow/);
   assert.match(js, /catch\s*\(error\)[\s\S]*同步失败/);
 });
 
@@ -947,14 +983,14 @@ test("team header opens the mission countdown stage", () => {
   assert.match(countdownSection, /id="countdownMinutes"/);
   assert.match(countdownSection, /id="countdownSeconds"/);
   assert.match(countdownSection, /id="countdownStartButton"/);
-  assert.match(countdownSection, /START MISSION/);
+  assert.match(countdownSection, /ADMIN CONTROLLED/);
   assert.match(countdownSection, /data-view-target="team"[\s\S]*?BACK TO TEAM FORMATION/);
   assert.match(appJs, /countdown:\s*document\.getElementById\("countdownStage"\)/);
   assert.match(appJs, /countdown:\s*createRain\("countdownRain"/);
-  assert.match(appJs, /handleCountdownStart/);
+  assert.doesNotMatch(appJs, /handleCountdownStart/);
   assert.match(appJs, /joincare_mission_countdown_started_at_manual_v2/);
   assert.match(appJs, /window\.AppData\.loadMissionCountdown/);
-  assert.match(appJs, /window\.AppData\.startMissionCountdown/);
+  assert.doesNotMatch(appJs, /window\.AppData\.startMissionCountdown/);
   assert.match(appJs, /startCountdownClock/);
   assert.match(appJs, /stopCountdownClock/);
   assert.match(appJs, /if\s*\(!readCountdownStartedAt\(\)\)\s*{[\s\S]*?stopCountdownClock\(\);/);
@@ -983,6 +1019,7 @@ test("countdown header opens a current roadshow team timer stage", () => {
   assert.match(roadshowSection, /id="roadshowMinutes">15<\/span>/);
   assert.match(roadshowSection, /id="roadshowSeconds"/);
   assert.match(roadshowSection, /id="roadshowStartButton"/);
+  assert.match(roadshowSection, /ADMIN CONTROLLED/);
   assert.match(roadshowSection, /class="roadshow-cockpit"/);
   assert.match(roadshowSection, /class="roadshow-command-bar"/);
   assert.match(roadshowSection, /id="roadshowCommandStatus"/);
@@ -1007,7 +1044,7 @@ test("countdown header opens a current roadshow team timer stage", () => {
   assert.match(appJs, /roadshow-member-status/);
   assert.match(appJs, /resolveNextRoadshowTeam/);
   assert.match(appJs, /syncRoadshowTimer/);
-  assert.match(appJs, /handleRoadshowStart/);
+  assert.doesNotMatch(appJs, /handleRoadshowStart/);
   assert.match(dataJs, /async function loadRoadshow/);
   assert.match(dataJs, /async function startRoadshowTimer/);
   assert.match(dataJs, /nextTeamId/);

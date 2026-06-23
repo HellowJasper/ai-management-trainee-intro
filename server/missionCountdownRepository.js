@@ -88,9 +88,23 @@ function createMissionCountdownRepository(dataPath = DEFAULT_DATA_PATH) {
     return withServerNow(nextState);
   }
 
+  async function updateState(payload = {}) {
+    const state = await readState();
+    const nextState = normalizeState({
+      ...state,
+      ...payload,
+      startedAt: Object.hasOwn(payload, "startedAt") ? payload.startedAt : state.startedAt,
+      durationMs: Object.hasOwn(payload, "durationMs") ? payload.durationMs : state.durationMs,
+    });
+
+    await writeState(nextState);
+    return withServerNow(nextState);
+  }
+
   return {
     getState,
     startCountdown,
+    updateState,
   };
 }
 

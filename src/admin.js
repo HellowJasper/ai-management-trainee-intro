@@ -83,6 +83,25 @@ const operationLog = document.querySelector("#operationLog");
 const confirmDangerAction = document.querySelector("#confirmDangerAction");
 const closeVoteButton = document.querySelector("#closeVoteButton");
 const publishResultButton = document.querySelector("#publishResultButton");
+const saveDisplayTimesButton = document.querySelector("#saveDisplayTimesButton");
+const missionCountdownDuration = document.querySelector("#missionCountdownDuration");
+const missionCountdownState = document.querySelector("#missionCountdownState");
+const startMissionCountdownButton = document.querySelector("#startMissionCountdownButton");
+const resetMissionCountdownButton = document.querySelector("#resetMissionCountdownButton");
+const roadshowDuration = document.querySelector("#roadshowDuration");
+const roadshowStateLabel = document.querySelector("#roadshowState");
+const startRoadshowButton = document.querySelector("#startRoadshowButton");
+const resetRoadshowButton = document.querySelector("#resetRoadshowButton");
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;",
+  })[char]);
+}
 
 function getActiveStage() {
   return stages.find((stage) => stage.status === "active") || stages[0];
@@ -136,14 +155,6 @@ function syncStageStatuses(stageId) {
       stage.status = "done";
     } else if (index === nextIndex) {
       stage.status = "active";
-      stage.time = `${new Date().toLocaleDateString("zh-CN", {
-        month: "2-digit",
-        day: "2-digit",
-      })} ${new Date().toLocaleTimeString("zh-CN", {
-        hour12: false,
-        hour: "2-digit",
-        minute: "2-digit",
-      })}\n进行中`;
     } else {
       stage.status = "pending";
     }
@@ -219,11 +230,113 @@ async function finishCurrentStage() {
   addLog("system", "同步失败：当前已是最后阶段，无法继续结束");
 }
 
+function durationMsToMinutes(durationMs, fallbackMinutes) {
+  const minutes = Math.round((Number(durationMs) || 0) / 60000);
+  return Number.isFinite(minutes) && minutes > 0 ? minutes : fallbackMinutes;
+}
+
+function minutesInputToDurationMs(input, fallbackMinutes) {
+  const minutes = Number(input?.value);
+  const cleanMinutes = Number.isFinite(minutes) && minutes > 0 ? minutes : fallbackMinutes;
+  return Math.round(cleanMinutes * 60000);
+}
+
+function formatStartedAt(startedAt) {
+  if (!startedAt) return "未启动";
+  const parsed = new Date(startedAt);
+  if (Number.isNaN(parsed.getTime())) return "未启动";
+  return parsed.toLocaleString("zh-CN", { hour12: false });
+}
+
+function renderMissionCountdownState(state = {}) {
+  if (missionCountdownDuration) {
+    missionCountdownDuration.value = String(durationMsToMinutes(state.durationMs, 1440));
+  }
+  if (missionCountdownState) {
+    missionCountdownState.textContent = `状态：${formatStartedAt(state.startedAt)}`;
+  }
+}
+
+function renderRoadshowState(state = {}) {
+  if (roadshowDuration) {
+    roadshowDuration.value = String(durationMsToMinutes(state.durationMs, 15));
+  }
+  if (roadshowStateLabel) {
+    roadshowStateLabel.textContent = `状态：${formatStartedAt(state.startedAt)}`;
+  }
+}
+
+function collectStageDisplayTimes() {
+  return [...document.querySelectorAll("[data-stage-time-input]")]
+    .map((input) => ({
+      id: input.dataset.stageTimeInput,
+      time: input.value.trim(),
+    }))
+    .filter((stage) => stage.id);
+}
+
+async function saveDisplayTimes() {
+  try {
+    const state = await window.AppData.updateAdminDisplayTimes({
+      stages: collectStageDisplayTimes(),
+    });
+    applyAdminState(state);
+  } catch (error) {
+    console.warn("Display time sync failed.", error);
+    addLog("system", "同步失败：时间显示配置未保存");
+  }
+}
+
+async function loadTimerControls() {
+  try {
+    renderMissionCountdownState(await window.AppData.loadMissionCountdown());
+  } catch (error) {
+    console.warn("Mission countdown state load failed.", error);
+    if (missionCountdownState) missionCountdownState.textContent = "状态：同步失败";
+  }
+
+  try {
+    renderRoadshowState(await window.AppData.loadRoadshow());
+  } catch (error) {
+    console.warn("Roadshow state load failed.", error);
+    if (roadshowStateLabel) roadshowStateLabel.textContent = "状态：同步失败";
+  }
+}
+
+async function updateMissionCountdown(startedAt) {
+  try {
+    const state = await window.AppData.updateAdminMissionCountdown({
+      durationMs: minutesInputToDurationMs(missionCountdownDuration, 1440),
+      startedAt,
+    });
+    renderMissionCountdownState(state);
+    addLog("admin", startedAt ? "启动任务倒计时" : "重置任务倒计时");
+  } catch (error) {
+    console.warn("Mission countdown update failed.", error);
+    addLog("system", "同步失败：任务倒计时未更新");
+  }
+}
+
+async function updateRoadshow(startedAt) {
+  try {
+    const state = await window.AppData.updateAdminRoadshow({
+      durationMs: minutesInputToDurationMs(roadshowDuration, 15),
+      startedAt,
+    });
+    renderRoadshowState(state);
+    addLog("admin", startedAt ? "启动路演计时" : "重置路演计时");
+  } catch (error) {
+    console.warn("Roadshow timer update failed.", error);
+    addLog("system", "同步失败：路演计时未更新");
+  }
+}
+
 function renderCurrentStage() {
   const active = getActiveStage();
+  const displayTime = active.time ? active.time.replace("\n", " / ") : "管理员未设置";
 
   currentStageName.textContent = active.name;
-  currentStageTime.textContent = `开始时间：${active.time.replace("\n", " / ")}`;
+  currentStageTime.textContent = `展示时间：${displayTime}`;
   currentStageStatus.textContent = statusLabel[active.status];
   currentStageStatus.className = `status-pill status-${active.status}`;
   previewStageName.textContent = active.name;
@@ -247,7 +360,9 @@ function renderRows() {
           <span role="cell">
             <strong class="${statusClass}">${statusLabel[stage.status]}</strong>
           </span>
-          <span class="stage-time" role="cell">${stage.time.replace("\n", "<br />")}</span>
+          <span class="stage-time" role="cell">
+            <textarea class="stage-time-input" data-stage-time-input="${stage.id}" aria-label="${escapeHtml(stage.name)}展示时间">${escapeHtml(stage.time || "")}</textarea>
+          </span>
           <span role="cell">
             <button class="stage-command ${commandClass}" type="button" data-stage-command="${stage.id}">${commandText}</button>
           </span>
@@ -342,6 +457,12 @@ document.querySelector("#startNextStage").addEventListener("click", async () => 
 
 document.querySelector("#finishCurrentStage").addEventListener("click", finishCurrentStage);
 
+saveDisplayTimesButton?.addEventListener("click", saveDisplayTimes);
+startMissionCountdownButton?.addEventListener("click", () => updateMissionCountdown(new Date().toISOString()));
+resetMissionCountdownButton?.addEventListener("click", () => updateMissionCountdown(null));
+startRoadshowButton?.addEventListener("click", () => updateRoadshow(new Date().toISOString()));
+resetRoadshowButton?.addEventListener("click", () => updateRoadshow(null));
+
 document.querySelector("#clearLogButton").addEventListener("click", () => {
   logs.splice(0, logs.length, [new Date().toLocaleTimeString("zh-CN", { hour12: false }), "admin", "清空操作日志"]);
   renderLogs();
@@ -370,10 +491,12 @@ async function initAdmin() {
   try {
     const state = await window.AppData.loadAdminState();
     applyAdminState(state);
+    await loadTimerControls();
     addLog("system", "后台状态同步完成");
   } catch (error) {
     console.warn("Admin state load failed.", error);
     addLog("system", "同步失败：无法加载后端状态，暂用本地默认阶段");
+    await loadTimerControls();
   }
 }
 

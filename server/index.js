@@ -219,6 +219,24 @@ async function routeApi(
     return true;
   }
 
+  if (url.pathname === "/api/admin/display-times" && ["POST", "PATCH"].includes(request.method)) {
+    const payload = await readJsonBody(request);
+    sendJson(response, 200, await adminStateRepository.updateDisplayTimes(payload));
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/mission-countdown" && ["POST", "PATCH"].includes(request.method)) {
+    const payload = await readJsonBody(request);
+    sendJson(response, 200, await missionCountdownRepository.updateState(payload));
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/roadshow" && ["POST", "PATCH"].includes(request.method)) {
+    const payload = await readJsonBody(request);
+    sendJson(response, 200, await roadshowRepository.updateState(payload));
+    return true;
+  }
+
   if (url.pathname === "/api/teams" && request.method === "GET") {
     sendJson(response, 200, await teamRepository.listTeams());
     return true;

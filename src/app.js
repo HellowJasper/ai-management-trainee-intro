@@ -987,6 +987,19 @@ function applyCountdownState(state = {}) {
   };
 }
 
+function formatCountdownDuration(durationMs = COUNTDOWN_DURATION_MS) {
+  const totalSeconds = Math.max(0, Math.floor((Number(durationMs) || COUNTDOWN_DURATION_MS) / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return {
+    hours: String(hours).padStart(2, "0"),
+    minutes: String(minutes).padStart(2, "0"),
+    seconds: String(seconds).padStart(2, "0"),
+  };
+}
+
 async function loadCountdownState() {
   try {
     return applyCountdownState(await window.AppData.loadMissionCountdown({
@@ -1006,14 +1019,15 @@ function renderCountdownClock() {
   const startedAt = readCountdownStartedAt();
 
   if (!startedAt) {
-    if (countdownHours) countdownHours.textContent = "24";
-    if (countdownMinutes) countdownMinutes.textContent = "00";
-    if (countdownSeconds) countdownSeconds.textContent = "00";
+    const readyTimer = formatCountdownDuration(countdownDurationMs);
+    if (countdownHours) countdownHours.textContent = readyTimer.hours;
+    if (countdownMinutes) countdownMinutes.textContent = readyTimer.minutes;
+    if (countdownSeconds) countdownSeconds.textContent = readyTimer.seconds;
     if (countdownProgress) countdownProgress.style.transform = "scaleX(0)";
-    if (countdownStatus) countdownStatus.textContent = "READY TO START";
+    if (countdownStatus) countdownStatus.textContent = "WAITING FOR ADMIN";
     if (countdownStartButton) {
-      countdownStartButton.disabled = false;
-      countdownStartButton.textContent = "START MISSION";
+      countdownStartButton.disabled = true;
+      countdownStartButton.textContent = "ADMIN CONTROLLED";
     }
     return;
   }
@@ -1050,31 +1064,6 @@ async function syncCountdownClock() {
     stopCountdownClock();
     return;
   }
-  startCountdownClock();
-}
-
-async function handleCountdownStart() {
-  if (countdownStartButton) {
-    countdownStartButton.disabled = true;
-    countdownStartButton.textContent = "STARTING MISSION";
-  }
-
-  if (!readCountdownStartedAt()) {
-    try {
-      applyCountdownState(await window.AppData.startMissionCountdown({
-        storageKey: COUNTDOWN_STORAGE_KEY,
-        durationMs: COUNTDOWN_DURATION_MS,
-        startedAt: Date.now(),
-      }));
-    } catch (error) {
-      console.warn("Mission countdown start failed.", error);
-      applyCountdownState({
-        startedAt: Date.now(),
-        durationMs: COUNTDOWN_DURATION_MS,
-      });
-    }
-  }
-
   startCountdownClock();
 }
 
@@ -1229,10 +1218,10 @@ function renderRoadshowTimer() {
     if (roadshowSeconds) roadshowSeconds.textContent = readyTimer.seconds;
     if (roadshowProgress) roadshowProgress.style.transform = "scaleX(0)";
     if (roadshowStartButton) {
-      roadshowStartButton.disabled = false;
-      roadshowStartButton.textContent = "START ROADSHOW";
+      roadshowStartButton.disabled = true;
+      roadshowStartButton.textContent = "ADMIN CONTROLLED";
     }
-    if (roadshowCommandStatus) roadshowCommandStatus.textContent = "STANDBY";
+    if (roadshowCommandStatus) roadshowCommandStatus.textContent = "WAITING ADMIN";
     return;
   }
 
@@ -1265,35 +1254,6 @@ async function syncRoadshowTimer() {
     stopRoadshowTimer();
     return;
   }
-  startRoadshowTimer();
-}
-
-async function handleRoadshowStart() {
-  if (roadshowStartButton) {
-    roadshowStartButton.disabled = true;
-    roadshowStartButton.textContent = "STARTING ROADSHOW";
-  }
-
-  if (!readRoadshowStartedAt()) {
-    const team = resolveRoadshowTeam();
-    try {
-      applyRoadshowState(await window.AppData.startRoadshowTimer({
-        storageKey: ROADSHOW_STORAGE_KEY,
-        durationMs: roadshowState.durationMs || ROADSHOW_DURATION_MS,
-        currentTeamId: team.id || roadshowState.currentTeamId,
-        nextTeamId: resolveNextRoadshowTeam().id || roadshowState.nextTeamId,
-        startedAt: Date.now(),
-      }));
-    } catch (error) {
-      console.warn("Roadshow timer start failed.", error);
-      applyRoadshowState({
-        currentTeamId: team.id || roadshowState.currentTeamId,
-        startedAt: Date.now(),
-        durationMs: roadshowState.durationMs || ROADSHOW_DURATION_MS,
-      });
-    }
-  }
-
   startRoadshowTimer();
 }
 
@@ -1834,9 +1794,19 @@ function renderDiscoverPanel(target) {
   if (discoverButton) discoverButton.setAttribute("aria-expanded", "false");
 }
 
+async function syncVisibleTimerState() {
+  if (appView === "countdown") {
+    await syncCountdownClock();
+  }
+  if (appView === "roadshow") {
+    await syncRoadshowTimer();
+  }
+}
+
 async function pollAdminState() {
   try {
     const state = await window.AppData.loadAdminState();
+    await syncVisibleTimerState();
     const stageId = state?.currentStageId || "";
     if (!stageId) {
       return;
@@ -1913,8 +1883,6 @@ function bindEvents() {
   });
 
   enterButton.addEventListener("click", handleLandingEntry);
-  countdownStartButton?.addEventListener("click", handleCountdownStart);
-  roadshowStartButton?.addEventListener("click", handleRoadshowStart);
 
   document.getElementById("welcomeEnterButton").addEventListener("click", () => {
     setView(window.AppLogic.resolveWelcomeEntryTarget());

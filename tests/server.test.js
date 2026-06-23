@@ -595,6 +595,45 @@ test("admin stage API updates current stage and persists a log", async (t) => {
   assert.equal(storedState.logs[0].stageId, "vote");
 });
 
+test("admin display time API updates stage display times", async (t) => {
+  const { dataPath, publicRoot, adminStateRepository } = await createTempAdminStateRepository({
+    currentStageId: "team",
+    updatedAt: "2026-05-22T06:00:00.000Z",
+    stages: [
+      { id: "team", name: "组队开启", time: "05-22 14:00\n进行中" },
+      { id: "vote", name: "投票开启", time: "预计 05-24 10:00\n-" },
+    ],
+    logs: [],
+  });
+  const server = createServer({ publicRoot, adminStateRepository });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/admin/display-times`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      stages: [
+        { id: "team", time: "06-23 14:20\n进行中" },
+        { id: "vote", time: "06-23 15:30\n待开启" },
+      ],
+    }),
+  });
+  const state = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(state.stages[0].time, "06-23 14:20\n进行中");
+  assert.equal(state.stages[1].time, "06-23 15:30\n待开启");
+  assert.match(state.updatedAt, /^\d{4}-\d{2}-\d{2}T/);
+  assert.match(state.logs[0].message, /更新时间显示配置/);
+
+  const storedState = JSON.parse(await fs.readFile(dataPath, "utf8"));
+  assert.equal(storedState.stages[0].time, "06-23 14:20\n进行中");
+});
+
 test("admin stage API rejects unknown stage ids", async (t) => {
   const { publicRoot, adminStateRepository } = await createTempAdminStateRepository({
     currentStageId: "team",
@@ -622,4 +661,84 @@ test("admin stage API rejects unknown stage ids", async (t) => {
   assert.equal(response.status, 400);
   assert.equal(payload.error.statusCode, 400);
   assert.match(payload.error.message, /Unknown admin stage id/);
+});
+
+test("admin timer APIs control countdown and roadshow display times", async (t) => {
+  const publicRoot = path.join(__dirname, "..");
+  const missionCountdownRepository = {
+    state: { startedAt: null, durationMs: 86400000 },
+    async getState() {
+      return { ...this.state, serverNow: "2026-06-23T10:00:00.000Z" };
+    },
+    async startCountdown(payload = {}) {
+      this.state = {
+        ...this.state,
+        startedAt: payload.startedAt || "2026-06-23T10:00:00.000Z",
+        durationMs: payload.durationMs || this.state.durationMs,
+      };
+      return this.getState();
+    },
+    async updateState(payload = {}) {
+      this.state = {
+        ...this.state,
+        startedAt: Object.hasOwn(payload, "startedAt") ? payload.startedAt : this.state.startedAt,
+        durationMs: payload.durationMs || this.state.durationMs,
+      };
+      return this.getState();
+    },
+  };
+  const roadshowRepository = {
+    state: { currentTeamId: "marketing", nextTeamId: "functions", startedAt: null, durationMs: 900000, phase: "DEMO" },
+    async getState() {
+      return { ...this.state, serverNow: "2026-06-23T10:00:00.000Z" };
+    },
+    async startRoadshow(payload = {}) {
+      this.state = {
+        ...this.state,
+        startedAt: payload.startedAt || "2026-06-23T10:00:00.000Z",
+        durationMs: payload.durationMs || this.state.durationMs,
+      };
+      return this.getState();
+    },
+    async updateState(payload = {}) {
+      this.state = {
+        ...this.state,
+        startedAt: Object.hasOwn(payload, "startedAt") ? payload.startedAt : this.state.startedAt,
+        durationMs: payload.durationMs || this.state.durationMs,
+      };
+      return this.getState();
+    },
+  };
+  const server = createServer({ publicRoot, missionCountdownRepository, roadshowRepository });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const countdownResponse = await fetch(`${baseUrl}/api/admin/mission-countdown`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      startedAt: "2026-06-23T10:00:00.000Z",
+      durationMs: 2 * 60 * 60 * 1000,
+    }),
+  });
+  const countdown = await countdownResponse.json();
+
+  assert.equal(countdownResponse.status, 200);
+  assert.equal(countdown.startedAt, "2026-06-23T10:00:00.000Z");
+  assert.equal(countdown.durationMs, 7200000);
+
+  const roadshowResponse = await fetch(`${baseUrl}/api/admin/roadshow`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      startedAt: "2026-06-23T10:10:00.000Z",
+      durationMs: 8 * 60 * 1000,
+    }),
+  });
+  const roadshow = await roadshowResponse.json();
+
+  assert.equal(roadshowResponse.status, 200);
+  assert.equal(roadshow.startedAt, "2026-06-23T10:10:00.000Z");
+  assert.equal(roadshow.durationMs, 480000);
 });

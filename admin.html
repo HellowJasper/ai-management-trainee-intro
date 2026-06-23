@@ -150,6 +150,46 @@
             </article>
           </section>
 
+          <section class="panel timing-panel" aria-labelledby="timingTitle">
+            <div class="panel-heading">
+              <div>
+                <p>TIME_CONTROL</p>
+                <h2 id="timingTitle">时间控制</h2>
+              </div>
+              <button type="button" id="saveDisplayTimesButton">保存阶段时间</button>
+            </div>
+
+            <div class="timer-control-grid">
+              <section class="timer-control-card">
+                <span>任务倒计时</span>
+                <label>
+                  展示时长（分钟）
+                  <input id="missionCountdownDuration" type="number" min="1" step="1" value="1440" />
+                </label>
+                <div class="timer-control-actions">
+                  <button type="button" id="startMissionCountdownButton">启动</button>
+                  <button type="button" id="resetMissionCountdownButton">重置</button>
+                </div>
+                <small id="missionCountdownState">等待同步</small>
+              </section>
+
+              <section class="timer-control-card">
+                <span>路演计时</span>
+                <label>
+                  展示时长（分钟）
+                  <input id="roadshowDuration" type="number" min="1" step="1" value="15" />
+                </label>
+                <div class="timer-control-actions">
+                  <button type="button" id="startRoadshowButton">启动</button>
+                  <button type="button" id="resetRoadshowButton">重置</button>
+                </div>
+                <small id="roadshowState">等待同步</small>
+              </section>
+            </div>
+
+            <p class="panel-note">说明：展示端只读取这些时间配置；启动、重置和时长修改均从管理员后台下发。</p>
+          </section>
+
           <section class="panel guard-panel" aria-labelledby="guardTitle">
             <div class="panel-heading">
               <div>

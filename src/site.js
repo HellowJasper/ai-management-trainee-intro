@@ -10,6 +10,7 @@
   const VOTE_KEY = "joincare_hackathon_vote";
   const TEAM_KEY = "joincare_hackathon_team";
   const TEAM_NAME_KEY = "joincare_hackathon_team_names";
+  const WORK_DRAFT_KEY = "joincare_hackathon_work_drafts";
   const JUDGE_KEY = "joincare_hackathon_judge_scores";
   const ROLE_KEY = "joincare_hackathon_role";
   const SESSION_KEY = "joincare_hackathon_session";
@@ -36,6 +37,7 @@
   const readJson = (key, fallback) => {
     try { return JSON.parse(root.localStorage.getItem(key) || JSON.stringify(fallback)); } catch (e) { return fallback; }
   };
+  const splitTags = (value) => String(value || "").split(/[，、,\n/]+/).map((x) => x.trim()).filter(Boolean);
 
   async function apiRequest(path, options) {
     const response = await fetch(path, {
@@ -686,15 +688,11 @@
           ? `<button class="team-join is-joined is-leave" data-leave-team="${t.id}">退出队伍</button>`
           : `<button class="team-join" data-join-team="${t.id}" ${disabled}>选择队伍</button>`
         : `<span class="team-readonly">仅查看组队进度</span>`;
-      const nameDraft = mine
-        ? `<label class="team-name-draft"><span>自定义队伍名称</span><input type="text" data-team-name-draft="${t.id}" value="${esc(displayName)}" placeholder="队长可编辑队名" /></label>`
-        : "";
-      return `<article class="team-card glass ${mine ? "mine" : ""}" style="--accent:${t.accent};--rgb:${t.rgb}">
+      return `<article class="team-card glass ${mine ? "mine" : ""}" data-team-workspace="${t.id}" style="--accent:${t.accent};--rgb:${t.rgb}">
         <div class="team-head"><span class="status-chip ${mine ? "on" : ""}">${mine ? "我的队伍" : t.trackCode}</span><b>${esc(displayName)}</b><em>${esc(t.track)}</em></div>
-        ${nameDraft}
         <h3>${esc(t.project)}</h3><p>${esc(t.pitch)}</p>
         <div class="team-roster">${roster}</div>
-        <div class="team-foot"><span>${count} 名成员已就位 · ${t.submitted ? "作品已提交" : "Demo 制作中"}</span>${action}</div>
+        <div class="team-foot"><span>${count} 名成员已就位 · ${t.submitted ? "作品已提交" : "Demo 制作中"}</span><div class="team-actions">${action}<button class="team-workspace-link" type="button" data-team-workspace="${t.id}">进入工作台</button></div></div>
       </article>`;
     }).join("");
     const title = canJoin ? "报名与组队" : "组队进度";
@@ -710,11 +708,6 @@
       : rolePermissions(currentRole()).canAdmin
       ? `<a class="btn-ghost" href="./admin.html">进入管理后台</a>`
       : `<a class="btn-ghost" data-nav="schedule">查看赛程</a>`;
-    const submitState = selectedTeam
-      ? "当前队伍资料会随队伍保存，后端接入后同步写入作品表。"
-      : canJoin
-      ? "先选择固定赛道并确定队伍名称，随后开放作品资料提交。"
-      : "该入口仅参赛选手可编辑，其他角色只查看发布后的作品。";
 
     return `${pageHead(title, subtitle, "TEAM")}
     <section class="container sec team-board">
@@ -722,21 +715,113 @@
         <div><span class="status-chip on">TEAM FORMATION HUB</span><h2>固定赛道，队伍自定义命名</h2><p>参考大屏组队方案，五条赛道对称呈现；加入队伍后队长可编辑队名，技术顾问、业务洞察、AI 开发、产品设计、路演运营等职责在队伍内沉淀。</p></div>
         <div class="team-countdown"><span>任务倒计时</span><b data-countdown data-remain="129600">${fmtHMS(129600)}</b><em>组队锁定后进入 36H Demo preparation</em></div>
       </div>
-      <div class="team-status glass"><div><span class="status-chip ${selectedTeam ? "on" : ""}">${canJoin ? (selectedTeam ? "已选择队伍" : "待选择队伍") : "只读进度"}</span><h2>${statusTitle}</h2><p>${statusSub}</p></div>${statusCta}</div>
-      <div class="team-submit glass">
-        <div>
-          <span class="status-chip ${selectedTeam ? "on" : ""}">WORKSPACE</span>
-          <h2>队伍工作台 / 作品提交</h2>
-          <p>作品提交放在队伍工作台完成，包含自定义队伍名称、作品标题、Demo 链接、代码地址与展示截图；作品展厅只展示发布后的作品并承接投票。</p>
-        </div>
-        <div class="team-submit-flow" aria-label="作品提交流程">
-          <span>01 固定赛道</span>
-          <span>02 自定义队伍名称</span>
-          <span>03 队伍工作台提交作品</span>
-          <em>${submitState}</em>
+      <div class="team-status glass"><div><span class="status-chip ${selectedTeam ? "on" : ""}">${canJoin ? (selectedTeam ? "已选择队伍" : "待选择队伍") : "只读进度"}</span><h2>${statusTitle}</h2><p>${statusSub} 点击任意队伍卡片进入专属工作台，维护队名与作品信息。</p></div>${statusCta}</div>
+      <div class="sec-cap"><span></span>队伍列表</div><div class="team-grid">${teams}</div>
+    </section>`;
+  }
+
+  function getWorkDraft(team) {
+    const allDrafts = readJson(WORK_DRAFT_KEY, {});
+    const nameDrafts = readJson(TEAM_NAME_KEY, {});
+    const draft = allDrafts[team.id] || {};
+    const links = teamLinks(team);
+    return {
+      teamName: draft.teamName || nameDrafts[team.id] || team.name,
+      project: draft.project || team.project,
+      pitch: draft.pitch || team.pitch || "",
+      stack: draft.stack || (team.stack || []).join(" / "),
+      demoUrl: draft.demoUrl || links.video,
+      codeUrl: draft.codeUrl || links.gitlab,
+      docUrl: draft.docUrl || links.page,
+      screenshots: draft.screenshots || "主界面截图 / 数据看板截图 / AI 输出截图",
+    };
+  }
+
+  function renderWorkspaceField({ teamId, field, label, value, hint, multiline = false }) {
+    const body = multiline
+      ? `<textarea data-work-field="${teamId}:${field}" rows="4">${esc(value)}</textarea>`
+      : `<input type="text" data-work-field="${teamId}:${field}" value="${esc(value)}" />`;
+    return `<label class="workspace-field ${field === "teamName" ? "team-name-draft" : ""}">
+      <span>${esc(label)}</span>
+      ${body}
+      <em>${esc(hint || "")}</em>
+    </label>`;
+  }
+
+  function renderTeamWorkspace(id) {
+    const team = getTeam(id);
+    if (!team) return renderTeam();
+    const permissions = rolePermissions(currentRole());
+    const selectedTeam = getTeam(joinedTeam());
+    const isMine = selectedTeam && selectedTeam.id === team.id;
+    const canEdit = permissions.canJoinTeam && (!selectedTeam || isMine);
+    const draft = getWorkDraft(team);
+    const stackTags = splitTags(draft.stack).map((s) => `<span>${esc(s)}</span>`).join("");
+    const roster = [{ ...team.advisor, role: "队长 / 技术顾问" }, ...team.members.map((m) => ({ ...m, role: "队友" }))]
+      .map((p) => `<div class="workspace-person">${avatar(p, 42)}<b>${esc(p.name)}</b><span>${esc(p.role)}</span></div>`).join("");
+    const editHint = canEdit
+      ? "当前为前端草稿演示，修改会保存在本地；后端接入后同步到队伍与作品表。"
+      : "当前身份只读查看，参赛选手进入对应队伍后可维护作品信息。";
+    const joinAction = permissions.canJoinTeam && !isMine
+      ? `<button class="btn-primary" type="button" data-join-team="${team.id}">选择此队伍</button>`
+      : `<button class="btn-primary" type="button" data-save-work-draft="${team.id}">保存草稿</button>`;
+
+    return `${pageHead("队伍工作台 / 作品提交", "维护队伍名称、作品资料与发布预览；作品展厅只展示审核发布后的内容", "WORKSPACE")}
+    <section class="container sec team-workspace" style="--accent:${team.accent};--rgb:${team.rgb}">
+      <div class="workspace-shell glass">
+        <header class="workspace-top">
+          <a class="wk-back" data-nav="team">‹ 返回队伍列表</a>
+          <div>
+            <span class="status-chip ${isMine ? "on" : ""}">${isMine ? "我的队伍" : `${team.trackCode} · ${team.track}`}</span>
+            <h2>${esc(draft.teamName)}</h2>
+            <p>${esc(editHint)}</p>
+          </div>
+          <div class="workspace-actions">
+            ${joinAction}
+            <button class="btn-ghost" type="button" data-work="${team.id}">预览作品展示</button>
+          </div>
+        </header>
+        <div class="workspace-grid">
+          <section class="workspace-form" aria-label="作品提交表单">
+            <div class="workspace-form-head">
+              <span>SUBMISSION FORM</span>
+              <b>提交内容</b>
+            </div>
+            ${renderWorkspaceField({ teamId: team.id, field: "teamName", label: "自定义队伍名称", value: draft.teamName, hint: "展示在组队页、作品展厅和最终结果中。" })}
+            ${renderWorkspaceField({ teamId: team.id, field: "project", label: "作品标题", value: draft.project, hint: "对应作品展厅卡片标题。" })}
+            ${renderWorkspaceField({ teamId: team.id, field: "pitch", label: "一句话介绍", value: draft.pitch, hint: "对应作品展厅摘要与作品详情介绍。", multiline: true })}
+            ${renderWorkspaceField({ teamId: team.id, field: "stack", label: "技术栈 / AI 能力", value: draft.stack, hint: "用 / 或逗号分隔，会展示为标签。" })}
+            ${renderWorkspaceField({ teamId: team.id, field: "demoUrl", label: "Demo 链接", value: draft.demoUrl, hint: "用于管理员审核和现场路演。" })}
+            ${renderWorkspaceField({ teamId: team.id, field: "codeUrl", label: "代码地址", value: draft.codeUrl, hint: "用于技术复核，不在公开展厅直接暴露。" })}
+            ${renderWorkspaceField({ teamId: team.id, field: "docUrl", label: "飞书作品页", value: draft.docUrl, hint: "作品详情页的正式说明文档。" })}
+            ${renderWorkspaceField({ teamId: team.id, field: "screenshots", label: "展示截图", value: draft.screenshots, hint: "对应作品详情轮播，可先填写截图名称。", multiline: true })}
+          </section>
+          <aside class="workspace-preview" aria-label="发布预览">
+            <div class="workspace-preview-card">
+              <span class="gl2-dots"></span>
+              <span class="workspace-preview-kicker">发布预览 · ${esc(team.trackCode)} PROJECT</span>
+              <h3 data-work-preview="project">${esc(draft.project)}</h3>
+              <em data-work-preview="teamName">${esc(draft.teamName)}</em>
+              <p data-work-preview="pitch">${esc(draft.pitch)}</p>
+              <div class="workspace-preview-stack" data-work-preview="stack">${stackTags}</div>
+              <div class="workspace-preview-shots">
+                ${splitTags(draft.screenshots).slice(0, 3).map((shot, index) => `<span>${pad(index + 1)} ${esc(shot)}</span>`).join("")}
+              </div>
+            </div>
+            <div class="workspace-map glass">
+              <b>作品展厅展示字段</b>
+              <ul>
+                <li>队伍名称：${esc(draft.teamName)}</li>
+                <li>作品标题：${esc(draft.project)}</li>
+                <li>一句话介绍：${esc(draft.pitch)}</li>
+                <li>技术标签：${esc(draft.stack)}</li>
+                <li>成员与票数：由队伍和投票数据自动同步</li>
+              </ul>
+            </div>
+            <div class="workspace-roster">${roster}</div>
+          </aside>
         </div>
       </div>
-      <div class="sec-cap"><span></span>队伍列表</div><div class="team-grid">${teams}</div>
     </section>`;
   }
 
@@ -1049,6 +1134,11 @@
     setupCarousel();
     if (push !== false) history.pushState(null, "", `#work-${id}`);
   }
+  function showTeamWorkspace(id, push) {
+    main.innerHTML = renderTeamWorkspace(id);
+    setActive("team");
+    if (push !== false) history.pushState(null, "", `#team-workspace-${id}`);
+  }
   const HASH_ALIASES = {
     final: "result",
     champion: "result",
@@ -1059,6 +1149,7 @@
     const raw = location.hash.slice(1);
     const h = HASH_ALIASES[raw] || raw;
     if (h.indexOf("work-") === 0) showWork(h.slice(5), false);
+    else if (h.indexOf("team-workspace-") === 0) showTeamWorkspace(h.slice("team-workspace-".length), false);
     else go(h || "home", false);
   }
 
@@ -1278,6 +1369,33 @@
     else delete drafts[teamId];
     root.localStorage.setItem(TEAM_NAME_KEY, JSON.stringify(drafts));
   }
+  function renderPreviewTags(value) {
+    return splitTags(value).map((s) => `<span>${esc(s)}</span>`).join("");
+  }
+  function updateWorkDraft(input) {
+    const [teamId, field] = String(input?.dataset?.workField || "").split(":");
+    if (!teamId || !field) return;
+    const drafts = readJson(WORK_DRAFT_KEY, {});
+    drafts[teamId] = { ...(drafts[teamId] || {}), [field]: input.value.trim() };
+    root.localStorage.setItem(WORK_DRAFT_KEY, JSON.stringify(drafts));
+
+    if (field === "teamName") {
+      const teamNameDraft = { ...readJson(TEAM_NAME_KEY, {}) };
+      if (input.value.trim()) teamNameDraft[teamId] = input.value.trim();
+      else delete teamNameDraft[teamId];
+      root.localStorage.setItem(TEAM_NAME_KEY, JSON.stringify(teamNameDraft));
+    }
+
+    const preview = doc.querySelector(`[data-work-preview="${field}"]`);
+    if (!preview) return;
+    if (field === "stack") preview.innerHTML = renderPreviewTags(input.value);
+    else preview.textContent = input.value;
+  }
+  function saveWorkDraft(teamId) {
+    const team = getTeam(teamId);
+    if (!team) return;
+    toast(`「${team.name}」作品草稿已保存`);
+  }
 
   function bind() {
     renderNavLinks();
@@ -1289,6 +1407,8 @@
       const cancelVoteButton = e.target.closest("[data-cancel-vote]");
       const team = e.target.closest("[data-join-team]");
       const leaveTeamButton = e.target.closest("[data-leave-team]");
+      const teamWorkspace = e.target.closest("[data-team-workspace]");
+      const saveWork = e.target.closest("[data-save-work-draft]");
       const judgeSave = e.target.closest("[data-judge-save]");
       const mobileTrainee = e.target.closest("[data-mobile-trainee]");
       const mobileDetailClose = e.target.closest("[data-mobile-detail-close]");
@@ -1344,6 +1464,8 @@
       if (vote) { castVote(vote.dataset.vote); return; }
       if (leaveTeamButton) { leaveTeam(leaveTeamButton.dataset.leaveTeam); return; }
       if (team) { joinTeam(team.dataset.joinTeam); return; }
+      if (saveWork) { saveWorkDraft(saveWork.dataset.saveWorkDraft); return; }
+      if (teamWorkspace) { showTeamWorkspace(teamWorkspace.dataset.teamWorkspace); return; }
       if (judgeSave) { saveJudgeDraft(); return; }
       if (work) { showWork(work.dataset.work); return; }
       if (nav) { e.preventDefault(); go(nav.dataset.nav); return; }
@@ -1354,6 +1476,8 @@
     doc.addEventListener("input", (e) => {
       const teamNameDraft = e.target.closest("[data-team-name-draft]");
       if (teamNameDraft) updateTeamNameDraft(teamNameDraft);
+      const workField = e.target.closest("[data-work-field]");
+      if (workField) updateWorkDraft(workField);
       const score = e.target.closest("[data-score]");
       if (score) updateJudgeRange(score);
     });
