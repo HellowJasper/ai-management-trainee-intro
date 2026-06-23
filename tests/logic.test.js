@@ -281,7 +281,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260623-cancel-actions-2/);
+  assert.match(siteHtml, /site\.js\?v=20260623-flow-arrow-fix/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -417,6 +417,37 @@ test("team workspace fields align with the public gallery work details", () => {
   assert.match(siteJs, /data-work-field/);
   assert.match(siteCss, /\.workspace-form/);
   assert.match(siteCss, /\.workspace-preview/);
+});
+
+test("team workspace is private to the joined player team", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /function canOpenTeamWorkspace\(teamId\)/);
+  assert.match(siteJs, /permissions\.canSubmitWork && joinedTeam\(\) === teamId/);
+  assert.match(siteJs, /if \(!canOpenTeamWorkspace\(team\.id\)\) return renderWork\(team\.id\)/);
+  assert.match(siteJs, /只有已加入该队伍的参赛选手可以保存作品草稿/);
+  assert.match(siteJs, /进入工作台/);
+  assert.match(siteJs, /查看公开作品/);
+});
+
+test("team workspace supports leader handoff and leader-only submission editing", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.match(siteJs, /const WORKSPACE_META_KEY = "joincare_hackathon_workspace_meta"/);
+  assert.match(siteJs, /function getTeamWorkspaceMeta\(team\)/);
+  assert.match(siteJs, /function currentWorkspaceMemberId\(team\)/);
+  assert.match(siteJs, /function canEditTeamWorkspace\(teamId\)/);
+  assert.match(siteJs, /currentWorkspaceMemberId\(team\) === meta\.leaderId/);
+  assert.match(siteJs, /队长与职责/);
+  assert.match(siteJs, /当前队长/);
+  assert.match(siteJs, /仅队长可保存/);
+  assert.match(siteJs, /data-team-leader/);
+  assert.match(siteJs, /data-team-duty/);
+  assert.match(siteJs, /只有当前队长可以调整队长与职责/);
+  assert.match(siteJs, /readonly aria-readonly="true"/);
+  assert.match(siteCss, /\.workspace-roles/);
+  assert.match(siteCss, /\.workspace-person-role/);
 });
 
 test("stage screen routing opens the vote progress and result screens", () => {
@@ -767,9 +798,9 @@ test("role authorization is completed at entry and protects sensitive actions", 
 test("official site cache keys are bumped after home polish", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260623-cancel-actions/);
+  assert.match(html, /src\/site\.css\?v=20260623-flow-arrow-fix/);
   assert.match(html, /src\/logic\.js\?v=20260623-cancel-actions/);
-  assert.match(html, /src\/site\.js\?v=20260623-cancel-actions-2/);
+  assert.match(html, /src\/site\.js\?v=20260623-flow-arrow-fix/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
