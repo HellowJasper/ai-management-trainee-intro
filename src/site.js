@@ -24,6 +24,47 @@
   let MOBILE_TRAINEE_SHOULD_ENTER = false;
   let localVoteDeltaTeamId = "";
   let pendingAuthTarget = null;
+  let CURRENT_STAGE_ID = "result";
+  let COUNTDOWN_REMAIN = 6353;
+  function resolveHomePhase(stageId) {
+    const s = String(stageId || "").toLowerCase();
+    if (["opening", "icebreaker", "speech", "tracks"].includes(s)) {
+      return { phase: "挑战任务发布中", label: "距任务开始还有", remain: 7200 };
+    } else if (s === "team") {
+      return { phase: "挑战任务进行中", label: "距作品提交截止", remain: 129600 };
+    } else {
+      return { phase: "成果展示进行中", label: "距投票结束截止", remain: 6353 };
+    }
+  }
+  async function syncHomeState() {
+    try {
+      const state = await apiRequest("/api/admin/state");
+      if (state && state.currentStageId) {
+        CURRENT_STAGE_ID = state.currentStageId;
+        const phaseInfo = resolveHomePhase(CURRENT_STAGE_ID);
+        COUNTDOWN_REMAIN = phaseInfo.remain;
+        if (CURRENT_STAGE_ID === "team") {
+          try {
+            const mc = await apiRequest("/api/mission-countdown");
+            if (mc && mc.startedAt) {
+              const ms = new Date(mc.startedAt).getTime() + mc.durationMs - Date.now();
+              if (ms > 0) COUNTDOWN_REMAIN = Math.floor(ms / 1000);
+            }
+          } catch (e) {}
+        } else if (["vote", "result", "final"].includes(CURRENT_STAGE_ID)) {
+          try {
+            const rs = await apiRequest("/api/roadshow");
+            if (rs && rs.startedAt) {
+              const ms = new Date(rs.startedAt).getTime() + rs.durationMs - Date.now();
+              if (ms > 0) COUNTDOWN_REMAIN = Math.floor(ms / 1000);
+            }
+          } catch (e) {}
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to sync home state", e);
+    }
+  }
 
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const pad = (n) => String(n).padStart(2, "0");
@@ -152,9 +193,10 @@
     return v.length > n ? `${v.slice(0, n)}...` : v;
   };
   const toolTags = (s) => String(s || "").split(/[，、,\n/]+/).map((x) => x.trim()).filter(Boolean).slice(0, 3);
-  const entryCard = ({ nav, href, title, en, sub, icon, accent, rgb }) => {
+  const entryCard = ({ nav, href, title, en, sub, icon, accent, rgb }, index) => {
     const attr = href ? `href="${esc(href)}"` : `data-nav="${esc(nav)}"`;
-    return `<a class="entry-card" ${attr} style="--accent:${accent};--rgb:${rgb}"><span class="entry-ic">${ICON(icon, accent)}</span><div class="entry-tx"><b>${esc(title)}<i>${esc(en)}</i></b><span>${esc(sub)}</span></div><span class="entry-go">➔</span></a>`;
+    const arrow = (index !== undefined && (index + 1) % 4 === 0) ? "" : `<span class="entry-go">➔</span>`;
+    return `<a class="entry-card" ${attr} style="--accent:${accent};--rgb:${rgb}"><span class="entry-ic">${ICON(icon, accent)}</span><div class="entry-tx"><b>${esc(title)}<i>${esc(en)}</i></b><span>${esc(sub)}</span></div>${arrow}</a>`;
   };
   function getHomeActions(role) {
     return [
@@ -281,14 +323,15 @@
       ["DAY 2", "集中制作可运行 Demo"],
       ["DAY 3", "路演展评，投票颁奖"],
     ].map(([day, text]) => `<li><b>${day}</b><span>${text}</span></li>`).join("");
+    const phaseInfo = resolveHomePhase(CURRENT_STAGE_ID);
     return `<section class="mobile-home">
       <div class="mh-hero">
         <span class="hero-kicker"><span class="live-dot"></span>LIVE · HACKATHON 2026</span>
         <h1>AI创新黑客松</h1>
         <p>36小时，把 AI 创意做成可运行系统</p>
         <div class="mh-live glass">
-          <div><span>当前阶段</span><b>作品展评进行中</b></div>
-          <strong data-countdown data-remain="6353">${fmtHMS(6353)}</strong>
+          <div><span>${esc(phaseInfo.phase)}</span><b>${esc(phaseInfo.label)}</b></div>
+          <strong data-countdown data-remain="${COUNTDOWN_REMAIN}">${fmtHMS(COUNTDOWN_REMAIN)}</strong>
         </div>
       </div>
       <div class="mh-grid">
@@ -322,8 +365,12 @@
         : `<a class="btn-ghost" data-nav="result">查看实时排行 ➔</a>`;
     const days = D.flowDays.map((d, i) => {
       const timeSpan = d.time ? `<span class="fs-time">${esc(d.time)}</span>` : "";
-      return `<div class="flow-step"><div class="fs-badge">${esc(d.day)}<i>${esc(d.en)}</i></div><div class="fs-ic">${ICON(d.icon, "var(--neon)")}</div><b>${esc(d.title)}</b><p>${d.lines.map(esc).join("<br>")}</p>${timeSpan}${i < 2 ? '<span class="fs-arrow">➔</span>' : ""}</div>`;
+      const card = `<div class="flow-step"><div class="fs-header"><div class="fs-ic">${ICON(d.icon, "var(--neon)")}</div><div class="fs-badge">${esc(d.day)}<i>${esc(d.en)}</i></div></div><b>${esc(d.title)}</b><p>${d.lines.map(esc).join("<br>")}</p>${timeSpan}</div>`;
+      const arrow = i < 2 ? `<span class="fs-arrow">➔</span>` : "";
+      return card + arrow;
     }).join("");
+
+    const phaseInfo = resolveHomePhase(CURRENT_STAGE_ID);
 
     return `${renderMobileHome(totalVotes)}<section class="hero"><div class="container hero-grid">
       <div class="hero-copy">
@@ -335,9 +382,9 @@
       </div>
       <aside class="hero-panel glass">
         <div class="hp-row"><span class="live-dot"></span><span class="hp-label">当前阶段</span></div>
-        <div class="hp-phase">大众投票进行中</div>
-        <div class="hp-cd" data-countdown data-remain="6353">${fmtHMS(6353)}</div>
-        <div class="hp-sub">投票窗口倒计时 · 距投票截止</div>
+        <div class="hp-phase">${esc(phaseInfo.phase)}</div>
+        <div class="hp-sub">${esc(phaseInfo.label)}</div>
+        <div class="hp-cd" data-countdown data-remain="${COUNTDOWN_REMAIN}">${fmtHMS(COUNTDOWN_REMAIN)}</div>
         <div class="hp-stats">
           <div><b>${D.stats.tracks}</b><span>赛道</span></div>
           <div><b>${D.stats.teams}</b><span>队伍</span></div>
@@ -347,7 +394,7 @@
       </aside>
     </div></section>
 
-    <section class="container sec"><div class="sec-cap"><span></span>36小时 · 全流程</div>
+    <section class="container sec"><div class="sec-cap"><span></span>赛事全景 · HACKATHON OVERVIEW</div>
       <div class="flow-row">${days}</div>
     </section>`;
   }
@@ -632,11 +679,13 @@
   function renderBrief() {
     const days = D.flowDays.map((d, i) => {
       const timeSpan = d.time ? `<span class="fs-time">${esc(d.time)}</span>` : "";
-      return `<div class="flow-step"><div class="fs-badge">${esc(d.day)}<i>${esc(d.en)}</i></div><div class="fs-ic">${ICON(d.icon, "var(--neon)")}</div><b>${esc(d.title)}</b><p>${d.lines.map(esc).join("<br>")}</p>${timeSpan}${i < 2 ? '<span class="fs-arrow">➔</span>' : ""}</div>`;
+      const card = `<div class="flow-step"><div class="fs-header"><div class="fs-ic">${ICON(d.icon, "var(--neon)")}</div><div class="fs-badge">${esc(d.day)}<i>${esc(d.en)}</i></div></div><b>${esc(d.title)}</b><p>${d.lines.map(esc).join("<br>")}</p>${timeSpan}</div>`;
+      const arrow = i < 2 ? `<span class="fs-arrow">➔</span>` : "";
+      return card + arrow;
     }).join("");
     const mech = D.mechanism.map((c) => `<div class="mech2 glass" style="--accent:${c.accent};--rgb:${c.rgb}"><div class="m2-top"><span>${esc(c.label)}<i>${esc(c.en)}</i></span>${ICON(c.icon, c.accent)}</div><b>${esc(c.headline)}</b><span class="m2-sub">${esc(c.sub)}</span></div>`).join("");
     return `${pageHead("大赛介绍与全流程", "36小时，把 AI 创意做成可运行系统", "ABOUT")}
-    <section class="container sec"><div class="sec-cap"><span></span>36小时 · 全流程</div><div class="flow-row">${days}</div></section>
+    <section class="container sec"><div class="sec-cap"><span></span>赛事全景 · HACKATHON OVERVIEW</div><div class="flow-row">${days}</div></section>
     <section class="container sec"><div class="sec-cap"><span></span>赛事机制</div><div class="mech2-grid">${mech}</div></section>`;
   }
 
@@ -705,7 +754,7 @@
         <div><span class="status-chip on">当前阶段</span><h2>大众投票进行中</h2><p>作品提交已完成，评委评分与大众投票同步进行。最终结果将在 Demo Day 颁奖环节公布。</p></div>
         <div class="schedule-count"><span>距投票截止</span><b data-countdown data-remain="6353">${fmtHMS(6353)}</b></div>
       </div>
-      <div class="sec-cap"><span></span>赛事全景 · HACKATHON OVERVIEW</div><div class="entry-grid four">${actionCards}</div>
+      <div class="sec-cap"><span></span>36小时 · 全流程</div><div class="entry-grid four">${actionCards}</div>
       <div class="sec-cap"><span></span>关键节点</div><div class="timeline-grid">${timeline}</div>
       <div class="sec-cap"><span></span>赛事机制</div><div class="mech2-grid">${mech}</div>
       <div class="score-note glass"><div><span class="status-chip">评分规则</span><h3>综合得分 = 专家评审 70% + 大众投票赋分 30%</h3><p>专家评审按五个维度打分；大众投票按票数排名转换为赋分。</p></div><ul>${dims}</ul></div>
@@ -1632,6 +1681,7 @@
     await loadTrainees();
     hydrateRole();
     await syncRoleFromBackend();
+    await syncHomeState();
     bind();
     route(false);
     if (wantsAuthChooser()) showAuthGate("entry");

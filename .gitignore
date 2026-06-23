@@ -5,6 +5,7 @@ npm-debug.log*
 .env
 .env.*
 !.env.example
+.deploy.env
 data/*.csv
 data/*.zip
 data/*.xlsx
