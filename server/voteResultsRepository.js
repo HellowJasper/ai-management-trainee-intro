@@ -14,7 +14,7 @@ function normalizeVoteResults(payload = {}) {
       ? source.pointScale
       : DEFAULT_POINT_SCALE,
     status: source.status || "voting",
-    windowLabel: source.windowLabel || "大众投票窗口开启中",
+    windowLabel: source.windowLabel || "投票窗口开启中",
     updatedAt: source.updatedAt || new Date().toISOString(),
     results: Array.isArray(source.results) ? source.results : [],
   };

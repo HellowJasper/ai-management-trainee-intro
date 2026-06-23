@@ -13,6 +13,9 @@ const {
   getFeishuLoginUiState,
   getMissionCountdownState,
   getRoadshowTimerState,
+  getRolePermissions,
+  getRoleWorkbenchModel,
+  getRoleNavItems,
   computeVoteRanking,
   computeFinalResults,
   nextIntroState,
@@ -271,6 +274,129 @@ test("official site exposes all requested PC pages in the SPA router", () => {
   assert.match(siteJs, /key:\s*"team", label:\s*"组队"/);
   assert.match(siteJs, /key:\s*"vote", label:\s*"投票"/);
   assert.match(siteJs, /key:\s*"judge", label:\s*"评委评分"/);
+});
+
+test("official site lets users leave teams and cancel their vote", () => {
+  const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.match(siteHtml, /site\.js\?v=20260623-cancel-actions-2/);
+  assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
+  assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
+  assert.match(siteJs, /function leaveTeam\(/);
+  assert.match(siteJs, /function cancelVote\(/);
+  assert.match(siteJs, /data-leave-team/);
+  assert.match(siteJs, /data-cancel-vote/);
+  assert.match(siteJs, /退出队伍/);
+  assert.match(siteJs, /取消投票/);
+  assert.match(siteJs, /function refreshCurrentView\(\{ preserveScroll = false \} = \{\}\)/);
+  assert.match(siteJs, /refreshCurrentView\(\{ preserveScroll: true \}\)/);
+  assert.match(siteJs, /localVoteDeltaTeamId/);
+  assert.match(siteCss, /\.team-join\.is-leave/);
+  assert.match(siteCss, /\.gl2-vote\.is-cancel/);
+  assert.match(siteCss, /\.btn-primary\.is-cancel/);
+});
+
+test("role permissions reserve team joining, voting, judging, and admin control for the right roles", () => {
+  assert.deepEqual(getRolePermissions("player"), {
+    canJoinTeam: true,
+    canSubmitWork: true,
+    canVote: false,
+    canScore: false,
+    canAdmin: false,
+    canControlBigscreen: false,
+    canViewTeamProgress: true,
+  });
+
+  assert.equal(getRolePermissions("judge").canJoinTeam, false);
+  assert.equal(getRolePermissions("judge").canScore, true);
+  assert.equal(getRolePermissions("judge").canVote, false);
+  assert.equal(getRolePermissions("public").canJoinTeam, false);
+  assert.equal(getRolePermissions("public").canVote, true);
+  assert.equal(getRolePermissions("admin").canJoinTeam, false);
+  assert.equal(getRolePermissions("admin").canAdmin, true);
+  assert.equal(getRolePermissions("admin").canControlBigscreen, true);
+});
+
+test("role workbench model hides player-only team actions from public, judge, and admin roles", () => {
+  const sharedState = {
+    joinedTeamName: "",
+    votedTeamName: "",
+    scoredTeams: 0,
+    totalTeams: 5,
+  };
+
+  for (const role of ["public", "judge", "admin"]) {
+    const model = getRoleWorkbenchModel({ ...sharedState, role });
+    const labels = model.statusCards.map((card) => card.label);
+    const titles = model.quickEntries.map((entry) => entry.title);
+    const text = JSON.stringify(model);
+
+    assert.ok(!labels.includes("组队状态"));
+    assert.ok(!titles.includes("报名组队"));
+    assert.doesNotMatch(text, /未加入队伍|加入队伍|可选择一个赛道队伍加入/);
+  }
+
+  const player = getRoleWorkbenchModel({ ...sharedState, role: "player" });
+  assert.ok(player.statusCards.some((card) => card.label === "组队状态" && card.value === "未加入队伍"));
+  assert.ok(player.quickEntries.some((entry) => entry.title === "报名组队"));
+});
+
+test("player workbench routes work submission through the team workspace", () => {
+  const player = getRoleWorkbenchModel({
+    role: "player",
+    joinedTeamName: "丹方智造队",
+    joinedTeamMeta: "药学赛道 · 队伍名可编辑",
+    joinedTeamProject: "智能药学资料助手",
+    votedTeamName: "",
+    scoredTeams: 0,
+    totalTeams: 5,
+  });
+  const submitCard = player.statusCards.find((card) => card.label === "作品提交");
+
+  assert.equal(submitCard.nav, "team");
+  assert.match(submitCard.sub, /队伍工作台/);
+  assert.ok(player.quickEntries.some((entry) => entry.title === "作品提交" && entry.nav === "team"));
+});
+
+test("role navigation exposes role-specific operational entries", () => {
+  assert.deepEqual(
+    getRoleNavItems("player").map((item) => item.key),
+    ["home", "people", "schedule", "team", "gallery", "result"],
+  );
+  assert.deepEqual(
+    getRoleNavItems("judge").map((item) => item.key),
+    ["home", "people", "schedule", "team", "gallery", "judge", "result"],
+  );
+  assert.deepEqual(
+    getRoleNavItems("public").map((item) => item.key),
+    ["home", "people", "schedule", "team", "gallery", "vote", "result"],
+  );
+  assert.deepEqual(
+    getRoleNavItems("admin").map((item) => item.key),
+    ["home", "people", "schedule", "team", "gallery", "admin", "result"],
+  );
+});
+
+test("team page treats tracks as fixed lanes and team names as editable", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.match(siteJs, /固定赛道，队伍自定义命名/);
+  assert.match(siteJs, /自定义队伍名称/);
+  assert.match(siteJs, /队长可编辑队名/);
+  assert.match(siteJs, /team-name-draft/);
+  assert.match(siteCss, /\.team-name-draft/);
+});
+
+test("team page explains that work submission belongs to the team workspace", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.match(siteJs, /队伍工作台 \/ 作品提交/);
+  assert.match(siteJs, /作品展厅只展示/);
+  assert.match(siteCss, /\.team-submit/);
 });
 
 test("stage screen routing opens the vote progress and result screens", () => {
@@ -605,21 +731,25 @@ test("role authorization is completed at entry and protects sensitive actions", 
   assert.match(siteJs, /function currentRole\(/);
   assert.match(siteJs, /function hydrateRole\(/);
   assert.match(siteJs, /function requireAuth\(/);
+  assert.match(siteJs, /function requireRole\(/);
   assert.match(siteJs, /function showAuthGate\(/);
   assert.match(siteJs, /wantsAuthChooser\(\)/);
-  assert.match(siteJs, /root\.localStorage\.setItem\(ROLE_KEY, "public"\)/);
+  assert.doesNotMatch(siteJs, /root\.localStorage\.setItem\(ROLE_KEY, "public"\)/);
+  assert.match(siteJs, /\/api\/auth\/feishu\/login/);
+  assert.match(siteJs, /\/api\/me/);
   assert.match(siteJs, /data-auth-role/);
-  assert.match(siteJs, /if \(!requireAuth\("vote"\)\) return/);
-  assert.match(siteJs, /if \(!requireAuth\("team"\)\) return/);
-  assert.match(siteJs, /if \(!requireAuth\("judge"\)\) return/);
+  assert.match(siteJs, /if \(!requireRole\("vote", \(p\) => p\.canVote/);
+  assert.match(siteJs, /if \(!requireRole\("team", \(p\) => p\.canJoinTeam/);
+  assert.match(siteJs, /if \(!requireRole\("judge", \(p\) => p\.canScore/);
   assert.doesNotMatch(siteJs, /if \(!currentRole\(\)\) showAuthGate\("entry"\)/);
 });
 
-test("official site cache keys are bumped after mobile shell expansion", () => {
+test("official site cache keys are bumped after home polish", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260622-mobile-ghost-fade/);
-  assert.match(html, /src\/site\.js\?v=20260622-mobile-ghost-fade/);
+  assert.match(html, /src\/site\.css\?v=20260623-cancel-actions/);
+  assert.match(html, /src\/logic\.js\?v=20260623-cancel-actions/);
+  assert.match(html, /src\/site\.js\?v=20260623-cancel-actions-2/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {

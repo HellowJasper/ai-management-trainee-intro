@@ -28,6 +28,8 @@
     rocket: '<path d="M50 30 c8 6 10 18 10 26 l-6 6 h-8 l-6 -6 c0 -8 2 -20 10 -26 Z" fill="none"/><circle cx="50" cy="46" r="4"/><path d="M40 58 l-6 8 8 -3 M60 58 l6 8 -8 -3" fill="none"/>',
     doc: '<path d="M38 32 h16 l10 10 v26 h-26 Z" fill="none"/><path d="M54 32 v10 h10" fill="none"/><line x1="43" y1="50" x2="59" y2="50"/><line x1="43" y1="57" x2="59" y2="57"/><line x1="43" y1="64" x2="53" y2="64"/>',
     upload: '<path d="M36 58 a10 10 0 0 1 2 -20 a14 14 0 0 1 26 4 a9 9 0 0 1 0 16" fill="none"/><line x1="50" y1="46" x2="50" y2="68"/><path d="M43 53 L50 46 L57 53" fill="none"/>',
+    check: '<path d="M38 52 L46 60 L62 42" fill="none"/>',
+    bulb: '<path d="M50 26 c-10 0 -16 7 -16 16 c0 6 3 11 7 14 l2 6 h14 l2 -6 c4 -3 7 -8 7 -14 c0 -9 -6 -16 -16 -16 Z" fill="none"/><path d="M44 67 h12 M45 71 h10 M47 75 h6" fill="none"/>',
   };
   function hud(glyph, accent, size) {
     const ticks = [];
@@ -76,7 +78,8 @@
     const m = D.meta;
     const days = D.flowDays.map((d, i) => {
       const arrow = i < D.flowDays.length - 1 ? '<div class="day-arrow" aria-hidden="true"><span></span><span></span><span></span></div>' : "";
-      return `<div class="day-card glass" style="--d:${i}"><div class="day-badge">${esc(d.day)}<i>${esc(d.en)}</i></div><div class="day-hud">${hud(d.icon, "var(--neon)", 90)}</div><h3 class="day-title">${esc(d.title)}</h3><div class="day-lines">${d.lines.map((l) => `<p>${esc(l)}</p>`).join("")}</div><div class="day-time">${esc(d.time)}</div></div>${arrow}`;
+      const timeBox = d.time ? `<div class="day-time">${esc(d.time)}</div>` : "";
+      return `<div class="day-card glass" style="--d:${i}"><div class="day-badge">${esc(d.day)}<i>${esc(d.en)}</i></div><div class="day-hud">${hud(d.icon, "var(--neon)", 90)}</div><h3 class="day-title">${esc(d.title)}</h3><div class="day-lines">${d.lines.map((l) => `<p>${esc(l)}</p>`).join("")}</div>${timeBox}</div>${arrow}`;
     }).join("");
     const mech = D.mechanism.map((c) => `<div class="mech-card glass" style="--accent:${c.accent};--rgb:${c.rgb}"><div class="mech-top"><span class="mech-label">${esc(c.label)}<i>${esc(c.en)}</i></span>${hud(c.icon, c.accent, 54)}</div><div class="mech-headline">${esc(c.headline)}</div><div class="mech-sub">${esc(c.sub)}</div><span class="mech-bar"></span></div>`).join("");
     const ribbon = D.tracks.map((t) => `<span class="tk-tag" style="--accent:${t.accent};--rgb:${t.rgb}"><b>${t.code}</b>${esc(t.name)}<i>${esc(t.en)}</i></span>`).join("");

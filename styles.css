@@ -3969,6 +3969,11 @@ button:disabled {
   text-shadow: 0 0 28px rgba(40, 255, 200, 0.18);
 }
 
+.vote-live-hero h2 {
+  font-size: clamp(32px, 3.8vw, 68px);
+  white-space: nowrap;
+}
+
 .vote-live-hero p,
 .vote-winner-panel p,
 .final-result-champion p {

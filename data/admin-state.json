@@ -1,51 +1,70 @@
 {
-  "currentStageId": "team",
-  "updatedAt": "2026-05-22T06:00:00.000Z",
+  "currentStageId": "result",
+  "updatedAt": "2026-06-23T05:30:12.085Z",
   "stages": [
     {
       "id": "opening",
       "name": "启动仪式",
       "subtitle": "活动开场，启动仪式",
-      "time": "05-22 10:00\n05-22 10:30"
+      "time": "05-22 10:00\n05-22 10:30",
+      "status": "done"
     },
     {
       "id": "icebreaker",
       "name": "新生破冰",
       "subtitle": "数字盲盒，互动破冰",
-      "time": "05-22 10:30\n05-22 11:15"
+      "time": "05-22 10:30\n05-22 11:15",
+      "status": "done"
     },
     {
       "id": "speech",
       "name": "总裁讲话",
       "subtitle": "集团领导致辞",
-      "time": "05-22 11:15\n05-22 11:35"
+      "time": "05-22 11:15\n05-22 11:35",
+      "status": "done"
     },
     {
       "id": "tracks",
       "name": "赛道发布",
       "subtitle": "五条赛道发布与解读",
-      "time": "05-22 11:35\n05-22 12:00"
+      "time": "05-22 11:35\n05-22 12:00",
+      "status": "done"
     },
     {
       "id": "team",
       "name": "组队开启",
       "subtitle": "实时组队，先到先得",
-      "time": "05-22 14:00\n进行中"
+      "time": "05-22 14:00\n进行中",
+      "status": "done"
     },
     {
       "id": "vote",
       "name": "投票开启",
       "subtitle": "路演投票开启",
-      "time": "预计 05-24 10:00\n-"
+      "time": "预计 05-24 10:00\n-",
+      "status": "done"
     },
     {
       "id": "result",
       "name": "结果发布",
       "subtitle": "结果揭晓与颁奖",
-      "time": "预计 05-24 17:30\n-"
+      "time": "预计 05-24 17:30\n-",
+      "status": "active"
     }
   ],
   "logs": [
+    {
+      "at": "2026-06-23T05:30:12.085Z",
+      "actor": "admin",
+      "stageId": "result",
+      "message": "开启阶段【结果发布】"
+    },
+    {
+      "at": "2026-06-23T05:30:11.495Z",
+      "actor": "admin",
+      "stageId": "vote",
+      "message": "开启阶段【投票开启】"
+    },
     {
       "at": "2026-05-22T06:00:05.000Z",
       "actor": "admin",

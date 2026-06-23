@@ -13,6 +13,60 @@
   });
   const feishuLoginSessionKey = "joincare_feishu_login";
   const missionCountdownDurationMs = 24 * 60 * 60 * 1000;
+  const roleDefinitions = Object.freeze({
+    player: Object.freeze({
+      label: "参赛选手",
+      shortLabel: "选手",
+      permissions: Object.freeze({
+        canJoinTeam: true,
+        canSubmitWork: true,
+        canVote: false,
+        canScore: false,
+        canAdmin: false,
+        canControlBigscreen: false,
+        canViewTeamProgress: true,
+      }),
+    }),
+    judge: Object.freeze({
+      label: "专家评委",
+      shortLabel: "评委",
+      permissions: Object.freeze({
+        canJoinTeam: false,
+        canSubmitWork: false,
+        canVote: false,
+        canScore: true,
+        canAdmin: false,
+        canControlBigscreen: false,
+        canViewTeamProgress: true,
+      }),
+    }),
+    public: Object.freeze({
+      label: "大众评委",
+      shortLabel: "观众",
+      permissions: Object.freeze({
+        canJoinTeam: false,
+        canSubmitWork: false,
+        canVote: true,
+        canScore: false,
+        canAdmin: false,
+        canControlBigscreen: false,
+        canViewTeamProgress: true,
+      }),
+    }),
+    admin: Object.freeze({
+      label: "管理员",
+      shortLabel: "管理员",
+      permissions: Object.freeze({
+        canJoinTeam: false,
+        canSubmitWork: false,
+        canVote: false,
+        canScore: false,
+        canAdmin: true,
+        canControlBigscreen: true,
+        canViewTeamProgress: true,
+      }),
+    }),
+  });
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -256,6 +310,237 @@
       statusText: "",
       sessionKey: feishuLoginSessionKey,
     };
+  }
+
+  function normalizeRole(role) {
+    const key = String(role || "").trim();
+    return roleDefinitions[key] ? key : "";
+  }
+
+  function getRoleLabel(role) {
+    const key = normalizeRole(role);
+    return key ? roleDefinitions[key].label : "待鉴权";
+  }
+
+  function getRolePermissions(role) {
+    const key = normalizeRole(role);
+    const source = key ? roleDefinitions[key].permissions : {
+      canJoinTeam: false,
+      canSubmitWork: false,
+      canVote: false,
+      canScore: false,
+      canAdmin: false,
+      canControlBigscreen: false,
+      canViewTeamProgress: true,
+    };
+
+    return { ...source };
+  }
+
+  function getRoleNavItems(role) {
+    const key = normalizeRole(role) || "public";
+    const shared = [
+      { key: "home", label: "首页" },
+      { key: "people", label: "新生看板" },
+      { key: "schedule", label: "赛程" },
+      { key: "team", label: key === "player" ? "组队" : "组队进度" },
+      { key: "gallery", label: "作品展厅" },
+    ];
+    const byRole = {
+      player: [],
+      judge: [{ key: "judge", label: "评委评分" }],
+      public: [{ key: "vote", label: "投票" }],
+      admin: [{ key: "admin", label: "管理后台", href: "./admin.html" }],
+    };
+
+    return [...shared, ...(byRole[key] || []), { key: "result", label: "最终排行" }];
+  }
+
+  function getRoleWorkbenchModel({
+    role,
+    joinedTeamName = "",
+    joinedTeamMeta = "",
+    joinedTeamProject = "",
+    votedTeamName = "",
+    scoredTeams = 0,
+    totalTeams = 0,
+  } = {}) {
+    const key = normalizeRole(role) || "public";
+    const label = getRoleLabel(key);
+    const total = Number(totalTeams) || 0;
+    const scored = Math.max(0, Number(scoredTeams) || 0);
+
+    const baseIdentity = {
+      label: "当前身份",
+      value: label,
+      sub: "权限已按飞书账号完成同步",
+      icon: "user",
+      accent: "var(--neon)",
+      nav: "me",
+    };
+
+    const models = {
+      player: {
+        eyebrow: "PLAYER CONSOLE",
+        title: "选手工作台",
+        subtitle: "抢赛道、认领队伍职责，并提交最终作品。",
+        chips: [joinedTeamName ? "已组队" : "待组队", "可提交作品", "不可投票"],
+        statusCards: [
+          baseIdentity,
+          {
+            label: "组队状态",
+            value: joinedTeamName || "未加入队伍",
+            sub: joinedTeamName ? joinedTeamMeta : "可选择一个赛道队伍加入",
+            icon: "team",
+            accent: "var(--neon-2)",
+            nav: "team",
+          },
+          {
+            label: "作品提交",
+            value: joinedTeamName ? "进入工作台" : "待组队",
+            sub: joinedTeamName
+              ? (joinedTeamProject ? `${joinedTeamProject} · 进入队伍工作台提交作品` : "进入队伍工作台完善作品信息并提交")
+              : "组队后开放作品提交",
+            icon: "upload",
+            accent: "#6ad7ff",
+            nav: "team",
+          },
+          {
+            label: "投票权限",
+            value: "不参与投票",
+            sub: "选手默认不参与大众投票",
+            icon: "vote",
+            accent: "var(--muted)",
+            nav: "gallery",
+          },
+        ],
+        quickEntries: [
+          { nav: "team", title: "报名组队", sub: "抢赛道并认领岗位职责" },
+          { nav: "team", title: "作品提交", sub: "进入队伍工作台提交作品" },
+          { nav: "gallery", title: "作品展厅", sub: "查看作品详情" },
+          { nav: "schedule", title: "大赛流程", sub: "查看赛程与规则" },
+        ],
+      },
+      judge: {
+        eyebrow: "JUDGE CONSOLE",
+        title: "评委工作台",
+        subtitle: "查看待评作品、完成五维评分，并保留自己的评分记录。",
+        chips: ["组队只读", "专家评分", "不参与投票"],
+        statusCards: [
+          baseIdentity,
+          {
+            label: "待评作品",
+            value: `${Math.max(0, total - scored)}/${total} 队`,
+            sub: "进入评委评分页完成五维评分",
+            icon: "scale",
+            accent: "var(--warning)",
+            nav: "judge",
+          },
+          {
+            label: "评分进度",
+            value: `${scored}/${total} 队`,
+            sub: "结果发布前仅展示自己的评分记录",
+            icon: "check",
+            accent: "#6ad7ff",
+            nav: "judge",
+          },
+          {
+            label: "组队进度",
+            value: "仅可查看",
+            sub: "查看各赛道名额与满员状态",
+            icon: "team",
+            accent: "var(--neon-2)",
+            nav: "team",
+          },
+        ],
+        quickEntries: [
+          { nav: "judge", title: "待评作品", sub: "进入五维评分" },
+          { nav: "judge", title: "我的评分记录", sub: "查看本地评分草稿" },
+          { nav: "gallery", title: "作品展厅", sub: "浏览作品详情" },
+          { nav: "schedule", title: "大赛流程", sub: "查看路演安排" },
+        ],
+      },
+      public: {
+        eyebrow: "PUBLIC VOTE DESK",
+        title: "观众评委工作台",
+        subtitle: "浏览作品，并在投票窗口内为一个团队投出一票。",
+        chips: [votedTeamName ? "已投票" : "待投票", "组队只读", "不可评分"],
+        statusCards: [
+          baseIdentity,
+          {
+            label: "投票状态",
+            value: votedTeamName ? `已投 ${votedTeamName}` : "尚未投票",
+            sub: votedTeamName ? "一人一票，投票已锁定" : "前往作品展厅或投票页完成",
+            icon: "vote",
+            accent: "#6ad7ff",
+            nav: "vote",
+          },
+          {
+            label: "组队进度",
+            value: "仅可查看",
+            sub: "查看当前队伍形成情况",
+            icon: "team",
+            accent: "var(--neon-2)",
+            nav: "team",
+          },
+          {
+            label: "专家评分",
+            value: "无权限",
+            sub: "专家评分入口仅向专家评委开放",
+            icon: "scale",
+            accent: "var(--muted)",
+            nav: "gallery",
+          },
+        ],
+        quickEntries: [
+          { nav: "vote", title: "投票入口", sub: "查看投票状态" },
+          { nav: "gallery", title: "作品展厅", sub: "查看作品详情" },
+          { nav: "team", title: "组队进度", sub: "查看赛道满员状态" },
+          { nav: "result", title: "最终排行", sub: "查看综合结果" },
+        ],
+      },
+      admin: {
+        eyebrow: "ADMIN CONTROL",
+        title: "管理员控制台",
+        subtitle: "管理流程、权限、投票评分与大屏展示，不参与选手操作。",
+        chips: ["后台管理", "大屏控制", "结果发布"],
+        statusCards: [
+          baseIdentity,
+          {
+            label: "组队管理",
+            value: "可控场",
+            sub: "开关组队、微调成员、补全空位",
+            icon: "team",
+            accent: "var(--neon-2)",
+            nav: "team",
+          },
+          {
+            label: "投票 / 评分",
+            value: "进度管理",
+            sub: "配置窗口、查看异常、汇总结果",
+            icon: "scale",
+            accent: "var(--warning)",
+            href: "./admin.html",
+          },
+          {
+            label: "大屏状态",
+            value: "可推送",
+            sub: "切换现场大屏与最终结果",
+            icon: "stage",
+            accent: "#6ad7ff",
+            href: "./admin.html",
+          },
+        ],
+        quickEntries: [
+          { href: "./admin.html", title: "管理后台", sub: "进入后台控制台" },
+          { href: "./admin.html", title: "大屏控制", sub: "推送或切换现场画面" },
+          { href: "./admin.html", title: "用户与权限", sub: "维护账号角色映射" },
+          { nav: "result", title: "最终排行", sub: "查看综合结果" },
+        ],
+      },
+    };
+
+    return models[key];
   }
 
   function getMissionCountdownState({
@@ -505,6 +790,10 @@
     getIntroTiming,
     getMissionCountdownState,
     getRoadshowTimerState,
+    getRoleLabel,
+    getRolePermissions,
+    getRoleWorkbenchModel,
+    getRoleNavItems,
     nextIntroState,
     normalizeTrainee,
     pickKeywordPair,

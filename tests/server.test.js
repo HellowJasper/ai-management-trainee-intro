@@ -305,6 +305,98 @@ test("API exposes current roadshow team state and starts its timer", async (t) =
   assert.equal(nextState.startedAt, "2026-06-18T14:02:00.000Z");
 });
 
+test("API exposes role integration placeholders for Feishu auth and permission-gated actions", async (t) => {
+  const publicRoot = path.join(__dirname, "..");
+  const server = createServer({ publicRoot });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const meResponse = await fetch(`${baseUrl}/api/me`);
+  const me = await meResponse.json();
+
+  assert.equal(meResponse.status, 200);
+  assert.equal(me.role, null);
+  assert.deepEqual(me.permissions, []);
+
+  const permissionResponse = await fetch(`${baseUrl}/api/permissions?role=judge`);
+  const permissions = await permissionResponse.json();
+
+  assert.equal(permissionResponse.status, 200);
+  assert.equal(permissions.role, "judge");
+  assert.equal(permissions.permissions.canScore, true);
+  assert.equal(permissions.permissions.canJoinTeam, false);
+
+  const loginResponse = await fetch(`${baseUrl}/api/auth/feishu/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+  const login = await loginResponse.json();
+
+  assert.equal(loginResponse.status, 200);
+  assert.equal(login.configured, false);
+  assert.equal(login.provider, "feishu");
+
+  const joinResponse = await fetch(`${baseUrl}/api/team/join`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ teamId: "marketing" }),
+  });
+  const join = await joinResponse.json();
+
+  assert.equal(joinResponse.status, 202);
+  assert.equal(join.accepted, false);
+  assert.equal(join.teamId, "marketing");
+  assert.equal(join.mode, "backend-pending");
+
+  const leaveResponse = await fetch(`${baseUrl}/api/team/leave`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ teamId: "marketing" }),
+  });
+  const leave = await leaveResponse.json();
+
+  assert.equal(leaveResponse.status, 202);
+  assert.equal(leave.accepted, false);
+  assert.equal(leave.teamId, "marketing");
+  assert.equal(leave.mode, "backend-pending");
+
+  const voteResponse = await fetch(`${baseUrl}/api/vote/cast`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ teamId: "marketing" }),
+  });
+  const vote = await voteResponse.json();
+
+  assert.equal(voteResponse.status, 202);
+  assert.equal(vote.accepted, false);
+  assert.equal(vote.teamId, "marketing");
+
+  const cancelVoteResponse = await fetch(`${baseUrl}/api/vote/cancel`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ teamId: "marketing" }),
+  });
+  const cancelVote = await cancelVoteResponse.json();
+
+  assert.equal(cancelVoteResponse.status, 202);
+  assert.equal(cancelVote.accepted, false);
+  assert.equal(cancelVote.teamId, "marketing");
+  assert.equal(cancelVote.mode, "backend-pending");
+
+  const scoreResponse = await fetch(`${baseUrl}/api/judge/scores`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ scores: { marketing: { 0: 90 } } }),
+  });
+  const score = await scoreResponse.json();
+
+  assert.equal(scoreResponse.status, 202);
+  assert.equal(score.accepted, false);
+  assert.deepEqual(score.receivedTeamIds, ["marketing"]);
+});
+
 test("API lists vote results with the confirmed ranking point scale", async (t) => {
   const publicRoot = path.join(__dirname, "..");
   const voteResultsRepository = {

@@ -435,7 +435,7 @@ let voteResultsState = {
   pointScale: [100, 85, 70, 55, 40],
   results: [],
   status: "voting",
-  windowLabel: "大众投票窗口开启中",
+  windowLabel: "投票窗口开启中",
   updatedAt: "",
 };
 let voteResultsLoadRequestId = 0;
@@ -1315,7 +1315,7 @@ function applyVoteResultsState(payload = {}) {
       : [100, 85, 70, 55, 40],
     results: Array.isArray(payload.results) ? payload.results : [],
     status: payload.status || "voting",
-    windowLabel: payload.windowLabel || "大众投票窗口开启中",
+    windowLabel: payload.windowLabel || "投票窗口开启中",
     updatedAt: payload.updatedAt || "",
   };
 

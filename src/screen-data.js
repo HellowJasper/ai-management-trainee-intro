@@ -10,9 +10,9 @@
 
   // ---- 36小时主流程 ---------------------------------------------------
   const FLOW_DAYS = [
-    { day: "DAY 1", en: "KICKOFF", icon: "team", title: "Kick-off · 课题发布 · 组队", lines: ["IT负责人项目发布 · 规则说明", "业务部门课题发布", "自由组队 & Ideation Workshop"], time: "1:00 – 5:30 PM" },
-    { day: "DAY 2", en: "DEMO PREP", icon: "code", title: "Demo preparation", lines: ["需求分析", "AI方案设计", "Demo制作 · 路演材料准备"], time: "全天" },
-    { day: "DAY 3", en: "DEMO DAY", icon: "stage", title: "Demo Day · 展示 · 评议 · 颁奖", lines: ["技术检查 · 活动开场", "5组 Demo 展示", "投票 · 评委评议 · 结果公布"], time: "8:30 – 11:50 AM" },
+    { day: "DAY 1", en: "KICKOFF", icon: "team", title: "启航时刻·挑战发布·自由组队", lines: ["从认识组织到理解业务挑战，", "完成团队组建，开启黑客松之旅"], time: "1:00 – 5:30 PM" },
+    { day: "DAY 2", en: "DEMO PREP", icon: "bulb", title: "方案共创·创新冲刺", lines: ["围绕真实业务场景开展方案设计、系统开发与成果打磨"], time: "" },
+    { day: "DAY 3", en: "SHOWCASE", icon: "trophy", title: "成果展示·评审投票·荣誉揭晓", lines: ["展示团队解决方案，专家评审与全员投票，共同见证最终荣誉揭晓。"], time: "8:30 – 11:50 AM" },
   ];
 
   // ---- 赛事机制卡 ------------------------------------------------------
@@ -28,7 +28,7 @@
     { time: "Day 1 · 1:00-1:30 PM", label: "IT负责人项目发布", icon: "rocket" },
     { time: "Day 1 · 1:30-4:30 PM", label: "业务部门课题发布", icon: "doc" },
     { time: "Day 1 · 4:30-5:30 PM", label: "自由组队 & Ideation Workshop", icon: "team" },
-    { time: "Day 2 · 全天", label: "Demo preparation", icon: "code" },
+    { time: "Day 2 · 全天", label: "方案共创·创新冲刺", icon: "bulb" },
     { time: "Day 3 · 8:30-9:00 AM", label: "技术检查 · 页面检查", icon: "check" },
     { time: "Day 3 · 9:00-9:20 AM", label: "开场 · 致辞 · Demo 开始", icon: "stage" },
     { time: "Day 3 · 9:20-11:00 AM", label: "5组 Demo 展示", icon: "play" },

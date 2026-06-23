@@ -7,6 +7,7 @@ const { createRoadshowRepository } = require("./roadshowRepository");
 const { createTeamRepository } = require("./teamRepository");
 const { createTraineeRepository } = require("./traineeRepository");
 const { createVoteResultsRepository } = require("./voteResultsRepository");
+const { getRolePermissions } = require("../src/logic");
 
 const DEFAULT_PUBLIC_ROOT = path.join(__dirname, "..");
 const DEFAULT_PORT = 5173;
@@ -123,6 +124,87 @@ async function routeApi(
 
   if (url.pathname === "/api/health" && request.method === "GET") {
     sendJson(response, 200, { status: "ok" });
+    return true;
+  }
+
+  if (url.pathname === "/api/me" && request.method === "GET") {
+    sendJson(response, 200, {
+      user: null,
+      role: null,
+      permissions: [],
+      source: "backend-pending",
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/permissions" && request.method === "GET") {
+    const role = url.searchParams.get("role") || "";
+    sendJson(response, 200, {
+      role: role || null,
+      permissions: role ? getRolePermissions(role) : {},
+      source: "backend-pending",
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/auth/feishu/login" && request.method === "POST") {
+    await readJsonBody(request);
+    sendJson(response, 200, {
+      configured: false,
+      provider: "feishu",
+      message: "Feishu auth backend is not connected yet.",
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/team/join" && request.method === "POST") {
+    const payload = await readJsonBody(request);
+    sendJson(response, 202, {
+      accepted: false,
+      mode: "backend-pending",
+      teamId: payload.teamId || null,
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/team/leave" && request.method === "POST") {
+    const payload = await readJsonBody(request);
+    sendJson(response, 202, {
+      accepted: false,
+      mode: "backend-pending",
+      teamId: payload.teamId || null,
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/vote/cast" && request.method === "POST") {
+    const payload = await readJsonBody(request);
+    sendJson(response, 202, {
+      accepted: false,
+      mode: "backend-pending",
+      teamId: payload.teamId || null,
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/vote/cancel" && request.method === "POST") {
+    const payload = await readJsonBody(request);
+    sendJson(response, 202, {
+      accepted: false,
+      mode: "backend-pending",
+      teamId: payload.teamId || null,
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/judge/scores" && request.method === "POST") {
+    const payload = await readJsonBody(request);
+    const scores = payload && typeof payload.scores === "object" && payload.scores ? payload.scores : {};
+    sendJson(response, 202, {
+      accepted: false,
+      mode: "backend-pending",
+      receivedTeamIds: Object.keys(scores),
+    });
     return true;
   }
 
