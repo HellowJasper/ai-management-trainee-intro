@@ -1,7 +1,9 @@
 const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
-const { createAuthSessionRepository } = require("./authSessionRepository");
+const { createFeishuOAuthProvider } = require("./feishuOAuthProvider");
+const { createOAuthStateRepository } = require("./oauthStateRepository");
+const { createAuthSessionRepositoryFromEnv } = require("./redisAuthSessionRepository");
 const { createRepositoryBundle } = require("./repositoryFactory");
 const { buildFinalResultSnapshot } = require("./resultSnapshotService");
 const { getRolePermissions } = require("../src/logic");
@@ -38,6 +40,15 @@ function sendJson(response, statusCode, payload, headers = {}) {
     ...headers,
   });
   response.end(JSON.stringify(payload));
+}
+
+function sendRedirect(response, location, headers = {}) {
+  response.writeHead(302, {
+    Location: location,
+    "Cache-Control": "no-store",
+    ...headers,
+  });
+  response.end();
 }
 
 function configuredCorsOrigins() {
@@ -157,6 +168,23 @@ function resolveAuthEnforcement(value = process.env.AUTH_ENFORCEMENT) {
   return String(value || "").trim().toLowerCase() === "strict" ? "strict" : null;
 }
 
+function sanitizeRedirectPath(value, fallback = "/site.html#me") {
+  const redirectPath = String(value || "").trim();
+  if (!redirectPath || !redirectPath.startsWith("/") || redirectPath.startsWith("//")) {
+    return fallback;
+  }
+  if (/^[a-z][a-z0-9+.-]*:/i.test(redirectPath)) {
+    return fallback;
+  }
+  return redirectPath;
+}
+
+function buildExternalUrl(request, pathname) {
+  const protocol = String(request.headers["x-forwarded-proto"] || "http").split(",")[0].trim() || "http";
+  const host = String(request.headers["x-forwarded-host"] || request.headers.host || "localhost").split(",")[0].trim();
+  return `${protocol}://${host}${pathname}`;
+}
+
 function isMobileRootRequest(request, url) {
   if (url.pathname !== "/" || url.searchParams.get("screen") === "big") {
     return false;
@@ -184,6 +212,8 @@ async function routeApi(
   auditLogRepository,
   resultSnapshotRepository,
   userRoleRepository,
+  oauthStateRepository,
+  feishuOAuthProvider,
   authSessionRepository,
   authEnforcement = null,
   runtimeInfo = {},
@@ -253,6 +283,92 @@ async function routeApi(
       role: role || null,
       permissions: role ? getRolePermissions(role) : {},
       source: "backend-pending",
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/auth/feishu/start" && request.method === "GET") {
+    if (!feishuOAuthProvider.configured) {
+      sendJson(response, 200, {
+        configured: false,
+        provider: "feishu",
+        reason: "missing-oauth-config",
+      });
+      return true;
+    }
+
+    const redirectPath = sanitizeRedirectPath(url.searchParams.get("redirect"));
+    const redirectUri = feishuOAuthProvider.redirectUri || buildExternalUrl(request, "/api/auth/feishu/callback");
+    const stateRecord = await oauthStateRepository.createState({
+      provider: "feishu",
+      redirectPath,
+      redirectUri,
+    });
+    const authorizationUrl = feishuOAuthProvider.createAuthorizationUrl({
+      state: stateRecord.state,
+      redirectUri,
+    });
+    sendRedirect(response, authorizationUrl);
+    return true;
+  }
+
+  if (url.pathname === "/api/auth/feishu/callback" && request.method === "GET") {
+    if (!feishuOAuthProvider.configured) {
+      sendJson(response, 503, {
+        error: {
+          message: "Feishu OAuth is not configured.",
+          statusCode: 503,
+        },
+      });
+      return true;
+    }
+
+    const code = url.searchParams.get("code") || "";
+    const state = url.searchParams.get("state") || "";
+    const stateRecord = await oauthStateRepository.consumeState(state);
+    if (!stateRecord) {
+      sendJson(response, 400, {
+        error: {
+          message: "Invalid or expired OAuth state.",
+          statusCode: 400,
+        },
+      });
+      return true;
+    }
+    if (!code) {
+      sendJson(response, 400, {
+        error: {
+          message: "OAuth code is required.",
+          statusCode: 400,
+        },
+      });
+      return true;
+    }
+
+    const feishuUser = await feishuOAuthProvider.exchangeCodeForUser({
+      code,
+      redirectUri: stateRecord.redirectUri,
+    });
+    const mapped = await userRoleRepository.resolveLoginUser(feishuUser);
+    if (!mapped) {
+      sendJson(response, 403, {
+        error: {
+          message: "Feishu user is not bound to a platform role.",
+          statusCode: 403,
+        },
+        provider: "feishu",
+      });
+      return true;
+    }
+
+    const session = await authSessionRepository.createSession({
+      ...mapped.user,
+      role: mapped.role,
+      roles: mapped.roles,
+      source: "feishu-oauth",
+    });
+    sendRedirect(response, sanitizeRedirectPath(stateRecord.redirectPath), {
+      "Set-Cookie": buildSessionCookie(session.id),
     });
     return true;
   }
@@ -343,6 +459,73 @@ async function routeApi(
       after: user,
     });
     sendJson(response, 201, user);
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/team-members" && request.method === "POST") {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
+    const payload = await readJsonBody(request);
+    const actor = authEnforcement === "strict" ? session.user.id : payload.actor || "admin";
+    const result = await teamRepository.joinTeam(payload, { bypassStatus: true });
+    await auditLogRepository.record({
+      actor,
+      action: "team.member.added",
+      targetType: "team",
+      targetId: result.team?.id || payload.teamId || "",
+      message: `添加队员【${result.member?.name || result.member?.userId || "未命名成员"}】到【${result.team?.name || result.team?.id || payload.teamId}】`,
+      meta: {
+        teamId: result.team?.id || payload.teamId || "",
+        userId: result.member?.userId || payload.userId || "",
+      },
+    });
+    sendJson(response, 200, result);
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/team-members" && request.method === "DELETE") {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
+    const payload = await readJsonBody(request);
+    const actor = authEnforcement === "strict" ? session.user.id : payload.actor || "admin";
+    const result = await teamRepository.leaveTeam(payload);
+    await auditLogRepository.record({
+      actor,
+      action: "team.member.removed",
+      targetType: "team",
+      targetId: result.team?.id || payload.teamId || "",
+      message: `移除队员【${result.userId || payload.userId || "未知成员"}】从【${result.team?.name || result.team?.id || payload.teamId}】`,
+      meta: {
+        teamId: result.team?.id || payload.teamId || "",
+        userId: result.userId || payload.userId || "",
+      },
+    });
+    sendJson(response, 200, result);
+    return true;
+  }
+
+  if (
+    segments[0] === "api"
+    && segments[1] === "admin"
+    && segments[2] === "teams"
+    && segments.length === 5
+    && segments[4] === "status"
+    && ["POST", "PATCH"].includes(request.method)
+  ) {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
+    const payload = await readJsonBody(request);
+    const actor = authEnforcement === "strict" ? session.user.id : payload.actor || "admin";
+    const result = await teamRepository.updateTeamStatus(segments[3], payload);
+    await auditLogRepository.record({
+      actor,
+      action: "team.status.updated",
+      targetType: "team",
+      targetId: result.team?.id || segments[3],
+      message: `更新赛道【${result.team?.name || segments[3]}】状态为【${result.team?.status || payload.status}】`,
+      after: result.team,
+    });
+    sendJson(response, 200, result);
     return true;
   }
 
@@ -802,7 +985,9 @@ function createServer(options = {}) {
     auditLogRepository = repositoryBundle.auditLogRepository,
     resultSnapshotRepository = repositoryBundle.resultSnapshotRepository,
     userRoleRepository = repositoryBundle.userRoleRepository,
-    authSessionRepository = createAuthSessionRepository(),
+    oauthStateRepository = createOAuthStateRepository(),
+    feishuOAuthProvider = createFeishuOAuthProvider(),
+    authSessionRepository = createAuthSessionRepositoryFromEnv(),
     authEnforcement = resolveAuthEnforcement(),
   } = options;
   const resolvedPublicRoot = path.resolve(publicRoot);
@@ -831,6 +1016,8 @@ function createServer(options = {}) {
           auditLogRepository,
           resultSnapshotRepository,
           userRoleRepository,
+          oauthStateRepository,
+          feishuOAuthProvider,
           authSessionRepository,
           authEnforcement,
           runtimeInfo,

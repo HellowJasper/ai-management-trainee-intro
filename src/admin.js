@@ -112,6 +112,7 @@ const adminVoteTotal = document.querySelector("#adminVoteTotal");
 const adminJudgeCount = document.querySelector("#adminJudgeCount");
 const adminVoteStatus = document.querySelector("#adminVoteStatus");
 const adminVoteRanking = document.querySelector("#adminVoteRanking");
+const adminVoteWindowState = document.querySelector("#adminVoteWindowState");
 const adminWorkStatus = document.querySelector("#adminWorkStatus");
 const adminWorkList = document.querySelector("#adminWorkList");
 const adminJudgeSummary = document.querySelector("#adminJudgeSummary");
@@ -136,6 +137,18 @@ const adminVoteRankingFull = document.querySelector("#adminVoteRankingFull");
 const adminWorkReviewList = document.querySelector("#adminWorkReviewList");
 const adminTeamRoster = document.querySelector("#adminTeamRoster");
 const adminTeamRosterStatus = document.querySelector("#adminTeamRosterStatus");
+const adminTeamStatusList = document.querySelector("#adminTeamStatusList");
+const adminTeamMemberStatus = document.querySelector("#adminTeamMemberStatus");
+const adminTeamMemberForm = document.querySelector("#adminTeamMemberForm");
+const adminTeamMemberTeamId = document.querySelector("#adminTeamMemberTeamId");
+const adminTeamMemberUserId = document.querySelector("#adminTeamMemberUserId");
+const adminTeamMemberName = document.querySelector("#adminTeamMemberName");
+const adminTeamMemberDepartment = document.querySelector("#adminTeamMemberDepartment");
+const adminTeamMemberRoleKey = document.querySelector("#adminTeamMemberRoleKey");
+const adminTeamMemberDuty = document.querySelector("#adminTeamMemberDuty");
+const adminTeamMemberPhoto = document.querySelector("#adminTeamMemberPhoto");
+const adminTeamMemberSubmit = document.querySelector("[data-add-team-member]");
+const resetTeamMemberFormButton = document.querySelector("#resetTeamMemberFormButton");
 const adminAuditLogList = document.querySelector("#adminAuditLogList");
 const adminSystemRuntimeStatus = document.querySelector("#adminSystemRuntimeStatus");
 const adminSystemSettings = document.querySelector("#adminSystemSettings");
@@ -147,6 +160,21 @@ const adminUserRoleName = document.querySelector("#adminUserRoleName");
 const adminUserRoleOpenId = document.querySelector("#adminUserRoleOpenId");
 const adminUserRoleUnionId = document.querySelector("#adminUserRoleUnionId");
 const adminUserRoleDepartment = document.querySelector("#adminUserRoleDepartment");
+const adminTraineeProfileStatus = document.querySelector("#adminTraineeProfileStatus");
+const adminTraineeProfileForm = document.querySelector("#adminTraineeProfileForm");
+const adminTraineeProfileList = document.querySelector("#adminTraineeProfileList");
+const adminTraineeProfileId = document.querySelector("#adminTraineeProfileId");
+const adminTraineeProfileName = document.querySelector("#adminTraineeProfileName");
+const adminTraineeProfileRomanName = document.querySelector("#adminTraineeProfileRomanName");
+const adminTraineeProfileDepartment = document.querySelector("#adminTraineeProfileDepartment");
+const adminTraineeProfileDepartmentEn = document.querySelector("#adminTraineeProfileDepartmentEn");
+const adminTraineeProfilePhoto = document.querySelector("#adminTraineeProfilePhoto");
+const adminTraineeProfileMemeImage = document.querySelector("#adminTraineeProfileMemeImage");
+const adminTraineeProfileSentence = document.querySelector("#adminTraineeProfileSentence");
+const adminTraineeProfileAiPartners = document.querySelector("#adminTraineeProfileAiPartners");
+const adminTraineeProfileFavoriteAI = document.querySelector("#adminTraineeProfileFavoriteAI");
+const adminTraineeProfileAiProblem = document.querySelector("#adminTraineeProfileAiProblem");
+const resetTraineeProfileFormButton = document.querySelector("#resetTraineeProfileFormButton");
 
 let businessDataState = {
   teams: [],
@@ -188,11 +216,22 @@ let userRoleState = {
   loading: false,
 };
 
+let traineeProfileState = {
+  trainees: [],
+  loading: false,
+  editingId: "",
+};
+
 const adminRoleLabels = {
   admin: "管理员",
   judge: "专家评委",
   player: "参赛选手",
   public: "大众评委",
+};
+
+const teamStatusLabels = {
+  open: "开放组队",
+  locked: "锁定组队",
 };
 
 const screenRoutes = [
@@ -383,6 +422,25 @@ function getSelectedRoadshowTeam(teamId) {
   return { id: cleanTeamId };
 }
 
+function renderTeamMemberOptions(teams = businessDataState.teams) {
+  if (!adminTeamMemberTeamId) {
+    return;
+  }
+
+  const normalizedTeams = Array.isArray(teams) ? teams : [];
+  const currentValue = adminTeamMemberTeamId.value;
+  adminTeamMemberTeamId.innerHTML = normalizedTeams.length
+    ? normalizedTeams.map((team) => {
+        const teamId = String(team.id || "").trim();
+        return `<option value="${escapeHtml(teamId)}">${escapeHtml(getRoadshowTeamLabel(team, teamId))}</option>`;
+      }).join("")
+    : '<option value="">等待队伍数据</option>';
+
+  if (currentValue && normalizedTeams.some((team) => String(team.id || "").trim() === currentValue)) {
+    adminTeamMemberTeamId.value = currentValue;
+  }
+}
+
 function renderVoteRankingItems(container, sortedResults, limit) {
   if (!container) {
     return;
@@ -411,7 +469,20 @@ function renderVoteRanking(voteResults = {}) {
   setText(adminVoteTotal, formatNumber(voteTotal));
   setText(adminVoteStatus, voteResults.windowLabel || voteResults.status || "等待同步");
   setText(adminVoteWorkspaceStatus, voteResults.windowLabel || voteResults.status || "等待同步");
+  renderVoteWindowManager(voteResults);
   syncDangerActionButtons();
+}
+
+function renderVoteWindowManager(voteResults = businessDataState.voteResults) {
+  const status = voteResults?.status || "voting";
+  const label = voteResults?.windowLabel || status || "等待同步";
+
+  setText(adminVoteWindowState, label);
+  document.querySelectorAll("[data-vote-window-status]").forEach((button) => {
+    const isActive = button.dataset.voteWindowStatus === status;
+    button.classList.toggle("is-active", isActive);
+    button.disabled = isActive;
+  });
 }
 
 function formatSnapshotTime(value) {
@@ -513,8 +584,44 @@ function renderWorkList(works) {
   setText(adminWorkWorkspaceStatus, normalizedWorks.length ? `${publishedCount}/${normalizedWorks.length} 已发布` : "等待提交");
 }
 
+function getTeamStatus(team = {}) {
+  return String(team.status || "open").trim().toLowerCase() || "open";
+}
+
+function renderTeamStatusManager(teams = businessDataState.teams) {
+  if (!adminTeamStatusList) {
+    return;
+  }
+
+  const normalizedTeams = Array.isArray(teams) ? teams : [];
+  adminTeamStatusList.innerHTML = normalizedTeams.length
+    ? normalizedTeams.map((team) => {
+        const teamId = String(team.id || "").trim();
+        const status = getTeamStatus(team);
+        const members = Array.isArray(team.members) ? team.members : [];
+        const memberLimit = getTeamMemberLimit(team);
+        const isLocked = status === "locked";
+        return `
+          <article class="admin-team-status-card ${isLocked ? "is-locked" : ""}">
+            <div>
+              <b>${escapeHtml(team.index ? `${team.index} · ${team.name || teamId}` : team.name || teamId || "未命名赛道")}</b>
+              <span>${members.length}/${memberLimit} 人 · ${escapeHtml(team.project || team.hostDepartment || team.nameEn || "组队状态")}</span>
+            </div>
+            <small class="admin-team-status-chip">${escapeHtml(teamStatusLabels[status] || status || "开放组队")}</small>
+            <div class="admin-team-status-actions">
+              <button type="button" data-team-status-command="${escapeHtml(teamId)}:open" class="${status === "open" ? "is-active" : ""}" ${status === "open" ? "disabled" : ""}>开放组队</button>
+              <button type="button" data-team-status-command="${escapeHtml(teamId)}:locked" class="${status === "locked" ? "is-active" : ""}" ${status === "locked" ? "disabled" : ""}>锁定组队</button>
+            </div>
+          </article>
+        `;
+      }).join("")
+    : '<p class="admin-empty">暂无赛道状态</p>';
+}
+
 function renderTeamRoster(teams = businessDataState.teams) {
   const normalizedTeams = Array.isArray(teams) ? teams : [];
+  renderTeamStatusManager(normalizedTeams);
+  renderTeamMemberOptions(normalizedTeams);
   const openSlots = normalizedTeams.reduce((total, team) => {
     const members = Array.isArray(team.members) ? team.members : [];
     return total + Math.max(0, getTeamMemberLimit(team) - members.length);
@@ -576,8 +683,9 @@ function renderTeamRoster(teams = businessDataState.teams) {
                     : `<i>${escapeHtml(String(member.name || "?").slice(0, 1))}</i>`}
                   <div>
                     <strong>${escapeHtml(member.name || "未命名成员")}</strong>
-                    <span>${escapeHtml(member.department || "部门待补全")} · ${escapeHtml(member.role || "成员")}</span>
+                    <span>${escapeHtml(member.department || "部门待补全")} · ${escapeHtml(member.duty || member.role || "成员")}</span>
                   </div>
+                  <button class="admin-team-member-remove" type="button" data-remove-team-member="${escapeHtml(team.id || "")}" data-member-id="${escapeHtml(member.userId || member.id || member.name || "")}" data-member-name="${escapeHtml(member.name || member.userId || "成员")}">移除</button>
                 </div>
               `).join("")}
             </div>
@@ -879,7 +987,7 @@ function renderContentManager() {
     { name: "作品提交", route: "data/works.json", apiRoute: "/api/works", count: `${works.length} 件作品`, note: "作品提交后可在数据与投票页审核发布或退回。" },
     { name: "评委评分", route: "data/judge-scores.json", apiRoute: "/api/judge/scores", count: `${coverage.teamCount} 个赛道`, note: `${coverage.judgeCount} 位评委保存评分草稿。` },
     { name: "审计日志", route: "data/audit-logs.json", apiRoute: "/api/admin/audit-logs", count: `${businessDataState.auditLogs.length} 条`, note: "记录后台关键写操作，便于排查与复盘。" },
-    { name: "星锐档案", route: "data/trainees.json", apiRoute: "/api/trainees", count: "14 人", note: "新人档案和个人展示内容仍由现有数据文件提供。" },
+    { name: "星锐档案", route: "data/trainees.json", apiRoute: "/api/trainees", count: `${traineeProfileState.trainees.length || 14} 人`, note: "新人档案和个人展示内容由后台统一维护。" },
   ];
 
   adminContentManager.innerHTML = contentCards.map((item) => {
@@ -893,6 +1001,227 @@ function renderContentManager() {
       </article>
     `;
   }).join("");
+}
+
+function renderTraineeProfileManager(trainees = traineeProfileState.trainees) {
+  if (!adminTraineeProfileList) {
+    return;
+  }
+
+  const cleanTrainees = Array.isArray(trainees) ? trainees : [];
+  const status = traineeProfileState.loading
+    ? "同步中"
+    : cleanTrainees.length
+      ? `${cleanTrainees.length} 份档案`
+      : "暂无档案";
+  setText(adminTraineeProfileStatus, status);
+
+  if (!cleanTrainees.length) {
+    adminTraineeProfileList.innerHTML = `
+      <article class="admin-trainee-profile-empty">
+        <b>还没有星锐档案</b>
+        <span>填写上方表单后，主会场星锐详情和新人展示会读取这里的数据。</span>
+      </article>
+    `;
+    return;
+  }
+
+  adminTraineeProfileList.innerHTML = cleanTrainees.map((trainee) => {
+    const traineeId = String(trainee.id || "").trim();
+    const meta = [
+      trainee.romanName || "",
+      trainee.department || "",
+      trainee.departmentEn || "",
+    ].filter(Boolean).join(" · ");
+
+    return `
+      <article class="admin-trainee-profile-card">
+        <header>
+          <div>
+            <b>${escapeHtml(trainee.name || traineeId || "未命名星锐")}</b>
+            <span>${escapeHtml(meta || traineeId || "未绑定档案 ID")}</span>
+          </div>
+          <menu>
+            <button type="button" data-edit-trainee-profile="${escapeHtml(traineeId)}">编辑</button>
+            <button class="is-danger" type="button" data-delete-trainee-profile="${escapeHtml(traineeId)}">删除</button>
+          </menu>
+        </header>
+        <p>${escapeHtml(trainee.sentence || trainee.aiProblem || trainee.background || "展示内容待补全")}</p>
+      </article>
+    `;
+  }).join("");
+}
+
+async function loadTraineeProfiles() {
+  if (!adminTraineeProfileList) {
+    return;
+  }
+
+  traineeProfileState = {
+    ...traineeProfileState,
+    loading: true,
+  };
+  renderTraineeProfileManager();
+
+  try {
+    const trainees = await window.AppData.loadTrainees([]);
+    traineeProfileState = {
+      ...traineeProfileState,
+      trainees: Array.isArray(trainees) ? trainees : [],
+      loading: false,
+    };
+    renderTraineeProfileManager();
+    renderContentManager();
+  } catch (error) {
+    console.warn("Trainee profiles load failed.", error);
+    traineeProfileState = {
+      ...traineeProfileState,
+      loading: false,
+    };
+    setText(adminTraineeProfileStatus, "同步失败");
+    renderTraineeProfileManager(traineeProfileState.trainees);
+  }
+}
+
+function collectTraineeProfilePayload() {
+  const payload = {
+    id: adminTraineeProfileId?.value.trim() || "",
+    name: adminTraineeProfileName?.value.trim() || "",
+    romanName: adminTraineeProfileRomanName?.value.trim() || "",
+    department: adminTraineeProfileDepartment?.value.trim() || "",
+    departmentEn: adminTraineeProfileDepartmentEn?.value.trim() || "",
+    photo: adminTraineeProfilePhoto?.value.trim() || "",
+    memeImage: adminTraineeProfileMemeImage?.value.trim() || "",
+    sentence: adminTraineeProfileSentence?.value.trim() || "",
+    aiPartners: adminTraineeProfileAiPartners?.value.trim() || "",
+    favoriteAI: adminTraineeProfileFavoriteAI?.value.trim() || "",
+    aiProblem: adminTraineeProfileAiProblem?.value.trim() || "",
+  };
+
+  if (!payload.id || !payload.name) {
+    setText(adminTraineeProfileStatus, "请补全档案 ID 和姓名");
+    return null;
+  }
+
+  return payload;
+}
+
+function resetTraineeProfileForm() {
+  traineeProfileState = {
+    ...traineeProfileState,
+    editingId: "",
+  };
+  adminTraineeProfileForm?.reset();
+  if (adminTraineeProfileId) {
+    adminTraineeProfileId.readOnly = false;
+  }
+  setText(adminTraineeProfileStatus, `${traineeProfileState.trainees.length || 0} 份档案`);
+}
+
+function fillTraineeProfileForm(trainee) {
+  if (!adminTraineeProfileForm || !trainee) {
+    return;
+  }
+
+  if (adminTraineeProfileId) {
+    adminTraineeProfileId.value = trainee.id || "";
+    adminTraineeProfileId.readOnly = true;
+  }
+  if (adminTraineeProfileName) adminTraineeProfileName.value = trainee.name || "";
+  if (adminTraineeProfileRomanName) adminTraineeProfileRomanName.value = trainee.romanName || "";
+  if (adminTraineeProfileDepartment) adminTraineeProfileDepartment.value = trainee.department || "";
+  if (adminTraineeProfileDepartmentEn) adminTraineeProfileDepartmentEn.value = trainee.departmentEn || "";
+  if (adminTraineeProfilePhoto) adminTraineeProfilePhoto.value = trainee.photo || "";
+  if (adminTraineeProfileMemeImage) adminTraineeProfileMemeImage.value = trainee.memeImage || "";
+  if (adminTraineeProfileSentence) adminTraineeProfileSentence.value = trainee.sentence || "";
+  if (adminTraineeProfileAiPartners) adminTraineeProfileAiPartners.value = trainee.aiPartners || trainee.tools || "";
+  if (adminTraineeProfileFavoriteAI) adminTraineeProfileFavoriteAI.value = trainee.favoriteAI || trainee.favoriteTool || "";
+  if (adminTraineeProfileAiProblem) adminTraineeProfileAiProblem.value = trainee.aiProblem || trainee.problem || "";
+
+  traineeProfileState = {
+    ...traineeProfileState,
+    editingId: trainee.id || "",
+  };
+  setText(adminTraineeProfileStatus, `正在编辑 ${trainee.name || trainee.id}`);
+}
+
+async function saveTraineeProfile(event) {
+  event.preventDefault();
+  const payload = collectTraineeProfilePayload();
+  if (!payload) {
+    return;
+  }
+
+  const submitButton = adminTraineeProfileForm?.querySelector('button[type="submit"]');
+  if (submitButton) submitButton.disabled = true;
+  setText(adminTraineeProfileStatus, "保存中");
+
+  const editingId = traineeProfileState.editingId || "";
+  const existingId = traineeProfileState.trainees.some((item) => item.id === payload.id) ? payload.id : "";
+
+  try {
+    const savedTrainee = editingId
+      ? await window.AppData.updateTrainee(editingId, { ...payload, id: editingId })
+      : existingId
+        ? await window.AppData.updateTrainee(existingId, payload)
+        : await window.AppData.createTrainee(payload);
+
+    traineeProfileState = {
+      trainees: [
+        savedTrainee,
+        ...traineeProfileState.trainees.filter((item) => item.id !== savedTrainee.id),
+      ],
+      loading: false,
+      editingId: "",
+    };
+    adminTraineeProfileForm?.reset();
+    if (adminTraineeProfileId) {
+      adminTraineeProfileId.readOnly = false;
+    }
+    renderTraineeProfileManager();
+    renderContentManager();
+    addLog("admin", `保存星锐档案【${savedTrainee.name || savedTrainee.id}】`);
+  } catch (error) {
+    console.warn("Trainee profile save failed.", error);
+    setText(adminTraineeProfileStatus, "保存失败");
+    addLog("system", "同步失败：星锐档案未保存");
+  } finally {
+    if (submitButton) submitButton.disabled = false;
+  }
+}
+
+async function deleteTraineeProfile(traineeId) {
+  const cleanTraineeId = String(traineeId || "").trim();
+  if (!cleanTraineeId) {
+    return;
+  }
+
+  const trainee = traineeProfileState.trainees.find((item) => item.id === cleanTraineeId);
+  const displayName = trainee?.name || cleanTraineeId;
+  if (window.confirm && !window.confirm(`确认删除星锐档案【${displayName}】？`)) {
+    return;
+  }
+
+  setText(adminTraineeProfileStatus, "删除中");
+
+  try {
+    await window.AppData.deleteTrainee(cleanTraineeId);
+    traineeProfileState = {
+      ...traineeProfileState,
+      trainees: traineeProfileState.trainees.filter((item) => item.id !== cleanTraineeId),
+      editingId: traineeProfileState.editingId === cleanTraineeId ? "" : traineeProfileState.editingId,
+    };
+    if (!traineeProfileState.editingId) {
+      resetTraineeProfileForm();
+    }
+    renderTraineeProfileManager();
+    renderContentManager();
+    addLog("admin", `删除星锐档案【${displayName}】`);
+  } catch (error) {
+    console.warn("Trainee profile delete failed.", error);
+    setText(adminTraineeProfileStatus, "删除失败");
+    addLog("system", "同步失败：星锐档案未删除");
+  }
 }
 
 function renderSystemSettings() {
@@ -1453,6 +1782,122 @@ async function loadBusinessData({ writeLog = false } = {}) {
   }
 }
 
+function collectAdminTeamMemberPayload() {
+  const payload = {
+    teamId: adminTeamMemberTeamId?.value.trim() || "",
+    userId: adminTeamMemberUserId?.value.trim() || "",
+    name: adminTeamMemberName?.value.trim() || "",
+    department: adminTeamMemberDepartment?.value.trim() || "",
+    roleKey: adminTeamMemberRoleKey?.value.trim() || "",
+    duty: adminTeamMemberDuty?.value.trim() || "",
+    photo: adminTeamMemberPhoto?.value.trim() || "",
+    actor: getAdminUserDisplayName(),
+  };
+
+  if (!payload.teamId || !payload.userId || !payload.name) {
+    setText(adminTeamMemberStatus, "请补全赛道、用户 ID 和姓名");
+    return null;
+  }
+
+  return payload;
+}
+
+function resetTeamMemberForm() {
+  adminTeamMemberForm?.reset();
+  renderTeamMemberOptions();
+  setText(adminTeamMemberStatus, "等待维护");
+}
+
+async function saveAdminTeamMember(event) {
+  event.preventDefault();
+  const payload = collectAdminTeamMemberPayload();
+  if (!payload) {
+    return;
+  }
+
+  const submitButton = adminTeamMemberSubmit || adminTeamMemberForm?.querySelector('button[type="submit"]');
+  if (submitButton) submitButton.disabled = true;
+  setText(adminTeamMemberStatus, "保存中");
+
+  try {
+    const result = await window.AppData.addAdminTeamMember(payload);
+    renderBusinessData({ teams: Array.isArray(result.teams) ? result.teams : businessDataState.teams });
+    adminTeamMemberForm?.reset();
+    renderTeamMemberOptions();
+    setText(adminTeamMemberStatus, "已保存");
+    addLog("admin", `维护队伍成员【${payload.name}】`);
+    await loadAuditTrail();
+  } catch (error) {
+    console.warn("Admin team member save failed.", error);
+    setText(adminTeamMemberStatus, "保存失败");
+    addLog("system", "同步失败：队伍成员未保存");
+  } finally {
+    if (submitButton) submitButton.disabled = false;
+  }
+}
+
+async function removeAdminTeamMember(teamId, userId, memberName = "") {
+  const cleanTeamId = String(teamId || "").trim();
+  const cleanUserId = String(userId || "").trim();
+  if (!cleanTeamId || !cleanUserId) {
+    return;
+  }
+
+  const displayName = memberName || cleanUserId;
+  if (window.confirm && !window.confirm(`确认从队伍中移除【${displayName}】？`)) {
+    return;
+  }
+
+  setText(adminTeamMemberStatus, "移除中");
+
+  try {
+    const result = await window.AppData.removeAdminTeamMember({
+      teamId: cleanTeamId,
+      userId: cleanUserId,
+      actor: getAdminUserDisplayName(),
+    });
+    renderBusinessData({ teams: Array.isArray(result.teams) ? result.teams : businessDataState.teams });
+    setText(adminTeamMemberStatus, "已移除");
+    addLog("admin", `移除队伍成员【${displayName}】`);
+    await loadAuditTrail();
+  } catch (error) {
+    console.warn("Admin team member remove failed.", error);
+    setText(adminTeamMemberStatus, "移除失败");
+    addLog("system", "同步失败：队伍成员未移除");
+  }
+}
+
+async function updateAdminTeamStatus(teamId, status, button = null) {
+  const cleanTeamId = String(teamId || "").trim();
+  const cleanStatus = String(status || "").trim();
+  if (!cleanTeamId || !cleanStatus) {
+    return;
+  }
+
+  if (button) button.disabled = true;
+  setText(adminTeamRosterStatus, "赛道状态更新中");
+
+  try {
+    const result = await window.AppData.updateAdminTeamStatus(cleanTeamId, {
+      status: cleanStatus,
+      actor: getAdminUserDisplayName(),
+    });
+    renderBusinessData({ teams: Array.isArray(result.teams) ? result.teams : businessDataState.teams });
+    const teamName = result.team?.name || cleanTeamId;
+    const statusLabel = teamStatusLabels[result.team?.status || cleanStatus] || cleanStatus;
+    setText(adminTeamRosterStatus, `${teamName} · ${statusLabel}`);
+    addLog("admin", `更新赛道状态【${teamName}】为【${statusLabel}】`);
+    await loadAuditTrail();
+  } catch (error) {
+    console.warn("Admin team status update failed.", error);
+    setText(adminTeamRosterStatus, "赛道状态更新失败");
+    addLog("system", "同步失败：赛道状态未更新");
+  } finally {
+    if (button && button.isConnected) button.disabled = false;
+    renderTeamStatusManager();
+  }
+}
+
 async function updateWorkReviewStatus(teamId, status) {
   if (!teamId || !status) {
     return;
@@ -1479,6 +1924,9 @@ async function updateAdminVoteWindow(status) {
 
   if (closeVoteButton) closeVoteButton.disabled = true;
   if (publishResultButton) publishResultButton.disabled = true;
+  document.querySelectorAll("[data-vote-window-status]").forEach((button) => {
+    button.disabled = true;
+  });
 
   try {
     const voteResults = await window.AppData.updateAdminVoteWindow(status);
@@ -1487,8 +1935,14 @@ async function updateAdminVoteWindow(status) {
       ? await window.AppData.publishAdminResults({ actor: getAdminUserDisplayName(), action: resultAction })
       : null;
     const nextPayload = snapshot ? { voteResults, resultSnapshot: snapshot } : { voteResults };
+    const actionLabel = {
+      voting: "开启投票窗口",
+      closed: "关闭投票窗口",
+      published: "发布最终结果快照",
+    }[status] || "更新投票窗口";
+
     renderBusinessData(nextPayload);
-    addLog("admin", snapshot ? `发布最终结果快照【${snapshot.id}】` : "关闭投票窗口");
+    addLog("admin", snapshot ? `${actionLabel}【${snapshot.id}】` : actionLabel);
     await loadAuditTrail();
   } catch (error) {
     console.warn("Vote window sync failed.", error);
@@ -1497,6 +1951,7 @@ async function updateAdminVoteWindow(status) {
     if (confirmDangerAction) {
       confirmDangerAction.checked = false;
     }
+    renderVoteWindowManager();
     syncDangerActionButtons();
   }
 }
@@ -1617,6 +2072,12 @@ function switchAdminView(view) {
   if (targetView === "dashboard" || targetView === "data" || targetView === "teams" || targetView === "content") {
     loadBusinessData().catch((error) => {
       console.warn("Business data refresh failed.", error);
+    });
+  }
+
+  if (targetView === "content") {
+    loadTraineeProfiles().catch((error) => {
+      console.warn("Trainee profiles refresh failed.", error);
     });
   }
 
@@ -1744,6 +2205,33 @@ document.addEventListener("click", async (event) => {
   await updateWorkReviewStatus(teamId, status);
 });
 
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-vote-window-status]");
+  if (!button) {
+    return;
+  }
+
+  const status = button.dataset.voteWindowStatus;
+  button.disabled = true;
+  await updateAdminVoteWindow(status);
+});
+
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-remove-team-member]");
+  if (!button) {
+    return;
+  }
+
+  button.disabled = true;
+  try {
+    await removeAdminTeamMember(button.dataset.removeTeamMember, button.dataset.memberId, button.dataset.memberName);
+  } finally {
+    if (button.isConnected) {
+      button.disabled = false;
+    }
+  }
+});
+
 document.addEventListener("click", (event) => {
   const button = event.target.closest("[data-edit-user-role]");
   if (!button) {
@@ -1752,6 +2240,26 @@ document.addEventListener("click", (event) => {
 
   const user = userRoleState.users.find((item) => item.id === button.dataset.editUserRole);
   fillUserRoleForm(user);
+});
+
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-edit-trainee-profile]");
+  if (!button) {
+    return;
+  }
+
+  const trainee = traineeProfileState.trainees.find((item) => item.id === button.dataset.editTraineeProfile);
+  fillTraineeProfileForm(trainee);
+});
+
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-delete-trainee-profile]");
+  if (!button) {
+    return;
+  }
+
+  button.disabled = true;
+  await deleteTraineeProfile(button.dataset.deleteTraineeProfile);
 });
 
 document.addEventListener("click", async (event) => {
@@ -1781,9 +2289,16 @@ startRoadshowButton?.addEventListener("click", () => updateRoadshow(new Date().t
 resetRoadshowButton?.addEventListener("click", () => updateRoadshow(null));
 refreshBusinessDataButton?.addEventListener("click", () => loadBusinessData({ writeLog: true }));
 refreshDataWorkspaceButton?.addEventListener("click", () => loadBusinessData({ writeLog: true }));
-refreshContentManagerButton?.addEventListener("click", () => loadBusinessData({ writeLog: true }));
+refreshContentManagerButton?.addEventListener("click", () => {
+  loadBusinessData({ writeLog: true });
+  loadTraineeProfiles();
+});
 refreshAuditLogButton?.addEventListener("click", () => loadAuditTrail());
 adminUserRoleForm?.addEventListener("submit", upsertUserRole);
+adminTraineeProfileForm?.addEventListener("submit", saveTraineeProfile);
+resetTraineeProfileFormButton?.addEventListener("click", resetTraineeProfileForm);
+adminTeamMemberForm?.addEventListener("submit", saveAdminTeamMember);
+resetTeamMemberFormButton?.addEventListener("click", resetTeamMemberForm);
 
 document.querySelector("#clearLogButton").addEventListener("click", () => {
   logs.splice(0, logs.length, [new Date().toLocaleTimeString("zh-CN", { hour12: false }), "admin", "清空操作日志"]);
@@ -1804,6 +2319,7 @@ async function initAdmin() {
   renderContentManager();
   renderSystemSettings();
   renderUserRoleManager();
+  renderTraineeProfileManager();
   renderPlatformHealth();
   renderSyncStatus();
   renderTopbarMenus();
@@ -1812,12 +2328,12 @@ async function initAdmin() {
   try {
     const state = await window.AppData.loadAdminState();
     applyAdminState(state);
-    await Promise.allSettled([loadCurrentAdminUser(), loadPlatformHealth(), loadTimerControls(), loadBusinessData(), loadAuditTrail(), loadUserRoles()]);
+    await Promise.allSettled([loadCurrentAdminUser(), loadPlatformHealth(), loadTimerControls(), loadBusinessData(), loadAuditTrail(), loadUserRoles(), loadTraineeProfiles()]);
     addLog("system", "后台状态同步完成");
   } catch (error) {
     console.warn("Admin state load failed.", error);
     addLog("system", "同步失败：无法加载后端状态，暂用本地默认阶段");
-    await Promise.allSettled([loadCurrentAdminUser(), loadPlatformHealth(), loadTimerControls(), loadBusinessData(), loadAuditTrail(), loadUserRoles()]);
+    await Promise.allSettled([loadCurrentAdminUser(), loadPlatformHealth(), loadTimerControls(), loadBusinessData(), loadAuditTrail(), loadUserRoles(), loadTraineeProfiles()]);
   }
 }
 

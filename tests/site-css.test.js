@@ -44,7 +44,8 @@ test("site profile detail drawer stays aligned with the big-screen detail layout
 
   assert.match(css, /\.site-body:has\(\.site-detail-layer\.is-open\)\s*\{[^}]*overflow:\s*hidden/s);
   assert.match(css, /\.site-detail-layer\s*\{[^}]*z-index:\s*220/s);
-  assert.match(css, /\.site-detail-layer \.profile-console\s*\{[^}]*right:\s*clamp\(16px,\s*2vw,\s*32px\);[^}]*width:\s*calc\(min\(80vw,\s*1260px\) - 24px\);[^}]*max-width:\s*calc\(100vw - clamp\(32px,\s*4vw,\s*64px\)\);[^}]*border-right:\s*1px solid var\(--line-strong\);[^}]*border-radius:\s*var\(--radius\)/s);
+  assert.match(css, /--site-detail-side-rail:\s*calc\(var\(--site-detail-edge\) \+ var\(--site-detail-card-width\) \+ var\(--site-detail-card-gap\)\)/);
+  assert.match(css, /\.site-detail-layer \.profile-console\s*\{[^}]*left:\s*var\(--site-detail-side-rail\);[^}]*right:\s*var\(--site-detail-edge\);[^}]*width:\s*auto;[^}]*max-width:\s*none;[^}]*border-right:\s*1px solid var\(--line-strong\);[^}]*border-radius:\s*var\(--radius\)/s);
   assert.doesNotMatch(css, /\.site-detail-layer \.profile-console\s*\{[^}]*right:\s*0;/s);
   assert.doesNotMatch(css, /\.site-detail-layer \.profile-console\s*\{[^}]*border-right:\s*0;/s);
 
@@ -55,7 +56,7 @@ test("site profile detail drawer stays aligned with the big-screen detail layout
 test("site profile detail panels use the photo ratio and equal height", () => {
   const css = fs.readFileSync(cssPath, "utf8");
 
-  assert.match(css, /\.site-detail-layer \.profile-console\s*\{[^}]*--site-detail-panel-height:\s*min\(clamp\(560px,\s*31vw,\s*670px\),\s*calc\(100vh - 210px\)\);[^}]*grid-template-rows:\s*minmax\(0,\s*var\(--site-detail-panel-height\)\) auto;[^}]*align-content:\s*center/s);
+  assert.match(css, /\.site-detail-layer \.profile-console\s*\{[^}]*--site-detail-panel-height:\s*min\(clamp\(500px,\s*35vw,\s*700px\),\s*calc\(100dvh - clamp\(132px,\s*15dvh,\s*180px\)\)\);[^}]*grid-template-rows:\s*minmax\(0,\s*var\(--site-detail-panel-height\)\) auto;[^}]*align-content:\s*center/s);
   assert.match(css, /\.site-detail-layer \.profile-info-panel,\s*\.site-detail-layer \.profile-media-panel\s*\{[^}]*height:\s*100%;[^}]*max-height:\s*var\(--site-detail-panel-height\)/s);
   assert.match(css, /\.site-detail-layer \.profile-media-panel\s*\{[^}]*aspect-ratio:\s*2736 \/ 3668;[^}]*max-width:\s*none;[^}]*padding:\s*0/s);
   assert.match(css, /\.site-detail-layer \.profile-media-frame\s*\{[^}]*height:\s*100%/s);

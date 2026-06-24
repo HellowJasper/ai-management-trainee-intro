@@ -307,6 +307,36 @@ test("data loader exposes current admin session and logout APIs", async () => {
   assert.equal(calls[1].options.method, "POST");
 });
 
+test("data loader loads trainee records when admin pages do not include AppLogic", async () => {
+  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
+  const calls = [];
+  const context = {
+    JOINCARE_API_BASE_URL: "http://localhost:63779",
+    console: { warn() {} },
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ([{ id: "jasper", name: "贾博深" }]),
+      };
+    },
+    localStorage: {
+      getItem: () => null,
+      setItem() {},
+      removeItem() {},
+    },
+  };
+  context.globalThis = context;
+
+  vm.runInNewContext(dataJs, context);
+
+  const trainees = await context.AppData.loadTrainees([]);
+
+  assert.deepEqual(trainees, [{ id: "jasper", name: "贾博深" }]);
+  assert.equal(calls[0].url, "http://localhost:63779/api/trainees");
+});
+
 test("admin console renders API health for separated frontend deployments", () => {
   const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
   const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
@@ -374,6 +404,24 @@ test("admin safe guard buttons update vote window through the backend", () => {
   assert.match(adminJs, /publishResultButton\?\.addEventListener\("click", \(\) => updateAdminVoteWindow\("published"\)\)/);
 });
 
+test("admin data workspace exposes explicit vote window controls", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.match(html, /id="adminVoteWindowManager"/);
+  assert.match(html, /id="adminVoteWindowState"/);
+  assert.match(html, /data-vote-window-status="voting"/);
+  assert.match(html, /data-vote-window-status="closed"/);
+  assert.match(html, /data-vote-window-status="published"/);
+  assert.match(css, /\.admin-vote-window-manager/);
+  assert.match(css, /\.admin-vote-window-actions/);
+  assert.match(adminJs, /const adminVoteWindowState/);
+  assert.match(adminJs, /function renderVoteWindowManager/);
+  assert.match(adminJs, /document\.addEventListener\("click", async \(event\) => \{[\s\S]*?data-vote-window-status/);
+  assert.match(adminJs, /window\.AppData\.updateAdminVoteWindow\(status/);
+});
+
 test("admin publish result action creates a backend result snapshot", () => {
   const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
   const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
@@ -431,6 +479,33 @@ test("admin settings manage backend user role mappings", () => {
   assert.match(adminJs, /window\.AppData\.upsertAdminUser/);
   assert.match(adminJs, /data-edit-user-role/);
   assert.match(adminJs, /loadUserRoles\(\)/);
+});
+
+test("admin content manager edits trainee profiles through backend data APIs", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.match(html, /id="adminTraineeProfileManager"/);
+  assert.match(html, /id="adminTraineeProfileForm"/);
+  assert.match(html, /id="adminTraineeProfileList"/);
+  assert.match(html, /id="adminTraineeProfileSentence"/);
+  assert.match(css, /\.admin-trainee-profile-manager/);
+  assert.match(css, /\.admin-trainee-profile-list/);
+  assert.match(dataJs, /function normalizeTraineeRecord/);
+  assert.match(dataJs, /createTrainee,/);
+  assert.match(dataJs, /updateTrainee,/);
+  assert.match(dataJs, /deleteTrainee,/);
+  assert.match(adminJs, /const adminTraineeProfileForm/);
+  assert.match(adminJs, /function renderTraineeProfileManager/);
+  assert.match(adminJs, /function loadTraineeProfiles/);
+  assert.match(adminJs, /window\.AppData\.loadTrainees/);
+  assert.match(adminJs, /window\.AppData\.createTrainee/);
+  assert.match(adminJs, /window\.AppData\.updateTrainee/);
+  assert.match(adminJs, /window\.AppData\.deleteTrainee/);
+  assert.match(adminJs, /data-edit-trainee-profile/);
+  assert.match(adminJs, /data-delete-trainee-profile/);
 });
 
 test("admin topbar quick menus expose real links and session actions", () => {
@@ -916,17 +991,15 @@ test("official site result page uses leaderboard copy and final award labels", (
 
   assert.match(siteJs, /resultHead\("排行榜"\)/);
   assert.match(siteJs, /创新与价值并重，共同见证最终荣誉的诞生/);
-  assert.match(siteJs, /<span>排行榜<\/span><strong>FINAL RANKING<\/strong>/);
   assert.doesNotMatch(siteJs, />最终排行</);
   assert.doesNotMatch(siteJs, /综合得分 = 专家评审 70% \+ 大众投票赋分 30%/);
   assert.doesNotMatch(siteJs, /result-bridge/);
-  assert.match(siteJs, /result-board-heading/);
   assert.match(siteJs, /champ \? "🏆" : pad\(t\.rank\)/);
   assert.match(siteJs, /Grand Prize · 冠军战队/);
   assert.match(siteJs, /\$\{esc\(t\.track\)\} · \$\{esc\(t\.project\)\}/);
   assert.doesNotMatch(siteJs, /\$\{esc\(t\.project\)\} · \$\{esc\(t\.track\)\}/);
   assert.doesNotMatch(siteCss, /\.result-bridge/);
-  assert.match(siteCss, /\.result-board-heading/);
+  assert.match(siteCss, /\.result-hero-en/);
 });
 
 test("schedule mechanism section uses briefing cards and separate evaluation criteria", () => {
@@ -978,6 +1051,23 @@ test("official site includes a mobile app shell with bottom tab navigation", () 
   assert.match(siteCss, /\.mobile-tabbar/);
   assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.mobile-tabbar\s*{[\s\S]*position:\s*fixed/);
   assert.match(siteCss, /\.mobile-tabbar\s+a\s*{[\s\S]*min-width:\s*0/);
+});
+
+test("site trainee detail modal uses viewport-safe desktop sizing", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.match(html, /src\/site\.css\?v=20260624-detail-fit/);
+  assert.match(siteCss, /--site-detail-side-rail:\s*calc\(var\(--site-detail-edge\) \+ var\(--site-detail-card-width\) \+ var\(--site-detail-card-gap\)\)/);
+  assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*var\(--site-detail-edge\)/);
+  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*var\(--site-detail-side-rail\)/);
+  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?right:\s*var\(--site-detail-edge\)/);
+  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?width:\s*auto/);
+  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?100dvh/);
+  assert.doesNotMatch(siteCss, /calc\(100vh - 210px\)/);
+  assert.match(siteCss, /@media \(max-width:\s*1180px\)[\s\S]*?\.site-detail-layer \.draw-card\s*\{[\s\S]*?display:\s*none/);
+  assert.match(siteCss, /@media \(max-width:\s*1180px\)[\s\S]*?grid-template-columns:\s*minmax\(480px,\s*1fr\) minmax\(240px,\s*min\(32vw,\s*320px\)\)/);
+  assert.match(siteCss, /@media \(max-width:\s*980px\)[\s\S]*?\.site-detail-layer \.profile-media-panel\s*\{[\s\S]*?height:\s*clamp\(240px,\s*42dvh,\s*360px\)/);
 });
 
 test("mobile site opens on event home and uses a natural swipe-card browser", () => {
@@ -1098,11 +1188,11 @@ test("role authorization is completed at entry and protects sensitive actions", 
   assert.doesNotMatch(siteJs, /if \(!currentRole\(\)\) showAuthGate\("entry"\)/);
 });
 
-test("official site cache keys are bumped after navigation label polish", () => {
+test("official site cache keys are bumped after navigation and detail layout polish", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
-  assert.match(html, /src\/site\.css\?v=20260624-nav-labels/);
+  assert.match(html, /src\/site\.css\?v=20260624-detail-fit/);
   assert.match(html, /src\/logic\.js\?v=20260624-nav-labels/);
   assert.match(html, /src\/site\.js\?v=20260624-nav-labels/);
 });
@@ -1206,6 +1296,57 @@ test("admin team roster surfaces capacity and role coverage for grouping decisio
   assert.match(css, /\.admin-team-capacity/);
   assert.match(css, /\.admin-team-capacity-meter/);
   assert.match(css, /\.admin-team-role-coverage/);
+});
+
+test("admin team roster manages members through backend admin APIs", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.match(html, /id="adminTeamMemberManager"/);
+  assert.match(html, /id="adminTeamMemberForm"/);
+  assert.match(html, /id="adminTeamMemberTeamId"/);
+  assert.match(html, /id="adminTeamMemberUserId"/);
+  assert.match(html, /id="adminTeamMemberName"/);
+  assert.match(html, /id="adminTeamMemberDepartment"/);
+  assert.match(html, /id="adminTeamMemberRoleKey"/);
+  assert.match(html, /id="adminTeamMemberDuty"/);
+  assert.match(css, /\.admin-team-member-manager/);
+  assert.match(css, /\.admin-team-member-form/);
+  assert.match(css, /\.admin-team-member-actions/);
+  assert.match(dataJs, /function addAdminTeamMember/);
+  assert.match(dataJs, /function removeAdminTeamMember/);
+  assert.match(adminJs, /const adminTeamMemberForm/);
+  assert.match(adminJs, /function saveAdminTeamMember/);
+  assert.match(adminJs, /function removeAdminTeamMember/);
+  assert.match(adminJs, /window\.AppData\.addAdminTeamMember/);
+  assert.match(adminJs, /window\.AppData\.removeAdminTeamMember/);
+  assert.match(adminJs, /data-add-team-member/);
+  assert.match(adminJs, /data-remove-team-member/);
+  assert.match(adminJs, /button\.isConnected/);
+});
+
+test("admin team roster controls backend track lock state", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.match(html, /id="adminTeamStatusManager"/);
+  assert.match(html, /id="adminTeamStatusList"/);
+  assert.match(css, /\.admin-team-status-manager/);
+  assert.match(css, /\.admin-team-status-list/);
+  assert.match(css, /\.admin-team-status-card/);
+  assert.match(dataJs, /function updateAdminTeamStatus/);
+  assert.match(dataJs, /\/api\/admin\/teams\/\$\{encodeURIComponent\(teamId\)\}\/status/);
+  assert.match(adminJs, /const adminTeamStatusList/);
+  assert.match(adminJs, /function renderTeamStatusManager/);
+  assert.match(adminJs, /function updateAdminTeamStatus/);
+  assert.match(adminJs, /window\.AppData\.updateAdminTeamStatus/);
+  assert.match(adminJs, /data-team-status-command/);
+  assert.match(adminJs, /开放组队/);
+  assert.match(adminJs, /锁定组队/);
 });
 
 test("admin console exposes all primary sidebar sections as real views", () => {

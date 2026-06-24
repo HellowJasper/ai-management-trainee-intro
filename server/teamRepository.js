@@ -4,6 +4,8 @@ const { createHttpError } = require("./traineeRepository");
 
 const DEFAULT_DATA_PATH = path.join(__dirname, "../data/teams.json");
 const DEFAULT_TEAM_CAPACITY = 5;
+const LOCKED_TEAM_STATUSES = new Set(["locked", "closed"]);
+const WRITABLE_TEAM_STATUSES = new Set(["open", "locked"]);
 
 function writeJsonFile(filePath, data) {
   return fs.writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`);
@@ -36,6 +38,15 @@ function teamCapacity(team = {}) {
   return Number.isFinite(capacity) && capacity > 0 ? capacity : DEFAULT_TEAM_CAPACITY;
 }
 
+function normalizeTeamStatus(value) {
+  const status = String(value || "").trim().toLowerCase();
+  if (!WRITABLE_TEAM_STATUSES.has(status)) {
+    throw createHttpError(400, "status must be open or locked.");
+  }
+
+  return status;
+}
+
 function memberMatchesUser(member, userId) {
   return String(member?.userId || member?.id || member?.name || "").trim() === userId;
 }
@@ -62,7 +73,7 @@ function createTeamRepository(dataPath = DEFAULT_DATA_PATH) {
     await writeJsonFile(resolvedDataPath, teams);
   }
 
-  async function joinTeam(payload = {}) {
+  async function joinTeam(payload = {}, options = {}) {
     const teamId = String(payload.teamId || "").trim();
     if (!teamId) {
       throw createHttpError(400, "teamId is required.");
@@ -86,6 +97,10 @@ function createTeamRepository(dataPath = DEFAULT_DATA_PATH) {
       ...nextTeams[targetIndex],
       members: [...nextTeams[targetIndex].members],
     };
+
+    if (!options.bypassStatus && LOCKED_TEAM_STATUSES.has(String(target.status || "open").trim().toLowerCase())) {
+      throw createHttpError(409, `Team ${teamId} is locked.`);
+    }
 
     if (target.members.length >= teamCapacity(target) - 1) {
       throw createHttpError(409, `Team ${teamId} is already full.`);
@@ -193,11 +208,42 @@ function createTeamRepository(dataPath = DEFAULT_DATA_PATH) {
     };
   }
 
+  async function updateTeamStatus(teamId, payload = {}) {
+    const cleanTeamId = String(teamId || payload.teamId || "").trim();
+    if (!cleanTeamId) {
+      throw createHttpError(400, "teamId is required.");
+    }
+
+    const status = normalizeTeamStatus(payload.status);
+    const teams = await readTeams();
+    const targetIndex = teams.findIndex((team) => team.id === cleanTeamId);
+
+    if (targetIndex === -1) {
+      throw createHttpError(404, `Team ${cleanTeamId} was not found.`);
+    }
+
+    const nextTeams = [...teams];
+    const nextTeam = {
+      ...teams[targetIndex],
+      status,
+      updatedAt: new Date().toISOString(),
+    };
+    nextTeams[targetIndex] = nextTeam;
+
+    await writeTeams(nextTeams);
+    return {
+      accepted: true,
+      team: nextTeam,
+      teams: nextTeams,
+    };
+  }
+
   return {
     claimRole,
     joinTeam,
     leaveTeam,
     listTeams,
+    updateTeamStatus,
   };
 }
 

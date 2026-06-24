@@ -373,7 +373,80 @@
             <button type="button" id="refreshContentManagerButton">刷新内容</button>
           </div>
 
-          <div class="admin-route-grid" id="adminContentManager"></div>
+          <div class="management-split admin-content-layout">
+            <section class="panel admin-wide-panel admin-trainee-profile-manager" id="adminTraineeProfileManager" aria-labelledby="adminTraineeProfileTitle">
+              <header class="wide-panel-heading">
+                <div>
+                  <span>TRAINEE_PROFILE</span>
+                  <strong id="adminTraineeProfileTitle">星锐档案</strong>
+                </div>
+                <small id="adminTraineeProfileStatus">等待同步</small>
+              </header>
+
+              <form class="admin-trainee-profile-form" id="adminTraineeProfileForm">
+                <label>
+                  档案 ID
+                  <input id="adminTraineeProfileId" type="text" name="id" autocomplete="off" placeholder="如 jasper" required />
+                </label>
+                <label>
+                  中文姓名
+                  <input id="adminTraineeProfileName" type="text" name="name" autocomplete="off" placeholder="姓名" required />
+                </label>
+                <label>
+                  英文名
+                  <input id="adminTraineeProfileRomanName" type="text" name="romanName" autocomplete="off" placeholder="Roman name" />
+                </label>
+                <label>
+                  部门
+                  <input id="adminTraineeProfileDepartment" type="text" name="department" autocomplete="off" placeholder="如 AI 创新部" />
+                </label>
+                <label>
+                  部门英文
+                  <input id="adminTraineeProfileDepartmentEn" type="text" name="departmentEn" autocomplete="off" placeholder="Department" />
+                </label>
+                <label>
+                  头像路径
+                  <input id="adminTraineeProfilePhoto" type="text" name="photo" autocomplete="off" placeholder="./assets/xxx.jpg" />
+                </label>
+                <label>
+                  表情包路径
+                  <input id="adminTraineeProfileMemeImage" type="text" name="memeImage" autocomplete="off" placeholder="./assets/xxx.png" />
+                </label>
+                <label class="admin-trainee-profile-field-wide">
+                  个人展示语
+                  <textarea id="adminTraineeProfileSentence" name="sentence" rows="2" placeholder="用于星锐详情卡片的展示语"></textarea>
+                </label>
+                <label>
+                  我的 AI 搭子们
+                  <textarea id="adminTraineeProfileAiPartners" name="aiPartners" rows="2" placeholder="如 codex, gemini, claude"></textarea>
+                </label>
+                <label>
+                  本命 AI 搭子
+                  <textarea id="adminTraineeProfileFavoriteAI" name="favoriteAI" rows="2" placeholder="最常使用的 AI 工具"></textarea>
+                </label>
+                <label>
+                  最想让 AI 解决的问题
+                  <textarea id="adminTraineeProfileAiProblem" name="aiProblem" rows="2" placeholder="个人期待解决的问题"></textarea>
+                </label>
+                <div class="admin-trainee-profile-actions admin-trainee-profile-field-wide">
+                  <button class="primary-admin-action" type="submit">保存档案</button>
+                  <button class="secondary-admin-action" type="button" id="resetTraineeProfileFormButton">清空表单</button>
+                </div>
+              </form>
+
+              <div class="admin-trainee-profile-list" id="adminTraineeProfileList"></div>
+            </section>
+
+            <section class="panel admin-wide-panel" aria-labelledby="adminContentDataTitle">
+              <header class="wide-panel-heading">
+                <div>
+                  <span>DATA_LINKS</span>
+                  <strong id="adminContentDataTitle">内容数据入口</strong>
+                </div>
+              </header>
+              <div class="admin-route-grid admin-content-route-grid" id="adminContentManager"></div>
+            </section>
+          </div>
         </section>
 
         <section class="admin-view-panel admin-management-view" data-admin-view-panel="data" aria-labelledby="dataWorkspaceTitle">
@@ -386,16 +459,40 @@
           </div>
 
           <div class="management-split">
-            <section class="panel admin-wide-panel" aria-label="完整投票排名">
-              <header class="wide-panel-heading">
-                <div>
-                  <span>VOTE RANKING</span>
-                  <strong>实时投票排名</strong>
+            <div class="admin-vote-management-stack">
+              <section class="panel admin-wide-panel admin-vote-window-manager" id="adminVoteWindowManager" aria-labelledby="adminVoteWindowTitle">
+                <header class="wide-panel-heading">
+                  <div>
+                    <span>VOTE_WINDOW</span>
+                    <strong id="adminVoteWindowTitle">投票窗口</strong>
+                  </div>
+                  <small>实时控制</small>
+                </header>
+                <div class="admin-vote-window-body">
+                  <div class="admin-vote-window-state">
+                    <span>当前状态</span>
+                    <strong id="adminVoteWindowState">等待同步</strong>
+                    <p>窗口状态会影响公众端投票入口和最终结果发布流程。</p>
+                  </div>
+                  <div class="admin-vote-window-actions" aria-label="投票窗口控制">
+                    <button type="button" data-vote-window-status="voting">开启投票</button>
+                    <button type="button" data-vote-window-status="closed">关闭投票</button>
+                    <button type="button" data-vote-window-status="published">标记发布</button>
+                  </div>
                 </div>
-                <small id="adminVoteWorkspaceStatus">等待同步</small>
-              </header>
-              <ol class="admin-vote-ranking admin-vote-ranking-full" id="adminVoteRankingFull"></ol>
-            </section>
+              </section>
+
+              <section class="panel admin-wide-panel" aria-label="完整投票排名">
+                <header class="wide-panel-heading">
+                  <div>
+                    <span>VOTE RANKING</span>
+                    <strong>实时投票排名</strong>
+                  </div>
+                  <small id="adminVoteWorkspaceStatus">等待同步</small>
+                </header>
+                <ol class="admin-vote-ranking admin-vote-ranking-full" id="adminVoteRankingFull"></ol>
+              </section>
+            </div>
 
             <section class="panel admin-wide-panel" aria-label="作品审核列表">
               <header class="wide-panel-heading">
@@ -419,7 +516,69 @@
             <span id="adminTeamRosterStatus">等待同步</span>
           </div>
 
-          <div class="admin-team-roster" id="adminTeamRoster"></div>
+          <div class="management-split admin-team-management-layout">
+            <div class="admin-team-control-stack">
+              <section class="panel admin-wide-panel admin-team-status-manager" id="adminTeamStatusManager" aria-labelledby="adminTeamStatusTitle">
+                <header class="wide-panel-heading">
+                  <div>
+                    <span>TRACK_STATUS</span>
+                    <strong id="adminTeamStatusTitle">组队开关</strong>
+                  </div>
+                  <small>开放 / 锁定</small>
+                </header>
+                <div class="admin-team-status-list" id="adminTeamStatusList"></div>
+              </section>
+
+              <section class="panel admin-wide-panel admin-team-member-manager" id="adminTeamMemberManager" aria-labelledby="adminTeamMemberTitle">
+                <header class="wide-panel-heading">
+                  <div>
+                    <span>MEMBER_CONTROL</span>
+                    <strong id="adminTeamMemberTitle">成员维护</strong>
+                  </div>
+                  <small id="adminTeamMemberStatus">等待同步</small>
+                </header>
+
+                <form class="admin-team-member-form" id="adminTeamMemberForm">
+                  <label class="admin-team-member-field-wide">
+                    目标赛道
+                    <select id="adminTeamMemberTeamId" name="teamId" required></select>
+                  </label>
+                  <label>
+                    用户 ID
+                    <input id="adminTeamMemberUserId" type="text" name="userId" autocomplete="off" placeholder="如 player-001" required />
+                  </label>
+                  <label>
+                    姓名
+                    <input id="adminTeamMemberName" type="text" name="name" autocomplete="off" placeholder="成员姓名" required />
+                  </label>
+                  <label>
+                    部门
+                    <input id="adminTeamMemberDepartment" type="text" name="department" autocomplete="off" placeholder="如 AI 创新部" />
+                  </label>
+                  <label>
+                    角色 Key
+                    <input id="adminTeamMemberRoleKey" type="text" name="roleKey" autocomplete="off" placeholder="如 pm / dev" />
+                  </label>
+                  <label>
+                    职责
+                    <input id="adminTeamMemberDuty" type="text" name="duty" autocomplete="off" placeholder="如 产品策划" />
+                  </label>
+                  <label>
+                    头像路径
+                    <input id="adminTeamMemberPhoto" type="text" name="photo" autocomplete="off" placeholder="./assets/trainees/xxx/idPhoto.jpg" />
+                  </label>
+                  <div class="admin-team-member-actions admin-team-member-field-wide">
+                    <button class="primary-admin-action" type="submit" data-add-team-member>保存队员</button>
+                    <button class="secondary-admin-action" type="button" id="resetTeamMemberFormButton">清空表单</button>
+                  </div>
+                </form>
+              </section>
+            </div>
+
+            <section class="panel admin-wide-panel admin-team-roster-panel" aria-label="赛道成员看板">
+              <div class="admin-team-roster" id="adminTeamRoster"></div>
+            </section>
+          </div>
         </section>
 
         <section class="admin-view-panel admin-management-view" data-admin-view-panel="logs" aria-labelledby="auditLogTitle">
