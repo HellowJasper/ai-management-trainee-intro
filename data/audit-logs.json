@@ -1,0 +1,74 @@
+{
+  "logs": [
+    {
+      "id": "audit_1782278504772_zuxtt9",
+      "at": "2026-06-24T05:21:44.772Z",
+      "actor": "admin",
+      "action": "stage.changed",
+      "targetType": "stage",
+      "targetId": "result",
+      "message": "开启阶段【结果发布】",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782278504755_jr4va3",
+      "at": "2026-06-24T05:21:44.755Z",
+      "actor": "admin",
+      "action": "stage.changed",
+      "targetType": "stage",
+      "targetId": "vote",
+      "message": "开启阶段【投票开启】",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782277137623_n0pssp",
+      "at": "2026-06-24T04:58:57.623Z",
+      "actor": "admin",
+      "action": "timer.roadshow.updated",
+      "targetType": "timer",
+      "targetId": "roadshow",
+      "message": "重置路演计时",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782277137608_ta0vrj",
+      "at": "2026-06-24T04:58:57.608Z",
+      "actor": "admin",
+      "action": "timer.roadshow.updated",
+      "targetType": "timer",
+      "targetId": "roadshow",
+      "message": "启动路演计时",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782277070089_9bdi7l",
+      "at": "2026-06-24T04:57:50.089Z",
+      "actor": "admin",
+      "action": "timer.roadshow.updated",
+      "targetType": "timer",
+      "targetId": "roadshow",
+      "message": "重置路演计时",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782277070036_rkszqd",
+      "at": "2026-06-24T04:57:50.036Z",
+      "actor": "admin",
+      "action": "timer.roadshow.updated",
+      "targetType": "timer",
+      "targetId": "roadshow",
+      "message": "重置路演计时",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782277070024_fdxe6g",
+      "at": "2026-06-24T04:57:50.024Z",
+      "actor": "admin",
+      "action": "timer.roadshow.updated",
+      "targetType": "timer",
+      "targetId": "roadshow",
+      "message": "启动路演计时",
+      "meta": {}
+    }
+  ]
+}

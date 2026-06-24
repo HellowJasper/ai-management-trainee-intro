@@ -342,7 +342,7 @@
     const shared = [
       { key: "home", label: "首页" },
       { key: "people", label: "新生看板" },
-      { key: "schedule", label: "赛程" },
+      { key: "schedule", label: "赛事指南" },
       { key: "team", label: key === "player" ? "组队" : "组队进度" },
       { key: "gallery", label: "作品展厅" },
     ];
@@ -353,7 +353,7 @@
       admin: [{ key: "admin", label: "管理后台", href: "./admin.html" }],
     };
 
-    return [...shared, ...(byRole[key] || []), { key: "result", label: "最终排行" }];
+    return [...shared, ...(byRole[key] || []), { key: "result", label: "排行榜" }];
   }
 
   function getRoleWorkbenchModel({
@@ -418,7 +418,7 @@
           { nav: "team", title: "报名组队", sub: "抢赛道并认领岗位职责" },
           { nav: "team", title: "作品提交", sub: "进入队伍工作台提交作品" },
           { nav: "gallery", title: "作品展厅", sub: "查看作品详情" },
-          { nav: "schedule", title: "大赛流程", sub: "查看赛程与规则" },
+          { nav: "schedule", title: "赛事指南", sub: "查看赛事机制与规则" },
         ],
       },
       judge: {
@@ -457,7 +457,7 @@
           { nav: "judge", title: "待评作品", sub: "进入五维评分" },
           { nav: "judge", title: "我的评分记录", sub: "查看本地评分草稿" },
           { nav: "gallery", title: "作品展厅", sub: "浏览作品详情" },
-          { nav: "schedule", title: "大赛流程", sub: "查看路演安排" },
+          { nav: "schedule", title: "赛事指南", sub: "查看路演安排" },
         ],
       },
       public: {
@@ -496,7 +496,7 @@
           { nav: "vote", title: "投票入口", sub: "查看投票状态" },
           { nav: "gallery", title: "作品展厅", sub: "查看作品详情" },
           { nav: "team", title: "组队进度", sub: "查看赛道满员状态" },
-          { nav: "result", title: "最终排行", sub: "查看综合结果" },
+          { nav: "result", title: "排行榜", sub: "查看综合结果" },
         ],
       },
       admin: {
@@ -535,7 +535,7 @@
           { href: "./admin.html", title: "管理后台", sub: "进入后台控制台" },
           { href: "./admin.html", title: "大屏控制", sub: "推送或切换现场画面" },
           { href: "./admin.html", title: "用户与权限", sub: "维护账号角色映射" },
-          { nav: "result", title: "最终排行", sub: "查看综合结果" },
+          { nav: "result", title: "排行榜", sub: "查看综合结果" },
         ],
       },
     };

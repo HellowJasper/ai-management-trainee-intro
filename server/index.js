@@ -1,16 +1,20 @@
 const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
-const { createAdminStateRepository } = require("./adminStateRepository");
-const { createMissionCountdownRepository } = require("./missionCountdownRepository");
-const { createRoadshowRepository } = require("./roadshowRepository");
-const { createTeamRepository } = require("./teamRepository");
-const { createTraineeRepository } = require("./traineeRepository");
-const { createVoteResultsRepository } = require("./voteResultsRepository");
+const { createAuthSessionRepository } = require("./authSessionRepository");
+const { createRepositoryBundle } = require("./repositoryFactory");
+const { buildFinalResultSnapshot } = require("./resultSnapshotService");
 const { getRolePermissions } = require("../src/logic");
 
 const DEFAULT_PUBLIC_ROOT = path.join(__dirname, "..");
 const DEFAULT_PORT = 5173;
+const SESSION_COOKIE_NAME = "joincare_session";
+const DEFAULT_DEV_CORS_ORIGINS = new Set([
+  "http://localhost:5174",
+  "http://127.0.0.1:5174",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+]);
 
 const MIME_TYPES = {
   ".css": "text/css; charset=utf-8",
@@ -27,12 +31,43 @@ const MIME_TYPES = {
   ".woff2": "font/woff2",
 };
 
-function sendJson(response, statusCode, payload) {
+function sendJson(response, statusCode, payload, headers = {}) {
   response.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",
+    ...headers,
   });
   response.end(JSON.stringify(payload));
+}
+
+function configuredCorsOrigins() {
+  const configured = String(process.env.CORS_ALLOW_ORIGIN || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  return configured.length ? new Set(configured) : DEFAULT_DEV_CORS_ORIGINS;
+}
+
+function isLocalhostOrigin(origin) {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+}
+
+function applyCorsHeaders(request, response) {
+  const origin = request.headers.origin;
+  if (!origin) {
+    return;
+  }
+
+  const allowedOrigins = configuredCorsOrigins();
+  if (!allowedOrigins.has(origin) && !isLocalhostOrigin(origin)) {
+    return;
+  }
+
+  response.setHeader("Access-Control-Allow-Origin", origin);
+  response.setHeader("Access-Control-Allow-Credentials", "true");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+  response.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
+  response.setHeader("Vary", "Origin");
 }
 
 function sendError(response, error) {
@@ -88,6 +123,40 @@ function decodePathname(pathname) {
   }
 }
 
+function parseCookies(cookieHeader = "") {
+  return String(cookieHeader || "")
+    .split(";")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .reduce((cookies, part) => {
+      const separator = part.indexOf("=");
+      if (separator === -1) {
+        return cookies;
+      }
+
+      const key = part.slice(0, separator).trim();
+      const value = part.slice(separator + 1).trim();
+      cookies[key] = decodeURIComponent(value);
+      return cookies;
+    }, {});
+}
+
+function getSessionIdFromRequest(request) {
+  return parseCookies(request.headers.cookie || "")[SESSION_COOKIE_NAME] || "";
+}
+
+function buildSessionCookie(sessionId) {
+  return `${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionId)}; Path=/; HttpOnly; SameSite=Lax`;
+}
+
+function buildExpiredSessionCookie() {
+  return `${SESSION_COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+}
+
+function resolveAuthEnforcement(value = process.env.AUTH_ENFORCEMENT) {
+  return String(value || "").trim().toLowerCase() === "strict" ? "strict" : null;
+}
+
 function isMobileRootRequest(request, url) {
   if (url.pathname !== "/" || url.searchParams.get("screen") === "big") {
     return false;
@@ -110,30 +179,71 @@ async function routeApi(
   missionCountdownRepository,
   roadshowRepository,
   voteResultsRepository,
+  judgeScoresRepository,
+  worksRepository,
+  auditLogRepository,
+  resultSnapshotRepository,
+  userRoleRepository,
+  authSessionRepository,
+  authEnforcement = null,
+  runtimeInfo = {},
 ) {
   const segments = url.pathname.split("/").filter(Boolean);
+
+  async function enforcePermission(request, response, permissionName) {
+    if (authEnforcement !== "strict") {
+      return { user: {}, role: "", permissions: {} };
+    }
+    const sessionId = getSessionIdFromRequest(request);
+    const session = await authSessionRepository.getSession(sessionId);
+    if (!session) {
+      sendJson(response, 401, { error: { message: "Authentication required.", statusCode: 401 } });
+      return null;
+    }
+    const perms = session.permissions || getRolePermissions(session.role);
+    if (!perms[permissionName]) {
+      sendJson(response, 403, { error: { message: `Required permission: ${permissionName}`, statusCode: 403 } });
+      return null;
+    }
+    return session;
+  }
 
   if (request.method === "OPTIONS") {
     response.writeHead(204, {
       "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
     });
     response.end();
     return true;
   }
 
   if (url.pathname === "/api/health" && request.method === "GET") {
-    sendJson(response, 200, { status: "ok" });
+    sendJson(response, 200, {
+      status: "ok",
+      runtime: {
+        api: "server/index.js",
+        dataBackend: runtimeInfo.dataBackend || "json",
+      },
+    });
     return true;
   }
 
   if (url.pathname === "/api/me" && request.method === "GET") {
-    sendJson(response, 200, {
-      user: null,
-      role: null,
-      permissions: [],
-      source: "backend-pending",
-    });
+    const session = await authSessionRepository.getSession(getSessionIdFromRequest(request));
+    sendJson(response, 200, session
+      ? {
+          user: session.user,
+          role: session.role,
+          roles: session.roles || [session.role],
+          permissions: session.permissions || getRolePermissions(session.role),
+          source: session.source || "session",
+        }
+      : {
+          user: null,
+          role: null,
+          permissions: [],
+          source: "backend-pending",
+        });
     return true;
   }
 
@@ -148,63 +258,292 @@ async function routeApi(
   }
 
   if (url.pathname === "/api/auth/feishu/login" && request.method === "POST") {
-    await readJsonBody(request);
-    sendJson(response, 200, {
-      configured: false,
-      provider: "feishu",
-      message: "Feishu auth backend is not connected yet.",
+    const payload = await readJsonBody(request);
+    if (!payload.role) {
+      const mapped = await userRoleRepository.resolveLoginUser(payload);
+      if (mapped) {
+        const session = await authSessionRepository.createSession({
+          ...mapped.user,
+          role: mapped.role,
+          roles: mapped.roles,
+          source: "role-mapping",
+        });
+        sendJson(response, 200, {
+          configured: true,
+          provider: "feishu",
+          authenticated: true,
+          user: session.user,
+          role: session.role,
+          roles: session.roles,
+          permissions: session.permissions,
+          source: session.source,
+        }, {
+          "Set-Cookie": buildSessionCookie(session.id),
+        });
+        return true;
+      }
+      sendJson(response, 200, {
+        configured: false,
+        provider: "feishu",
+      });
+      return true;
+    }
+
+    const session = await authSessionRepository.createSession({
+      ...payload,
+      source: "local-dev",
     });
+    sendJson(response, 200, {
+      configured: true,
+      provider: "feishu",
+      authenticated: true,
+      user: session.user,
+      role: session.role,
+      roles: session.roles,
+      permissions: session.permissions,
+      source: session.source,
+    }, {
+      "Set-Cookie": buildSessionCookie(session.id),
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/auth/logout" && request.method === "POST") {
+    await authSessionRepository.deleteSession(getSessionIdFromRequest(request));
+    sendJson(response, 200, {
+      accepted: true,
+    }, {
+      "Set-Cookie": buildExpiredSessionCookie(),
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/users" && request.method === "GET") {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
+    sendJson(response, 200, await userRoleRepository.listUsers());
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/users" && ["POST", "PATCH"].includes(request.method)) {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
+    const payload = await readJsonBody(request);
+    if (authEnforcement === "strict") {
+      payload.actor = session.user.id;
+      payload.source = session.user.id;
+    }
+    const user = await userRoleRepository.upsertUser(payload);
+    await auditLogRepository.record({
+      actor: payload.actor || payload.source || "admin",
+      action: "user.roles.updated",
+      targetType: "user",
+      targetId: user.id,
+      message: `更新用户【${user.name || user.id}】角色`,
+      after: user,
+    });
+    sendJson(response, 201, user);
     return true;
   }
 
   if (url.pathname === "/api/team/join" && request.method === "POST") {
+    const session = await enforcePermission(request, response, "canJoinTeam");
+    if (!session) return true;
     const payload = await readJsonBody(request);
-    sendJson(response, 202, {
-      accepted: false,
-      mode: "backend-pending",
-      teamId: payload.teamId || null,
-    });
+    if (authEnforcement === "strict") {
+      payload.userId = session.user.id;
+      payload.name = session.user.name;
+    }
+    sendJson(response, 200, await teamRepository.joinTeam(payload));
     return true;
   }
 
   if (url.pathname === "/api/team/leave" && request.method === "POST") {
+    const session = await enforcePermission(request, response, "canJoinTeam");
+    if (!session) return true;
     const payload = await readJsonBody(request);
-    sendJson(response, 202, {
-      accepted: false,
-      mode: "backend-pending",
-      teamId: payload.teamId || null,
-    });
+    if (authEnforcement === "strict") {
+      payload.userId = session.user.id;
+    }
+    sendJson(response, 200, await teamRepository.leaveTeam(payload));
+    return true;
+  }
+
+  if (url.pathname === "/api/team/claim-role" && request.method === "POST") {
+    const session = await enforcePermission(request, response, "canJoinTeam");
+    if (!session) return true;
+    const payload = await readJsonBody(request);
+    if (authEnforcement === "strict") {
+      payload.userId = session.user.id;
+    }
+    sendJson(response, 200, await teamRepository.claimRole(payload));
     return true;
   }
 
   if (url.pathname === "/api/vote/cast" && request.method === "POST") {
+    const session = await enforcePermission(request, response, "canVote");
+    if (!session) return true;
     const payload = await readJsonBody(request);
-    sendJson(response, 202, {
-      accepted: false,
-      mode: "backend-pending",
-      teamId: payload.teamId || null,
-    });
+    if (authEnforcement === "strict") {
+      payload.userId = session.user.id;
+    }
+    sendJson(response, 200, await voteResultsRepository.castVote(payload));
     return true;
   }
 
   if (url.pathname === "/api/vote/cancel" && request.method === "POST") {
+    const session = await enforcePermission(request, response, "canVote");
+    if (!session) return true;
     const payload = await readJsonBody(request);
-    sendJson(response, 202, {
-      accepted: false,
-      mode: "backend-pending",
-      teamId: payload.teamId || null,
-    });
+    if (authEnforcement === "strict") {
+      payload.userId = session.user.id;
+    }
+    sendJson(response, 200, await voteResultsRepository.cancelVote(payload));
     return true;
   }
 
   if (url.pathname === "/api/judge/scores" && request.method === "POST") {
+    const session = await enforcePermission(request, response, "canScore");
+    if (!session) return true;
     const payload = await readJsonBody(request);
-    const scores = payload && typeof payload.scores === "object" && payload.scores ? payload.scores : {};
-    sendJson(response, 202, {
-      accepted: false,
-      mode: "backend-pending",
-      receivedTeamIds: Object.keys(scores),
+    if (authEnforcement === "strict") {
+      payload.judgeId = session.user.id;
+    }
+    sendJson(response, 200, await judgeScoresRepository.saveScores(payload));
+    return true;
+  }
+
+  if (url.pathname === "/api/judge/scores" && request.method === "GET") {
+    sendJson(response, 200, await judgeScoresRepository.readState());
+    return true;
+  }
+
+  if (url.pathname === "/api/works" && request.method === "GET") {
+    sendJson(response, 200, await worksRepository.listWorks({ status: url.searchParams.get("status") }));
+    return true;
+  }
+
+  if (url.pathname === "/api/work/submit" && request.method === "POST") {
+    const session = await enforcePermission(request, response, "canSubmitWork");
+    if (!session) return true;
+    const payload = await readJsonBody(request);
+    if (authEnforcement === "strict") {
+      payload.userId = session.user.id;
+      payload.submittedBy = session.user.id;
+      payload.name = session.user.name;
+    }
+    const result = await worksRepository.submitWork(payload);
+    await auditLogRepository.record({
+      actor: payload.userId || payload.submittedBy || "system",
+      action: "work.submitted",
+      targetType: "work",
+      targetId: result.work.id,
+      message: `提交作品【${result.work.project || result.work.id}】`,
+      after: result.work,
     });
+    sendJson(response, 201, result);
+    return true;
+  }
+
+  if (segments[0] === "api" && segments[1] === "works" && segments.length === 3 && request.method === "GET") {
+    sendJson(response, 200, await worksRepository.getWork(segments[2]));
+    return true;
+  }
+
+  if (
+    segments[0] === "api"
+    && segments[1] === "admin"
+    && segments[2] === "works"
+    && segments.length === 5
+    && segments[4] === "status"
+    && ["POST", "PATCH"].includes(request.method)
+  ) {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
+    const payload = await readJsonBody(request);
+    if (authEnforcement === "strict") {
+      payload.reviewerId = session.user.id;
+    }
+    const result = await worksRepository.updateStatus(segments[3], payload);
+    await auditLogRepository.record({
+      actor: payload.reviewerId || payload.reviewedBy || "admin",
+      action: "work.statusChanged",
+      targetType: "work",
+      targetId: result.work.id,
+      message: `更新作品状态为【${result.work.status}】`,
+      after: result.work,
+    });
+    sendJson(response, 200, result);
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/audit-logs" && request.method === "GET") {
+    sendJson(response, 200, await auditLogRepository.listLogs({
+      limit: url.searchParams.get("limit"),
+    }));
+    return true;
+  }
+
+  if (url.pathname === "/api/results/latest" && request.method === "GET") {
+    const snapshot = await resultSnapshotRepository.getLatestSnapshot();
+    sendJson(response, 200, {
+      published: Boolean(snapshot),
+      snapshot,
+    });
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/results/publish" && ["POST", "PATCH"].includes(request.method)) {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
+    const payload = await readJsonBody(request);
+    if (authEnforcement === "strict") {
+      payload.actor = session.user.id;
+    }
+    const [voteState, judgeState] = await Promise.all([
+      voteResultsRepository.listVoteResults(),
+      judgeScoresRepository.readState(),
+    ]);
+    const snapshotPayload = buildFinalResultSnapshot({
+      voteState,
+      judgeState,
+      publishedBy: payload.actor || payload.publishedBy || "admin",
+    });
+    const snapshot = await resultSnapshotRepository.publishSnapshot(snapshotPayload);
+
+    await auditLogRepository.record({
+      actor: snapshot.publishedBy,
+      action: "result.published",
+      targetType: "result",
+      targetId: snapshot.id,
+      message: `发布最终结果快照【${snapshot.id}】`,
+      after: snapshot,
+    });
+    sendJson(response, 201, snapshot);
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/vote-window" && ["POST", "PATCH"].includes(request.method)) {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
+    const payload = await readJsonBody(request);
+    if (authEnforcement === "strict") {
+      payload.actor = session.user.id;
+    }
+    const state = await voteResultsRepository.updateWindowStatus(payload);
+
+    await auditLogRepository.record({
+      actor: payload.actor || "admin",
+      action: "vote.window.updated",
+      targetType: "vote",
+      targetId: state.status,
+      message: state.windowLabel || `更新投票窗口状态为【${state.status}】`,
+      after: {
+        status: state.status,
+        windowLabel: state.windowLabel,
+      },
+    });
+    sendJson(response, 200, state);
     return true;
   }
 
@@ -214,26 +553,82 @@ async function routeApi(
   }
 
   if (url.pathname === "/api/admin/stage" && ["POST", "PATCH"].includes(request.method)) {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
     const payload = await readJsonBody(request);
-    sendJson(response, 200, await adminStateRepository.setCurrentStage(payload.stageId));
+    if (authEnforcement === "strict") {
+      payload.actor = session.user.id;
+    }
+    const state = await adminStateRepository.setCurrentStage(payload.stageId);
+
+    await auditLogRepository.record({
+      actor: payload.actor || "admin",
+      action: "stage.changed",
+      targetType: "stage",
+      targetId: state.currentStageId,
+      message: `开启阶段【${state.stages.find((stage) => stage.id === state.currentStageId)?.name || state.currentStageId}】`,
+    });
+    sendJson(response, 200, state);
     return true;
   }
 
   if (url.pathname === "/api/admin/display-times" && ["POST", "PATCH"].includes(request.method)) {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
     const payload = await readJsonBody(request);
-    sendJson(response, 200, await adminStateRepository.updateDisplayTimes(payload));
+    if (authEnforcement === "strict") {
+      payload.actor = session.user.id;
+    }
+    const state = await adminStateRepository.updateDisplayTimes(payload);
+
+    await auditLogRepository.record({
+      actor: payload.actor || "admin",
+      action: "stage.displayTimes.updated",
+      targetType: "stage",
+      targetId: "display-times",
+      message: "更新时间显示配置",
+    });
+    sendJson(response, 200, state);
     return true;
   }
 
   if (url.pathname === "/api/admin/mission-countdown" && ["POST", "PATCH"].includes(request.method)) {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
     const payload = await readJsonBody(request);
-    sendJson(response, 200, await missionCountdownRepository.updateState(payload));
+    if (authEnforcement === "strict") {
+      payload.actor = session.user.id;
+    }
+    const state = await missionCountdownRepository.updateState(payload);
+
+    await auditLogRepository.record({
+      actor: payload.actor || "admin",
+      action: "timer.missionCountdown.updated",
+      targetType: "timer",
+      targetId: "mission-countdown",
+      message: state.startedAt ? "启动任务倒计时" : "重置任务倒计时",
+    });
+    sendJson(response, 200, state);
     return true;
   }
 
   if (url.pathname === "/api/admin/roadshow" && ["POST", "PATCH"].includes(request.method)) {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
     const payload = await readJsonBody(request);
-    sendJson(response, 200, await roadshowRepository.updateState(payload));
+    if (authEnforcement === "strict") {
+      payload.actor = session.user.id;
+    }
+    const state = await roadshowRepository.updateState(payload);
+
+    await auditLogRepository.record({
+      actor: payload.actor || "admin",
+      action: "timer.roadshow.updated",
+      targetType: "timer",
+      targetId: "roadshow",
+      message: state.startedAt ? "启动路演计时" : "重置路演计时",
+    });
+    sendJson(response, 200, state);
     return true;
   }
 
@@ -380,22 +775,47 @@ function serveStatic(request, response, url, publicRoot) {
   });
 }
 
-function createServer({
-  publicRoot = DEFAULT_PUBLIC_ROOT,
-  repository = createTraineeRepository(),
-  adminStateRepository = createAdminStateRepository(),
-  teamRepository = createTeamRepository(),
-  missionCountdownRepository = createMissionCountdownRepository(),
-  roadshowRepository = createRoadshowRepository(),
-  voteResultsRepository = createVoteResultsRepository(),
-} = {}) {
+function createServer(options = {}) {
+  const repositoryBundle = (!options.repository
+      || !options.teamRepository
+      || !options.voteResultsRepository
+      || !options.judgeScoresRepository
+      || !options.worksRepository
+      || !options.auditLogRepository
+      || !options.missionCountdownRepository
+      || !options.roadshowRepository
+      || !options.adminStateRepository
+      || !options.resultSnapshotRepository
+      || !options.userRoleRepository)
+    ? createRepositoryBundle({ dataBackend: options.dataBackend })
+    : {};
+  const {
+    publicRoot = DEFAULT_PUBLIC_ROOT,
+    repository = repositoryBundle.repository,
+    adminStateRepository = repositoryBundle.adminStateRepository,
+    teamRepository = repositoryBundle.teamRepository,
+    missionCountdownRepository = repositoryBundle.missionCountdownRepository,
+    roadshowRepository = repositoryBundle.roadshowRepository,
+    voteResultsRepository = repositoryBundle.voteResultsRepository,
+    judgeScoresRepository = repositoryBundle.judgeScoresRepository,
+    worksRepository = repositoryBundle.worksRepository,
+    auditLogRepository = repositoryBundle.auditLogRepository,
+    resultSnapshotRepository = repositoryBundle.resultSnapshotRepository,
+    userRoleRepository = repositoryBundle.userRoleRepository,
+    authSessionRepository = createAuthSessionRepository(),
+    authEnforcement = resolveAuthEnforcement(),
+  } = options;
   const resolvedPublicRoot = path.resolve(publicRoot);
+  const runtimeInfo = {
+    dataBackend: options.dataBackend || repositoryBundle.dataBackend || "custom",
+  };
 
   return http.createServer(async (request, response) => {
     const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
 
     try {
       if (url.pathname === "/api" || url.pathname.startsWith("/api/")) {
+        applyCorsHeaders(request, response);
         const handled = await routeApi(
           request,
           response,
@@ -406,6 +826,14 @@ function createServer({
           missionCountdownRepository,
           roadshowRepository,
           voteResultsRepository,
+          judgeScoresRepository,
+          worksRepository,
+          auditLogRepository,
+          resultSnapshotRepository,
+          userRoleRepository,
+          authSessionRepository,
+          authEnforcement,
+          runtimeInfo,
         );
         if (!handled) {
           sendJson(response, 404, {
@@ -436,5 +864,7 @@ if (require.main === module) {
 
 module.exports = {
   createServer,
+  resolveAuthEnforcement,
   routeApi,
+  serveStatic,
 };

@@ -23,6 +23,8 @@
   let MOBILE_TRAINEE_IS_TRANSITIONING = false;
   let MOBILE_TRAINEE_SHOULD_ENTER = false;
   let localVoteDeltaTeamId = "";
+  let siteMediaMode = "photo";
+  const cssUrl = (path) => path ? `url('${String(path).replaceAll("'", "\\'")}')` : "none";
   let pendingAuthTarget = null;
   let CURRENT_STAGE_ID = "result";
   let COUNTDOWN_REMAIN = 6353;
@@ -91,6 +93,17 @@
   };
   const splitTags = (value) => String(value || "").split(/[，、,\n/]+/).map((x) => x.trim()).filter(Boolean);
   const defaultDuty = (index) => ["队长 / 统筹推进", "业务洞察", "AI 开发", "产品设计", "路演运营"][index] || "队友协作";
+  function getRuntimeApiBaseUrl() {
+    const runtimeConfig = root.JoincareRuntimeConfig || {};
+    const value = root.JOINCARE_API_BASE_URL || runtimeConfig.apiBaseUrl || "";
+    return String(value || "").trim().replace(/\/+$/, "");
+  }
+  function resolveApiUrl(path) {
+    const value = String(path || "");
+    if (!value.startsWith("/api/") && value !== "/api") return value;
+    const apiBaseUrl = getRuntimeApiBaseUrl();
+    return apiBaseUrl ? `${apiBaseUrl}${value}` : value;
+  }
   function teamPeople(team) {
     return [{ ...team.advisor, id: `${team.id}-leader`, defaultDuty: defaultDuty(0) }, ...team.members.map((m, i) => ({ ...m, id: `${team.id}-m${i + 1}`, defaultDuty: defaultDuty(i + 1) }))];
   }
@@ -124,7 +137,8 @@
   }
 
   async function apiRequest(path, options) {
-    const response = await fetch(path, {
+    const response = await fetch(resolveApiUrl(path), {
+      credentials: "include",
       headers: { "Content-Type": "application/json", ...(options && options.headers) },
       ...options,
     });
@@ -145,6 +159,7 @@
     castVote: (teamId) => apiRequest("/api/vote/cast", { method: "POST", body: JSON.stringify({ teamId }) }),
     cancelVote: (teamId) => apiRequest("/api/vote/cancel", { method: "POST", body: JSON.stringify({ teamId }) }),
     saveJudgeScores: (scores) => apiRequest("/api/judge/scores", { method: "POST", body: JSON.stringify({ scores }) }),
+    submitWork: (payload) => apiRequest("/api/work/submit", { method: "POST", body: JSON.stringify(payload || {}) }),
   };
   root.JoincareRoleApi = SiteRoleApi;
 
@@ -193,21 +208,32 @@
     return v.length > n ? `${v.slice(0, n)}...` : v;
   };
   const toolTags = (s) => String(s || "").split(/[，、,\n/]+/).map((x) => x.trim()).filter(Boolean).slice(0, 3);
-  const entryCard = ({ nav, href, title, en, sub, icon, accent, rgb }, index) => {
+  const entryCard = ({ nav, href, title, en, sub, icon, accent, rgb }, index, options = {}) => {
     const attr = href ? `href="${esc(href)}"` : `data-nav="${esc(nav)}"`;
-    const arrow = (index !== undefined && (index + 1) % 4 === 0) ? "" : `<span class="entry-go">➔</span>`;
-    return `<a class="entry-card" ${attr} style="--accent:${accent};--rgb:${rgb}"><span class="entry-ic">${ICON(icon, accent)}</span><div class="entry-tx"><b>${esc(title)}<i>${esc(en)}</i></b><span>${esc(sub)}</span></div>${arrow}</a>`;
+    const compactClass = options.hideEnglish ? " no-entry-en" : "";
+    const englishLine = options.hideEnglish ? "" : `<i>${esc(en)}</i>`;
+    let arrow = "";
+    if (index !== undefined) {
+      if (index === 0 || index === 1 || index === 2) {
+        arrow = `<span class="entry-go right-arr">➔</span>`;
+      } else if (index === 3) {
+        arrow = `<span class="entry-go down-arr">➔</span>`;
+      } else if (index === 5 || index === 6 || index === 7) {
+        arrow = `<span class="entry-go left-arr">➔</span>`;
+      }
+    }
+    return `<a class="entry-card${compactClass}" ${attr} style="--accent:${accent};--rgb:${rgb}"><span class="entry-ic">${ICON(icon, accent)}</span><div class="entry-tx"><b>${esc(title)}</b>${englishLine}<span>${esc(sub)}</span></div>${arrow}</a>`;
   };
   function getHomeActions(role) {
     return [
-      { nav: "schedule", title: "赛程介绍", en: "SCHEDULE", sub: "36小时议程 · 赛事机制 · 关键节点", icon: "calendar", accent: "#6ad7ff", rgb: "106,215,255" },
-      { nav: "team", title: "报名组队", en: "TEAM", sub: "技术顾问 · 队员状态 · 作品方向", icon: "team", accent: "#c79bff", rgb: "199,155,255" },
-      { nav: "vote", title: "投票状态", en: "VOTE", sub: "一人一票 · 当前选择 · 票数分布", icon: "vote", accent: "var(--neon-2)", rgb: "167,255,79" },
-      { nav: "judge", title: "评委评分", en: "JUDGE", sub: "五维评分 · 草稿保存 · 演示入口", icon: "scale", accent: "var(--warning)", rgb: "246,255,129" },
-      { nav: "gallery", title: "作品展厅", en: "WORKS", sub: "浏览各组 Demo 与作品说明", icon: "doc", accent: "var(--neon)", rgb: "40,255,200" },
-      { nav: "result", title: "最终排行", en: "RANKING", sub: "综合得分 = 专家 70% + 大众 30%", icon: "trophy", accent: "#ff9be1", rgb: "255,155,225" },
-      { nav: "home", title: "阶段七", en: "STAGE 7", sub: "具体阶段内容待编辑发布", icon: "stage", accent: "#ffd06a", rgb: "255,208,106" },
-      { nav: "home", title: "阶段八", en: "STAGE 8", sub: "具体阶段内容待编辑发布", icon: "rocket", accent: "#ff6a6a", rgb: "255,106,106" },
+      { nav: "schedule", title: "启航时刻", en: "KICKOFF", sub: "总裁致辞·认识彼此·认识组织", icon: "calendar", accent: "#6ad7ff", rgb: "106,215,255" },
+      { nav: "tracks", title: "挑战发布", en: "CHALLENGE BRIEFING", sub: "五大业务赛道发布挑战课题", icon: "doc", accent: "#c79bff", rgb: "199,155,255" },
+      { nav: "team", title: "自由组队", en: "TEAM FORMATION", sub: "选择感兴趣的赛题，组建战队", icon: "team", accent: "var(--neon-2)", rgb: "167,255,79" },
+      { nav: "schedule", title: "方案共创", en: "SOLUTION DESIGN", sub: "洞察业务需求，探索解决方案方向", icon: "bulb", accent: "var(--warning)", rgb: "246,255,129" },
+      { nav: "schedule", title: "创新冲刺", en: "HACKATHON SPRINT", sub: "完成方案打磨、原型开发与成果完善", icon: "code", accent: "var(--neon)", rgb: "40,255,200" },
+      { nav: "gallery", title: "成果展示", en: "SHOWCASE", sub: "展示团队成果与解决方案思路", icon: "stage", accent: "#ff9be1", rgb: "255,155,225" },
+      { nav: "vote", title: "评审与投票", en: "EVALUATION & VOTING", sub: "专家评审团评分·全员投票", icon: "vote", accent: "#ffd06a", rgb: "255,208,106" },
+      { nav: "result", title: "荣誉揭晓", en: "FINAL RANKING", sub: "公布最终排名与获奖团队", icon: "trophy", accent: "#ff6a6a", rgb: "255,106,106" },
     ];
   }
 
@@ -365,7 +391,7 @@
         : `<a class="btn-ghost" data-nav="result">查看实时排行 ➔</a>`;
     const days = D.flowDays.map((d, i) => {
       const timeSpan = d.time ? `<span class="fs-time">${esc(d.time)}</span>` : "";
-      const card = `<div class="flow-step"><div class="fs-header"><div class="fs-ic">${ICON(d.icon, "var(--neon)")}</div><div class="fs-badge">${esc(d.day)}<i>${esc(d.en)}</i></div></div><b>${esc(d.title)}</b><p>${d.lines.map(esc).join("<br>")}</p>${timeSpan}</div>`;
+      const card = `<div class="flow-step"><div class="fs-header"><div class="fs-ic">${ICON(d.icon, "var(--neon)")}</div><div class="fs-badge"><span>${esc(d.day)}</span><i>${esc(d.en)}</i></div></div><b>${esc(d.title)}</b><p>${d.lines.map(esc).join("<br>")}</p>${timeSpan}</div>`;
       const arrow = i < 2 ? `<span class="fs-arrow">➔</span>` : "";
       return card + arrow;
     }).join("");
@@ -374,8 +400,10 @@
 
     return `${renderMobileHome(totalVotes)}<section class="hero"><div class="container hero-grid">
       <div class="hero-copy">
-        <span class="hero-kicker"><span class="live-dot"></span>LIVE · AI_INNOVATION_HACKATHON_2026</span>
-        <h1 class="hero-title">AI创新黑客松</h1>
+        <div class="hero-header-group">
+          <span class="hero-kicker"><span class="live-dot"></span>LIVE · AI_INNOVATION_HACKATHON_2026</span>
+          <h1 class="hero-title">AI创新黑客松</h1>
+        </div>
         <p class="hero-slogan">36小时，把 AI 创意做成可运行系统</p>
         <p class="hero-desc">五大真实业务挑战，五支战队，从业务场景出发，用AI解决真实问题。认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。</p>
         <div class="hero-ctas"><a class="btn-primary" data-nav="gallery">进入作品展厅</a>${secondaryCta}</div>
@@ -383,7 +411,7 @@
       <aside class="hero-panel glass">
         <div class="hp-row"><span class="live-dot"></span><span class="hp-label">当前阶段</span></div>
         <div class="hp-phase">${esc(phaseInfo.phase)}</div>
-        <div class="hp-sub">${esc(phaseInfo.label)}</div>
+        <div class="hp-row hp-sub-row"><span class="live-dot"></span><span class="hp-label">${esc(phaseInfo.label)}</span></div>
         <div class="hp-cd" data-countdown data-remain="${COUNTDOWN_REMAIN}">${fmtHMS(COUNTDOWN_REMAIN)}</div>
         <div class="hp-stats">
           <div><b>${D.stats.tracks}</b><span>赛道</span></div>
@@ -404,9 +432,8 @@
   function renderPeople() {
     if (isMobileView()) return renderMobilePeople();
     return `<section class="people-stage">
-      <header class="people-head"><span class="ph-en">PEOPLE</span><h1>新生看板</h1><p>认识本届 AI 管培生 · 移动鼠标浏览，点击头像查看完整档案</p></header>
+      <header class="people-head"><span class="ph-en">TALENT PROFILES</span><h1>新生看板</h1><p>认识本届AI管培生，了解他们的背景、兴趣与独特的AI超能力。</p></header>
       <div class="photo-wall-wrap"><div class="photo-wall" id="peopleWall"></div></div>
-      <div class="people-hint">← 滑动浏览 · 点击头像查看 TA 的完整档案 →</div>
     </section>`;
   }
   function renderMobilePeople() {
@@ -636,50 +663,163 @@
   }
   function openTrainee(id) {
     const p = TRAINEES.find((x) => x.id === id); if (!p) return;
-    const F = [["🎓 专业背景", p.background], ["🤖 我的 AI 搭子们", p.aiPartners], ["🌟 本命 AI 搭子", p.favoriteAI], ["💡 最想让 AI 解决的问题", p.aiProblem], ["⚡️ 我的 AI 超能力", p.aiPower], ["🤣 一个有趣的事实", p.funFact]];
-    const fields = F.filter((f) => f[1]).map((f) => `<section class="pm-field"><span>${esc(f[0])}</span><p>${esc(f[1])}</p></section>`).join("");
+    const trainee = Logic.normalizeTrainee ? Logic.normalizeTrainee(p) : p;
+    siteMediaMode = "photo";
+
     let m = doc.getElementById("ppModal");
-    if (!m) { m = doc.createElement("div"); m.id = "ppModal"; m.className = "pp-modal"; doc.body.appendChild(m); }
-    m.innerHTML = `<div class="pm-backdrop" data-close></div>
-      <div class="pm-wrapper">
-        <button class="pm-nav-arrow pm-nav-arrow-left" type="button" data-pm-nav="prev" aria-label="上一个">‹</button>
-        <div class="pm-container glass">
-          <div class="pm-photo-card glass">
-            <div class="pm-photo-wrap">
-              <img src="${esc(p.photo || p.idPhoto)}" alt="${esc(p.name)}" />
-            </div>
-          </div>
-          <article class="pm-info-card glass">
-            <button class="pm-close" data-close>×</button>
-            <div class="pm-info">
-              <span class="pm-dept">${esc(p.department || "")}</span>
-              <h2>${esc(p.name)}</h2>
-              <div class="pm-fields">${fields}</div>
-            </div>
-          </article>
+    if (!m) {
+      m = doc.createElement("div");
+      m.id = "ppModal";
+      doc.body.appendChild(m);
+    }
+    m.className = "detail-layer site-detail-layer";
+
+    const currentIdx = TRAINEES.findIndex((x) => x.id === trainee.id);
+    const totalTrainees = TRAINEES.length;
+    const pad = (num) => String(num).padStart(2, "0");
+    const detailIndexText = `PROFILE ${pad(currentIdx + 1)} / ${pad(totalTrainees)}`;
+
+    m.innerHTML = `
+      <canvas class="code-rain-canvas detail-rain" aria-hidden="true"></canvas>
+      <div class="detail-backdrop" data-close></div>
+      <div class="draw-card" aria-label="抽卡卡片预览">
+        <button class="detail-nav-arrow detail-nav-arrow-left" type="button" data-pm-nav="prev" aria-label="切换到上一张卡片">
+          <span aria-hidden="true">‹</span>
+        </button>
+        <button class="detail-nav-arrow detail-nav-arrow-right" type="button" data-pm-nav="next" aria-label="切换到下一张卡片">
+          <span aria-hidden="true">›</span>
+        </button>
+        <div class="draw-card-topline">
+          <span id="detailIndex">${esc(detailIndexText)}</span>
         </div>
-        <button class="pm-nav-arrow pm-nav-arrow-right" type="button" data-pm-nav="next" aria-label="下一个">›</button>
-      </div>`;
-    m.classList.add("show");
-    m.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => m.classList.remove("show")));
+        <div class="draw-photo-card" id="selectedPhoto"></div>
+        <div class="draw-nameplate">
+          <strong id="selectedName">${esc(trainee.name)}</strong>
+          <span id="selectedDepartment">${esc(trainee.department || "")}</span>
+        </div>
+      </div>
+
+      <article class="profile-console" role="dialog" aria-modal="true" aria-labelledby="detailName">
+        <div class="console-chrome" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <button class="close-button" type="button" data-close>CLOSE</button>
+
+        <section class="profile-info-panel">
+          <span class="info-chip" id="detailDepartment">INFO</span>
+          <div class="profile-fact-list">
+            <section>
+              <span>#1 🎓 专业背景</span>
+              <p id="detailBackground">${esc(trainee.background || "")}</p>
+            </section>
+            <section>
+              <span>#2 🤖 我的AI搭子们</span>
+              <p id="detailTools">${esc(trainee.tools || "")}</p>
+            </section>
+            <section>
+              <span>#3 🌟 我的本命AI搭子</span>
+              <p id="detailFavoriteTool">${esc(trainee.favoriteTool || "")}</p>
+            </section>
+            <section>
+              <span>#4 💡 我最想让AI解决的问题</span>
+              <p id="detailProblem">${esc(trainee.problem || "")}</p>
+            </section>
+            <section>
+              <span>#5 ⚡️ 我的AI超能力</span>
+              <p id="detailPower">${esc(trainee.aiPower || "")}</p>
+            </section>
+            <section>
+              <span>#6 🤣 一个有趣的事实</span>
+              <p id="detailFunFact">${esc(trainee.funFact || "")}</p>
+            </section>
+          </div>
+        </section>
+
+        <section class="profile-media-panel" aria-label="照片与表情包">
+          <h1 class="profile-name-pill" id="detailName">${esc(trainee.romanName || trainee.name)}</h1>
+          <div class="profile-media-frame" id="profileMediaFrame">
+            <button class="photo-toggle" id="photoToggleButton" type="button">PHOTO</button>
+            <span id="memeText">${esc(trainee.meme || "")}</span>
+          </div>
+        </section>
+
+        <footer class="profile-console-footer">
+          <span>AI INNOVATION HACKATHON &gt; JOINCARE</span>
+        </footer>
+      </article>
+    `;
+
+    function updateMedia() {
+      const selectedPhoto = m.querySelector("#selectedPhoto");
+      const mediaFrame = m.querySelector("#profileMediaFrame");
+      const photoToggleButton = m.querySelector("#photoToggleButton");
+
+      if (selectedPhoto) {
+        selectedPhoto.style.setProperty("--portrait", trainee.portrait || "");
+        selectedPhoto.style.setProperty("--media-image", cssUrl(trainee.idPhoto || trainee.photo));
+      }
+      if (mediaFrame) {
+        mediaFrame.style.setProperty("--portrait", trainee.portrait || "");
+        mediaFrame.style.setProperty("--media-image", cssUrl(siteMediaMode === "photo" ? trainee.photo : trainee.memeImage));
+        mediaFrame.dataset.mode = siteMediaMode;
+      }
+      if (photoToggleButton) {
+        photoToggleButton.textContent = siteMediaMode === "photo" ? "PHOTO" : "MEME";
+      }
+    }
+
+    updateMedia();
+
+    if (!m._detailRain && root.CodeRain) {
+      m._detailRain = root.CodeRain.createCodeRain(m.querySelector(".detail-rain"), {
+        fontSize: 16,
+        fade: "rgba(2, 8, 14, 0.05)"
+      });
+    }
+
+    m.classList.add("is-open");
+    if (m._detailRain) {
+      m._detailRain.resize();
+      m._detailRain.start();
+    }
+
+    const closeModal = () => {
+      m.classList.remove("is-open");
+      if (m._detailRain) {
+        m._detailRain.stop();
+      }
+    };
+
+    m.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", closeModal));
+
     m.querySelectorAll("[data-pm-nav]").forEach((btn) => {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
         const dir = btn.dataset.pmNav;
-        const currentIdx = TRAINEES.findIndex((x) => x.id === p.id);
         if (currentIdx >= 0) {
-          const nextIdx = (currentIdx + (dir === "next" ? 1 : -1) + TRAINEES.length) % TRAINEES.length;
+          const nextIdx = (currentIdx + (dir === "next" ? 1 : -1) + totalTrainees) % totalTrainees;
           openTrainee(TRAINEES[nextIdx].id);
         }
       });
     });
+
+    const photoToggleButton = m.querySelector("#photoToggleButton");
+    if (photoToggleButton) {
+      photoToggleButton.addEventListener("click", (e) => {
+        e.stopPropagation();
+        siteMediaMode = siteMediaMode === "photo" ? "meme" : "photo";
+        updateMedia();
+      });
+    }
   }
 
   /* ---- 大赛介绍 ------------------------------------------------------- */
   function renderBrief() {
     const days = D.flowDays.map((d, i) => {
       const timeSpan = d.time ? `<span class="fs-time">${esc(d.time)}</span>` : "";
-      const card = `<div class="flow-step"><div class="fs-header"><div class="fs-ic">${ICON(d.icon, "var(--neon)")}</div><div class="fs-badge">${esc(d.day)}<i>${esc(d.en)}</i></div></div><b>${esc(d.title)}</b><p>${d.lines.map(esc).join("<br>")}</p>${timeSpan}</div>`;
+      const card = `<div class="flow-step"><div class="fs-header"><div class="fs-ic">${ICON(d.icon, "var(--neon)")}</div><div class="fs-badge"><span>${esc(d.day)}</span><i>${esc(d.en)}</i></div></div><b>${esc(d.title)}</b><p>${d.lines.map(esc).join("<br>")}</p>${timeSpan}</div>`;
       const arrow = i < 2 ? `<span class="fs-arrow">➔</span>` : "";
       return card + arrow;
     }).join("");
@@ -743,21 +883,36 @@
   /* ---- 赛程 / 大赛介绍 ----------------------------------------------- */
   function renderSchedule() {
     const role = currentRole();
-    const actionCards = getHomeActions(role).map(entryCard).join("");
-    const timeline = D.timeline.map((item, i) => `<div class="timeline-item ${i < 5 ? "done" : "todo"}"><span>${ICON(item.icon, i < 5 ? "var(--neon)" : "var(--muted)")}</span><b>${esc(item.time)}</b><em>${esc(item.label)}</em></div>`).join("");
-    const mech = D.mechanism.map((c) => `<div class="mech2 glass" style="--accent:${c.accent};--rgb:${c.rgb}"><div class="m2-top"><span>${esc(c.label)}<i>${esc(c.en)}</i></span>${ICON(c.icon, c.accent)}</div><b>${esc(c.headline)}</b><span class="m2-sub">${esc(c.sub)}</span></div>`).join("");
-    const dims = D.dimensions.map((d) => `<li><b>${esc(d.label)}</b><span>${esc(d.en)} · ${d.weight}%</span></li>`).join("");
+    const journeyCards = getHomeActions(role);
+    const snakeOrder = [0, 1, 2, 3, 7, 6, 5, 4];
+    const actionCards = snakeOrder.map((sourceIndex, gridIndex) => entryCard(journeyCards[sourceIndex], gridIndex, { hideEnglish: true })).join("");
+    const mechanismBriefs = {
+      format: { headline: "五大业务赛道开放命题", sub: "围绕真实场景自由发现问题" },
+      delivery: { headline: "真实可运行方案", sub: "提交作品与现场展示" },
+      scoring: { headline: "专家评审 70% + 大众投票 30%", sub: "五维评审 + 全员投票" },
+      prize: { headline: "最终评选一支冠军团队", sub: "Grand Prize 冠军团队" },
+    };
+    const mech = D.mechanism.map((c) => {
+      const copy = mechanismBriefs[c.key] || c;
+      return `<div class="mech2 glass" style="--accent:${c.accent};--rgb:${c.rgb}"><div class="m2-top"><span>${esc(c.label)}<i>${esc(c.en)}</i></span>${ICON(c.icon, c.accent)}</div><b>${esc(copy.headline)}</b><span class="m2-sub">${esc(copy.sub)}</span></div>`;
+    }).join("");
+    const dims = D.dimensions.map((d, index) => `<li class="score-dim-card" style="--score-width:${d.weight * 4}%"><i>${pad(index + 1)}</i><b>${esc(d.label)}</b><span><em>${d.weight}</em>%</span><small><ins></ins></small></li>`).join("");
 
-    return `${pageHead("赛程与大赛介绍", "36小时议程、赛事机制、评分维度与关键节点", "SCHEDULE")}
+    return `${pageHead("赛事指南", "了解赛事进展与赛事机制，快速掌握黑客松全貌", "EVENT GUIDE")}
     <section class="container sec schedule-board">
       <div class="schedule-live glass">
-        <div><span class="status-chip on">当前阶段</span><h2>大众投票进行中</h2><p>作品提交已完成，评委评分与大众投票同步进行。最终结果将在 Demo Day 颁奖环节公布。</p></div>
-        <div class="schedule-count"><span>距投票截止</span><b data-countdown data-remain="6353">${fmtHMS(6353)}</b></div>
+        <div class="schedule-info">
+          <span class="status-chip on">当前阶段</span>
+          <h2>大众投票进行中</h2>
+        </div>
+        <div class="schedule-count">
+          <span class="status-chip on">距投票截止</span>
+          <b data-countdown data-remain="6353">${fmtHMS(6353)}</b>
+        </div>
       </div>
-      <div class="sec-cap"><span></span>36小时 · 全流程</div><div class="entry-grid four">${actionCards}</div>
-      <div class="sec-cap"><span></span>关键节点</div><div class="timeline-grid">${timeline}</div>
-      <div class="sec-cap"><span></span>赛事机制</div><div class="mech2-grid">${mech}</div>
-      <div class="score-note glass"><div><span class="status-chip">评分规则</span><h3>综合得分 = 专家评审 70% + 大众投票赋分 30%</h3><p>专家评审按五个维度打分；大众投票按票数排名转换为赋分。</p></div><ul>${dims}</ul></div>
+      <div class="sec-cap"><span></span>赛事旅程 · EVENT JOURNEY</div><div class="entry-grid four">${actionCards}</div>
+      <div class="sec-cap"><span></span>赛事机制 · EVENT FORMAT</div><div class="mech2-grid">${mech}</div>
+      <div class="score-criteria"><div class="sec-cap score-criteria-title"><span></span>评分维度 · EVALUATION CRITERIA</div><ul class="score-dim-grid">${dims}</ul></div>
     </section>`;
   }
 
@@ -804,7 +959,7 @@
       ? `<button class="btn-ghost is-cancel" type="button" data-leave-team="${selectedTeam.id}">退出当前队伍</button>`
       : rolePermissions(currentRole()).canAdmin
       ? `<a class="btn-ghost" href="./admin.html">进入管理后台</a>`
-      : `<a class="btn-ghost" data-nav="schedule">查看赛程</a>`;
+      : `<a class="btn-ghost" data-nav="schedule">查看赛事指南</a>`;
 
     return `${pageHead(title, subtitle, "TEAM")}
     <section class="container sec team-board">
@@ -1112,9 +1267,11 @@
 
   /* ---- 最终排行（仅公布后显示）-------------------------------------- */
   function renderResult(forcePreview) {
+    const resultSubtitle = "创新与价值并重，共同见证最终荣誉的诞生";
+    const resultHead = (title, subtitle = resultSubtitle) => `<section class="page-hero result-hero"><div class="container"><span class="ph-en">RESULT <i>RANKING</i></span><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div></section>`;
     if (PHASE !== "published" && !forcePreview) {
-      return `${pageHead("最终排行", "综合得分 = 专家评审 70% + 大众投票赋分 30%", "RESULT")}
-      <section class="container sec"><div class="rk-locked glass"><span class="rk-lock-ic">${ICON("lock", "var(--neon)")}</span><h2>结果待公布</h2><p>投票尚未结束，最终排行将在颁奖环节由现场统一揭晓。<br>当前请前往作品展厅，为你支持的团队投票。</p><div class="rk-locked-cta"><a class="btn-primary" data-nav="gallery">去作品展厅加油</a><button class="btn-ghost" data-preview="1">预览最终榜（演示）</button></div></div></section>`;
+      return `${resultHead("排行榜")}
+      <section class="container sec"><div class="rk-locked glass"><span class="rk-lock-ic">${ICON("lock", "var(--neon)")}</span><h2>结果待公布</h2><p>投票尚未结束，排行榜将在颁奖环节由现场统一揭晓。<br>当前请前往作品展厅，为你支持的团队投票。</p><div class="rk-locked-cta"><a class="btn-primary" data-nav="gallery">去作品展厅加油</a><button class="btn-ghost" data-preview="1">预览排行榜（演示）</button></div></div></section>`;
     }
     const ranked = D.computeRanking();
     const max = Math.max(...ranked.map((t) => t.total));
@@ -1123,9 +1280,9 @@
       const avas = [t.advisor, ...t.members].slice(0, 5).map((p) => avatar(p, 30)).join("");
       const scoreWidth = ((t.total / max) * 100).toFixed(2);
       const delay = (t.rank - 1) * 120;
-      return `<div class="rk-row glass ${champ ? "champ" : ""}" style="--accent:${t.accent};--rgb:${t.rgb};--score-width:${scoreWidth}%;--rank-delay:${delay}ms"><span class="rk-no ${t.rank <= 3 ? "top" : ""}">${champ ? "★" : pad(t.rank)}</span><div class="rk-id"><b>${esc(t.name)}${champ ? '<i class="rk-crown">CHAMPION · 冠军</i>' : ""}</b><span>${esc(t.project)} · ${esc(t.track)}</span></div><div class="rk-avas">${avas}</div><div class="rk-bar"><span class="meter" style="--accent:${t.accent};--rgb:${t.rgb}"><i></i></span></div><div class="rk-mini"><span>专家 ${t.expert}</span><span>赋分 ${t.votePoint}</span></div><span class="rk-total">${t.total}</span></div>`;
+      return `<div class="rk-row glass ${champ ? "champ" : ""}" style="--accent:${t.accent};--rgb:${t.rgb};--score-width:${scoreWidth}%;--rank-delay:${delay}ms"><span class="rk-no ${t.rank <= 3 ? "top" : ""}">${champ ? "🏆" : pad(t.rank)}</span><div class="rk-id"><b>${esc(t.name)}${champ ? '<i class="rk-crown">Grand Prize · 冠军战队</i>' : ""}</b><span>${esc(t.track)} · ${esc(t.project)}</span></div><div class="rk-avas">${avas}</div><div class="rk-bar"><span class="meter" style="--accent:${t.accent};--rgb:${t.rgb}"><i></i></span></div><div class="rk-mini"><span>专家 ${t.expert}</span><span>赋分 ${t.votePoint}</span></div><span class="rk-total">${t.total}</span></div>`;
     }).join("");
-    return `${pageHead("最终排行 · GRAND PRIZE", "综合得分 = 专家评审 70% + 大众投票赋分 30%", "RESULT")}<section class="container sec result-sec"><div class="rk-list">${rows}</div></section>`;
+    return `${resultHead("排行榜")}<section class="container sec result-sec"><div class="result-board-heading"><span>排行榜</span><strong>FINAL RANKING</strong></div><div class="rk-list">${rows}</div></section>`;
   }
   function renderNoPermission(title, message, target) {
     return `${pageHead(title, message, "ACCESS CONTROL")}
@@ -1145,11 +1302,11 @@
   const VIEWS = [
     { key: "home", label: "首页", render: renderHome },
     { key: "people", label: "新生看板", render: renderPeople },
-    { key: "schedule", label: "赛程", render: renderSchedule },
+    { key: "schedule", label: "赛事指南", render: renderSchedule },
     { key: "team", label: "组队", render: renderTeam },
     { key: "gallery", label: "作品展厅", render: renderGallery },
     { key: "vote", label: "投票", render: renderVote },
-    { key: "result", label: "最终排行", render: () => renderResult(location.search.indexOf("preview") >= 0) },
+    { key: "result", label: "排行榜", render: () => renderResult(location.search.indexOf("preview") >= 0) },
     { key: "me", label: "我的", render: renderMe, hidden: true },
     { key: "tracks", label: "赛道", render: renderTracks, hidden: true },
     { key: "judge", label: "评委评分", render: renderJudge, hidden: true },
@@ -1158,13 +1315,13 @@
   const MOBILE_TABS = [
     { key: "home", label: "首页", icon: "target" },
     { key: "people", label: "星锐", icon: "user" },
-    { key: "schedule", label: "赛程", icon: "calendar" },
+    { key: "schedule", label: "赛事指南", icon: "calendar" },
     { key: "gallery", label: "作品", icon: "doc" },
     { key: "me", label: "角色", icon: "team" },
   ];
   const MOBILE_TABS_PLAYER = [
     { key: "home", label: "首页", icon: "target" },
-    { key: "schedule", label: "赛程", icon: "calendar" },
+    { key: "schedule", label: "赛事指南", icon: "calendar" },
     { key: "team", label: "组队", icon: "team" },
     { key: "gallery", label: "作品", icon: "doc" },
     { key: "me", label: "我的", icon: "user" },
@@ -1179,7 +1336,7 @@
   const MOBILE_TABS_JUDGE = [
     { key: "home", label: "首页", icon: "target" },
     { key: "people", label: "星锐", icon: "user" },
-    { key: "schedule", label: "赛程", icon: "calendar" },
+    { key: "schedule", label: "赛事指南", icon: "calendar" },
     { key: "gallery", label: "作品", icon: "doc" },
     { key: "judge", label: "评分", icon: "scale" },
   ];
@@ -1187,7 +1344,7 @@
     { key: "home", label: "首页", icon: "target" },
     { key: "team", label: "组队", icon: "team" },
     { key: "gallery", label: "作品", icon: "doc" },
-    { key: "result", label: "结果", icon: "trophy" },
+    { key: "result", label: "排行榜", icon: "trophy" },
     { key: "me", label: "权限", icon: "lock" },
   ];
 
@@ -1557,14 +1714,26 @@
     meta.duties[personId] = input.value.trim() || defaultDuty(teamPeople(team).findIndex((p) => p.id === personId));
     saveTeamWorkspaceMeta(teamId, meta);
   }
-  function saveWorkDraft(teamId) {
+  async function saveWorkDraft(teamId) {
     const team = getTeam(teamId);
     if (!team) return;
     if (!canEditTeamWorkspace(teamId)) {
       toast("只有已加入该队伍的参赛选手可以保存作品草稿");
       return;
     }
-    toast(`「${team.name}」作品草稿已保存`);
+
+    const draft = getWorkDraft(team);
+    try {
+      await SiteRoleApi.submitWork({
+        ...draft,
+        teamId: team.id,
+        userId: currentWorkspaceMemberId(team) || "local-player",
+      });
+      toast(`「${draft.teamName || team.name}」作品草稿已同步`);
+    } catch (error) {
+      console.warn("Work submit API failed.", error);
+      toast(`「${team.name}」作品草稿已保存在本地`);
+    }
   }
 
   function bind() {

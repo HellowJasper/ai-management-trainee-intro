@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI 星锐黑客松 管理后台</title>
-    <link rel="stylesheet" href="./admin.css?v=20260617-01" />
+    <link rel="stylesheet" href="./admin.css?v=20260624-admin-users" />
   </head>
   <body>
     <main class="admin-shell">
@@ -17,39 +17,39 @@
         </a>
 
         <nav class="admin-nav" aria-label="管理后台导航">
-          <button type="button">
+          <button type="button" data-admin-nav="dashboard" aria-pressed="false">
             <span class="nav-icon">▦</span>
             控制台
           </button>
-          <button class="is-active" type="button">
+          <button class="is-active" type="button" data-admin-nav="flow" aria-pressed="true">
             <span class="nav-icon">▷</span>
             流程控制台
           </button>
-          <button type="button">
+          <button type="button" data-admin-nav="screen" aria-pressed="false">
             <span class="nav-icon">▣</span>
             大屏控制
           </button>
-          <button type="button">
+          <button type="button" data-admin-nav="pages" aria-pressed="false">
             <span class="nav-icon">▤</span>
             页面管理
           </button>
-          <button type="button">
+          <button type="button" data-admin-nav="content" aria-pressed="false">
             <span class="nav-icon">✧</span>
             内容管理
           </button>
-          <button type="button">
+          <button type="button" data-admin-nav="data" aria-pressed="false">
             <span class="nav-icon">⌘</span>
             数据与投票
           </button>
-          <button type="button">
+          <button type="button" data-admin-nav="teams" aria-pressed="false">
             <span class="nav-icon">♙</span>
             队伍与成员
           </button>
-          <button type="button">
+          <button type="button" data-admin-nav="settings" aria-pressed="false">
             <span class="nav-icon">⚙</span>
             系统设置
           </button>
-          <button type="button">
+          <button type="button" data-admin-nav="logs" aria-pressed="false">
             <span class="nav-icon">☷</span>
             操作日志
           </button>
@@ -70,23 +70,47 @@
           </div>
 
           <div class="admin-topbar-actions">
-            <span class="connection-chip">
+            <span class="connection-chip" id="adminConnectionChip">
               <i></i>
-              大屏连接正常
+              <span id="adminConnectionLabel">API 检查中</span>
+              <small id="adminApiHealthMeta">等待同步</small>
             </span>
-            <button class="screen-select" type="button">
-              主会场大屏
-              <span>⌄</span>
-            </button>
-            <button class="admin-user" type="button" aria-label="当前管理员：admin">
-              <span class="user-avatar">●</span>
-              admin
-              <span>⌄</span>
-            </button>
+            <span class="admin-sync-status" id="adminSyncStatus" aria-live="polite">
+              <i></i>
+              <span id="adminSyncStatusLabel">数据同步待命</span>
+              <small id="adminSyncStatusMeta">业务数据 / 日志</small>
+            </span>
+            <div class="topbar-menu-wrap">
+              <button class="screen-select" type="button" id="screenQuickMenuButton" aria-expanded="false" aria-controls="screenQuickMenu">
+                主会场大屏
+                <span>⌄</span>
+              </button>
+              <div class="topbar-menu" id="screenQuickMenu" hidden></div>
+            </div>
+            <div class="topbar-menu-wrap">
+              <button class="admin-user" type="button" id="adminUserMenuButton" aria-expanded="false" aria-controls="adminUserMenu" aria-label="当前管理员：admin">
+                <span class="user-avatar">●</span>
+                <span id="adminUserName">admin</span>
+                <span>⌄</span>
+              </button>
+              <div class="topbar-menu admin-user-menu" id="adminUserMenu" hidden></div>
+            </div>
           </div>
         </header>
 
-        <div class="admin-grid">
+        <section class="admin-view-panel admin-management-view" data-admin-view-panel="dashboard" aria-labelledby="dashboardTitle">
+          <div class="management-heading">
+            <div>
+              <p>COMMAND_OVERVIEW</p>
+              <h2 id="dashboardTitle">控制台</h2>
+            </div>
+            <span id="adminDashboardState">等待同步</span>
+          </div>
+
+          <div class="admin-dashboard-grid" id="adminDashboardSummary"></div>
+        </section>
+
+        <div class="admin-grid admin-view-panel is-active" data-admin-view-panel="flow">
           <section class="panel flow-panel" aria-labelledby="flowTitle">
             <div class="panel-heading">
               <div>
@@ -150,6 +174,62 @@
             </article>
           </section>
 
+          <section class="panel data-panel" id="adminDataPanel" aria-labelledby="dataTitle">
+            <div class="panel-heading">
+              <div>
+                <p>DATA_OPS</p>
+                <h2 id="dataTitle">数据与投票</h2>
+              </div>
+              <button type="button" id="refreshBusinessDataButton">刷新</button>
+            </div>
+
+            <div class="admin-metric-grid" aria-label="业务数据概览">
+              <article class="admin-metric-card">
+                <span>赛道</span>
+                <strong id="adminTeamCount">--</strong>
+              </article>
+              <article class="admin-metric-card">
+                <span>参赛者</span>
+                <strong id="adminPlayerCount">--</strong>
+              </article>
+              <article class="admin-metric-card">
+                <span>总票数</span>
+                <strong id="adminVoteTotal">--</strong>
+              </article>
+              <article class="admin-metric-card">
+                <span>评分进度</span>
+                <strong id="adminJudgeCount">--</strong>
+              </article>
+            </div>
+
+            <div class="admin-data-columns">
+              <section class="admin-data-block" aria-label="投票排名">
+                <header>
+                  <span>VOTE RANKING</span>
+                  <small id="adminVoteStatus">等待同步</small>
+                </header>
+                <ol class="admin-vote-ranking" id="adminVoteRanking"></ol>
+              </section>
+
+              <section class="admin-data-block" aria-label="作品与评分">
+                <header>
+                  <span>WORK REVIEW</span>
+                  <small id="adminWorkStatus">等待提交</small>
+                </header>
+                <div class="admin-work-list" id="adminWorkList"></div>
+                <p class="admin-judge-summary" id="adminJudgeSummary">评分数据等待同步</p>
+              </section>
+            </div>
+
+            <section class="admin-result-snapshot-panel" id="adminResultSnapshotPanel" aria-label="最新结果快照">
+              <header>
+                <span>FINAL SNAPSHOT</span>
+                <small id="adminResultSnapshotStatus">等待发布</small>
+              </header>
+              <div class="admin-result-snapshot" id="adminResultSnapshot"></div>
+            </section>
+          </section>
+
           <section class="panel timing-panel" aria-labelledby="timingTitle">
             <div class="panel-heading">
               <div>
@@ -179,6 +259,16 @@
                   展示时长（分钟）
                   <input id="roadshowDuration" type="number" min="1" step="1" value="15" />
                 </label>
+                <div class="timer-team-selectors">
+                  <label>
+                    当前路演队伍
+                    <select id="roadshowCurrentTeamSelect" aria-label="当前路演队伍"></select>
+                  </label>
+                  <label>
+                    下一队伍
+                    <select id="roadshowNextTeamSelect" aria-label="下一队伍"></select>
+                  </label>
+                </div>
                 <div class="timer-control-actions">
                   <button type="button" id="startRoadshowButton">启动</button>
                   <button type="button" id="resetRoadshowButton">重置</button>
@@ -219,10 +309,200 @@
             <ol class="operation-log" id="operationLog"></ol>
           </section>
         </div>
+
+        <section class="admin-view-panel admin-management-view" data-admin-view-panel="screen" aria-labelledby="screenControlTitle">
+          <div class="management-heading">
+            <div>
+              <p>SCREEN_CONTROL</p>
+              <h2 id="screenControlTitle">大屏控制</h2>
+            </div>
+            <a class="management-link" href="/" target="_blank" rel="noreferrer">打开主会场大屏</a>
+          </div>
+
+          <div class="management-split">
+            <section class="panel admin-wide-panel">
+              <header class="wide-panel-heading">
+                <div>
+                  <span>SCREEN ROUTES</span>
+                  <strong>阶段大屏映射</strong>
+                </div>
+                <small id="adminScreenRouteStatus">等待同步</small>
+              </header>
+              <div class="admin-control-list" id="adminScreenControl"></div>
+            </section>
+
+            <section class="panel admin-wide-panel">
+              <header class="wide-panel-heading">
+                <div>
+                  <span>DISPLAY TIMERS</span>
+                  <strong>展示计时状态</strong>
+                </div>
+              </header>
+              <div class="admin-control-list">
+                <article>
+                  <b>任务倒计时</b>
+                  <span id="adminScreenMissionState">等待同步</span>
+                </article>
+                <article>
+                  <b>路演计时</b>
+                  <span id="adminScreenRoadshowState">等待同步</span>
+                </article>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="admin-view-panel admin-management-view" data-admin-view-panel="pages" aria-labelledby="pageManagerTitle">
+          <div class="management-heading">
+            <div>
+              <p>PAGE_MANAGER</p>
+              <h2 id="pageManagerTitle">页面管理</h2>
+            </div>
+            <span>前端静态页面</span>
+          </div>
+
+          <div class="admin-route-grid" id="adminPageManager"></div>
+        </section>
+
+        <section class="admin-view-panel admin-management-view" data-admin-view-panel="content" aria-labelledby="contentManagerTitle">
+          <div class="management-heading">
+            <div>
+              <p>CONTENT_MANAGER</p>
+              <h2 id="contentManagerTitle">内容管理</h2>
+            </div>
+            <button type="button" id="refreshContentManagerButton">刷新内容</button>
+          </div>
+
+          <div class="admin-route-grid" id="adminContentManager"></div>
+        </section>
+
+        <section class="admin-view-panel admin-management-view" data-admin-view-panel="data" aria-labelledby="dataWorkspaceTitle">
+          <div class="management-heading">
+            <div>
+              <p>DATA_CENTER</p>
+              <h2 id="dataWorkspaceTitle">数据与投票管理</h2>
+            </div>
+            <button type="button" id="refreshDataWorkspaceButton">刷新数据</button>
+          </div>
+
+          <div class="management-split">
+            <section class="panel admin-wide-panel" aria-label="完整投票排名">
+              <header class="wide-panel-heading">
+                <div>
+                  <span>VOTE RANKING</span>
+                  <strong>实时投票排名</strong>
+                </div>
+                <small id="adminVoteWorkspaceStatus">等待同步</small>
+              </header>
+              <ol class="admin-vote-ranking admin-vote-ranking-full" id="adminVoteRankingFull"></ol>
+            </section>
+
+            <section class="panel admin-wide-panel" aria-label="作品审核列表">
+              <header class="wide-panel-heading">
+                <div>
+                  <span>WORK REVIEW</span>
+                  <strong>作品提交与审核</strong>
+                </div>
+                <small id="adminWorkWorkspaceStatus">等待提交</small>
+              </header>
+              <div class="admin-work-review-list" id="adminWorkReviewList"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="admin-view-panel admin-management-view" data-admin-view-panel="teams" aria-labelledby="teamRosterTitle">
+          <div class="management-heading">
+            <div>
+              <p>TEAM_ROSTER</p>
+              <h2 id="teamRosterTitle">队伍与成员</h2>
+            </div>
+            <span id="adminTeamRosterStatus">等待同步</span>
+          </div>
+
+          <div class="admin-team-roster" id="adminTeamRoster"></div>
+        </section>
+
+        <section class="admin-view-panel admin-management-view" data-admin-view-panel="logs" aria-labelledby="auditLogTitle">
+          <div class="management-heading">
+            <div>
+              <p>AUDIT_TRAIL</p>
+              <h2 id="auditLogTitle">操作日志</h2>
+            </div>
+            <button type="button" id="refreshAuditLogButton">刷新日志</button>
+          </div>
+
+          <ol class="admin-audit-list" id="adminAuditLogList"></ol>
+        </section>
+
+        <section class="admin-view-panel admin-management-view" data-admin-view-panel="settings" aria-labelledby="systemSettingsTitle">
+          <div class="management-heading">
+            <div>
+              <p>SYSTEM_SETTINGS</p>
+              <h2 id="systemSettingsTitle">系统设置</h2>
+            </div>
+            <span id="adminSystemRuntimeStatus">运行时配置</span>
+          </div>
+
+          <div class="management-split admin-settings-grid">
+            <section class="panel admin-wide-panel admin-user-role-manager" id="adminUserRoleManager" aria-labelledby="adminUserRoleTitle">
+              <header class="wide-panel-heading">
+                <div>
+                  <span>USER_ACCESS</span>
+                  <strong id="adminUserRoleTitle">用户与权限</strong>
+                </div>
+                <small id="adminUserRoleStatus">等待同步</small>
+              </header>
+
+              <form class="admin-user-role-form" id="adminUserRoleForm">
+                <label>
+                  用户 ID
+                  <input id="adminUserRoleId" type="text" name="userId" autocomplete="off" placeholder="如 Jasper 或 user_001" required />
+                </label>
+                <label>
+                  姓名
+                  <input id="adminUserRoleName" type="text" name="name" autocomplete="off" placeholder="显示名称" required />
+                </label>
+                <label>
+                  飞书 Open ID
+                  <input id="adminUserRoleOpenId" type="text" name="openId" autocomplete="off" placeholder="ou_xxx，可留空" />
+                </label>
+                <label>
+                  飞书 Union ID
+                  <input id="adminUserRoleUnionId" type="text" name="unionId" autocomplete="off" placeholder="on_xxx，可留空" />
+                </label>
+                <label class="admin-user-role-field-wide">
+                  部门
+                  <input id="adminUserRoleDepartment" type="text" name="department" autocomplete="off" placeholder="如 AI 创新部" />
+                </label>
+                <fieldset class="admin-user-role-field-wide admin-role-checkboxes" aria-label="账号角色">
+                  <legend>账号角色</legend>
+                  <label><input type="checkbox" name="adminUserRole" value="admin" /> 管理员</label>
+                  <label><input type="checkbox" name="adminUserRole" value="judge" /> 专家评委</label>
+                  <label><input type="checkbox" name="adminUserRole" value="player" /> 参赛选手</label>
+                  <label><input type="checkbox" name="adminUserRole" value="public" /> 大众评委</label>
+                </fieldset>
+                <button class="primary-admin-action admin-user-role-field-wide" type="submit">保存用户权限</button>
+              </form>
+
+              <div class="admin-user-role-list" id="adminUserRoleList"></div>
+            </section>
+
+            <section class="panel admin-wide-panel" aria-labelledby="adminRuntimeConfigTitle">
+              <header class="wide-panel-heading">
+                <div>
+                  <span>RUNTIME_CONFIG</span>
+                  <strong id="adminRuntimeConfigTitle">运行时配置</strong>
+                </div>
+              </header>
+              <div class="admin-control-list admin-system-settings" id="adminSystemSettings"></div>
+            </section>
+          </div>
+        </section>
       </section>
     </main>
 
-    <script src="./src/data.js?v=20260617-02"></script>
-    <script src="./src/admin.js?v=20260617-01"></script>
+    <script src="./runtime-config.js?v=20260624-split"></script>
+    <script src="./src/data.js?v=20260624-split"></script>
+    <script src="./src/admin.js?v=20260624-admin-users"></script>
   </body>
 </html>

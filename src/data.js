@@ -9,9 +9,26 @@
   const DEFAULT_ROADSHOW_DURATION_MS = 15 * 60 * 1000;
   const DEFAULT_ROADSHOW_STORAGE_KEY = "joincare_roadshow_timer_started_at_manual_v1";
 
+  function getRuntimeApiBaseUrl() {
+    const runtimeConfig = root.JoincareRuntimeConfig || {};
+    const value = root.JOINCARE_API_BASE_URL || runtimeConfig.apiBaseUrl || "";
+    return String(value || "").trim().replace(/\/+$/, "");
+  }
+
+  function resolveApiUrl(url) {
+    const value = String(url || "");
+    if (!value.startsWith("/api/") && value !== "/api") {
+      return value;
+    }
+
+    const apiBaseUrl = getRuntimeApiBaseUrl();
+    return apiBaseUrl ? `${apiBaseUrl}${value}` : value;
+  }
+
   async function fetchJson(url, options = {}) {
-    const response = await fetch(url, {
+    const response = await fetch(resolveApiUrl(url), {
       cache: "no-store",
+      credentials: "include",
       ...options,
       headers: {
         ...(options.headers || {}),
@@ -49,6 +66,10 @@
 
   async function loadAdminState() {
     return fetchJson("/api/admin/state");
+  }
+
+  async function loadHealth() {
+    return fetchJson("/api/health");
   }
 
   async function loadTeams(fallbackTeams = []) {
@@ -371,6 +392,119 @@
     return normalizeVoteResults({ results: fallback });
   }
 
+  async function loadWorks(fallback = []) {
+    try {
+      const payload = await fetchJson("/api/works");
+      return Array.isArray(payload) ? payload : fallback;
+    } catch (error) {
+      console.warn(error);
+      return fallback;
+    }
+  }
+
+  async function loadJudgeScores(fallback = { scores: {} }) {
+    try {
+      const payload = await fetchJson("/api/judge/scores");
+      return payload && typeof payload === "object" ? payload : fallback;
+    } catch (error) {
+      console.warn(error);
+      return fallback;
+    }
+  }
+
+  async function loadAuditLogs(fallback = { logs: [] }) {
+    try {
+      const payload = await fetchJson("/api/admin/audit-logs");
+      return payload && typeof payload === "object" ? payload : fallback;
+    } catch (error) {
+      console.warn(error);
+      return fallback;
+    }
+  }
+
+  async function submitWork(payload = {}) {
+    return fetchJson("/api/work/submit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload || {}),
+    });
+  }
+
+  async function updateAdminWorkStatus(teamId, payload = {}) {
+    return fetchJson(`/api/admin/works/${encodeURIComponent(teamId)}/status`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload || {}),
+    });
+  }
+
+  async function updateAdminVoteWindow(status, payload = {}) {
+    return fetchJson("/api/admin/vote-window", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...(payload || {}),
+        status,
+      }),
+    });
+  }
+
+  async function publishAdminResults(payload = {}) {
+    return fetchJson("/api/admin/results/publish", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload || {}),
+    });
+  }
+
+  async function loadLatestResultSnapshot(fallback = { snapshot: null }) {
+    try {
+      const payload = await fetchJson("/api/results/latest");
+      return payload && typeof payload === "object" ? payload : fallback;
+    } catch (error) {
+      console.warn(error);
+      return fallback;
+    }
+  }
+
+  async function loadAdminUsers(fallback = { users: [] }) {
+    try {
+      const payload = await fetchJson("/api/admin/users");
+      return payload && typeof payload === "object" ? payload : fallback;
+    } catch (error) {
+      console.warn(error);
+      return fallback;
+    }
+  }
+
+  async function upsertAdminUser(payload = {}) {
+    return fetchJson("/api/admin/users", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload || {}),
+    });
+  }
+
+  async function loadCurrentUser() {
+    return fetchJson("/api/me");
+  }
+
+  async function logoutCurrentUser() {
+    return fetchJson("/api/auth/logout", {
+      method: "POST",
+    });
+  }
+
   async function updateAdminStage(stageId) {
     return fetchJson("/api/admin/stage", {
       method: "PATCH",
@@ -502,18 +636,33 @@
   return {
     createTrainee,
     deleteTrainee,
+    fetchJson,
     loadAdminState,
+    loadAuditLogs,
+    loadHealth,
+    loadAdminUsers,
+    loadJudgeScores,
+    loadLatestResultSnapshot,
     loadMissionCountdown,
     loadRoadshow,
     loadTeams,
     loadTrainees,
     loadVoteResults,
+    loadWorks,
+    loadCurrentUser,
     loginWithFeishu,
+    logoutCurrentUser,
+    publishAdminResults,
     saveSentence,
+    submitWork,
+    upsertAdminUser,
     updateAdminStage,
     updateAdminDisplayTimes,
     updateAdminMissionCountdown,
     updateAdminRoadshow,
+    updateAdminVoteWindow,
+    updateAdminWorkStatus,
+    resolveApiUrl,
     startMissionCountdown,
     startRoadshowTimer,
     updateTrainee,
