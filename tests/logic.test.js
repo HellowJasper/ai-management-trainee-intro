@@ -259,6 +259,12 @@ test("official site opens directly without the duplicate intro gate", () => {
   assert.match(siteCss, /overflow-y:\s*auto/);
 });
 
+test("hackathon overview cards lower the muted description copy", () => {
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.match(siteCss, /\.flow-step p\s*\{[\s\S]*?transform:\s*translateY\(6px\)/);
+});
+
 test("official site exposes all requested PC pages in the SPA router", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
@@ -798,7 +804,8 @@ test("role authorization is completed at entry and protects sensitive actions", 
 test("official site cache keys are bumped after home polish", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260623-flow-arrow-fix/);
+  assert.match(html, /styles\.css\?v=20260624-home-polish/);
+  assert.match(html, /src\/site\.css\?v=20260624-home-polish/);
   assert.match(html, /src\/logic\.js\?v=20260623-cancel-actions/);
   assert.match(html, /src\/site\.js\?v=20260623-flow-arrow-fix/);
 });
@@ -835,18 +842,16 @@ test("landing stage starts with its main CTA visible and clickable", () => {
   assert.doesNotMatch(landingOpenTag, /backdrop-mode/);
 });
 
-test("landing logo keeps a static icon fallback when admin state skips the intro animation", () => {
+test("landing logo uses the original static full-brand artwork", () => {
   const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
-  const fallbackBlock = css.match(/\.landing-logo-container::before\s*{[\s\S]*?\n}/)?.[0] || "";
-  const revealBlock = css.match(/\/\* Homepage elements entrance animations \*\/[\s\S]*?\.app-shell\.view-intro-exit \.landing-logo-canvas/)?.[0] || "";
+  const logoBlock = css.match(/\.landing-logo-container\s*{[\s\S]*?\n}/)?.[0] || "";
+  const mediaBlock = css.match(/\.landing-logo-canvas,\n\.landing-logo-text\s*{[\s\S]*?\n}/)?.[0] || "";
 
-  assert.match(fallbackBlock, /joincare-full-clean\.png/);
-  assert.match(fallbackBlock, /width:\s*47%/);
-  assert.match(fallbackBlock, /background-size:\s*212\.77% 100%/);
-  assert.match(revealBlock, /\.app-shell\.view-home \.landing-logo-container::before/);
-  assert.match(revealBlock, /\.app-shell\.view-intro-exit \.landing-logo-container::before/);
-  assert.match(css, /\.app-shell\.view-home \.landing-logo-container::before,[\s\S]*?opacity:\s*0\.98/);
-  assert.match(css, /\.app-shell\.view-home \.landing-logo-text\s*{[\s\S]*?clip-path:\s*inset\(0 0 0 0\)/);
+  assert.match(logoBlock, /background:\s*url\("\.\/assets\/joincare-full-clean\.png"\) center \/ contain no-repeat/);
+  assert.match(logoBlock, /opacity:\s*0\.82/);
+  assert.match(mediaBlock, /display:\s*none/);
+  assert.doesNotMatch(css, /\.landing-logo-container::before\s*{/);
+  assert.doesNotMatch(css, /landingTextReveal/);
 });
 
 test("landing hero uses the merged two-line cinematic hierarchy", () => {
@@ -857,16 +862,21 @@ test("landing hero uses the merged two-line cinematic hierarchy", () => {
 
   assert.doesNotMatch(html, /landing-title-main/);
   assert.doesNotMatch(html, /AI黑客松<\/span>/);
-  assert.match(html, /<span class="landing-title-cn">AI创新黑客松大赛2026<\/span>/);
-  assert.match(html, /<span class="landing-title-en">AI Innovation Hackathon 2026<\/span>/);
+  assert.doesNotMatch(html, /AI创新黑客松大赛2026/);
+  assert.doesNotMatch(html, /AI Innovation Hackathon 2026<\/span>/);
+  assert.match(html, /<span class="landing-title-cn">AI创新黑客松<\/span>/);
+  assert.match(html, /<span class="landing-title-sub">36小时，把 AI 创意做成可运行系统<\/span>/);
   assert.match(html, /<button class="enter-button" type="button" id="enterButton"[^>]*>解锁任务<\/button>/);
-  assert.match(logoBlock, /top:\s*26%/);
-  assert.match(logoBlock, /width:\s*min\(38vw,\s*600px\)/);
+  assert.match(logoBlock, /top:\s*23%/);
+  assert.match(logoBlock, /width:\s*min\(32vw,\s*500px\)/);
   assert.match(css, /\.landing-stage::before\s*{[\s\S]*?centered light field/);
   assert.match(css, /\.landing-content::before\s*{[\s\S]*?content:\s*none/);
   assert.match(css, /\.landing-content::after\s*{[\s\S]*?content:\s*none/);
-  assert.match(css, /\.landing-title-cn\s*{[\s\S]*?font-size:\s*clamp\(40px,\s*4\.6vw,\s*82px\)/);
-  assert.match(css, /\.landing-title-en\s*{[\s\S]*?font-size:\s*clamp\(28px,\s*3vw,\s*50px\)/);
+  assert.match(css, /\.landing-title\s*{[\s\S]*?top:\s*50%/);
+  assert.match(css, /\.landing-title\s*{[\s\S]*?gap:\s*clamp\(16px,\s*2vh,\s*24px\)/);
+  assert.match(css, /\.landing-title-cn\s*{[\s\S]*?font-size:\s*clamp\(48px,\s*5\.8vw,\s*92px\)/);
+  assert.match(css, /\.landing-title-sub\s*{[\s\S]*?color:\s*var\(--neon-2\)/);
+  assert.match(css, /\.landing-title-sub\s*{[\s\S]*?font-size:\s*clamp\(20px,\s*2\.25vw,\s*34px\)/);
   assert.match(css, /\.app-shell\.view-home \.landing-title\s*{[\s\S]*?animation:\s*none/);
   assert.match(css, /\.app-shell\.view-home \.landing-title\s*{[\s\S]*?opacity:\s*1/);
   assert.match(enterButtonBlock, /width:\s*clamp\(220px,\s*18vw,\s*292px\)/);
