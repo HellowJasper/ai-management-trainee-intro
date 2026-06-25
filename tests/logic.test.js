@@ -462,12 +462,14 @@ test("admin settings manage backend user role mappings", () => {
   const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
   const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
 
-  assert.match(html, /id="adminUserRoleManager"/);
+  assert.match(html, /data-admin-view-panel="users"/);
+  assert.match(html, /id="adminUserFilterBar"/);
   assert.match(html, /id="adminUserRoleForm"/);
   assert.match(html, /id="adminUserRoleList"/);
   assert.match(html, /name="adminUserRole"/);
-  assert.match(css, /\.admin-user-role-manager/);
-  assert.match(css, /\.admin-user-role-list/);
+  assert.match(html, /data-add-user/);
+  assert.match(css, /\.admin-user-table/);
+  assert.match(css, /\.admin-user-modal/);
   assert.match(dataJs, /function loadAdminUsers/);
   assert.match(dataJs, /function upsertAdminUser/);
   assert.match(dataJs, /\/api\/admin\/users/);

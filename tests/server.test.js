@@ -1454,7 +1454,7 @@ test("/admin serves the management console shell", async (t) => {
   assert.match(response.headers.get("content-type"), /text\/html/);
   assert.match(html, /AI 星锐黑客松 管理后台/);
   assert.match(html, /id="stageRows"/);
-  assert.match(html, /src="\.\/src\/admin\.js\?v=20260625-user-mgmt"/);
+  assert.match(html, /src="\.\/src\/admin\.js\?v=20260625-user-table"/);
 
   const slashResponse = await fetch(`${baseUrl}/admin/`);
   const slashHtml = await slashResponse.text();

@@ -216,6 +216,9 @@ let userRoleState = {
   loading: false,
 };
 let userRoleFilter = "all"; // all | public | player | judge | admin
+let userRoleSearch = "";
+let userRolePage = 1;
+const USER_ROLE_PAGE_SIZE = 10;
 
 // 用户管理用的角色筛选标签（与用户站口径一致：观众/选手/评委/管理员）。
 const USER_FILTER_LABELS = { public: "观众", player: "选手", judge: "评委", admin: "管理员" };
@@ -1276,11 +1279,37 @@ function renderUserFilterBar() {
   });
 }
 
-function filterUsersByRole(users) {
-  if (userRoleFilter === "all") {
-    return users;
+function filterUsers(users) {
+  const keyword = userRoleSearch.trim().toLowerCase();
+  return users.filter((user) => {
+    const roleOk = userRoleFilter === "all"
+      || (Array.isArray(user.roles) && user.roles.includes(userRoleFilter));
+    if (!roleOk) {
+      return false;
+    }
+    if (!keyword) {
+      return true;
+    }
+    return [user.name, user.id, user.department]
+      .map((value) => String(value || "").toLowerCase())
+      .some((value) => value.includes(keyword));
+  });
+}
+
+function renderUserPagination(totalPages, totalCount) {
+  const bar = document.getElementById("adminUserPagination");
+  if (!bar) {
+    return;
   }
-  return users.filter((user) => Array.isArray(user.roles) && user.roles.includes(userRoleFilter));
+  if (totalCount === 0) {
+    bar.innerHTML = "";
+    return;
+  }
+  bar.innerHTML = `
+    <button type="button" data-user-page="prev" ${userRolePage <= 1 ? "disabled" : ""}>‹ 上一页</button>
+    <span>第 ${userRolePage} / ${totalPages} 页 · 共 ${totalCount} 人</span>
+    <button type="button" data-user-page="next" ${userRolePage >= totalPages ? "disabled" : ""}>下一页 ›</button>
+  `;
 }
 
 function renderUserRoleManager(users = userRoleState.users) {
@@ -1290,50 +1319,53 @@ function renderUserRoleManager(users = userRoleState.users) {
   renderUserFilterBar();
 
   const allUsers = Array.isArray(users) ? users : [];
-  const cleanUsers = filterUsersByRole(allUsers);
+  const matched = filterUsers(allUsers);
+  const totalPages = Math.max(1, Math.ceil(matched.length / USER_ROLE_PAGE_SIZE));
+  if (userRolePage > totalPages) {
+    userRolePage = totalPages;
+  }
+  if (userRolePage < 1) {
+    userRolePage = 1;
+  }
+  const pageUsers = matched.slice((userRolePage - 1) * USER_ROLE_PAGE_SIZE, userRolePage * USER_ROLE_PAGE_SIZE);
+
   const status = userRoleState.loading
     ? "同步中"
-    : userRoleFilter === "all"
-      ? (allUsers.length ? `${allUsers.length} 个账号` : "暂无账号")
-      : `${USER_FILTER_LABELS[userRoleFilter] || userRoleFilter}：${cleanUsers.length} / ${allUsers.length}`;
+    : userRoleFilter === "all" && !userRoleSearch.trim()
+      ? (allUsers.length ? `共 ${allUsers.length} 个账号` : "暂无账号")
+      : `筛选出 ${matched.length} / ${allUsers.length} 人`;
   setText(adminUserRoleStatus, status);
 
-  if (!cleanUsers.length) {
+  if (!matched.length) {
     adminUserRoleList.innerHTML = `
-      <article class="admin-user-role-empty">
-        <b>${userRoleFilter === "all" ? "还没有用户" : "该角色暂无用户"}</b>
-        <span>${userRoleFilter === "all" ? "飞书登录后用户会自动入库；在此为其分配角色。" : "切换上方筛选，或在左侧表单为用户分配该角色。"}</span>
-      </article>
+      <tr class="admin-user-empty-row">
+        <td colspan="5">${userRoleState.loading ? "加载中…" : (allUsers.length ? "没有匹配的用户，试试切换筛选或清空搜索。" : "还没有用户；飞书登录后会自动入库，可在此分配角色。")}</td>
+      </tr>
     `;
+    renderUserPagination(totalPages, matched.length);
     return;
   }
 
-  adminUserRoleList.innerHTML = cleanUsers.map((user) => {
+  adminUserRoleList.innerHTML = pageUsers.map((user) => {
     const roles = Array.isArray(user.roles) ? user.roles : [];
-    const identityItems = [
-      user.id ? `ID：${user.id}` : "",
-      user.openId ? `Open：${user.openId}` : "",
-      user.unionId ? `Union：${user.unionId}` : "",
-      user.department ? `部门：${user.department}` : "",
-    ].filter(Boolean);
-
+    const avatar = user.avatar
+      ? `<span class="admin-user-ava" style="background-image:url('${escapeHtml(user.avatar)}')"></span>`
+      : `<span class="admin-user-ava admin-user-ava-fallback">${escapeHtml(String(user.name || "?").slice(0, 1))}</span>`;
+    const chips = roles.length
+      ? roles.map((role) => `<span class="admin-user-role-tag">${escapeHtml(getAdminRoleLabel(role))}</span>`).join("")
+      : `<span class="admin-user-role-tag is-empty">未分配</span>`;
     return `
-      <article class="admin-user-role-card">
-        <header>
-          <div>
-            <b>${escapeHtml(user.name || "未命名用户")}</b>
-            <span>${escapeHtml(identityItems.join(" · ") || "未绑定身份标识")}</span>
-          </div>
-          <button type="button" data-edit-user-role="${escapeHtml(user.id || "")}">编辑</button>
-        </header>
-        <div class="admin-user-role-chips">
-          ${roles.length
-            ? roles.map((role) => `<span>${escapeHtml(getAdminRoleLabel(role))}</span>`).join("")
-            : "<span>未分配角色</span>"}
-        </div>
-      </article>
+      <tr>
+        <td><div class="admin-user-cell">${avatar}<b>${escapeHtml(user.name || "未命名用户")}</b></div></td>
+        <td class="admin-user-mono">${escapeHtml(user.id || "—")}</td>
+        <td>${escapeHtml(user.department || "—")}</td>
+        <td><div class="admin-user-role-tags">${chips}</div></td>
+        <td class="admin-user-col-op"><button type="button" class="admin-user-edit" data-edit-user-role="${escapeHtml(user.id || "")}">编辑</button></td>
+      </tr>
     `;
   }).join("");
+
+  renderUserPagination(totalPages, matched.length);
 }
 
 async function loadUserRoles() {
@@ -1411,7 +1443,32 @@ function fillUserRoleForm(user) {
     input.checked = roles.has(input.value);
   });
 
-  setText(adminUserRoleStatus, `正在编辑 ${user.name || user.id}`);
+}
+
+function openUserModal(user) {
+  const modal = document.getElementById("adminUserModal");
+  const title = document.getElementById("adminUserModalTitle");
+  if (!modal) {
+    return;
+  }
+  adminUserRoleForm?.reset();
+  adminUserRoleForm?.querySelectorAll('[name="adminUserRole"]').forEach((input) => { input.checked = false; });
+  if (user) {
+    fillUserRoleForm(user);
+    if (adminUserRoleId) adminUserRoleId.readOnly = true; // 编辑时 user_id 不可改（它是主键）
+    if (title) title.textContent = `编辑用户 · ${user.name || user.id}`;
+  } else {
+    if (adminUserRoleId) adminUserRoleId.readOnly = false;
+    if (title) title.textContent = "新增用户";
+  }
+  modal.hidden = false;
+  (user ? adminUserRoleName : adminUserRoleId)?.focus();
+}
+
+function closeUserModal() {
+  const modal = document.getElementById("adminUserModal");
+  if (modal) modal.hidden = true;
+  renderUserRoleManager();
 }
 
 async function upsertUserRole(event) {
@@ -1431,8 +1488,8 @@ async function upsertUserRole(event) {
       users: [user, ...userRoleState.users.filter((item) => item.id !== user.id)],
       loading: false,
     };
-    renderUserRoleManager();
     adminUserRoleForm?.reset();
+    closeUserModal();
     addLog("admin", `更新用户权限【${user.name || user.id}】`);
     await loadAuditTrail();
   } catch (error) {
@@ -2186,6 +2243,18 @@ document.addEventListener("click", (event) => {
     return;
   }
   userRoleFilter = next;
+  userRolePage = 1;
+  renderUserRoleManager();
+});
+
+// 用户管理：搜索（姓名 / 用户ID / 部门）。
+document.addEventListener("input", (event) => {
+  const search = event.target.closest("#adminUserSearch");
+  if (!search) {
+    return;
+  }
+  userRoleSearch = search.value || "";
+  userRolePage = 1;
   renderUserRoleManager();
 });
 
@@ -2275,13 +2344,25 @@ document.addEventListener("click", async (event) => {
 });
 
 document.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-edit-user-role]");
-  if (!button) {
+  const editButton = event.target.closest("[data-edit-user-role]");
+  if (editButton) {
+    const user = userRoleState.users.find((item) => item.id === editButton.dataset.editUserRole);
+    if (user) openUserModal(user);
     return;
   }
-
-  const user = userRoleState.users.find((item) => item.id === button.dataset.editUserRole);
-  fillUserRoleForm(user);
+  if (event.target.closest("[data-add-user]")) {
+    openUserModal(null);
+    return;
+  }
+  if (event.target.closest("[data-close-user-modal]")) {
+    closeUserModal();
+    return;
+  }
+  const pageButton = event.target.closest("[data-user-page]");
+  if (pageButton) {
+    userRolePage += pageButton.dataset.userPage === "next" ? 1 : -1;
+    renderUserRoleManager();
+  }
 });
 
 document.addEventListener("click", (event) => {
