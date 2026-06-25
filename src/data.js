@@ -55,13 +55,21 @@
           throw new Error("Trainee data must be an array.");
         }
 
-        return trainees.map(root.AppLogic.normalizeTrainee);
+        return trainees.map(normalizeTraineeRecord);
       } catch (error) {
         console.warn(error);
       }
     }
 
-    return fallbackTrainees.map(root.AppLogic.normalizeTrainee);
+    return fallbackTrainees.map(normalizeTraineeRecord);
+  }
+
+  function normalizeTraineeRecord(trainee) {
+    if (root.AppLogic && typeof root.AppLogic.normalizeTrainee === "function") {
+      return root.AppLogic.normalizeTrainee(trainee);
+    }
+
+    return trainee;
   }
 
   async function loadAdminState() {
@@ -92,6 +100,36 @@
     }
 
     return fallbackTeams;
+  }
+
+  async function addAdminTeamMember(payload) {
+    return fetchJson("/api/admin/team-members", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload || {}),
+    });
+  }
+
+  async function removeAdminTeamMember(payload) {
+    return fetchJson("/api/admin/team-members", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload || {}),
+    });
+  }
+
+  async function updateAdminTeamStatus(teamId, payload = {}) {
+    return fetchJson(`/api/admin/teams/${encodeURIComponent(teamId)}/status`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload || {}),
+    });
   }
 
   function toCountdownTimestamp(startedAt) {
@@ -595,7 +633,7 @@
       body: JSON.stringify({ sentence }),
     });
 
-    return root.AppLogic.normalizeTrainee(trainee);
+    return normalizeTraineeRecord(trainee);
   }
 
   async function updateTrainee(traineeId, payload) {
@@ -607,7 +645,7 @@
       body: JSON.stringify(payload || {}),
     });
 
-    return root.AppLogic.normalizeTrainee(trainee);
+    return normalizeTraineeRecord(trainee);
   }
 
   async function createTrainee(payload) {
@@ -619,7 +657,7 @@
       body: JSON.stringify(payload || {}),
     });
 
-    return root.AppLogic.normalizeTrainee(trainee);
+    return normalizeTraineeRecord(trainee);
   }
 
   async function deleteTrainee(traineeId) {
@@ -634,6 +672,7 @@
   }
 
   return {
+    addAdminTeamMember,
     createTrainee,
     deleteTrainee,
     fetchJson,
@@ -655,7 +694,9 @@
     publishAdminResults,
     saveSentence,
     submitWork,
+    removeAdminTeamMember,
     upsertAdminUser,
+    updateAdminTeamStatus,
     updateAdminStage,
     updateAdminDisplayTimes,
     updateAdminMissionCountdown,

@@ -1,6 +1,8 @@
 const { createHttpError } = require("./traineeRepository");
 
 const DEFAULT_TEAM_CAPACITY = 5;
+const LOCKED_TEAM_STATUSES = new Set(["locked", "closed"]);
+const WRITABLE_TEAM_STATUSES = new Set(["open", "locked"]);
 
 function normalizeUserId(payload = {}) {
   return String(payload.userId || payload.openId || payload.unionId || "local-player").trim();
@@ -54,6 +56,15 @@ function normalizeMember(payload = {}) {
 function teamCapacity(team = {}) {
   const capacity = Number(team.capacity);
   return Number.isFinite(capacity) && capacity > 0 ? capacity : DEFAULT_TEAM_CAPACITY;
+}
+
+function normalizeTeamStatus(value) {
+  const status = String(value || "").trim().toLowerCase();
+  if (!WRITABLE_TEAM_STATUSES.has(status)) {
+    throw createHttpError(400, "status must be open or locked.");
+  }
+
+  return status;
 }
 
 function memberMatchesUser(member, userId) {
@@ -144,7 +155,7 @@ function createMysqlTeamRepository(pool) {
     return { target, teams: allTeams };
   }
 
-  async function joinTeam(payload = {}) {
+  async function joinTeam(payload = {}, options = {}) {
     const teamId = normalizeId(payload.teamId);
     if (!teamId) {
       throw createHttpError(400, "teamId is required.");
@@ -154,6 +165,10 @@ function createMysqlTeamRepository(pool) {
     const teams = await listTeams();
     const { target } = await findTeamFromList(teamId, teams);
     const targetMembersAfterMove = target.members.filter((item) => !memberMatchesUser(item, member.userId));
+
+    if (!options.bypassStatus && LOCKED_TEAM_STATUSES.has(String(target.status || "open").trim().toLowerCase())) {
+      throw createHttpError(409, `Team ${teamId} is locked.`);
+    }
 
     if (targetMembersAfterMove.length >= teamCapacity(target) - 1) {
       throw createHttpError(409, `Team ${teamId} is already full.`);
@@ -267,11 +282,34 @@ function createMysqlTeamRepository(pool) {
     };
   }
 
+  async function updateTeamStatus(teamId, payload = {}) {
+    const cleanTeamId = normalizeId(teamId || payload.teamId);
+    if (!cleanTeamId) {
+      throw createHttpError(400, "teamId is required.");
+    }
+
+    const status = normalizeTeamStatus(payload.status);
+    await ensureTeamExists(cleanTeamId);
+
+    await pool.execute(
+      "UPDATE teams SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+      [status, cleanTeamId],
+    );
+
+    const nextTeams = await listTeams();
+    return {
+      accepted: true,
+      team: nextTeams.find((team) => team.id === cleanTeamId),
+      teams: nextTeams,
+    };
+  }
+
   return {
     claimRole,
     joinTeam,
     leaveTeam,
     listTeams,
+    updateTeamStatus,
   };
 }
 

@@ -812,6 +812,144 @@ button {
   background: rgba(40, 255, 200, 0.08);
 }
 
+.admin-content-layout {
+  grid-template-columns: minmax(580px, 1.22fr) minmax(340px, 0.78fr);
+}
+
+.admin-trainee-profile-manager {
+  gap: 14px;
+}
+
+.admin-trainee-profile-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  border: 1px solid rgba(103, 255, 213, 0.14);
+  border-radius: var(--radius);
+  padding: 14px;
+  background: rgba(2, 13, 20, 0.5);
+}
+
+.admin-trainee-profile-form label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.admin-trainee-profile-form input[type="text"],
+.admin-trainee-profile-form textarea {
+  min-width: 0;
+  border: 1px solid rgba(103, 255, 213, 0.18);
+  border-radius: 8px;
+  background: rgba(2, 13, 20, 0.82);
+  color: var(--text);
+  font: inherit;
+}
+
+.admin-trainee-profile-form input[type="text"] {
+  min-height: 38px;
+  padding: 0 10px;
+}
+
+.admin-trainee-profile-form textarea {
+  min-height: 58px;
+  resize: vertical;
+  padding: 9px 10px;
+  line-height: 1.5;
+}
+
+.admin-trainee-profile-form input[type="text"]:focus,
+.admin-trainee-profile-form textarea:focus {
+  outline: 0;
+  border-color: rgba(40, 255, 200, 0.58);
+  box-shadow: 0 0 0 2px rgba(40, 255, 200, 0.12);
+}
+
+.admin-trainee-profile-field-wide {
+  grid-column: 1 / -1;
+}
+
+.admin-trainee-profile-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-trainee-profile-list {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.admin-trainee-profile-card,
+.admin-trainee-profile-empty {
+  border: 1px solid rgba(103, 255, 213, 0.16);
+  border-radius: var(--radius);
+  padding: 14px;
+  background:
+    linear-gradient(135deg, rgba(40, 255, 200, 0.07), rgba(255, 255, 255, 0.012)),
+    rgba(5, 18, 22, 0.72);
+}
+
+.admin-trainee-profile-card header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+}
+
+.admin-trainee-profile-card b,
+.admin-trainee-profile-empty b {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text);
+  font-size: 16px;
+}
+
+.admin-trainee-profile-card span,
+.admin-trainee-profile-card p,
+.admin-trainee-profile-empty span {
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.admin-trainee-profile-card p {
+  margin: 10px 0 0;
+}
+
+.admin-trainee-profile-card menu {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+
+.admin-trainee-profile-card button {
+  min-height: 32px;
+  border: 1px solid rgba(40, 255, 200, 0.3);
+  border-radius: 7px;
+  padding: 0 10px;
+  background: rgba(40, 255, 200, 0.08);
+  color: var(--neon);
+  font: inherit;
+  font-size: 12px;
+}
+
+.admin-trainee-profile-card button.is-danger {
+  border-color: rgba(255, 92, 130, 0.38);
+  background: rgba(255, 92, 130, 0.08);
+  color: #ff8eac;
+}
+
+.admin-content-route-grid {
+  grid-template-columns: 1fr;
+}
+
 .panel {
   position: relative;
   min-width: 0;
@@ -1239,6 +1377,87 @@ button {
   flex: 1;
 }
 
+.admin-vote-management-stack {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.admin-vote-window-manager {
+  min-height: 0;
+}
+
+.admin-vote-window-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.72fr);
+  gap: 14px;
+  align-items: stretch;
+  padding: 14px;
+}
+
+.admin-vote-window-state {
+  display: grid;
+  align-content: center;
+  min-width: 0;
+  border: 1px solid rgba(103, 255, 213, 0.14);
+  border-radius: 8px;
+  padding: 13px 14px;
+  background: rgba(2, 13, 20, 0.48);
+}
+
+.admin-vote-window-state span {
+  color: var(--text-soft);
+  font-family: var(--pixel);
+  font-size: 8px;
+}
+
+.admin-vote-window-state strong {
+  overflow: hidden;
+  margin-top: 7px;
+  color: var(--neon);
+  font-size: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-vote-window-state p {
+  margin: 8px 0 0;
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.admin-vote-window-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  min-width: 0;
+}
+
+.admin-vote-window-actions button {
+  min-height: 36px;
+  border: 1px solid rgba(103, 255, 213, 0.22);
+  border-radius: 8px;
+  background: rgba(40, 255, 200, 0.08);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-vote-window-actions button.is-active {
+  border-color: rgba(167, 255, 79, 0.54);
+  background: rgba(167, 255, 79, 0.14);
+  color: var(--neon-2);
+}
+
+.admin-vote-window-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.54;
+}
+
 .admin-data-block {
   display: flex;
   flex-direction: column;
@@ -1621,6 +1840,160 @@ button {
   width: min(280px, 100%);
 }
 
+.admin-team-management-layout {
+  grid-template-columns: minmax(320px, 0.42fr) minmax(620px, 1fr);
+}
+
+.admin-team-control-stack {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  min-width: 0;
+}
+
+.admin-team-status-manager {
+  gap: 14px;
+}
+
+.admin-team-status-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-team-status-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(103, 255, 213, 0.14);
+  border-radius: var(--radius);
+  padding: 12px;
+  background: rgba(2, 13, 20, 0.52);
+}
+
+.admin-team-status-card.is-locked {
+  border-color: rgba(255, 176, 92, 0.34);
+  background: rgba(60, 30, 8, 0.18);
+}
+
+.admin-team-status-card b,
+.admin-team-status-card span,
+.admin-team-status-card small {
+  min-width: 0;
+}
+
+.admin-team-status-card b {
+  display: block;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-team-status-card span {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.admin-team-status-chip {
+  justify-self: start;
+  border: 1px solid rgba(40, 255, 200, 0.24);
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: var(--neon);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.admin-team-status-card.is-locked .admin-team-status-chip {
+  border-color: rgba(255, 176, 92, 0.44);
+  color: #ffcf8b;
+}
+
+.admin-team-status-actions {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(88px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.admin-team-status-actions button {
+  min-height: 34px;
+  border: 1px solid rgba(103, 255, 213, 0.18);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: rgba(40, 255, 200, 0.08);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.admin-team-status-actions button.is-active,
+.admin-team-status-actions button:disabled {
+  opacity: 0.56;
+  cursor: not-allowed;
+}
+
+.admin-team-member-manager {
+  gap: 14px;
+}
+
+.admin-team-member-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  border: 1px solid rgba(103, 255, 213, 0.14);
+  border-radius: var(--radius);
+  padding: 14px;
+  background: rgba(2, 13, 20, 0.5);
+}
+
+.admin-team-member-form label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.admin-team-member-form input[type="text"],
+.admin-team-member-form select {
+  min-height: 38px;
+  min-width: 0;
+  border: 1px solid rgba(103, 255, 213, 0.18);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: rgba(2, 13, 20, 0.82);
+  color: var(--text);
+  font: inherit;
+}
+
+.admin-team-member-form input[type="text"]:focus,
+.admin-team-member-form select:focus {
+  outline: 0;
+  border-color: rgba(40, 255, 200, 0.58);
+  box-shadow: 0 0 0 2px rgba(40, 255, 200, 0.12);
+}
+
+.admin-team-member-field-wide {
+  grid-column: 1 / -1;
+}
+
+.admin-team-member-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-team-roster-panel {
+  min-height: 0;
+}
+
 .admin-team-roster {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1761,7 +2134,7 @@ button {
 
 .admin-team-member {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-columns: 34px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   min-width: 0;
@@ -1792,6 +2165,20 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.admin-team-member-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  border: 1px solid rgba(255, 92, 130, 0.34);
+  border-radius: 7px;
+  padding: 0 9px;
+  background: rgba(255, 92, 130, 0.08);
+  color: #ff8eac;
+  font: inherit;
+  font-size: 12px;
 }
 
 .admin-audit-list {
@@ -2086,7 +2473,16 @@ button {
   .management-split,
   .admin-dashboard-grid,
   .admin-route-grid,
+  .admin-team-status-card,
   .admin-team-roster {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-trainee-profile-form,
+  .admin-trainee-profile-actions,
+  .admin-vote-window-body,
+  .admin-team-member-form,
+  .admin-team-member-actions {
     grid-template-columns: 1fr;
   }
 
@@ -2136,13 +2532,17 @@ button {
   .flow-row,
   .admin-metric-grid,
   .admin-data-columns,
+  .admin-vote-window-body,
   .admin-result-snapshot-card,
   .timer-control-grid,
+  .admin-team-status-card,
+  .admin-team-status-actions,
   .admin-user-role-form,
   .admin-user-role-card header,
   .management-heading,
   .admin-team-card header,
   .admin-team-members,
+  .admin-team-member,
   .admin-control-list article,
   .admin-system-settings article,
   .admin-work-review-card,

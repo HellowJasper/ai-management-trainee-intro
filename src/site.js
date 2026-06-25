@@ -1113,7 +1113,6 @@
   /* ---- 投票状态 ------------------------------------------------------- */
   function renderVote() {
     const permissions = rolePermissions(currentRole());
-    const canVote = permissions.canVote;
     const voted = getTeam(votedTeam());
     const total = D.teams.reduce((s, t) => s + t.votes, 0);
     const max = Math.max(...D.teams.map((t) => t.votes));
@@ -1123,19 +1122,9 @@
       const width = ((t.votes / max) * 100).toFixed(2);
       return `<div class="vote-row ${mine ? "mine" : ""}" style="--accent:${t.accent};--rgb:${t.rgb};--vote-width:${width}%"><span class="vote-rank">${pad(i + 1)}</span><div class="vote-info"><b>${esc(t.name)}${mine ? '<i>我的选择</i>' : ""}</b><em>${esc(t.project)}</em><span class="vote-meter"><i></i></span></div><strong>${t.votes.toLocaleString()}</strong><small>${pct}%</small></div>`;
     }).join("");
-    const cta = !canVote
-      ? `<a class="btn-primary" data-nav="gallery">查看作品展厅</a>`
-      : voted
-      ? `<button class="btn-ghost is-cancel" type="button" data-cancel-vote="${voted.id}">取消投票</button>`
-      : `<a class="btn-primary" data-nav="gallery">去作品展厅加油</a>`;
 
     return `${pageHead("投票状态", "一人一票，投票选择与票数分布实时同步", "VOTE")}
     <section class="container sec vote-board">
-      <div class="vote-overview glass">
-        <div><span class="status-chip ${voted ? "on" : ""}">${!canVote ? "无投票权限" : voted ? "已投票" : "待投票"}</span><h2>${!canVote ? "当前身份不参与大众投票" : voted ? `你已支持「${esc(voted.name)}」` : "尚未投出你的票"}</h2><p>${!canVote ? "参赛选手、专家评委与管理员默认不参与大众投票，仅大众评委可在投票窗口内投一次。" : voted ? esc(voted.project) : "进入作品展厅查看详情后，为最想支持的团队投出一票。"}</p></div>
-        <div class="vote-total"><span>当前总票数</span><b>${total.toLocaleString()}</b></div>
-        ${cta}
-      </div>
       <div class="vote-rule glass"><span class="status-chip">规则</span><p>每位用户仅可投一票；大众投票按票数排名转换为赋分，并以 30% 权重计入最终综合得分。</p></div>
       <div class="vote-list">${rows}</div>
     </section>`;
@@ -1265,10 +1254,45 @@
     });
   }
 
+  function renderOverviewBanner() {
+    const permissions = rolePermissions(currentRole());
+    const canVote = permissions.canVote;
+    const voted = getTeam(votedTeam());
+
+    const chipText = !canVote ? "无投票权限" : voted ? "已投票" : "待投票";
+    const chipClass = voted ? "on" : "";
+    const titleText = !canVote ? "当前身份不参与大众投票" : voted ? "已投票" : "尚未投票";
+
+    let descText = "";
+    if (!canVote) {
+      descText = "参赛选手、专家评委与管理员默认不参与大众投票，仅大众评委可在投票窗口内投一次。";
+    } else if (voted) {
+      descText = `你已支持「${esc(voted.name)}」${voted.project ? ` · ${esc(voted.project)}` : ""}`;
+    }
+
+    const cta = !canVote
+      ? `<a class="btn-primary" data-nav="gallery">查看作品展厅</a>`
+      : voted
+      ? `<button class="btn-ghost is-cancel" type="button" data-cancel-vote="${voted.id}">取消投票</button>`
+      : `<a class="btn-primary" data-nav="gallery">去作品展厅</a>`;
+
+    return `<div class="vote-overview glass">
+      <div>
+        <span class="status-chip ${chipClass}">${chipText}</span>
+        <h2>${titleText}</h2>
+        ${descText ? `<p>${descText}</p>` : ""}
+      </div>
+      ${cta}
+    </div>`;
+  }
+
   /* ---- 最终排行（仅公布后显示）-------------------------------------- */
   function renderResult(forcePreview) {
     const resultSubtitle = "创新与价值并重，共同见证最终荣誉的诞生";
-    const resultHead = (title, subtitle = resultSubtitle) => `<section class="page-hero result-hero"><div class="container"><span class="ph-en">RESULT <i>RANKING</i></span><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div></section>`;
+    const resultHead = (title, subtitle = resultSubtitle) => {
+      const overviewHtml = renderOverviewBanner();
+      return `<section class="page-hero result-hero"><div class="container">${overviewHtml}<h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div></section>`;
+    };
     if (PHASE !== "published" && !forcePreview) {
       return `${resultHead("排行榜")}
       <section class="container sec"><div class="rk-locked glass"><span class="rk-lock-ic">${ICON("lock", "var(--neon)")}</span><h2>结果待公布</h2><p>投票尚未结束，排行榜将在颁奖环节由现场统一揭晓。<br>当前请前往作品展厅，为你支持的团队投票。</p><div class="rk-locked-cta"><a class="btn-primary" data-nav="gallery">去作品展厅加油</a><button class="btn-ghost" data-preview="1">预览排行榜（演示）</button></div></div></section>`;
@@ -1282,7 +1306,7 @@
       const delay = (t.rank - 1) * 120;
       return `<div class="rk-row glass ${champ ? "champ" : ""}" style="--accent:${t.accent};--rgb:${t.rgb};--score-width:${scoreWidth}%;--rank-delay:${delay}ms"><span class="rk-no ${t.rank <= 3 ? "top" : ""}">${champ ? "🏆" : pad(t.rank)}</span><div class="rk-id"><b>${esc(t.name)}${champ ? '<i class="rk-crown">Grand Prize · 冠军战队</i>' : ""}</b><span>${esc(t.track)} · ${esc(t.project)}</span></div><div class="rk-avas">${avas}</div><div class="rk-bar"><span class="meter" style="--accent:${t.accent};--rgb:${t.rgb}"><i></i></span></div><div class="rk-mini"><span>专家 ${t.expert}</span><span>赋分 ${t.votePoint}</span></div><span class="rk-total">${t.total}</span></div>`;
     }).join("");
-    return `${resultHead("排行榜")}<section class="container sec result-sec"><div class="result-board-heading"><span>排行榜</span><strong>FINAL RANKING</strong></div><div class="rk-list">${rows}</div></section>`;
+    return `${resultHead("排行榜")}<section class="container sec result-sec"><div class="rk-list">${rows}</div></section>`;
   }
   function renderNoPermission(title, message, target) {
     return `${pageHead(title, message, "ACCESS CONTROL")}

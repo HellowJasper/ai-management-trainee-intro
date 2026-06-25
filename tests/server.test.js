@@ -534,6 +534,109 @@ test("auth APIs create local role sessions and resolve /api/me from cookie", asy
   assert.deepEqual(afterLogout.permissions, []);
 });
 
+test("Feishu OAuth start reports missing config before redirecting users", async (t) => {
+  const server = createServer({ publicRoot: await fs.mkdtemp(path.join(os.tmpdir(), "ai-oauth-missing-")) });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/auth/feishu/start`);
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.configured, false);
+  assert.equal(payload.provider, "feishu");
+  assert.equal(payload.reason, "missing-oauth-config");
+});
+
+test("Feishu OAuth callback creates a session from mapped Feishu user info", async (t) => {
+  const userRolesFile = await createTempJsonFile("ai-oauth-user-roles-", "user-roles.json", {
+    users: [
+      {
+        id: "feishu-user-001",
+        openId: "ou_oauth_001",
+        unionId: "on_oauth_001",
+        name: "飞书评委",
+        department: "评审组",
+        roles: ["judge"],
+        status: "active",
+      },
+    ],
+  });
+  const sessionsFile = await createTempJsonFile("ai-oauth-sessions-", "sessions.json", { sessions: {} });
+  const states = new Map();
+  const oauthStateRepository = {
+    async createState(payload) {
+      const state = `state-${states.size + 1}`;
+      states.set(state, { ...payload, state });
+      return { ...payload, state };
+    },
+    async consumeState(state) {
+      const stored = states.get(state) || null;
+      states.delete(state);
+      return stored;
+    },
+  };
+  const feishuOAuthProvider = {
+    configured: true,
+    createAuthorizationUrl({ state, redirectUri }) {
+      return `https://feishu.test/oauth?state=${encodeURIComponent(state)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    },
+    async exchangeCodeForUser({ code }) {
+      assert.equal(code, "oauth-code-001");
+      return {
+        id: "feishu-user-001",
+        openId: "ou_oauth_001",
+        unionId: "on_oauth_001",
+        name: "飞书评委",
+        department: "评审组",
+        avatar: "https://feishu.test/avatar.png",
+      };
+    },
+  };
+  const server = createServer({
+    publicRoot: userRolesFile.publicRoot,
+    userRoleRepository: createUserRoleRepository(userRolesFile.dataPath),
+    authSessionRepository: createAuthSessionRepository(sessionsFile.dataPath),
+    oauthStateRepository,
+    feishuOAuthProvider,
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const startResponse = await fetch(`${baseUrl}/api/auth/feishu/start?redirect=/site.html%23me`, {
+    redirect: "manual",
+  });
+  const location = startResponse.headers.get("location");
+  const state = new URL(location).searchParams.get("state");
+
+  assert.equal(startResponse.status, 302);
+  assert.match(location, /^https:\/\/feishu\.test\/oauth/);
+  assert.ok(state);
+
+  const callbackResponse = await fetch(`${baseUrl}/api/auth/feishu/callback?code=oauth-code-001&state=${state}`, {
+    redirect: "manual",
+  });
+  const setCookie = callbackResponse.headers.get("set-cookie");
+
+  assert.equal(callbackResponse.status, 302);
+  assert.equal(callbackResponse.headers.get("location"), "/site.html#me");
+  assert.match(setCookie, /joincare_session=/);
+
+  const meResponse = await fetch(`${baseUrl}/api/me`, {
+    headers: { Cookie: setCookie.split(";")[0] },
+  });
+  const me = await meResponse.json();
+
+  assert.equal(me.role, "judge");
+  assert.deepEqual(me.roles, ["judge"]);
+  assert.equal(me.source, "feishu-oauth");
+  assert.equal(me.user.openId, "ou_oauth_001");
+  assert.equal(me.user.name, "飞书评委");
+  assert.equal(me.permissions.canScore, true);
+});
+
 test("admin user role API maps Feishu login users to backend roles", async (t) => {
   const userRolesFile = await createTempJsonFile("ai-user-roles-", "user-roles.json", {
     users: [],
@@ -858,6 +961,136 @@ test("team action APIs persist joins, role claims, and leaves", async (t) => {
 
   const storedAfterLeave = JSON.parse(await fs.readFile(dataPath, "utf8"));
   assert.equal(storedAfterLeave[0].members.length, 0);
+});
+
+test("admin team member API lets admins add and remove roster members", async (t) => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-admin-team-members-"));
+  const dataPath = path.join(tempDir, "teams.json");
+  const auditLogPath = path.join(tempDir, "audit-logs.json");
+  await fs.writeFile(dataPath, `${JSON.stringify([
+    {
+      id: "marketing",
+      name: "营销",
+      capacity: 3,
+      advisor: { name: "赛道顾问 C", role: "赛道顾问" },
+      members: [],
+    },
+  ], null, 2)}\n`);
+  await fs.writeFile(auditLogPath, `${JSON.stringify({ logs: [] }, null, 2)}\n`);
+
+  const teamRepository = createTeamRepository(dataPath);
+  const auditLogRepository = createAuditLogRepository(auditLogPath);
+  const server = createServer({ publicRoot: tempDir, teamRepository, auditLogRepository });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const addResponse = await fetch(`${baseUrl}/api/admin/team-members`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      teamId: "marketing",
+      userId: "admin-added-001",
+      name: "后台补位选手",
+      department: "AI创新部",
+      roleKey: "pm",
+      duty: "产品策划",
+      actor: "admin-ui",
+    }),
+  });
+  const addPayload = await addResponse.json();
+
+  assert.equal(addResponse.status, 200);
+  assert.equal(addPayload.accepted, true);
+  assert.equal(addPayload.member.name, "后台补位选手");
+  assert.equal(addPayload.member.roleKey, "pm");
+  assert.equal(addPayload.team.members.length, 1);
+
+  const storedAfterAdd = JSON.parse(await fs.readFile(dataPath, "utf8"));
+  assert.equal(storedAfterAdd[0].members[0].userId, "admin-added-001");
+
+  const removeResponse = await fetch(`${baseUrl}/api/admin/team-members`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      teamId: "marketing",
+      userId: "admin-added-001",
+      actor: "admin-ui",
+    }),
+  });
+  const removePayload = await removeResponse.json();
+
+  assert.equal(removeResponse.status, 200);
+  assert.equal(removePayload.accepted, true);
+  assert.equal(removePayload.team.members.length, 0);
+
+  const storedAfterRemove = JSON.parse(await fs.readFile(dataPath, "utf8"));
+  assert.equal(storedAfterRemove[0].members.length, 0);
+
+  const auditState = JSON.parse(await fs.readFile(auditLogPath, "utf8"));
+  assert.deepEqual(
+    auditState.logs.map((entry) => entry.action),
+    ["team.member.removed", "team.member.added"],
+  );
+});
+
+test("admin team status API locks a track and blocks later joins", async (t) => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-admin-team-status-"));
+  const dataPath = path.join(tempDir, "teams.json");
+  const auditLogPath = path.join(tempDir, "audit-logs.json");
+  await fs.writeFile(dataPath, `${JSON.stringify([
+    {
+      id: "marketing",
+      name: "营销",
+      status: "open",
+      capacity: 3,
+      advisor: { name: "赛道顾问 C", role: "赛道顾问" },
+      members: [],
+    },
+  ], null, 2)}\n`);
+  await fs.writeFile(auditLogPath, `${JSON.stringify({ logs: [] }, null, 2)}\n`);
+
+  const teamRepository = createTeamRepository(dataPath);
+  const auditLogRepository = createAuditLogRepository(auditLogPath);
+  const server = createServer({ publicRoot: tempDir, teamRepository, auditLogRepository });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const lockResponse = await fetch(`${baseUrl}/api/admin/teams/marketing/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      status: "locked",
+      actor: "admin-ui",
+    }),
+  });
+  const lockPayload = await lockResponse.json();
+
+  assert.equal(lockResponse.status, 200);
+  assert.equal(lockPayload.team.status, "locked");
+
+  const joinResponse = await fetch(`${baseUrl}/api/team/join`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      teamId: "marketing",
+      userId: "player-locked-out",
+      name: "被锁定拦截的选手",
+    }),
+  });
+  const joinPayload = await joinResponse.json();
+
+  assert.equal(joinResponse.status, 409);
+  assert.match(joinPayload.error.message, /locked/);
+
+  const stored = JSON.parse(await fs.readFile(dataPath, "utf8"));
+  assert.equal(stored[0].status, "locked");
+  assert.equal(stored[0].members.length, 0);
+
+  const auditState = JSON.parse(await fs.readFile(auditLogPath, "utf8"));
+  assert.equal(auditState.logs[0].action, "team.status.updated");
+  assert.equal(auditState.logs[0].targetId, "marketing");
 });
 
 test("vote APIs persist one vote per user and update ranked results", async (t) => {
