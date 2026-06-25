@@ -925,20 +925,45 @@ function renderAdminUserMenu() {
     return;
   }
 
-  const role = currentAdminSessionState.role || "local-admin";
-  const source = currentAdminSessionState.source || "local";
+  const user = currentAdminSessionState.user || {};
+  const cur = currentAdminSessionState.role || "";
+  const roles = (Array.isArray(currentAdminSessionState.roles) ? currentAdminSessionState.roles : [])
+    .filter((r) => ["public", "player", "judge", "admin"].includes(r));
   const userName = getAdminUserDisplayName();
 
   setText(adminUserName, userName);
-  adminUserMenuButton?.setAttribute("aria-label", `当前管理员：${userName}`);
+  adminUserMenuButton?.setAttribute("aria-label", `当前用户：${userName}`);
+
+  // 按钮头像：与 site 一致，显示真实头像，无则首字。
+  const avatarEl = adminUserMenuButton?.querySelector(".user-avatar");
+  if (avatarEl) {
+    if (user.avatar) {
+      avatarEl.style.backgroundImage = `url('${user.avatar}')`;
+      avatarEl.textContent = "";
+      avatarEl.classList.add("has-img");
+    } else {
+      avatarEl.style.backgroundImage = "";
+      avatarEl.classList.remove("has-img");
+      avatarEl.textContent = String(userName || "?").slice(0, 1);
+    }
+  }
+
+  const rolesHtml = roles.length > 1
+    ? `<div class="topbar-menu-roles">
+        <span class="topbar-menu-roles-label">切换角色</span>
+        ${roles.map((r) => `<button type="button" data-admin-switch-role="${escapeHtml(r)}" class="${r === cur ? "on" : ""}">${escapeHtml(getAdminRoleLabel(r))}${r === cur ? "<i>当前</i>" : ""}</button>`).join("")}
+      </div>`
+    : "";
+
   adminUserMenu.innerHTML = `
     <div class="topbar-menu-item">
       <b>${escapeHtml(userName)}</b>
-      <small>${escapeHtml(role)} · ${escapeHtml(source)}</small>
+      <small>${escapeHtml(getAdminRoleLabel(cur) || "未选择角色")}${user.id ? ` · ${escapeHtml(user.id)}` : ""}</small>
     </div>
+    ${rolesHtml}
     <button type="button" class="is-danger" data-admin-logout>
-      <b>退出当前会话</b>
-      <small>清理后台登录 Cookie，并刷新当前身份状态。</small>
+      <b>退出登录</b>
+      <small>清理登录态并返回用户站。</small>
     </button>
   `;
 }
@@ -1554,8 +1579,9 @@ async function loadCurrentAdminUser() {
   try {
     const session = await window.AppData.loadCurrentUser();
     currentAdminSessionState = {
-      user: session?.user || { name: "admin" },
-      role: session?.role || "admin",
+      user: session?.user || { name: "管理员" },
+      role: session?.role || "",
+      roles: Array.isArray(session?.roles) ? session.roles : [],
       source: session?.source || "local",
       permissions: session?.permissions || {},
     };
@@ -1574,19 +1600,33 @@ async function loadCurrentAdminUser() {
 async function logoutCurrentAdminUser() {
   try {
     await window.AppData.logoutCurrentUser();
-    currentAdminSessionState = {
-      user: { name: "admin" },
-      role: "admin",
-      source: "logged-out",
-      permissions: {},
-    };
-    renderTopbarMenus();
-    renderSystemSettings();
-    addLog("admin", "退出当前后台会话");
+    addLog("admin", "退出登录");
     closeTopbarMenus();
+    // 退出后已无 admin 会话，留在后台会被守卫拦截 —— 直接回用户站。
+    window.location.href = "/site";
   } catch (error) {
     console.warn("Admin logout failed.", error);
     addLog("system", "同步失败：退出登录未完成");
+  }
+}
+
+async function switchAdminRole(role) {
+  if (!["public", "player", "judge", "admin"].includes(role) || role === currentAdminSessionState.role) {
+    closeTopbarMenus();
+    return;
+  }
+  try {
+    await window.AppData.fetchJson("/api/auth/role", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role }),
+    });
+    closeTopbarMenus();
+    await loadCurrentAdminUser();
+    addLog("admin", `切换当前角色为【${getAdminRoleLabel(role)}】`);
+  } catch (error) {
+    console.warn("Switch role failed.", error);
+    addLog("system", "同步失败：角色切换未完成");
   }
 }
 
@@ -2276,6 +2316,11 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("click", async (event) => {
+  const switchRoleButton = event.target.closest("[data-admin-switch-role]");
+  if (switchRoleButton) {
+    await switchAdminRole(switchRoleButton.dataset.adminSwitchRole);
+    return;
+  }
   const logoutButton = event.target.closest("[data-admin-logout]");
   if (!logoutButton) {
     return;
