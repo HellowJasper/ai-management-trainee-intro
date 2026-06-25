@@ -1667,7 +1667,7 @@ test("admin / screen / big-screen pages require an admin session", async (t) => 
   t.after(() => new Promise((resolve) => server.close(resolve)));
 
   // 非管理员访问受限页 → 302 跳回用户站并带 denied 标记。
-  for (const target of ["/admin", "/screen", "/index.html", "/?screen=big"]) {
+  for (const target of ["/admin", "/screen", "/index", "/index.html"]) {
     const denied = await fetch(`${baseUrl}${target}`, { redirect: "manual" });
     assert.equal(denied.status, 302, `${target} should redirect non-admins`);
     assert.match(denied.headers.get("location"), /\/site\.html\?denied=1/);
@@ -1687,7 +1687,7 @@ test("admin / screen / big-screen pages require an admin session", async (t) => 
   assert.match(response.headers.get("content-type"), /text\/html/);
   assert.match(html, /AI 星锐黑客松 管理后台/);
   assert.match(html, /id="stageRows"/);
-  assert.match(html, /src="\.\/src\/admin\.js\?v=20260625-admin-user"/);
+  assert.match(html, /src="\.\/src\/admin\.js\?v=20260625-index-nav"/);
 });
 
 test("root serves the user site for everyone; big screen stays admin-only", async (t) => {
@@ -1709,14 +1709,14 @@ test("root serves the user site for everyone; big screen stays admin-only", asyn
     assert.match(html, /src\/site\.js/);
   }
 
-  // 管理员登录后通过 /?screen=big 进入大屏。
+  // 管理员登录后通过 /index 进入大屏。
   const login = await fetch(`${baseUrl}/api/auth/feishu/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ role: "admin", userId: "admin-root-1", name: "管理员" }),
   });
   const cookie = login.headers.get("set-cookie").split(";")[0];
-  const big = await fetch(`${baseUrl}/?screen=big`, { headers: { Cookie: cookie } });
+  const big = await fetch(`${baseUrl}/index`, { headers: { Cookie: cookie } });
   const bigHtml = await big.text();
 
   assert.equal(big.status, 200);

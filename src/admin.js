@@ -968,19 +968,20 @@ function renderAdminUserMenu() {
   `;
 }
 
+const TOPBAR_NAV = [
+  { name: "用户站", route: "/site", note: "选手 / 评委 / 观众入口" },
+  { name: "主会场大屏", route: "/index", note: "现场实时大屏" },
+  { name: "演示大屏", route: "/screen", note: "赛事流程演示 Deck" },
+];
+
 function renderTopbarMenus() {
   if (screenQuickMenu) {
-    screenQuickMenu.innerHTML = pageRoutes
-      .filter((item) => ["/", "/site.html", "/screen.html", "/admin", "/api/health"].includes(item.route))
-      .map((item) => {
-        const href = resolveAdminRouteHref(item.route);
-        return `
-          <a href="${escapeHtml(href)}" target="_blank" rel="noreferrer">
-            <b>${escapeHtml(item.name)}</b>
-            <small>${escapeHtml(item.route)} · ${escapeHtml(item.note)}</small>
-          </a>
-        `;
-      }).join("");
+    screenQuickMenu.innerHTML = TOPBAR_NAV.map((item) => `
+      <a href="${escapeHtml(item.route)}" target="_blank" rel="noreferrer">
+        <b>${escapeHtml(item.name)}</b>
+        <small>${escapeHtml(item.route)} · ${escapeHtml(item.note)}</small>
+      </a>
+    `).join("");
   }
 
   renderAdminUserMenu();

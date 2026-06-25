@@ -198,8 +198,7 @@ function resolveProtectedPageKey(request, url) {
   const key = pathname.replace(/\/$/, "") || "/";
   if (key === "/admin" || key === "/admin.html") return "admin";
   if (key === "/screen" || key === "/screen.html") return "screen";
-  if (key === "/index.html") return "index";
-  if (key === "/" && url.searchParams.get("screen") === "big") return "index";
+  if (key === "/index" || key === "/index.html") return "index";
   return "";
 }
 
@@ -213,18 +212,6 @@ function sanitizePagePath(value, fallback = "/site.html") {
     return fallback;
   }
   return raw.split("#")[0].split("?")[0] || fallback;
-}
-
-function isMobileRootRequest(request, url) {
-  if (url.pathname !== "/" || url.searchParams.get("screen") === "big") {
-    return false;
-  }
-
-  const userAgent = String(request.headers["user-agent"] || "");
-  const mobileClientHint = String(request.headers["sec-ch-ua-mobile"] || "");
-
-  return mobileClientHint.includes("?1")
-    || /\b(Android|iPhone|iPad|iPod|Mobile|MicroMessenger|Lark|Feishu)\b/i.test(userAgent);
 }
 
 async function routeApi(
@@ -1077,11 +1064,11 @@ function serveStatic(request, response, url, publicRoot) {
 
   const decodedPathname = decodePathname(url.pathname);
   let requestPath = decodedPathname;
-  // 默认路由：根直接进用户站；/?screen=big 才是大屏；其余 /admin、/site、/screen 映射到对应 .html。
-  const PAGE_ALIASES = { "/admin": "/admin.html", "/site": "/site.html", "/screen": "/screen.html" };
+  // 默认路由：根直接进用户站；其余 /admin、/site、/screen、/index 映射到对应 .html。
+  const PAGE_ALIASES = { "/admin": "/admin.html", "/site": "/site.html", "/screen": "/screen.html", "/index": "/index.html" };
   const aliasKey = decodedPathname.replace(/\/$/, "") || "/";
   if (decodedPathname === "/") {
-    requestPath = url.searchParams.get("screen") === "big" ? "/index.html" : "/site.html";
+    requestPath = "/site.html";
   } else if (PAGE_ALIASES[aliasKey]) {
     requestPath = PAGE_ALIASES[aliasKey];
   }
