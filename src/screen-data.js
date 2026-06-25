@@ -124,11 +124,11 @@
 
   // ---- 五维评审维度 ---------------------------------------------------
   const DIMENSIONS = [
-    { label: "创新性", en: "INNOVATION", weight: 25 },
-    { label: "技术实现", en: "ENGINEERING", weight: 25 },
-    { label: "业务价值", en: "BUSINESS VALUE", weight: 25 },
-    { label: "可行性", en: "FEASIBILITY", weight: 15 },
-    { label: "演示表现", en: "PRESENTATION", weight: 10 },
+    { key: "innovation", label: "创新性", en: "INNOVATION", weight: 25 },
+    { key: "engineering", label: "技术实现", en: "ENGINEERING", weight: 25 },
+    { key: "business", label: "业务价值", en: "BUSINESS VALUE", weight: 25 },
+    { key: "feasibility", label: "可行性", en: "FEASIBILITY", weight: 15 },
+    { key: "presentation", label: "演示表现", en: "PRESENTATION", weight: 10 },
   ];
 
   // ---- 排名赋分规则 ---------------------------------------------------

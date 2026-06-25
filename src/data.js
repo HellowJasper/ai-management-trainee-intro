@@ -454,6 +454,26 @@
     }
   }
 
+  async function loadJudgeProgress(fallback = { judges: [], teams: [], judgeCount: 0, teamCount: 0, locked: false }) {
+    try {
+      const payload = await fetchJson("/api/admin/judge/progress");
+      return payload && typeof payload === "object" ? payload : fallback;
+    } catch (error) {
+      console.warn(error);
+      return fallback;
+    }
+  }
+
+  async function lockJudgeScores(payload = {}) {
+    return fetchJson("/api/admin/judge/lock", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload || {}),
+    });
+  }
+
   async function loadAuditLogs(fallback = { logs: [] }) {
     try {
       const payload = await fetchJson("/api/admin/audit-logs");
@@ -695,6 +715,7 @@
     loadHealth,
     loadAdminUsers,
     loadSiteBootstrap,
+    loadJudgeProgress,
     loadJudgeScores,
     loadLatestResultSnapshot,
     loadMissionCountdown,
@@ -705,6 +726,7 @@
     loadWorks,
     loadCurrentUser,
     loginWithFeishu,
+    lockJudgeScores,
     logoutCurrentUser,
     publishAdminResults,
     saveSentence,

@@ -1610,9 +1610,9 @@
       </article>`;
     }).join("");
 
-    return `${pageHead("评委评分", "五维评分接入后端草稿与正式提交；提交后不可修改，管理员锁定后进入最终核算。", "JUDGE")}
+    return `${pageHead("评委评分", "五维评分接入后端暂存与正式提交；提交后不可修改，管理员锁定后进入最终核算。", "JUDGE")}
     <section class="container sec judge-board">
-      <div class="judge-toolbar glass"><div><span class="status-chip on">专家评分</span><h2>评委评分表</h2><p>拖动滑杆完成 0-100 分五维评分；保存为草稿不计入结果，正式提交后进入后台评审进度。</p></div><div class="judge-actions"><span class="judge-sync-status" data-judge-status>等待同步</span><button class="judge-save" data-judge-save>保存草稿</button><button class="judge-save judge-submit" data-judge-submit>正式提交</button></div></div>
+      <div class="judge-toolbar glass"><div><span class="status-chip on">专家评分</span><h2>评委评分表</h2><p>拖动滑杆完成 0-100 分五维评分；暂存评分不计入结果，正式提交后进入后台评审进度。</p></div><div class="judge-actions"><span class="judge-sync-status" data-judge-status>等待同步</span><button class="judge-save" data-judge-save>暂存评分</button><button class="judge-save judge-submit" data-judge-submit>正式提交</button></div></div>
       <div class="judge-head">${head}</div>
       <div class="judge-list">${rows}</div>
     </section>`;
@@ -2141,25 +2141,159 @@
     refreshCurrentView({ preserveScroll: true });
   }
 
+  const judgeStatusText = (status) => ({
+    draft: "草稿未提交",
+    submitted: "已提交，等待管理员锁定",
+    locked: "评分已锁定",
+    missing: "待评分",
+    pending: "待评分",
+  }[status] || "待评分");
+
+  function setJudgeSyncStatus(text, tone) {
+    const el = doc.querySelector("[data-judge-status]");
+    if (!el) return;
+    el.textContent = text;
+    el.dataset.tone = tone || "";
+  }
+
+  function setJudgeRowReadonly(row, readonly) {
+    row.classList.toggle("is-readonly", readonly);
+    row.querySelectorAll("[data-score]").forEach((input) => {
+      input.disabled = readonly;
+    });
+  }
+
+  function applyJudgeRemoteState(payload = {}) {
+    JUDGE_REMOTE_STATE = payload || null;
+    const remoteTeams = payload.teams || {};
+    let readonlyCount = 0;
+    let rowCount = 0;
+
+    doc.querySelectorAll("[data-judge-row]").forEach((row) => {
+      const teamId = row.dataset.judgeRow;
+      const record = remoteTeams[teamId] || {};
+      const status = record.status || (payload.scores && payload.scores[teamId] ? "draft" : "missing");
+      const readonly = status === "submitted" || status === "locked";
+      const scores = record.scores || (payload.scores && payload.scores[teamId]) || {};
+      row.dataset.judgeStatus = status;
+      row.classList.toggle("is-submitted", status === "submitted");
+      row.classList.toggle("is-locked", status === "locked");
+      setJudgeRowReadonly(row, readonly);
+      if (readonly) readonlyCount += 1;
+      rowCount += 1;
+
+      row.querySelectorAll("[data-score]").forEach((input) => {
+        const [, dimKey] = String(input.dataset.score || "").split(":");
+        if (scores && Object.prototype.hasOwnProperty.call(scores, dimKey)) {
+          input.value = scores[dimKey];
+          updateJudgeRange(input);
+        }
+      });
+
+      const statusEl = row.querySelector("[data-judge-row-status]");
+      if (statusEl) {
+        const total = Number(record.totalScore);
+        statusEl.textContent = Number.isFinite(total)
+          ? `${judgeStatusText(status)} · 综合 ${total.toFixed(2)}`
+          : judgeStatusText(status);
+      }
+    });
+
+    const saveButton = doc.querySelector("[data-judge-save]");
+    const submitButton = doc.querySelector("[data-judge-submit]");
+    const allReadonly = rowCount > 0 && readonlyCount === rowCount;
+    if (saveButton) saveButton.disabled = allReadonly;
+    if (submitButton) submitButton.disabled = allReadonly;
+    if (allReadonly) {
+      setJudgeSyncStatus("已提交/锁定", "locked");
+    } else if (payload.updatedAt) {
+      setJudgeSyncStatus("已同步草稿", "synced");
+    } else {
+      setJudgeSyncStatus("可编辑", "draft");
+    }
+  }
+
+  async function loadJudgeScoresIntoPage() {
+    if (!SiteRoleApi.loadMyJudgeScores) return;
+    setJudgeSyncStatus("正在同步", "syncing");
+    try {
+      const payload = await SiteRoleApi.loadMyJudgeScores();
+      applyJudgeRemoteState(payload);
+    } catch (error) {
+      console.warn("Judge score load failed.", error);
+      setJudgeSyncStatus("本地草稿模式", "local");
+      doc.querySelectorAll("[data-score]").forEach(updateJudgeRange);
+    }
+  }
+
+  function setupJudgePage() {
+    doc.querySelectorAll("[data-score]").forEach(updateJudgeRange);
+    loadJudgeScoresIntoPage();
+  }
+
+  function collectJudgeScorePayload({ editableOnly = true } = {}) {
+    const draft = {};
+    const teamIds = [];
+    doc.querySelectorAll("[data-judge-row]").forEach((row) => {
+      const teamId = row.dataset.judgeRow;
+      if (!teamId) return;
+      if (editableOnly && ["submitted", "locked"].includes(row.dataset.judgeStatus)) return;
+      teamIds.push(teamId);
+      row.querySelectorAll("[data-score]").forEach((input) => {
+        const [, dim] = String(input.dataset.score || "").split(":");
+        if (!dim) return;
+        const value = input.value === "" ? "" : Math.max(0, Math.min(100, +input.value || 0));
+        if (!draft[teamId]) draft[teamId] = {};
+        draft[teamId][dim] = value;
+        input.value = value;
+        updateJudgeRange(input);
+      });
+    });
+    return { scores: draft, teamIds: Array.from(new Set(teamIds)) };
+  }
+
   async function saveJudgeDraft() {
     if (!requireRole("judge", (p) => p.canScore, "只有专家评委可以保存评分")) return;
-    const draft = {};
-    doc.querySelectorAll("[data-score]").forEach((input) => {
-      const [teamId, dim] = String(input.dataset.score || "").split(":");
-      if (!teamId) return;
-      const value = input.value === "" ? "" : Math.max(0, Math.min(100, +input.value || 0));
-      if (!draft[teamId]) draft[teamId] = {};
-      draft[teamId][dim] = value;
-      input.value = value;
-      updateJudgeRange(input);
-    });
-    try {
-      await SiteRoleApi.saveJudgeScores(draft);
-    } catch (e) {
-      // 后端未接入时使用本地评分草稿。
+    const payload = collectJudgeScorePayload({ editableOnly: true });
+    if (!payload.teamIds.length) {
+      toast("当前评分已提交或锁定，不能再暂存评分");
+      return;
     }
-    root.localStorage.setItem(JUDGE_KEY, JSON.stringify(draft));
-    toast("评分草稿已保存");
+    root.localStorage.setItem(JUDGE_KEY, JSON.stringify(payload.scores));
+    try {
+      setJudgeSyncStatus("保存中", "syncing");
+      await SiteRoleApi.saveJudgeDraft(payload);
+      await loadJudgeScoresIntoPage();
+      toast("评分已暂存到后端");
+    } catch (e) {
+      console.warn("Judge score draft save failed.", e);
+      setJudgeSyncStatus("本地草稿已保存", "local");
+      toast("评分草稿已保存在本地");
+    }
+  }
+
+  async function submitJudgeScores() {
+    if (!requireRole("judge", (p) => p.canScore, "只有专家评委可以提交评分")) return;
+    const payload = collectJudgeScorePayload({ editableOnly: true });
+    if (!payload.teamIds.length) {
+      toast("当前评分已提交或锁定");
+      return;
+    }
+    const confirmed = typeof root.confirm === "function"
+      ? root.confirm("正式提交后将无法修改评分，确认提交吗？")
+      : true;
+    if (!confirmed) return;
+    root.localStorage.setItem(JUDGE_KEY, JSON.stringify(payload.scores));
+    try {
+      setJudgeSyncStatus("提交中", "syncing");
+      await SiteRoleApi.submitJudgeScores(payload);
+      await loadJudgeScoresIntoPage();
+      toast("评分已正式提交");
+    } catch (e) {
+      console.warn("Judge score submit failed.", e);
+      setJudgeSyncStatus("提交失败", "error");
+      toast(e.status === 409 ? "请先补齐所有评分维度" : "评分提交失败，请稍后重试");
+    }
   }
   function updateJudgeRange(input) {
     if (!input || !input.dataset || !input.dataset.score) return;
@@ -2245,6 +2379,7 @@
       const submitWork = e.target.closest("[data-submit-work]");
       const roleClaim = e.target.closest("[data-role-claim]");
       const judgeSave = e.target.closest("[data-judge-save]");
+      const judgeSubmit = e.target.closest("[data-judge-submit]");
       const mobileTrainee = e.target.closest("[data-mobile-trainee]");
       const mobileDetailClose = e.target.closest("[data-mobile-detail-close]");
       const authFeishu = e.target.closest("[data-auth-feishu]");
@@ -2299,6 +2434,7 @@
         return;
       }
       if (teamWorkspace) { showTeamWorkspace(teamWorkspace.dataset.teamWorkspace); return; }
+      if (judgeSubmit) { submitJudgeScores(); return; }
       if (judgeSave) { saveJudgeDraft(); return; }
       if (work) { showWork(work.dataset.work); return; }
       if (nav) { e.preventDefault(); go(nav.dataset.nav); return; }

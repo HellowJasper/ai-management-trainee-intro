@@ -118,6 +118,7 @@ const adminVoteWindowState = document.querySelector("#adminVoteWindowState");
 const adminWorkStatus = document.querySelector("#adminWorkStatus");
 const adminWorkList = document.querySelector("#adminWorkList");
 const adminJudgeSummary = document.querySelector("#adminJudgeSummary");
+const adminJudgeProgress = document.querySelector("#adminJudgeProgress");
 const adminResultSnapshotStatus = document.querySelector("#adminResultSnapshotStatus");
 const adminResultSnapshot = document.querySelector("#adminResultSnapshot");
 const adminNavButtons = [...document.querySelectorAll("[data-admin-nav]")];
@@ -184,6 +185,7 @@ let businessDataState = {
   voteResults: { results: [] },
   works: [],
   judgeScores: { scores: {} },
+  judgeProgress: { judges: [], teams: [], judgeCount: 0, teamCount: 0, locked: false },
   auditLogs: [],
   resultSnapshot: null,
 };
@@ -320,7 +322,25 @@ function countTeamMembers(teams) {
   }, 0);
 }
 
-function scoreCoverage(scoresState = {}) {
+function scoreCoverage(scoresState = {}, progressState = businessDataState.judgeProgress) {
+  if (progressState && typeof progressState === "object" && Array.isArray(progressState.judges)) {
+    const judgeCount = Number(progressState.judgeCount);
+    const teamCount = Number(progressState.teamCount);
+    const expectedCount = Math.max(
+      0,
+      (Number.isFinite(judgeCount) ? judgeCount : progressState.judges.length)
+        * (Number.isFinite(teamCount) ? teamCount : 0),
+    );
+    const submittedCount = progressState.judges.reduce((sum, judge) => sum + (Number(judge.submittedCount) || 0), 0);
+    return {
+      judgeCount: Number.isFinite(judgeCount) ? judgeCount : progressState.judges.length,
+      teamCount: Number.isFinite(teamCount) ? teamCount : 0,
+      submittedCount,
+      expectedCount,
+      locked: Boolean(progressState.locked),
+    };
+  }
+
   const scores = scoresState.scores && typeof scoresState.scores === "object" ? scoresState.scores : {};
   const judgeIds = Object.keys(scores);
   const teamIds = new Set();
@@ -332,6 +352,9 @@ function scoreCoverage(scoresState = {}) {
   return {
     judgeCount: judgeIds.length,
     teamCount: teamIds.size,
+    submittedCount: 0,
+    expectedCount: 0,
+    locked: false,
   };
 }
 
@@ -787,8 +810,61 @@ function renderAuditLogList(entries = businessDataState.auditLogs) {
     : '<li class="admin-empty">暂无审计日志</li>';
 }
 
+function renderJudgeProgress(progress = businessDataState.judgeProgress) {
+  const lockButton = document.querySelector("[data-lock-judge-scores]");
+  const judges = Array.isArray(progress?.judges) ? progress.judges : [];
+  const teams = Array.isArray(progress?.teams) ? progress.teams : [];
+  const expected = judges.reduce((sum, judge) => sum + (Number(judge.totalTeamCount) || 0), 0);
+  const submitted = judges.reduce((sum, judge) => sum + (Number(judge.submittedCount) || 0), 0);
+  const allSubmitted = expected > 0 && submitted >= expected;
+
+  if (lockButton) {
+    lockButton.disabled = !allSubmitted || Boolean(progress?.locked);
+    lockButton.textContent = progress?.locked ? "专家评分已锁定" : "锁定专家评分";
+  }
+  if (!adminJudgeProgress) {
+    return;
+  }
+
+  if (!judges.length) {
+    adminJudgeProgress.innerHTML = '<p class="admin-empty">暂无评委提交进度</p>';
+    return;
+  }
+
+  const judgeRows = judges.map((judge) => {
+    const status = judge.status === "locked"
+      ? "已锁定"
+      : judge.status === "submitted"
+        ? "已提交"
+        : judge.status === "draft"
+          ? "暂存中"
+          : "待提交";
+    return `
+      <li>
+        <span>${escapeHtml(judge.name || judge.judgeId || "评委")}</span>
+        <b>${escapeHtml(String(judge.submittedCount || 0))}/${escapeHtml(String(judge.totalTeamCount || 0))}</b>
+        <small>${escapeHtml(status)}</small>
+      </li>
+    `;
+  }).join("");
+  const teamRows = teams.slice(0, 5).map((team) => `
+    <li>
+      <span>${escapeHtml(team.teamId || "队伍")}</span>
+      <b>${team.averageScore == null ? "--" : escapeHtml(Number(team.averageScore).toFixed(2))}</b>
+      <small>${escapeHtml(String(team.submittedJudgeCount || 0))} 位评委</small>
+    </li>
+  `).join("");
+
+  adminJudgeProgress.innerHTML = `
+    <div class="admin-judge-progress-grid">
+      <div><strong>评委提交</strong><ul>${judgeRows}</ul></div>
+      <div><strong>队伍均分</strong><ul>${teamRows || '<li><span>暂无队伍</span><b>--</b><small>等待评分</small></li>'}</ul></div>
+    </div>
+  `;
+}
+
 function renderBusinessData(payload = {}) {
-  const { teams, voteResults, works, judgeScores, resultSnapshot } = payload;
+  const { teams, voteResults, works, judgeScores, judgeProgress, resultSnapshot } = payload;
   const hasSnapshotPayload = Object.prototype.hasOwnProperty.call(payload, "resultSnapshot");
 
   businessDataState = {
@@ -797,25 +873,32 @@ function renderBusinessData(payload = {}) {
     ...(voteResults && typeof voteResults === "object" ? { voteResults } : {}),
     ...(Array.isArray(works) ? { works } : {}),
     ...(judgeScores && typeof judgeScores === "object" ? { judgeScores } : {}),
+    ...(judgeProgress && typeof judgeProgress === "object" ? { judgeProgress } : {}),
     ...(hasSnapshotPayload ? { resultSnapshot } : {}),
   };
 
   const data = businessDataState;
-  const coverage = scoreCoverage(data.judgeScores);
+  const coverage = scoreCoverage(data.judgeScores, data.judgeProgress);
 
   setText(adminTeamCount, formatNumber(data.teams.length));
   setText(adminPlayerCount, formatNumber(countTeamMembers(data.teams)));
-  setText(adminJudgeCount, data.teams.length ? `${coverage.teamCount}/${data.teams.length}` : formatNumber(coverage.teamCount));
+  setText(
+    adminJudgeCount,
+    coverage.expectedCount ? `${coverage.submittedCount}/${coverage.expectedCount}` : formatNumber(coverage.teamCount),
+  );
   setText(
     adminJudgeSummary,
-    coverage.judgeCount
-      ? `已有 ${coverage.judgeCount} 位评委保存评分，覆盖 ${coverage.teamCount} 个赛道。`
-      : "暂无评委评分草稿。",
+    coverage.locked
+      ? "专家评分已锁定，可进入最终结果核算。"
+      : coverage.expectedCount
+        ? `已有 ${coverage.submittedCount}/${coverage.expectedCount} 份评分正式提交，覆盖 ${coverage.teamCount} 个赛道。`
+        : "暂无评委提交进度。",
   );
 
   renderVoteRanking(data.voteResults);
   renderResultSnapshot(data.resultSnapshot);
   renderWorkList(data.works);
+  renderJudgeProgress(data.judgeProgress);
   renderTeamRoster(data.teams);
   renderRoadshowTeamOptions();
   renderDashboardSummary();
@@ -845,7 +928,7 @@ function renderDashboardSummary() {
   }
 
   const active = getActiveStage();
-  const coverage = scoreCoverage(businessDataState.judgeScores);
+  const coverage = scoreCoverage(businessDataState.judgeScores, businessDataState.judgeProgress);
   const works = normalizeWorks(businessDataState.works);
   const publishedWorks = works.filter((work) => work.status === "published").length;
   const snapshot = businessDataState.resultSnapshot;
@@ -877,8 +960,8 @@ function renderDashboardSummary() {
     },
     {
       label: "评分覆盖",
-      value: businessDataState.teams.length ? `${coverage.teamCount}/${businessDataState.teams.length}` : formatNumber(coverage.teamCount),
-      note: `${coverage.judgeCount} 位评委保存评分草稿`,
+      value: coverage.expectedCount ? `${coverage.submittedCount}/${coverage.expectedCount}` : formatNumber(coverage.teamCount),
+      note: coverage.locked ? "专家评分已锁定" : `${coverage.judgeCount} 位评委提交进度`,
       wide: true,
     },
     {
@@ -1070,14 +1153,14 @@ function renderContentManager() {
   }
 
   const works = normalizeWorks(businessDataState.works);
-  const coverage = scoreCoverage(businessDataState.judgeScores);
+  const coverage = scoreCoverage(businessDataState.judgeScores, businessDataState.judgeProgress);
   const snapshot = businessDataState.resultSnapshot;
   const contentCards = [
     { name: "赛道与成员", route: "data/teams.json", apiRoute: "/api/teams", count: `${businessDataState.teams.length} 个赛道`, note: `${countTeamMembers(businessDataState.teams)} 名成员，供组队页和后台队伍页使用。` },
     { name: "投票排名", route: "data/vote-results.json", apiRoute: "/api/vote-results", count: `${formatNumber(getVoteTotal())} 票`, note: businessDataState.voteResults.windowLabel || "投票窗口状态待同步。" },
     { name: "最终结果快照", route: "data/result-snapshots.json", apiRoute: "/api/results/latest", count: snapshot?.id ? "已发布" : "未发布", note: snapshot?.id || "发布结果后生成不可变最终排名快照。" },
     { name: "作品提交", route: "data/works.json", apiRoute: "/api/works", count: `${works.length} 件作品`, note: "作品提交后可在数据与投票页审核发布或退回。" },
-    { name: "评委评分", route: "data/judge-scores.json", apiRoute: "/api/judge/scores", count: `${coverage.teamCount} 个赛道`, note: `${coverage.judgeCount} 位评委保存评分草稿。` },
+    { name: "评委评分", route: "data/judge-scores.json", apiRoute: "/api/judge/scores", count: coverage.expectedCount ? `${coverage.submittedCount}/${coverage.expectedCount} 已提交` : `${coverage.teamCount} 个赛道`, note: coverage.locked ? "专家评分已锁定，可发布最终结果。" : `${coverage.judgeCount} 位评委提交进度待同步。` },
     { name: "审计日志", route: "data/audit-logs.json", apiRoute: "/api/admin/audit-logs", count: `${businessDataState.auditLogs.length} 条`, note: "记录后台关键写操作，便于排查与复盘。" },
     { name: "星锐档案", route: "data/trainees.json", apiRoute: "/api/trainees", count: `${traineeProfileState.trainees.length || 14} 人`, note: "新人档案和个人展示内容由后台统一维护。" },
   ];
@@ -1954,11 +2037,12 @@ async function loadAuditTrail() {
 
 async function loadBusinessData({ writeLog = false } = {}) {
   setSyncStatus("syncing", "同步业务数据", "队伍 / 投票 / 作品 / 评分 / 快照");
-  const [teamsResult, voteResult, worksResult, judgeResult, snapshotResult] = await Promise.allSettled([
+  const [teamsResult, voteResult, worksResult, judgeResult, judgeProgressResult, snapshotResult] = await Promise.allSettled([
     window.AppData.loadTeams([]),
     window.AppData.loadVoteResults([]),
     window.AppData.loadWorks([]),
     window.AppData.loadJudgeScores({ scores: {} }),
+    window.AppData.loadJudgeProgress({ judges: [], teams: [], judgeCount: 0, teamCount: 0, locked: false }),
     window.AppData.loadLatestResultSnapshot({ snapshot: null }),
   ]);
   const nextBusinessData = {};
@@ -1966,6 +2050,7 @@ async function loadBusinessData({ writeLog = false } = {}) {
   if (voteResult.status === "fulfilled") nextBusinessData.voteResults = voteResult.value;
   if (worksResult.status === "fulfilled") nextBusinessData.works = worksResult.value;
   if (judgeResult.status === "fulfilled") nextBusinessData.judgeScores = judgeResult.value;
+  if (judgeProgressResult.status === "fulfilled") nextBusinessData.judgeProgress = judgeProgressResult.value;
   if (snapshotResult.status === "fulfilled") nextBusinessData.resultSnapshot = snapshotResult.value?.snapshot || null;
 
   renderBusinessData(nextBusinessData);
@@ -1975,6 +2060,7 @@ async function loadBusinessData({ writeLog = false } = {}) {
   if (voteResult.status === "rejected") failedSources.push("投票");
   if (worksResult.status === "rejected") failedSources.push("作品");
   if (judgeResult.status === "rejected") failedSources.push("评分");
+  if (judgeProgressResult.status === "rejected") failedSources.push("评分进度");
   if (snapshotResult.status === "rejected") failedSources.push("快照");
 
   if (failedSources.length) {
@@ -1986,6 +2072,22 @@ async function loadBusinessData({ writeLog = false } = {}) {
   setSyncStatus("success", "业务数据已同步", `最近同步 ${formatSyncTime()}`);
   if (writeLog) {
     addLog("system", "业务数据同步完成");
+  }
+}
+
+async function lockJudgeScores(button) {
+  if (button) {
+    button.disabled = true;
+  }
+  try {
+    const result = await window.AppData.lockJudgeScores({ actor: getAdminUserDisplayName() });
+    renderBusinessData({ judgeProgress: result.progress });
+    addLog("admin", "锁定专家评分");
+    await Promise.allSettled([loadBusinessData(), loadAuditTrail()]);
+  } catch (error) {
+    console.warn("Judge score lock failed.", error);
+    addLog("system", "锁定失败：请确认所有评委均已提交评分");
+    renderJudgeProgress();
   }
 }
 
@@ -2456,6 +2558,15 @@ document.addEventListener("click", async (event) => {
   const status = button.dataset.voteWindowStatus;
   button.disabled = true;
   await updateAdminVoteWindow(status);
+});
+
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-lock-judge-scores]");
+  if (!button) {
+    return;
+  }
+
+  await lockJudgeScores(button);
 });
 
 document.addEventListener("click", async (event) => {

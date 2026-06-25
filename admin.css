@@ -2285,6 +2285,77 @@ button {
   line-height: 1.45;
 }
 
+.admin-judge-progress {
+  margin: 0 10px 10px;
+}
+
+.admin-judge-progress-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-judge-progress-grid > div {
+  min-width: 0;
+  border: 1px solid rgba(103, 255, 213, 0.12);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(2, 8, 14, 0.34);
+}
+
+.admin-judge-progress-grid strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--neon);
+  font-family: var(--pixel);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+.admin-judge-progress-grid ul {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-judge-progress-grid li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+  align-items: center;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.admin-judge-progress-grid li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-judge-progress-grid li b {
+  color: #fff;
+  font-family: var(--display);
+}
+
+.admin-judge-progress-grid li small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.admin-judge-lock {
+  margin: 0 10px 10px;
+}
+
+.admin-judge-lock:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 .screen-preview {
   position: relative;
   display: grid;
@@ -2512,6 +2583,7 @@ button {
   .management-split,
   .admin-dashboard-grid,
   .admin-route-grid,
+  .admin-judge-progress-grid,
   .admin-team-status-card,
   .admin-team-roster {
     grid-template-columns: 1fr;
