@@ -6,8 +6,8 @@
 (function attachSite(root, doc) {
   "use strict";
   const D = root.ScreenData;
+  const AppData = root.AppData || {};
   const Logic = root.AppLogic || {};
-  const VOTE_KEY = "joincare_hackathon_vote";
   const TEAM_KEY = "joincare_hackathon_team";
   const TEAM_NAME_KEY = "joincare_hackathon_team_names";
   const WORK_DRAFT_KEY = "joincare_hackathon_work_drafts";
@@ -15,15 +15,25 @@
   const JUDGE_KEY = "joincare_hackathon_judge_scores";
   const ROLE_KEY = "joincare_hackathon_role";
   const SESSION_KEY = "joincare_hackathon_session";
-  const PHASE = "published"; // voting | published —— 投票期不显示排名，公布后才出最终排行
   const VALID_ROLES = ["public", "player", "judge", "admin"];
   let TRAINEES = [];
   let MOBILE_TRAINEE_INDEX = 0;
   let MOBILE_TRAINEE_DETAIL = false;
   let MOBILE_TRAINEE_IS_TRANSITIONING = false;
   let MOBILE_TRAINEE_SHOULD_ENTER = false;
-  let localVoteDeltaTeamId = "";
+  let SITE_STATE = null;
+  let SITE_STATE_ERROR = "";
   let siteMediaMode = "photo";
+  const STATIC_TEAMS = (D.teams || []).map((team) => ({
+    ...team,
+    advisor: { ...(team.advisor || {}) },
+    members: (team.members || []).map((member) => ({ ...member })),
+    stack: Array.isArray(team.stack) ? [...team.stack] : [],
+  }));
+  const STATIC_TEAM_BY_ID = STATIC_TEAMS.reduce((map, team, index) => {
+    map[team.id] = { team, index };
+    return map;
+  }, {});
   const cssUrl = (path) => path ? `url('${String(path).replaceAll("'", "\\'")}')` : "none";
   let pendingAuthTarget = null;
   let CURRENT_STAGE_ID = "result";
@@ -71,13 +81,24 @@
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const pad = (n) => String(n).padStart(2, "0");
   const fmtHMS = (s) => `${pad((s / 3600) | 0)}<i>:</i>${pad(((s % 3600) / 60) | 0)}<i>:</i>${pad(s % 60)}`;
-  const votedTeam = () => root.localStorage.getItem(VOTE_KEY);
-  const joinedTeam = () => root.localStorage.getItem(TEAM_KEY);
+  const votedTeam = () => (SITE_STATE && SITE_STATE.vote && SITE_STATE.vote.myVoteTeamId) || "";
+  const joinedTeam = () => (SITE_STATE && SITE_STATE.me && SITE_STATE.me.teamId) || root.localStorage.getItem(TEAM_KEY);
   function currentRole() { return root.localStorage.getItem(ROLE_KEY); }
   const roleName = (role) => Logic.getRoleLabel ? Logic.getRoleLabel(role) : ({ player: "参赛选手", judge: "专家评委", public: "大众评委", admin: "管理员" }[role] || "待鉴权");
   const rolePermissions = (role) => Logic.getRolePermissions ? Logic.getRolePermissions(role) : { canJoinTeam: role === "player", canSubmitWork: role === "player", canVote: role === "public", canScore: role === "judge", canAdmin: role === "admin", canControlBigscreen: role === "admin", canViewTeamProgress: true };
   const roleNavItems = (role) => Logic.getRoleNavItems ? Logic.getRoleNavItems(role) : VIEWS.filter((v) => !v.hidden).map(({ key, label }) => ({ key, label }));
   const getTeam = (id) => D.teams.find((t) => t.id === id);
+  function hasBackendSession() {
+    const role = currentRole();
+    return Boolean(SITE_STATE && SITE_STATE.me && SITE_STATE.me.authenticated && SITE_STATE.me.user && role && SITE_STATE.me.role === role);
+  }
+  function canUseVoteAction() {
+    return hasBackendSession() && rolePermissions(currentRole()).canVote;
+  }
+  function clearStoredRole() {
+    root.localStorage.removeItem(ROLE_KEY);
+    root.localStorage.removeItem(SESSION_KEY);
+  }
   function canOpenTeamWorkspace(teamId) {
     const permissions = rolePermissions(currentRole());
     return permissions.canSubmitWork && joinedTeam() === teamId;
@@ -93,6 +114,139 @@
   };
   const splitTags = (value) => String(value || "").split(/[，、,\n/]+/).map((x) => x.trim()).filter(Boolean);
   const defaultDuty = (index) => ["队长 / 统筹推进", "业务洞察", "AI 开发", "产品设计", "路演运营"][index] || "队友协作";
+  const normalizeList = (value) => Array.isArray(value) ? value : [];
+  const toNumber = (value, fallback = 0) => {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
+  };
+  function normalizeSiteTrainee(trainee) {
+    return Logic.normalizeTrainee ? Logic.normalizeTrainee(trainee) : trainee;
+  }
+  function findStaticTeam(team, index) {
+    const byId = STATIC_TEAM_BY_ID[team.id];
+    if (byId) return byId.team;
+    return STATIC_TEAMS[index] || STATIC_TEAMS[0] || {};
+  }
+  function workForTeam(works, teamId) {
+    return works.find((work) => String(work.teamId || work.id || "") === String(teamId || ""));
+  }
+  function voteForTeam(results, teamId) {
+    return results.find((result) => String(result.id || result.teamId || "") === String(teamId || ""));
+  }
+  function normalizeMember(member = {}, index = 0) {
+    return {
+      id: member.id || member.userId || `member-${index + 1}`,
+      userId: member.userId || member.id || "",
+      name: member.name || member.displayName || "未命名成员",
+      avatar: member.avatar || member.photo || member.idPhoto || "",
+      role: member.role || member.duty || "队友",
+      duty: member.duty || member.role || "",
+      department: member.department || "",
+    };
+  }
+  function normalizeSiteTeam(team = {}, index = 0, voteResults = [], works = []) {
+    const base = findStaticTeam(team, index);
+    const work = workForTeam(works, team.id);
+    const vote = voteForTeam(voteResults, team.id);
+    const trackCode = team.trackCode || team.index || team.track_code || base.trackCode || pad(index + 1);
+    const track = team.track || team.trackName || team.nameEn || base.track || "业务赛道";
+    const stack = Array.isArray(work?.stack) && work.stack.length
+      ? work.stack
+      : Array.isArray(team.stack) && team.stack.length
+        ? team.stack
+        : normalizeList(base.stack);
+
+    return {
+      ...base,
+      ...team,
+      id: team.id || base.id || `team-${index + 1}`,
+      trackCode,
+      track,
+      accent: team.accent || base.accent || "var(--neon)",
+      rgb: team.rgb || team.colorRgb || base.rgb || "40,255,200",
+      name: team.name || base.name || track,
+      project: work?.project || team.project || base.project || "作品待提交",
+      pitch: work?.pitch || team.pitch || base.pitch || "",
+      stack,
+      submitted: Boolean(work && !["draft", "rejected"].includes(work.status)) || Boolean(team.submitted),
+      advisor: team.advisor || base.advisor || { name: "赛道顾问", avatar: "" },
+      members: normalizeList(team.members).map(normalizeMember),
+      votes: toNumber(vote?.votes, 0),
+      expert: toNumber(vote?.expert ?? team.expert, 0),
+      work: work || null,
+    };
+  }
+  function updateSiteStats() {
+    const memberCount = D.teams.reduce((sum, team) => sum + 1 + normalizeList(team.members).length, 0);
+    D.stats = {
+      ...(D.stats || {}),
+      teams: D.teams.length,
+      members: memberCount,
+      mentors: D.teams.length,
+    };
+  }
+  function computeSiteRanking() {
+    const snapshot = SITE_STATE && SITE_STATE.result && SITE_STATE.result.snapshot;
+    if (SITE_STATE?.result?.published && Array.isArray(snapshot?.results) && snapshot.results.length) {
+      return snapshot.results.map((result, index) => {
+        const team = getTeam(result.id || result.teamId) || {};
+        return {
+          ...team,
+          ...result,
+          id: result.id || result.teamId || team.id,
+          rank: toNumber(result.rank, index + 1),
+          total: toNumber(result.total ?? result.score, 0),
+          expert: toNumber(result.expert ?? result.expertAverage, team.expert || 0),
+          votePoint: toNumber(result.votePoint ?? result.voteScore, 0),
+        };
+      });
+    }
+
+    const byVotes = [...D.teams].sort((a, b) => b.votes - a.votes);
+    const pointScale = normalizeList(SITE_STATE?.vote?.pointScale).length
+      ? SITE_STATE.vote.pointScale
+      : normalizeList(D.votePoints);
+    const ranked = D.teams.map((team) => {
+      const voteRank = byVotes.findIndex((item) => item.id === team.id) + 1;
+      const votePoint = toNumber(pointScale[voteRank - 1], 0);
+      return {
+        ...team,
+        voteRank,
+        votePoint,
+        total: +(team.expert * 0.7 + votePoint * 0.3).toFixed(2),
+      };
+    }).sort((a, b) => b.total - a.total);
+    ranked.forEach((team, index) => { team.rank = index + 1; });
+    return ranked;
+  }
+  function applySiteState(state) {
+    SITE_STATE = state || null;
+    SITE_STATE_ERROR = "";
+    const voteResults = normalizeList(state?.vote?.results);
+    const works = normalizeList(state?.works);
+    TRAINEES = normalizeList(state?.trainees).map(normalizeSiteTrainee);
+    D.teams = normalizeList(state?.teams).map((team, index) => normalizeSiteTeam(team, index, voteResults, works));
+    D.computeRanking = computeSiteRanking;
+    updateSiteStats();
+  }
+  async function loadSiteState() {
+    if (!AppData || typeof AppData.loadSiteBootstrap !== "function") {
+      applySiteState({ trainees: [], teams: [], works: [], vote: { results: [] }, result: { published: false, snapshot: null } });
+      SITE_STATE_ERROR = "观众端真实数据接口未加载";
+      return null;
+    }
+
+    try {
+      const state = await AppData.loadSiteBootstrap();
+      applySiteState(state);
+      return state;
+    } catch (error) {
+      console.warn("Failed to load site bootstrap state.", error);
+      applySiteState({ trainees: [], teams: [], works: [], vote: { results: [] }, result: { published: false, snapshot: null } });
+      SITE_STATE_ERROR = "无法连接观众端真实数据接口，请稍后重试";
+      return null;
+    }
+  }
   function getRuntimeApiBaseUrl() {
     const runtimeConfig = root.JoincareRuntimeConfig || {};
     const value = root.JOINCARE_API_BASE_URL || runtimeConfig.apiBaseUrl || "";
@@ -153,7 +307,10 @@
   const SiteRoleApi = {
     getMe: () => apiRequest("/api/me"),
     getPermissions: () => apiRequest("/api/permissions"),
-    loginWithFeishu: () => apiRequest("/api/auth/feishu/login", { method: "POST", body: "{}" }),
+    getFeishuAuthorizeUrl: (redirect, page) => apiRequest(`/api/auth/feishu/authorize?redirect=${encodeURIComponent(redirect)}&page=${encodeURIComponent(page)}`),
+    exchangeFeishuCode: (code, state) => apiRequest("/api/auth/feishu/login", { method: "POST", body: JSON.stringify({ code, state }) }),
+    setCurrentRole: (role) => apiRequest("/api/auth/role", { method: "POST", body: JSON.stringify({ role }) }),
+    logout: () => apiRequest("/api/auth/logout", { method: "POST", body: "{}" }),
     joinTeam: (teamId) => apiRequest("/api/team/join", { method: "POST", body: JSON.stringify({ teamId }) }),
     leaveTeam: (teamId) => apiRequest("/api/team/leave", { method: "POST", body: JSON.stringify({ teamId }) }),
     castVote: (teamId) => apiRequest("/api/vote/cast", { method: "POST", body: JSON.stringify({ teamId }) }),
@@ -238,7 +395,7 @@
   }
 
   function showAuthGate(target) {
-    if (currentRole()) return true;
+    if (currentRole() && hasBackendSession()) return true;
     pendingAuthTarget = target && target !== "entry" ? target : pendingAuthTarget;
     let gate = doc.getElementById("authGate");
     if (!gate) {
@@ -249,15 +406,9 @@
     }
     gate.innerHTML = `<div class="auth-gate-backdrop"></div><section class="auth-card glass">
       <span class="ph-en">ENTRY AUTH</span>
-      <h2>登录 / 角色</h2>
-      <p>正式环境将通过飞书账号识别角色；当前保留模拟入口，方便前端联调。</p>
+      <h2>飞书登录</h2>
+      <p>请使用飞书账号登录；登录后将按你被授予的角色进入，多个角色时可自行选择当前身份。</p>
       <button class="auth-feishu" type="button" data-auth-feishu>飞书账号登录</button>
-      <div class="auth-role-grid">
-        <button type="button" data-auth-role="player"><b>参赛选手</b><span>抢赛道 · 提交作品</span></button>
-        <button type="button" data-auth-role="judge"><b>专家评委</b><span>评分 · 评语</span></button>
-        <button type="button" data-auth-role="public"><b>大众评委 / 观众</b><span>浏览作品 · 投票</span></button>
-        <button type="button" data-auth-role="admin"><b>管理员</b><span>后台管理 · 大屏控制</span></button>
-      </div>
     </section>`;
     gate.classList.add("show");
     return false;
@@ -267,7 +418,13 @@
     if (gate) gate.classList.remove("show");
   }
   function requireAuth(target) {
-    if (currentRole()) return true;
+    if (currentRole() && hasBackendSession()) return true;
+    if (currentRole() && !hasBackendSession()) {
+      clearStoredRole();
+      renderNavLinks();
+      renderMobileTabbar();
+      refreshRoleChrome();
+    }
     showAuthGate(target);
     return false;
   }
@@ -292,12 +449,6 @@
     return true;
   }
   function hydrateRole() {
-    const params = authParams();
-    const role = params.get("role");
-    if (VALID_ROLES.includes(role)) {
-      setRole(role, { role, source: "query" });
-      return;
-    }
     if (wantsAuthChooser()) {
       root.localStorage.removeItem(ROLE_KEY);
       return;
@@ -306,39 +457,222 @@
       root.localStorage.removeItem(ROLE_KEY);
     }
   }
+  function clearLocalSession() {
+    root.localStorage.removeItem(ROLE_KEY);
+    root.localStorage.removeItem(SESSION_KEY);
+    renderNavLinks();
+    renderMobileTabbar();
+    refreshRoleChrome();
+  }
+
+  // 每次重载都以后端会话为准：会话失效/已退出就清掉本地登录态，避免"假登录"误导。
   async function syncRoleFromBackend() {
-    if (currentRole()) return;
+    let me;
     try {
-      const session = await SiteRoleApi.getMe();
-      if (session && setRole(session.role, session)) {
-        toast(`已同步「${roleName(session.role)}」身份`);
-      }
+      me = await SiteRoleApi.getMe();
     } catch (e) {
-      // 后端未接入时保持前端模拟身份入口可用。
+      return; // 网络/服务异常：不动本地状态，避免误清。
+    }
+
+    if (!me || !me.user) {
+      // 后端无有效会话：若本地还残留登录态，清掉并提示。
+      const hadLocal = Boolean(currentRole()) || Boolean(readJson(SESSION_KEY, null));
+      clearLocalSession();
+      if (hadLocal) toast("登录已失效，请重新登录");
+      return;
+    }
+
+    // 有有效会话：以后端为准同步。
+    storeSession(me);
+    if (me.needsRoleSelection) {
+      root.localStorage.removeItem(ROLE_KEY);
+      refreshRoleChrome();
+      showRolePicker(me.roles || []);
+      return;
+    }
+    if (me.role) {
+      setRole(me.role, me);
+    }
+    renderNavLinks();
+    renderMobileTabbar();
+    refreshRoleChrome();
+  }
+  // 角色弹窗用的简洁标签（按用户口径：观众/选手/评委/管理员）。
+  const ROLE_PICK_LABELS = { public: "观众", player: "选手", judge: "评委", admin: "管理员" };
+  const ROLE_PICK_HINT = {
+    public: "浏览作品 · 投票",
+    player: "抢赛道 · 提交作品",
+    judge: "评分 · 评语 · 排位",
+    admin: "后台管理 · 大屏控制",
+  };
+  const pickLabel = (role) => ROLE_PICK_LABELS[role] || roleName(role);
+
+  function storeSession(res) {
+    try {
+      root.localStorage.setItem(SESSION_KEY, JSON.stringify({ user: res.user || null, role: res.role || "", roles: res.roles || [] }));
+    } catch (e) { /* 存储不可用时忽略 */ }
+  }
+
+  function finalizeLogin(role, session, redirectPath) {
+    storeSession({ ...session, role });
+    setRole(role, session);
+    renderNavLinks();
+    renderMobileTabbar();
+    refreshRoleChrome();
+    closeAuthGate();
+    closeRolePicker();
+    toast(`已进入「${pickLabel(role)}」视角`);
+    const target = (String(redirectPath || "").split("#")[1] || pendingAuthTarget || "me").trim() || "me";
+    pendingAuthTarget = null;
+    go(target);
+  }
+
+  // 发起飞书登录：拿授权 URL → 跳转飞书（前端回跳式，回到本页带 ?code&state）。
+  async function startFeishuLogin() {
+    toast("正在跳转飞书登录…");
+    const target = pendingAuthTarget || (location.hash.slice(1) || "me");
+    // 回调地址动态取当前页面（去 hash/query），跳转前生成，无需任何额外配置。
+    const page = root.location.pathname || "/site.html";
+    try {
+      const res = await SiteRoleApi.getFeishuAuthorizeUrl(`${page}#${target}`, page);
+      if (res && res.configured && res.url) { root.location.href = res.url; return; }
+      toast("飞书登录未配置（缺少应用凭证）");
+    } catch (e) {
+      toast("无法发起飞书登录，请稍后重试");
     }
   }
-  async function startFeishuLogin() {
-    toast("正在登录飞书");
+
+  let feishuExchanged = false; // 防 code 重复消费 / 重复执行
+  async function consumeFeishuCallback() {
+    const params = authParams();
+    const code = params.get("code");
+    const state = params.get("state");
+    if (!code || feishuExchanged) return false;
+    feishuExchanged = true;
+    // 一次性：先把 code/state 从地址栏清掉，避免刷新重放。
     try {
-      const session = await SiteRoleApi.loginWithFeishu();
-      if (session && session.redirectUrl) {
-        root.location.href = session.redirectUrl;
-        return;
+      const u = new URL(root.location.href);
+      u.searchParams.delete("code");
+      u.searchParams.delete("state");
+      history.replaceState(null, "", u.pathname + (u.search || "") + (u.hash || ""));
+    } catch (e) { /* 忽略 */ }
+    try {
+      const res = await SiteRoleApi.exchangeFeishuCode(code, state);
+      if (!res || !res.authenticated) {
+        toast(res && res.reason === "missing-oauth-config" ? "飞书登录未配置" : "飞书登录失败，请重试");
+        return false;
       }
-      if (session && setRole(session.role, session)) {
+      storeSession(res);
+      if (res.needsRoleSelection) {
+        showRolePicker(res.roles || [], res.redirectPath);
+        return true;
+      }
+      finalizeLogin(res.role, res, res.redirectPath);
+      return true;
+    } catch (e) {
+      toast("飞书登录失败：" + (e && e.message ? e.message : "请重试"));
+      return false;
+    }
+  }
+
+  // 右上角用户菜单：切换角色 + 退出登录。
+  function closeUserMenu() {
+    const m = doc.getElementById("navUserMenu");
+    if (m) m.remove();
+  }
+  function toggleUserMenu() {
+    if (doc.getElementById("navUserMenu")) { closeUserMenu(); return; }
+    if (!navLogin) return;
+    const session = readJson(SESSION_KEY, {});
+    const user = session && session.user;
+    if (!user) return;
+    const roles = (session.roles || []).filter((r) => VALID_ROLES.includes(r));
+    const cur = currentRole();
+    const menu = doc.createElement("div");
+    menu.id = "navUserMenu";
+    menu.className = "nav-user-menu glass";
+    menu.innerHTML = `
+      <div class="num-head">
+        ${user.avatar
+          ? `<span class="nav-ava" style="background-image:url('${esc(user.avatar)}')"></span>`
+          : `<span class="nav-ava nav-ava-fallback">${esc(String(user.name).slice(0, 1))}</span>`}
+        <div class="num-id"><b>${esc(user.name)}</b><i>${cur ? esc(pickLabel(cur)) : "未选择角色"}</i></div>
+      </div>
+      ${roles.length > 1 ? `<div class="num-roles"><span class="num-label">切换角色</span>${roles.map((r) => `<button type="button" data-switch-role="${esc(r)}" class="${r === cur ? "on" : ""}">${esc(pickLabel(r))}${r === cur ? "<i>当前</i>" : ""}</button>`).join("")}</div>` : ""}
+      <button type="button" class="num-logout" data-logout>退出登录</button>`;
+    navLogin.parentElement.appendChild(menu);
+  }
+  async function switchCurrentRole(role) {
+    closeUserMenu();
+    if (!VALID_ROLES.includes(role) || role === currentRole()) return;
+    try {
+      const res = await SiteRoleApi.setCurrentRole(role);
+      if (res && res.role) {
+        storeSession(res);
+        setRole(res.role, res);
+        await loadSiteState();
         renderNavLinks();
         renderMobileTabbar();
         refreshRoleChrome();
-        closeAuthGate();
-        toast(`已进入「${roleName(session.role)}」视角`);
-        go(pendingAuthTarget || "me");
-        pendingAuthTarget = null;
+        toast(`已切换到「${pickLabel(res.role)}」`);
+        go("me");
         return;
       }
-      toast("飞书登录接口已预留，等待后端返回角色");
+      toast("角色切换失败，请重试");
     } catch (e) {
-      toast("飞书登录接口未接入，可先使用模拟角色");
+      toast("角色切换失败：" + (e && e.message ? e.message : "请重试"));
     }
+  }
+  async function doLogout() {
+    closeUserMenu();
+    try { await SiteRoleApi.logout(); } catch (e) { /* 忽略网络错误，仍清本地 */ }
+    root.localStorage.removeItem(ROLE_KEY);
+    root.localStorage.removeItem(SESSION_KEY);
+    await loadSiteState();
+    renderNavLinks();
+    renderMobileTabbar();
+    refreshRoleChrome();
+    toast("已退出登录");
+    go("home");
+  }
+
+  // 多角色弹窗：让用户选择当前角色。
+  function closeRolePicker() {
+    const el = doc.getElementById("siteRolePicker");
+    if (el) el.remove();
+  }
+  function showRolePicker(roles, redirectPath) {
+    closeRolePicker();
+    const list = (roles || []).filter((r) => VALID_ROLES.includes(r));
+    if (!list.length) { finalizeLogin("public", { roles: ["public"] }, redirectPath); return; }
+    const overlay = doc.createElement("div");
+    overlay.id = "siteRolePicker";
+    overlay.className = "role-picker-overlay";
+    overlay.innerHTML = `
+      <div class="role-picker glass" role="dialog" aria-modal="true" aria-label="选择当前角色">
+        <span class="role-picker-en">SELECT ROLE</span>
+        <h2>选择当前身份</h2>
+        <p>你拥有多个角色，请选择本次进入的身份（之后可重新登录切换）。</p>
+        <div class="role-picker-grid">
+          ${list.map((r) => `<button type="button" data-pick-role="${esc(r)}"><b>${esc(pickLabel(r))}</b><span>${esc(ROLE_PICK_HINT[r] || "")}</span></button>`).join("")}
+        </div>
+      </div>`;
+    overlay.addEventListener("click", async (e) => {
+      const btn = e.target.closest("[data-pick-role]");
+      if (!btn) return;
+      const role = btn.dataset.pickRole;
+      btn.disabled = true;
+      try {
+        const res = await SiteRoleApi.setCurrentRole(role);
+        if (res && res.role) { finalizeLogin(res.role, res, redirectPath); return; }
+        toast("角色选择失败，请重试");
+        btn.disabled = false;
+      } catch (err) {
+        toast("角色选择失败：" + (err && err.message ? err.message : "请重试"));
+        btn.disabled = false;
+      }
+    });
+    doc.body.appendChild(overlay);
   }
 
   function renderMobileHome(totalVotes) {
@@ -1116,7 +1450,7 @@
     const permissions = rolePermissions(currentRole());
     const voted = getTeam(votedTeam());
     const total = D.teams.reduce((s, t) => s + t.votes, 0);
-    const max = Math.max(...D.teams.map((t) => t.votes));
+    const max = Math.max(1, ...D.teams.map((t) => t.votes));
     const rows = [...D.teams].sort((a, b) => b.votes - a.votes).map((t, i) => {
       const mine = voted && voted.id === t.id;
       const pct = total ? ((t.votes / total) * 100).toFixed(1) : 0;
@@ -1164,25 +1498,31 @@
   function renderGallery() {
     const permissions = rolePermissions(currentRole());
     const voted = votedTeam();
+    const canVote = canUseVoteAction();
     const cards = D.teams.map((t) => {
       const avas = [t.advisor, ...t.members].slice(0, 5).map((p) => avatar(p, 34)).join("");
       const isVoted = voted === t.id;
-      const btn = !currentRole()
-        ? `<button class="gl2-vote" data-vote="${t.id}">登录后投票</button>`
+      const btn = !hasBackendSession()
+        ? `<button class="gl2-vote" data-auth-vote="${t.id}">登录后投票</button>`
         : !permissions.canVote
           ? `<button class="gl2-vote dim" disabled>无投票权限</button>`
           : voted
         ? isVoted
           ? `<button class="gl2-vote is-voted is-cancel" data-cancel-vote="${t.id}">取消投票</button>`
           : `<button class="gl2-vote dim" disabled>已投票</button>`
-        : `<button class="gl2-vote" data-vote="${t.id}">为TA加油</button>`;
+        : canVote
+          ? `<button class="gl2-vote" data-vote="${t.id}">为TA加油</button>`
+          : `<button class="gl2-vote dim" disabled>无投票权限</button>`;
       const stack = (t.stack || []).map((s) => `<span>${esc(s)}</span>`).join("");
       return `<article class="gl2-card glass gl2-h ${isVoted ? "voted" : ""}" data-work="${t.id}" style="--accent:${t.accent};--rgb:${t.rgb}"><div class="gl2-shot"><span class="gl2-dots"></span><span class="gl2-cover-label"><span class="gl2-cover-index">${esc(t.trackCode)}</span><span class="gl2-cover-track">${esc(t.track)}</span></span><h3 class="gl2-cover-name">${esc(t.name)}</h3><span class="gl2-bars"></span><span class="gl2-hover">点击查看作品详情 ➔</span></div><div class="gl2-mid"><div class="gl2-id"><b class="gl2-project-name">${esc(t.project)}</b></div><p class="gl2-pitch">${esc(t.pitch || "")}</p><div class="gl2-stack2">${stack}</div><div class="gl2-avas">${avas}</div></div><div class="gl2-right"><div class="gl2-vcount"><b>${t.votes.toLocaleString()}</b><span>实时票数</span></div><span class="gl2-detail" data-work="${t.id}">查看详情 ➔</span>${btn}</div></article>`;
     }).join("");
+    const dataNotice = SITE_STATE_ERROR
+      ? `<div class="vote-banner"><span class="live-dot"></span>${esc(SITE_STATE_ERROR)}</div>`
+      : "";
     const banner = voted
       ? `<div class="vote-banner ok"><span class="live-dot"></span>你已为 <b>${esc((D.teams.find((t) => t.id === voted) || {}).name || "")}</b> 投出一票；可在已投队伍卡片中取消后重新选择。</div>`
       : `<div class="vote-banner"><span class="live-dot"></span>浏览五大战队作品，选出你最认可的解决方案，并投出关键一票。</div>`;
-    return `${pageHead("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE")}${banner}<section class="container sec"><div class="gl2-grid horizontal">${cards}</div></section>`;
+    return `${pageHead("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE")}${dataNotice}${banner}<section class="container sec"><div class="gl2-grid horizontal">${cards}</div></section>`;
   }
 
   /* ---- 作品详情 ------------------------------------------------------- */
@@ -1191,20 +1531,23 @@
     if (!t) return renderGallery();
     const voted = votedTeam();
     const permissions = rolePermissions(currentRole());
+    const canVote = canUseVoteAction();
     const isVoted = voted === t.id;
     const L = teamLinks(t);
     const people = [{ ...t.advisor, role: "技术顾问" }, ...t.members.map((m) => ({ ...m, role: "组员" }))]
       .map((p) => `<div class="wk-person">${avatar(p, 64, "ring")}<b>${esc(p.name)}</b><span>${esc(p.role)}</span></div>`).join("");
     const stack = (t.stack || []).map((s) => `<span>${esc(s)}</span>`).join("");
-    const voteBtn = !currentRole()
-      ? `<button class="btn-primary" data-vote="${t.id}">登录后投票</button>`
+    const voteBtn = !hasBackendSession()
+      ? `<button class="btn-primary" data-auth-vote="${t.id}">登录后投票</button>`
       : !permissions.canVote
         ? `<button class="btn-primary dim" disabled>当前身份不可投票</button>`
         : voted
       ? isVoted
         ? `<button class="btn-primary is-cancel" data-cancel-vote="${t.id}">取消投票</button>`
         : `<button class="btn-primary dim" disabled>投票已用</button>`
-      : `<button class="btn-primary" data-vote="${t.id}">为这支队伍加油</button>`;
+      : canVote
+        ? `<button class="btn-primary" data-vote="${t.id}">为这支队伍加油</button>`
+        : `<button class="btn-primary dim" disabled>当前身份不可投票</button>`;
     const slides = [["主界面", "产品核心流程"], ["数据看板", "关键指标可视化"], ["AI 能力", "模型推理与结果"]];
     const slideEls = slides.map((s, i) => `<div class="wkc-slide ${i === 0 ? "on" : ""}"><span class="gl2-dots"></span><h3>${esc(t.project)}</h3><span class="wkc-cap">${esc(s[0])} · ${esc(s[1])}</span><span class="gl2-bars"></span></div>`).join("");
     const dotEls = slides.map((_, i) => `<button class="wkc-dot ${i === 0 ? "on" : ""}" data-cgoto="${i}" aria-label="第 ${i + 1} 张"></button>`).join("");
@@ -1257,21 +1600,25 @@
 
   function renderOverviewBanner() {
     const permissions = rolePermissions(currentRole());
-    const canVote = permissions.canVote;
+    const canVote = canUseVoteAction();
     const voted = getTeam(votedTeam());
 
-    const chipText = !canVote ? "无投票权限" : voted ? "已投票" : "待投票";
+    const chipText = !hasBackendSession() ? "登录后投票" : !canVote ? "无投票权限" : voted ? "已投票" : "待投票";
     const chipClass = voted ? "on" : "";
-    const titleText = !canVote ? "当前身份不参与大众投票" : voted ? "已投票" : "尚未投票";
+    const titleText = !hasBackendSession() ? "请先登录" : !canVote ? "当前身份不参与大众投票" : voted ? "已投票" : "尚未投票";
 
     let descText = "";
-    if (!canVote) {
+    if (!hasBackendSession()) {
+      descText = "请先使用飞书账号登录；后端确认身份后，观众角色才能投出一票。";
+    } else if (!canVote) {
       descText = "参赛选手、专家评委与管理员默认不参与大众投票，仅大众评委可在投票窗口内投一次。";
     } else if (voted) {
       descText = `你已支持「${esc(voted.name)}」${voted.project ? ` · ${esc(voted.project)}` : ""}`;
     }
 
-    const cta = !canVote
+    const cta = !hasBackendSession()
+      ? `<a class="btn-primary" data-nav="me">登录后投票</a>`
+      : !canVote
       ? `<a class="btn-primary" data-nav="gallery">查看作品展厅</a>`
       : voted
       ? `<button class="btn-ghost is-cancel" type="button" data-cancel-vote="${voted.id}">取消投票</button>`
@@ -1294,12 +1641,16 @@
       const overviewHtml = renderOverviewBanner();
       return `<section class="page-hero result-hero"><div class="container">${overviewHtml}<h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div></section>`;
     };
-    if (PHASE !== "published" && !forcePreview) {
+    const hasPublishedResult = Boolean(SITE_STATE?.result?.published && SITE_STATE.result.snapshot);
+    if (!hasPublishedResult) {
       return `${resultHead("排行榜")}
-      <section class="container sec"><div class="rk-locked glass"><span class="rk-lock-ic">${ICON("lock", "var(--neon)")}</span><h2>结果待公布</h2><p>投票尚未结束，排行榜将在颁奖环节由现场统一揭晓。<br>当前请前往作品展厅，为你支持的团队投票。</p><div class="rk-locked-cta"><a class="btn-primary" data-nav="gallery">去作品展厅加油</a><button class="btn-ghost" data-preview="1">预览排行榜（演示）</button></div></div></section>`;
+      <section class="container sec"><div class="rk-locked glass"><span class="rk-lock-ic">${ICON("lock", "var(--neon)")}</span><h2>结果待公布</h2><p>排行榜将在后台正式发布后展示。<br>当前请前往作品展厅，为你支持的团队投票。</p><div class="rk-locked-cta"><a class="btn-primary" data-nav="gallery">去作品展厅加油</a></div></div></section>`;
     }
     const ranked = D.computeRanking();
-    const max = Math.max(...ranked.map((t) => t.total));
+    if (!ranked.length) {
+      return `${resultHead("排行榜")}<section class="container sec"><div class="rk-locked glass"><span class="rk-lock-ic">${ICON("lock", "var(--neon)")}</span><h2>暂无排行数据</h2><p>后台尚未发布有效结果。</p></div></section>`;
+    }
+    const max = Math.max(1, ...ranked.map((t) => t.total));
     const rows = ranked.map((t) => {
       const champ = t.rank === 1;
       const avas = [t.advisor, ...t.members].slice(0, 5).map((p) => avatar(p, 30)).join("");
@@ -1398,7 +1749,19 @@
   }
   function refreshRoleChrome() {
     const role = currentRole();
-    if (navLogin) navLogin.textContent = role ? roleName(role) : "登录 / 角色";
+    const session = readJson(SESSION_KEY, {});
+    const user = session && session.user;
+    if (navLogin) {
+      if (user && user.name) {
+        navLogin.classList.add("is-user");
+        navLogin.innerHTML = `${user.avatar
+          ? `<span class="nav-ava" style="background-image:url('${esc(user.avatar)}')"></span>`
+          : `<span class="nav-ava nav-ava-fallback">${esc(String(user.name).slice(0, 1))}</span>`}<span class="nav-login-meta"><b>${esc(user.name)}</b><i>${role ? esc(pickLabel(role)) : "待选择角色"}</i></span>`;
+      } else {
+        navLogin.classList.remove("is-user");
+        navLogin.textContent = role ? roleName(role) : "登录 / 角色";
+      }
+    }
     if (navPhase) navPhase.textContent = role ? `ROLE:${role.toUpperCase()}` : "ROLE:UNBOUND";
   }
   function renderMobileTabbar() {
@@ -1554,14 +1917,12 @@
     }
     try {
       await SiteRoleApi.castVote(id);
+      await loadSiteState();
+      toast(`已为「${team.name}」投票成功`);
+      refreshCurrentView({ preserveScroll: true });
     } catch (e) {
-      // 后端未接入时使用本地演示投票状态。
+      toast("投票失败，请稍后重试");
     }
-    team.votes += 1;
-    localVoteDeltaTeamId = id;
-    root.localStorage.setItem(VOTE_KEY, id);
-    toast(`已为「${team.name}」投票成功`);
-    refreshCurrentView({ preserveScroll: true });
   }
 
   async function cancelVote(id, confirmed = false) {
@@ -1585,16 +1946,12 @@
     }
     try {
       await SiteRoleApi.cancelVote(team.id);
+      await loadSiteState();
+      toast(`已取消对「${team.name}」的投票`);
+      refreshCurrentView({ preserveScroll: true });
     } catch (e) {
-      // 后端未接入时使用本地演示投票状态。
+      toast("取消投票失败，请稍后重试");
     }
-    if (localVoteDeltaTeamId === team.id) {
-      team.votes = Math.max(0, Number(team.votes || 0) - 1);
-      localVoteDeltaTeamId = "";
-    }
-    root.localStorage.removeItem(VOTE_KEY);
-    toast(`已取消对「${team.name}」的投票`);
-    refreshCurrentView({ preserveScroll: true });
   }
 
   async function joinTeam(id, confirmed = false) {
@@ -1768,6 +2125,7 @@
     doc.addEventListener("click", (e) => {
       const work = e.target.closest("[data-work]");
       const vote = e.target.closest("[data-vote]");
+      const authVote = e.target.closest("[data-auth-vote]");
       const cancelVoteButton = e.target.closest("[data-cancel-vote]");
       const team = e.target.closest("[data-join-team]");
       const leaveTeamButton = e.target.closest("[data-leave-team]");
@@ -1776,7 +2134,6 @@
       const judgeSave = e.target.closest("[data-judge-save]");
       const mobileTrainee = e.target.closest("[data-mobile-trainee]");
       const mobileDetailClose = e.target.closest("[data-mobile-detail-close]");
-      const authRole = e.target.closest("[data-auth-role]");
       const authFeishu = e.target.closest("[data-auth-feishu]");
       const authReset = e.target.closest("[data-auth-reset]");
       const nav = e.target.closest("[data-nav]");
@@ -1794,23 +2151,12 @@
         showMobileTraineeDetail();
         return;
       }
-      if (authRole) {
-        setRole(authRole.dataset.authRole, { role: authRole.dataset.authRole, source: "mock" });
-        renderNavLinks();
-        renderMobileTabbar();
-        refreshRoleChrome();
-        closeAuthGate();
-        toast(`已进入「${roleName(authRole.dataset.authRole)}」视角`);
-        const target = pendingAuthTarget;
-        pendingAuthTarget = null;
-        if (target && VIEWS.some((v) => v.key === target)) go(target);
-        return;
-      }
       if (authFeishu) { e.preventDefault(); startFeishuLogin(); return; }
       if (authReset) {
         e.preventDefault();
         root.localStorage.removeItem(ROLE_KEY);
         root.localStorage.removeItem(SESSION_KEY);
+        SiteRoleApi.logout().catch(() => {});
         renderNavLinks();
         renderMobileTabbar();
         refreshRoleChrome();
@@ -1824,6 +2170,11 @@
         return;
       }
       if (mobileDetailClose) { e.preventDefault(); closeMobileTraineeDetail(); return; }
+      if (authVote) {
+        e.preventDefault();
+        showAuthGate(root.location.hash.slice(1) || "gallery");
+        return;
+      }
       if (cancelVoteButton) { cancelVote(cancelVoteButton.dataset.cancelVote); return; }
       if (vote) { castVote(vote.dataset.vote); return; }
       if (leaveTeamButton) { leaveTeam(leaveTeamButton.dataset.leaveTeam); return; }
@@ -1834,8 +2185,22 @@
       if (work) { showWork(work.dataset.work); return; }
       if (nav) { e.preventDefault(); go(nav.dataset.nav); return; }
       if (prev) { main.innerHTML = renderResult(true); setActive("result"); return; }
-      if (e.target.closest("#navLogin")) { go("me"); return; }
+      const switchRoleBtn = e.target.closest("[data-switch-role]");
+      if (switchRoleBtn) { e.preventDefault(); switchCurrentRole(switchRoleBtn.dataset.switchRole); return; }
+      if (e.target.closest("[data-logout]")) { e.preventDefault(); doLogout(); return; }
+      if (e.target.closest("#navLogin")) {
+        e.preventDefault();
+        const sess = readJson(SESSION_KEY, {});
+        if (sess && sess.user) toggleUserMenu(); else go("me");
+        return;
+      }
       if (e.target.closest("#navBurger")) { navLinks.classList.toggle("open"); return; }
+    });
+    // 点击菜单外区域关闭右上角用户菜单。
+    doc.addEventListener("click", (e) => {
+      if (!doc.getElementById("navUserMenu")) return;
+      if (e.target.closest("#navUserMenu") || e.target.closest("#navLogin")) return;
+      closeUserMenu();
     });
     doc.addEventListener("input", (e) => {
       const teamNameDraft = e.target.closest("[data-team-name-draft]");
@@ -1867,18 +2232,39 @@
 
   function tick() { doc.querySelectorAll("[data-countdown]").forEach((el) => { let r = Math.max(0, (+el.dataset.remain || 0) - 1); el.dataset.remain = r; el.innerHTML = fmtHMS(r); }); }
 
-  async function loadTrainees() {
-    try { const r = await fetch("./data/trainees.json"); if (r.ok) TRAINEES = await r.json(); } catch (e) { TRAINEES = []; }
+  // 从受限页面(大屏/后台/演示)被拦回时的提示弹窗。
+  function showDeniedNotice() {
+    try {
+      const u = new URL(root.location.href);
+      u.searchParams.delete("denied");
+      history.replaceState(null, "", u.pathname + (u.search || "") + (u.hash || ""));
+    } catch (e) { /* 忽略 */ }
+    const overlay = doc.createElement("div");
+    overlay.className = "role-picker-overlay";
+    overlay.innerHTML = `
+      <div class="role-picker glass" role="alertdialog" aria-label="访问受限">
+        <span class="role-picker-en">ACCESS DENIED</span>
+        <h2>访问非法</h2>
+        <p>该页面仅管理员可见，已为你返回用户站。如需访问，请用具备管理员角色的飞书账号登录。</p>
+        <div class="role-picker-grid"><button type="button" data-denied-close>我知道了</button></div>
+      </div>`;
+    overlay.addEventListener("click", (e) => {
+      if (e.target.closest("[data-denied-close]") || e.target === overlay) overlay.remove();
+    });
+    doc.body.appendChild(overlay);
   }
+
   async function init() {
     if (root.CodeRain) { rain = root.CodeRain.createCodeRain(doc.getElementById("siteRain"), { glyphs: "010101AIJOINCARE{}[]<>".split(""), fontSize: 16, fade: "rgba(2,8,14,0.06)" }); rain.start(); }
-    await loadTrainees();
     hydrateRole();
-    await syncRoleFromBackend();
+    const handledLogin = await consumeFeishuCallback();
+    if (!handledLogin) await syncRoleFromBackend();
+    await loadSiteState();
     await syncHomeState();
     bind();
     route(false);
     if (wantsAuthChooser()) showAuthGate("entry");
+    if (authParams().get("denied")) showDeniedNotice();
     root.setInterval(tick, 1000);
   }
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", init); else init();

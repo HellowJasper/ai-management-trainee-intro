@@ -58,8 +58,11 @@ function createAuthSessionRepository(dataPath = DEFAULT_DATA_PATH) {
   }
 
   async function createSession(payload = {}) {
+    const roles = Array.from(new Set((Array.isArray(payload.roles) && payload.roles.length
+      ? payload.roles
+      : [payload.role]).map(normalizeRole).filter(Boolean)));
     const role = normalizeRole(payload.role);
-    if (!role) {
+    if (!role && !roles.length) {
       throw createHttpError(400, "A valid role is required to create a local session.");
     }
 
@@ -68,14 +71,14 @@ function createAuthSessionRepository(dataPath = DEFAULT_DATA_PATH) {
     const user = normalizeUser(payload);
     const session = {
       id: sessionId,
-      role,
-      roles: Array.isArray(payload.roles) && payload.roles.length ? payload.roles : [role],
+      role, // current role; "" means pending selection
+      roles: roles.length ? roles : [role],
       user: {
         ...user,
         id: user.id || sessionId,
         name: user.name || "本地用户",
       },
-      permissions: getRolePermissions(role),
+      permissions: role ? getRolePermissions(role) : {},
       createdAt: now,
       updatedAt: now,
       source: payload.source || "local-dev",
@@ -103,6 +106,30 @@ function createAuthSessionRepository(dataPath = DEFAULT_DATA_PATH) {
     return state.sessions[cleanSessionId] || null;
   }
 
+  async function updateSession(sessionId, patch = {}) {
+    const cleanSessionId = String(sessionId || "").trim();
+    if (!cleanSessionId) {
+      return null;
+    }
+    const state = await readState();
+    const existing = state.sessions[cleanSessionId];
+    if (!existing) {
+      return null;
+    }
+    const role = normalizeRole(patch.role);
+    const next = {
+      ...existing,
+      role: role || existing.role,
+      permissions: role ? getRolePermissions(role) : existing.permissions,
+      updatedAt: new Date().toISOString(),
+    };
+    await writeState({
+      updatedAt: next.updatedAt,
+      sessions: { ...state.sessions, [cleanSessionId]: next },
+    });
+    return next;
+  }
+
   async function deleteSession(sessionId) {
     const cleanSessionId = String(sessionId || "").trim();
     if (!cleanSessionId) {
@@ -127,6 +154,7 @@ function createAuthSessionRepository(dataPath = DEFAULT_DATA_PATH) {
     createSession,
     deleteSession,
     getSession,
+    updateSession,
   };
 }
 

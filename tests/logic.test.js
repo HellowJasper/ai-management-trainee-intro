@@ -337,6 +337,42 @@ test("data loader loads trainee records when admin pages do not include AppLogic
   assert.equal(calls[0].url, "http://localhost:63779/api/trainees");
 });
 
+test("data loader exposes the site bootstrap API without fake-data fallback", async () => {
+  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
+  const calls = [];
+  const context = {
+    JOINCARE_API_BASE_URL: "http://localhost:63779",
+    console: { warn() {} },
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          me: { role: "public" },
+          teams: [],
+          vote: { myVoteTeamId: null },
+        }),
+      };
+    },
+    localStorage: {
+      getItem: () => null,
+      setItem() {},
+      removeItem() {},
+    },
+  };
+  context.globalThis = context;
+
+  vm.runInNewContext(dataJs, context);
+
+  const bootstrap = await context.AppData.loadSiteBootstrap();
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, "http://localhost:63779/api/site/bootstrap");
+  assert.equal(calls[0].options.credentials, "include");
+  assert.deepEqual(bootstrap.vote, { myVoteTeamId: null });
+});
+
 test("admin console renders API health for separated frontend deployments", () => {
   const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
   const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
@@ -462,12 +498,14 @@ test("admin settings manage backend user role mappings", () => {
   const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
   const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
 
-  assert.match(html, /id="adminUserRoleManager"/);
+  assert.match(html, /data-admin-view-panel="users"/);
+  assert.match(html, /id="adminUserFilterBar"/);
   assert.match(html, /id="adminUserRoleForm"/);
   assert.match(html, /id="adminUserRoleList"/);
   assert.match(html, /name="adminUserRole"/);
-  assert.match(css, /\.admin-user-role-manager/);
-  assert.match(css, /\.admin-user-role-list/);
+  assert.match(html, /data-add-user/);
+  assert.match(css, /\.admin-user-table/);
+  assert.match(css, /\.admin-user-modal/);
   assert.match(dataJs, /function loadAdminUsers/);
   assert.match(dataJs, /function upsertAdminUser/);
   assert.match(dataJs, /\/api\/admin\/users/);
@@ -591,7 +629,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260625-team-panel/);
+  assert.match(siteHtml, /site\.js\?v=20260625-auth-sync-team-panel/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -602,7 +640,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   assert.match(siteJs, /取消投票/);
   assert.match(siteJs, /function refreshCurrentView\(\{ preserveScroll = false \} = \{\}\)/);
   assert.match(siteJs, /refreshCurrentView\(\{ preserveScroll: true \}\)/);
-  assert.match(siteJs, /localVoteDeltaTeamId/);
+  assert.doesNotMatch(siteJs, /localVoteDeltaTeamId/);
   assert.match(siteCss, /\.team-join\.is-leave/);
   assert.match(siteCss, /\.gl2-vote\.is-cancel/);
   assert.match(siteCss, /\.btn-primary\.is-cancel/);
@@ -613,8 +651,8 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.css\?v=20260625-team-panel/);
-  assert.match(siteHtml, /site\.js\?v=20260625-team-panel/);
+  assert.match(siteHtml, /site\.css\?v=20260625-auth-sync-team-panel/);
+  assert.match(siteHtml, /site\.js\?v=20260625-auth-sync-team-panel/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /浏览五大战队作品，选出你最认可的解决方案，并投出关键一票。/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -626,6 +664,34 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   assert.match(siteCss, /\.site-body\[data-view="gallery"\] \.ph-en\s*\{[\s\S]*font-size:\s*clamp\(38px,\s*4\.7vw,\s*78px\)/);
   assert.match(siteCss, /\.site-body\[data-view="gallery"\] \.page-hero h1\s*\{[\s\S]*font-size:\s*clamp\(22px,\s*2vw,\s*34px\)/);
   assert.match(siteCss, /\.gl2-h \.gl2-project-name\s*\{[\s\S]*font-size:\s*clamp\(24px,\s*2\.3vw,\s*36px\)/);
+});
+
+test("official site hydrates audience state from backend bootstrap without local vote mutation fallback", () => {
+  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(dataJs, /function loadSiteBootstrap/);
+  assert.match(dataJs, /\/api\/site\/bootstrap/);
+  assert.match(dataJs, /loadSiteBootstrap,/);
+  assert.match(siteJs, /SITE_STATE/);
+  assert.match(siteJs, /loadSiteBootstrap/);
+  assert.doesNotMatch(siteJs, /team\.votes\s*\+=\s*1/);
+  assert.doesNotMatch(siteJs, /localStorage\.setItem\(VOTE_KEY/);
+  assert.doesNotMatch(siteJs, /localStorage\.removeItem\(VOTE_KEY/);
+  assert.doesNotMatch(siteJs, /后端未接入时使用本地演示投票状态/);
+});
+
+test("official site requires a backend authenticated session before enabling vote actions", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /function hasBackendSession\(/);
+  assert.match(siteJs, /function canUseVoteAction\(/);
+  assert.match(siteJs, /function clearStoredRole\(/);
+  assert.match(siteJs, /currentRole\(\) && !hasBackendSession\(\)/);
+  assert.match(siteJs, /data-auth-vote/);
+  assert.match(siteJs, /const authVote = e\.target\.closest\("\[data-auth-vote\]"\)/);
+  assert.doesNotMatch(siteJs, /!currentRole\(\)\s*\?\s*`<button class="gl2-vote" data-vote=/);
+  assert.doesNotMatch(siteJs, /!currentRole\(\)\s*\?\s*`<button class="btn-primary" data-vote=/);
 });
 
 test("role permissions reserve team joining, voting, judging, and admin control for the right roles", () => {
@@ -994,7 +1060,10 @@ test("final result screen reserves enough vertical room for the champion showcas
 test("official site wires my page, team join and judge score interactions", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteJs, /if \(e\.target\.closest\("#navLogin"\)\) \{ go\("me"\); return; \}/);
+  assert.match(siteJs, /e\.target\.closest\("#navLogin"\)/);
+  assert.match(siteJs, /toggleUserMenu\(\)/);
+  assert.match(siteJs, /data-switch-role/);
+  assert.match(siteJs, /data-logout/);
   assert.match(siteJs, /data-join-team/);
   assert.match(siteJs, /function joinTeam\(/);
   assert.match(siteJs, /data-judge-save/);
@@ -1096,7 +1165,7 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260625-team-panel/);
+  assert.match(html, /src\/site\.css\?v=20260625-auth-sync-team-panel/);
   assert.match(siteCss, /--site-detail-console-width:\s*min\(calc\(100dvw - var\(--site-detail-edge\) - var\(--site-detail-edge\)\), clamp\(980px, 60vw, 1240px\)\)/);
   assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*var\(--site-detail-edge\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*50%/);
@@ -1225,7 +1294,8 @@ test("role authorization is completed at entry and protects sensitive actions", 
   assert.doesNotMatch(siteJs, /root\.localStorage\.setItem\(ROLE_KEY, "public"\)/);
   assert.match(siteJs, /\/api\/auth\/feishu\/login/);
   assert.match(siteJs, /\/api\/me/);
-  assert.match(siteJs, /data-auth-role/);
+  assert.match(siteJs, /data-auth-feishu/);
+  assert.doesNotMatch(siteJs, /data-auth-role/);
   assert.match(siteJs, /if \(!requireRole\("vote", \(p\) => p\.canVote/);
   assert.match(siteJs, /if \(!requireRole\("team", \(p\) => p\.canJoinTeam/);
   assert.match(siteJs, /if \(!requireRole\("judge", \(p\) => p\.canScore/);
@@ -1236,9 +1306,9 @@ test("official site cache keys are bumped after navigation and detail layout pol
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
-  assert.match(html, /src\/site\.css\?v=20260625-team-panel/);
+  assert.match(html, /src\/site\.css\?v=20260625-auth-sync-team-panel/);
   assert.match(html, /src\/logic\.js\?v=20260624-nav-labels/);
-  assert.match(html, /src\/site\.js\?v=20260625-team-panel/);
+  assert.match(html, /src\/site\.js\?v=20260625-auth-sync-team-panel/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {

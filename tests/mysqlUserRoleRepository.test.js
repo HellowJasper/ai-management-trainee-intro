@@ -103,7 +103,7 @@ test("MySQL user role repository stores users and resolves active login roles", 
   assert.equal(saved.id, "user-001");
   assert.deepEqual(saved.roles, ["judge", "player"]);
 
-  const resolved = await repository.resolveLoginUser({ openId: "ou-001" });
+  const resolved = await repository.resolveLoginUser({ userId: "user-001" });
   assert.equal(resolved.user.id, "user-001");
   assert.equal(resolved.user.name, "测试选手");
   assert.deepEqual(resolved.roles, ["judge", "player"]);

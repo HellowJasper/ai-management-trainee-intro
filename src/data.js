@@ -80,6 +80,10 @@
     return fetchJson("/api/health");
   }
 
+  async function loadSiteBootstrap() {
+    return fetchJson("/api/site/bootstrap");
+  }
+
   async function loadTeams(fallbackTeams = []) {
     const sources = [
       () => fetchJson("/api/teams"),
@@ -680,6 +684,7 @@
     loadAuditLogs,
     loadHealth,
     loadAdminUsers,
+    loadSiteBootstrap,
     loadJudgeScores,
     loadLatestResultSnapshot,
     loadMissionCountdown,

@@ -111,9 +111,14 @@ function createUserRoleRepository(dataPath = DEFAULT_DATA_PATH) {
     return publicUser(nextUser);
   }
 
+  // 只认飞书 user_id（不再用 openid/unionid 兜底匹配）。
   async function resolveLoginUser(payload = {}) {
+    const userId = String(payload.userId || payload.id || "").trim();
+    if (!userId) {
+      return null;
+    }
     const state = await readState();
-    const user = state.users.find((item) => item.status === "active" && matchesLogin(item, payload));
+    const user = state.users.find((item) => item.status === "active" && item.id === userId);
     if (!user || !user.roles.length) {
       return null;
     }
@@ -126,10 +131,51 @@ function createUserRoleRepository(dataPath = DEFAULT_DATA_PATH) {
     };
   }
 
+  async function getUserWithRoles(userId) {
+    const id = String(userId || "").trim();
+    if (!id) {
+      return null;
+    }
+    const state = await readState();
+    const found = state.users.find((item) => item.id === id);
+    if (!found) {
+      return null;
+    }
+    const clean = publicUser(found);
+    return {
+      user: { id: clean.id, name: clean.name, department: clean.department, avatar: clean.avatar },
+      roles: clean.roles || [],
+    };
+  }
+
+  // 登录时同步飞书身份(user_id+姓名+头像)，不改角色。
+  async function upsertLoginUser(payload = {}) {
+    const id = String(payload.userId || payload.id || "").trim();
+    if (!id) {
+      throw createHttpError(400, "feishu user_id is required.");
+    }
+    const state = await readState();
+    const existing = state.users.find((item) => item.id === id);
+    const nextUser = normalizeUser({
+      ...existing,
+      id,
+      name: payload.name || payload.displayName || (existing && existing.name) || "飞书用户",
+      department: payload.department || (existing && existing.department) || "",
+      avatar: payload.avatar || payload.avatarUrl || payload.photo || (existing && existing.avatar) || "",
+      roles: existing ? existing.roles : [],
+      status: "active",
+    });
+    const users = state.users.filter((item) => item.id !== id);
+    await writeState({ updatedAt: nextUser.updatedAt, users: [nextUser, ...users] });
+    return getUserWithRoles(id);
+  }
+
   return {
     listUsers,
     resolveLoginUser,
     upsertUser,
+    upsertLoginUser,
+    getUserWithRoles,
   };
 }
 

@@ -94,16 +94,14 @@ function createMysqlUserRoleRepository(pool) {
     return state.users.find((item) => item.id === user.id) || { ...user, roles: user.roles };
   }
 
+  // 只认飞书 user_id（不再用 openid/unionid 兜底匹配）。
   async function resolveLoginUser(payload = {}) {
-    const state = await listUsers();
     const userId = String(payload.userId || payload.id || "").trim();
-    const openId = String(payload.openId || "").trim();
-    const unionId = String(payload.unionId || "").trim();
-    const user = state.users.find((item) => (
-      (userId && item.id === userId)
-      || (openId && item.openId === openId)
-      || (unionId && item.unionId === unionId)
-    ));
+    if (!userId) {
+      return null;
+    }
+    const state = await listUsers();
+    const user = state.users.find((item) => item.id === userId);
     if (!user || !user.roles.length) {
       return null;
     }
@@ -115,10 +113,59 @@ function createMysqlUserRoleRepository(pool) {
     };
   }
 
+  // 返回 { user:{id,name,department,avatar}, roles:[...] }，无角色则 roles 为空数组。
+  async function getUserWithRoles(userId) {
+    const id = String(userId || "").trim();
+    if (!id) {
+      return null;
+    }
+    const state = await listUsers();
+    const found = state.users.find((item) => item.id === id);
+    if (!found) {
+      return null;
+    }
+    return {
+      user: {
+        id: found.id,
+        name: found.name,
+        department: found.department,
+        avatar: found.avatar,
+      },
+      roles: found.roles || [],
+    };
+  }
+
+  // 登录时把飞书身份(user_id+姓名+头像)同步进 users 表，不改角色（角色由管理员派发）。
+  async function upsertLoginUser(payload = {}) {
+    const id = String(payload.userId || payload.id || "").trim();
+    if (!id) {
+      throw createHttpError(400, "feishu user_id is required.");
+    }
+    const name = String(payload.name || payload.displayName || "飞书用户").trim();
+    const department = String(payload.department || "").trim();
+    const avatar = String(payload.avatar || payload.avatarUrl || payload.photo || "").trim();
+
+    await pool.execute(
+      `INSERT INTO users (id, name, department, avatar_url, status)
+       VALUES (?, ?, ?, ?, 'active')
+       ON DUPLICATE KEY UPDATE
+        name = VALUES(name),
+        department = CASE WHEN VALUES(department) <> '' THEN VALUES(department) ELSE department END,
+        avatar_url = CASE WHEN VALUES(avatar_url) <> '' THEN VALUES(avatar_url) ELSE avatar_url END,
+        status = 'active',
+        updated_at = CURRENT_TIMESTAMP`,
+      [id, name, department, avatar],
+    );
+
+    return getUserWithRoles(id);
+  }
+
   return {
     listUsers,
     resolveLoginUser,
     upsertUser,
+    upsertLoginUser,
+    getUserWithRoles,
   };
 }
 

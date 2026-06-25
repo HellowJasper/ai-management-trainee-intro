@@ -9,5 +9,8 @@ npm-debug.log*
 data/*.csv
 data/*.zip
 data/*.xlsx
+data/sessions.json
 data/AI*附件/
 .vercel
+dist/
+.idea/

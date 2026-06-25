@@ -10,6 +10,8 @@ const { createMysqlTraineeRepository } = require("./mysqlTraineeRepository");
 const { createMysqlUserRoleRepository } = require("./mysqlUserRoleRepository");
 const { createMysqlVoteResultsRepository } = require("./mysqlVoteResultsRepository");
 const { createMysqlWorksRepository } = require("./mysqlWorksRepository");
+const { createMysqlAuthSessionRepository } = require("./mysqlAuthSessionRepository");
+const { createMysqlOAuthStateRepository } = require("./mysqlOAuthStateRepository");
 const { createAuditLogRepository } = require("./auditLogRepository");
 const { createAdminStateRepository } = require("./adminStateRepository");
 const { createJudgeScoresRepository } = require("./judgeScoresRepository");
@@ -47,6 +49,8 @@ function createRepositoryBundle({
       adminStateRepository: createMysqlAdminStateRepository(pool),
       resultSnapshotRepository: createMysqlResultSnapshotsRepository(pool),
       userRoleRepository: createMysqlUserRoleRepository(pool),
+      authSessionRepository: createMysqlAuthSessionRepository(pool),
+      oauthStateRepository: createMysqlOAuthStateRepository(pool),
       mysqlPool: pool,
     };
   }

@@ -1,5 +1,6 @@
 const DEFAULT_AUTHORIZE_URL = "https://accounts.feishu.cn/open-apis/authen/v1/authorize";
-const DEFAULT_TOKEN_URL = "https://open.feishu.cn/open-apis/authen/v1/oidc/access_token";
+// v2 token 端点直接用 client_id/client_secret 换 user_access_token，无需先取 app_access_token。
+const DEFAULT_TOKEN_URL = "https://open.feishu.cn/open-apis/authen/v2/oauth/token";
 const DEFAULT_USER_INFO_URL = "https://open.feishu.cn/open-apis/authen/v1/user_info";
 
 function envValue(env, key) {
@@ -53,7 +54,8 @@ function createFeishuOAuthProvider({
   appSecret = envValue(env, "FEISHU_APP_SECRET"),
   redirectUri = envValue(env, "FEISHU_REDIRECT_URI"),
 } = {}) {
-  const configured = Boolean(appId && appSecret && redirectUri && fetchImpl);
+  // redirect_uri 由前端按当前页面动态生成并随请求传入，不再依赖构造期/环境配置。
+  const configured = Boolean(appId && appSecret && fetchImpl);
 
   function createAuthorizationUrl({ state, redirectUri: requestRedirectUri = redirectUri } = {}) {
     const url = new URL(authorizeUrl);
