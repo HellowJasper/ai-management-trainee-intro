@@ -194,3 +194,13 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_auth_sessions_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS oauth_states (
+  state VARCHAR(64) PRIMARY KEY,
+  provider VARCHAR(32) NOT NULL DEFAULT 'feishu',
+  redirect_path VARCHAR(255) NOT NULL DEFAULT '/site.html#me',
+  redirect_uri VARCHAR(512) NOT NULL DEFAULT '',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP NOT NULL,
+  KEY idx_oauth_states_expires (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
