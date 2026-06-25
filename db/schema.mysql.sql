@@ -183,3 +183,14 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   KEY idx_audit_target (target_type, target_id),
   KEY idx_audit_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  id VARCHAR(64) PRIMARY KEY,
+  role VARCHAR(32) NOT NULL,
+  user_id VARCHAR(96) NOT NULL DEFAULT '',
+  source VARCHAR(64) NOT NULL DEFAULT '',
+  session_json JSON NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_auth_sessions_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

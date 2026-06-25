@@ -11,3 +11,5 @@ data/*.zip
 data/*.xlsx
 data/AI*附件/
 .vercel
+dist/
+.idea/

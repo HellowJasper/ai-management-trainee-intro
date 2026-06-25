@@ -802,7 +802,7 @@ function createServer(options = {}) {
     auditLogRepository = repositoryBundle.auditLogRepository,
     resultSnapshotRepository = repositoryBundle.resultSnapshotRepository,
     userRoleRepository = repositoryBundle.userRoleRepository,
-    authSessionRepository = createAuthSessionRepository(),
+    authSessionRepository = repositoryBundle.authSessionRepository || createAuthSessionRepository(),
     authEnforcement = resolveAuthEnforcement(),
   } = options;
   const resolvedPublicRoot = path.resolve(publicRoot);
@@ -854,6 +854,15 @@ function createServer(options = {}) {
 }
 
 if (require.main === module) {
+  require("./loadEnv").loadEnv();
+  // 全盘 MySQL：禁止本地文件存储。未显式声明则强制 mysql；显式声明为其它后端则拒绝启动。
+  if (process.env.DATA_BACKEND === undefined) {
+    process.env.DATA_BACKEND = "mysql";
+  }
+  if (String(process.env.DATA_BACKEND).trim().toLowerCase() !== "mysql") {
+    console.error(`此部署仅支持 MySQL 存储，请在 .env 设置 DATA_BACKEND=mysql（当前为 "${process.env.DATA_BACKEND}"）。`);
+    process.exit(1);
+  }
   const port = Number(process.env.PORT || DEFAULT_PORT);
   const server = createServer();
 

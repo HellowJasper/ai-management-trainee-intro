@@ -1,17 +1,8 @@
 {
   "scripts": {
-    "dev": "node server/index.js",
-    "dev:api": "PORT=63779 node server/index.js",
-    "dev:api:strict": "AUTH_ENFORCEMENT=strict PORT=63779 node server/index.js",
-    "dev:api:mysql": "DATA_BACKEND=mysql PORT=63779 node server/index.js",
-    "dev:api:mysql:strict": "DATA_BACKEND=mysql AUTH_ENFORCEMENT=strict PORT=63779 node server/index.js",
-    "dev:web": "PORT=5174 API_BASE_URL=http://localhost:63779 node server/frontendServer.js",
-    "db:schema": "node server/databaseCli.js",
-    "db:seed": "node server/mysqlSeedImporter.js",
     "start": "node server/index.js",
-    "static": "python3 -m http.server 5173",
-    "test": "node --test",
-    "test:api": "node --test tests/server.test.js"
+    "dev": "node server/index.js",
+    "test": "node --test"
   },
   "dependencies": {
     "mysql2": "^3.11.5"

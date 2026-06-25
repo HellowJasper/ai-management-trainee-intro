@@ -391,6 +391,32 @@ async function seedWorks(pool, works) {
   return count;
 }
 
+async function seedAuditLogs(pool, logs) {
+  let count = 0;
+  for (const log of logs) {
+    await pool.execute(
+      `INSERT INTO audit_logs
+        (actor, action, target_type, target_id, message, before_json, after_json, ip, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        clean(log.actor),
+        clean(log.action),
+        clean(log.targetType || log.target_type),
+        clean(log.targetId || log.target_id),
+        clean(log.message),
+        typeof log.before === "undefined" ? null : json(log.before, null),
+        typeof log.after === "undefined"
+          ? (log.meta && Object.keys(log.meta).length ? json(log.meta, null) : null)
+          : json(log.after, null),
+        clean(log.ip),
+        toMysqlDate(log.at || log.createdAt || log.created_at) || toMysqlDate(new Date().toISOString()),
+      ],
+    );
+    count += 1;
+  }
+  return count;
+}
+
 async function seedMysqlFromJson({ dataDir = DEFAULT_DATA_DIR, pool = createMysqlPool() } = {}) {
   const [
     traineesPayload,
@@ -401,6 +427,7 @@ async function seedMysqlFromJson({ dataDir = DEFAULT_DATA_DIR, pool = createMysq
     roadshow,
     voteResults,
     worksPayload,
+    auditLogsPayload,
   ] = await Promise.all([
     readJsonFile(dataDir, "trainees.json", []),
     readJsonFile(dataDir, "teams.json", []),
@@ -410,6 +437,7 @@ async function seedMysqlFromJson({ dataDir = DEFAULT_DATA_DIR, pool = createMysq
     readJsonFile(dataDir, "roadshow.json", {}),
     readJsonFile(dataDir, "vote-results.json", { results: [] }),
     readJsonFile(dataDir, "works.json", { works: [] }),
+    readJsonFile(dataDir, "audit-logs.json", { logs: [] }),
   ]);
 
   const trainees = await seedTrainees(pool, asArray(traineesPayload, "trainees"));
@@ -420,6 +448,7 @@ async function seedMysqlFromJson({ dataDir = DEFAULT_DATA_DIR, pool = createMysq
   const roadshowSessions = await seedRoadshow(pool, roadshow);
   const voteResult = await seedVotes(pool, voteResults);
   const works = await seedWorks(pool, asArray(worksPayload, "works"));
+  const auditLogs = await seedAuditLogs(pool, asArray(auditLogsPayload, "logs"));
 
   return {
     trainees,
@@ -430,10 +459,12 @@ async function seedMysqlFromJson({ dataDir = DEFAULT_DATA_DIR, pool = createMysq
     roadshowSessions,
     ...voteResult,
     works,
+    auditLogs,
   };
 }
 
 if (require.main === module) {
+  require("./loadEnv").loadEnv();
   seedMysqlFromJson()
     .then((result) => {
       console.log(JSON.stringify(result, null, 2));

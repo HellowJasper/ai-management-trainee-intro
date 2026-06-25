@@ -23,6 +23,7 @@ async function applySchema({ schemaPath = DEFAULT_SCHEMA_PATH, pool = createMysq
 }
 
 if (require.main === module) {
+  require("./loadEnv").loadEnv();
   applySchema()
     .then((result) => {
       console.log(`Applied ${result.applied} schema statements.`);
