@@ -186,6 +186,22 @@ function buildExternalUrl(request, pathname) {
   return `${protocol}://${host}${pathname}`;
 }
 
+// 仅管理员可访问的页面（大屏 index / 后台 admin / 演示 screen）。返回页面 key 或空串。
+function resolveProtectedPageKey(request, url) {
+  let pathname = "/";
+  try {
+    pathname = decodePathname(url.pathname);
+  } catch {
+    return "";
+  }
+  const key = pathname.replace(/\/$/, "") || "/";
+  if (key === "/admin" || key === "/admin.html") return "admin";
+  if (key === "/screen" || key === "/screen.html") return "screen";
+  if (key === "/index.html") return "index";
+  if (key === "/" && url.searchParams.get("screen") === "big") return "index";
+  return "";
+}
+
 // 仅取页面路径（去掉 query/hash），用于按当前请求 Host 动态拼出 redirect_uri。
 function sanitizePagePath(value, fallback = "/site.html") {
   const raw = String(value || "").trim();
@@ -1048,13 +1064,11 @@ function serveStatic(request, response, url, publicRoot) {
 
   const decodedPathname = decodePathname(url.pathname);
   let requestPath = decodedPathname;
-  // 无后缀页面路由统一：/ 按 UA 派发，其余 /admin、/site、/screen 各自映射到对应 .html。
+  // 默认路由：根直接进用户站；/?screen=big 才是大屏；其余 /admin、/site、/screen 映射到对应 .html。
   const PAGE_ALIASES = { "/admin": "/admin.html", "/site": "/site.html", "/screen": "/screen.html" };
   const aliasKey = decodedPathname.replace(/\/$/, "") || "/";
-  if (isMobileRootRequest(request, url)) {
-    requestPath = "/site.html";
-  } else if (decodedPathname === "/") {
-    requestPath = "/index.html";
+  if (decodedPathname === "/") {
+    requestPath = url.searchParams.get("screen") === "big" ? "/index.html" : "/site.html";
   } else if (PAGE_ALIASES[aliasKey]) {
     requestPath = PAGE_ALIASES[aliasKey];
   }
@@ -1181,6 +1195,18 @@ function createServer(options = {}) {
           });
         }
         return;
+      }
+
+      // 大屏 / 后台 / 演示页仅管理员可进；否则跳回用户站并提示访问非法。
+      if (resolveProtectedPageKey(request, url)) {
+        const session = await authSessionRepository.getSession(getSessionIdFromRequest(request));
+        const roles = session
+          ? (Array.isArray(session.roles) && session.roles.length ? session.roles : (session.role ? [session.role] : []))
+          : [];
+        if (!roles.includes("admin")) {
+          sendRedirect(response, "/site.html?denied=1");
+          return;
+        }
       }
 
       serveStatic(request, response, url, resolvedPublicRoot);

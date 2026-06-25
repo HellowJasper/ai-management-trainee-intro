@@ -1440,14 +1440,29 @@ test("admin result publish API creates a final result snapshot", async (t) => {
   assert.equal(auditLogs.logs[0].targetId, published.id);
 });
 
-test("/admin serves the management console shell", async (t) => {
-  const publicRoot = path.join(__dirname, "..");
-  const server = createServer({ publicRoot });
+test("admin / screen / big-screen pages require an admin session", async (t) => {
+  const sessionsFile = await createTempJsonFile("ai-guard-sessions-", "sessions.json", { sessions: {} });
+  const authSessionRepository = createAuthSessionRepository(sessionsFile.dataPath);
+  const server = createServer({ publicRoot: path.join(__dirname, ".."), authSessionRepository });
   const baseUrl = await listen(server);
 
   t.after(() => new Promise((resolve) => server.close(resolve)));
 
-  const response = await fetch(`${baseUrl}/admin`);
+  // 非管理员访问受限页 → 302 跳回用户站并带 denied 标记。
+  for (const target of ["/admin", "/screen", "/index.html", "/?screen=big"]) {
+    const denied = await fetch(`${baseUrl}${target}`, { redirect: "manual" });
+    assert.equal(denied.status, 302, `${target} should redirect non-admins`);
+    assert.match(denied.headers.get("location"), /\/site\.html\?denied=1/);
+  }
+
+  // 管理员登录后可进后台。
+  const login = await fetch(`${baseUrl}/api/auth/feishu/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ role: "admin", userId: "admin-guard-1", name: "管理员" }),
+  });
+  const cookie = login.headers.get("set-cookie").split(";")[0];
+  const response = await fetch(`${baseUrl}/admin`, { headers: { Cookie: cookie } });
   const html = await response.text();
 
   assert.equal(response.status, 200);
@@ -1455,53 +1470,39 @@ test("/admin serves the management console shell", async (t) => {
   assert.match(html, /AI 星锐黑客松 管理后台/);
   assert.match(html, /id="stageRows"/);
   assert.match(html, /src="\.\/src\/admin\.js\?v=20260625-user-table"/);
-
-  const slashResponse = await fetch(`${baseUrl}/admin/`);
-  const slashHtml = await slashResponse.text();
-
-  assert.equal(slashResponse.status, 200);
-  assert.match(slashHtml, /大屏预览/);
 });
 
-test("mobile root requests serve the official mobile site while desktop keeps the big-screen shell", async (t) => {
-  const publicRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-static-root-"));
-  await fs.writeFile(path.join(publicRoot, "index.html"), "<!doctype html><title>BIG SCREEN</title>");
-  await fs.writeFile(path.join(publicRoot, "site.html"), "<!doctype html><title>MOBILE SITE</title>");
-
-  const server = createServer({ publicRoot });
+test("root serves the user site for everyone; big screen stays admin-only", async (t) => {
+  const sessionsFile = await createTempJsonFile("ai-root-sessions-", "sessions.json", { sessions: {} });
+  const authSessionRepository = createAuthSessionRepository(sessionsFile.dataPath);
+  const server = createServer({ publicRoot: path.join(__dirname, ".."), authSessionRepository });
   const baseUrl = await listen(server);
 
   t.after(() => new Promise((resolve) => server.close(resolve)));
 
-  const mobileResponse = await fetch(`${baseUrl}/`, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148",
-    },
+  // 根 → 用户站（不再按 UA 派发），移动端与桌面端一致。
+  for (const ua of [
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+  ]) {
+    const response = await fetch(`${baseUrl}/`, { headers: { "User-Agent": ua } });
+    const html = await response.text();
+    assert.equal(response.status, 200);
+    assert.match(html, /src\/site\.js/);
+  }
+
+  // 管理员登录后通过 /?screen=big 进入大屏。
+  const login = await fetch(`${baseUrl}/api/auth/feishu/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ role: "admin", userId: "admin-root-1", name: "管理员" }),
   });
-  const mobileHtml = await mobileResponse.text();
+  const cookie = login.headers.get("set-cookie").split(";")[0];
+  const big = await fetch(`${baseUrl}/?screen=big`, { headers: { Cookie: cookie } });
+  const bigHtml = await big.text();
 
-  assert.equal(mobileResponse.status, 200);
-  assert.match(mobileHtml, /MOBILE SITE/);
-
-  const desktopResponse = await fetch(`${baseUrl}/`, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-    },
-  });
-  const desktopHtml = await desktopResponse.text();
-
-  assert.equal(desktopResponse.status, 200);
-  assert.match(desktopHtml, /BIG SCREEN/);
-
-  const forcedDesktopResponse = await fetch(`${baseUrl}/?screen=big`, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148",
-    },
-  });
-  const forcedDesktopHtml = await forcedDesktopResponse.text();
-
-  assert.equal(forcedDesktopResponse.status, 200);
-  assert.match(forcedDesktopHtml, /BIG SCREEN/);
+  assert.equal(big.status, 200);
+  assert.match(bigHtml, /src\/app\.js/);
 });
 
 test("API root returns a JSON 404 instead of falling through to static files", async (t) => {

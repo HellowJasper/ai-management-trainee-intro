@@ -297,31 +297,44 @@
       root.localStorage.removeItem(ROLE_KEY);
     }
   }
+  function clearLocalSession() {
+    root.localStorage.removeItem(ROLE_KEY);
+    root.localStorage.removeItem(SESSION_KEY);
+    renderNavLinks();
+    renderMobileTabbar();
+    refreshRoleChrome();
+  }
+
+  // 每次重载都以后端会话为准：会话失效/已退出就清掉本地登录态，避免"假登录"误导。
   async function syncRoleFromBackend() {
-    if (currentRole()) {
-      // 已有本地角色时仍补一次用户信息（姓名/头像）用于顶栏展示。
-      try {
-        const me = await SiteRoleApi.getMe();
-        if (me && me.user) { storeSession(me); refreshRoleChrome(); }
-      } catch (e) { /* 忽略 */ }
+    let me;
+    try {
+      me = await SiteRoleApi.getMe();
+    } catch (e) {
+      return; // 网络/服务异常：不动本地状态，避免误清。
+    }
+
+    if (!me || !me.user) {
+      // 后端无有效会话：若本地还残留登录态，清掉并提示。
+      const hadLocal = Boolean(currentRole()) || Boolean(readJson(SESSION_KEY, null));
+      clearLocalSession();
+      if (hadLocal) toast("登录已失效，请重新登录");
       return;
     }
-    try {
-      const session = await SiteRoleApi.getMe();
-      if (!session || !session.user) return;
-      storeSession(session);
+
+    // 有有效会话：以后端为准同步。
+    storeSession(me);
+    if (me.needsRoleSelection) {
       refreshRoleChrome();
-      if (session.needsRoleSelection) {
-        showRolePicker(session.roles || []);
-        return;
-      }
-      if (session.role && setRole(session.role, session)) {
-        refreshRoleChrome();
-        toast(`已同步「${pickLabel(session.role)}」身份`);
-      }
-    } catch (e) {
-      // 后端未接入时保持前端模拟身份入口可用。
+      showRolePicker(me.roles || []);
+      return;
     }
+    if (me.role) {
+      setRole(me.role, me);
+    }
+    renderNavLinks();
+    renderMobileTabbar();
+    refreshRoleChrome();
   }
   // 角色弹窗用的简洁标签（按用户口径：观众/选手/评委/管理员）。
   const ROLE_PICK_LABELS = { public: "观众", player: "选手", judge: "评委", admin: "管理员" };
@@ -2041,16 +2054,39 @@
   async function loadTrainees() {
     try { const r = await fetch("./data/trainees.json"); if (r.ok) TRAINEES = await r.json(); } catch (e) { TRAINEES = []; }
   }
+  // 从受限页面(大屏/后台/演示)被拦回时的提示弹窗。
+  function showDeniedNotice() {
+    try {
+      const u = new URL(root.location.href);
+      u.searchParams.delete("denied");
+      history.replaceState(null, "", u.pathname + (u.search || "") + (u.hash || ""));
+    } catch (e) { /* 忽略 */ }
+    const overlay = doc.createElement("div");
+    overlay.className = "role-picker-overlay";
+    overlay.innerHTML = `
+      <div class="role-picker glass" role="alertdialog" aria-label="访问受限">
+        <span class="role-picker-en">ACCESS DENIED</span>
+        <h2>访问非法</h2>
+        <p>该页面仅管理员可见，已为你返回用户站。如需访问，请用具备管理员角色的飞书账号登录。</p>
+        <div class="role-picker-grid"><button type="button" data-denied-close>我知道了</button></div>
+      </div>`;
+    overlay.addEventListener("click", (e) => {
+      if (e.target.closest("[data-denied-close]") || e.target === overlay) overlay.remove();
+    });
+    doc.body.appendChild(overlay);
+  }
+
   async function init() {
     if (root.CodeRain) { rain = root.CodeRain.createCodeRain(doc.getElementById("siteRain"), { glyphs: "010101AIJOINCARE{}[]<>".split(""), fontSize: 16, fade: "rgba(2,8,14,0.06)" }); rain.start(); }
     await loadTrainees();
     hydrateRole();
-    await consumeFeishuCallback();
-    await syncRoleFromBackend();
+    const handledLogin = await consumeFeishuCallback();
+    if (!handledLogin) await syncRoleFromBackend();
     await syncHomeState();
     bind();
     route(false);
     if (wantsAuthChooser()) showAuthGate("entry");
+    if (authParams().get("denied")) showDeniedNotice();
     root.setInterval(tick, 1000);
   }
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", init); else init();

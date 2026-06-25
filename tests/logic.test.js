@@ -593,7 +593,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260625-feishu-login/);
+  assert.match(siteHtml, /site\.js\?v=20260625-session-sync/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -1200,7 +1200,7 @@ test("official site cache keys are bumped after navigation and detail layout pol
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
   assert.match(html, /src\/site\.css\?v=20260625-feishu-login/);
   assert.match(html, /src\/logic\.js\?v=20260624-nav-labels/);
-  assert.match(html, /src\/site\.js\?v=20260625-feishu-login/);
+  assert.match(html, /src\/site\.js\?v=20260625-session-sync/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
