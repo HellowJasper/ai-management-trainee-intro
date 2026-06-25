@@ -57,6 +57,33 @@
       return { phase: "成果展示进行中", label: "距投票结束截止", remain: 6353 };
     }
   }
+  function parseSiteTimestamp(value) {
+    if (value === null || typeof value === "undefined" || value === "") return 0;
+    const timestamp = typeof value === "number" ? value : Date.parse(String(value));
+    return Number.isFinite(timestamp) && timestamp > 0 ? timestamp : 0;
+  }
+  function timerRemainingSeconds(timerState, fallbackSeconds) {
+    const startedAt = parseSiteTimestamp(timerState?.startedAt);
+    const durationMs = Number(timerState?.durationMs);
+    if (!startedAt || !Number.isFinite(durationMs) || durationMs <= 0) {
+      return fallbackSeconds;
+    }
+    const serverNow = parseSiteTimestamp(timerState?.serverNow) || Date.now();
+    return Math.max(0, Math.floor((startedAt + durationMs - serverNow) / 1000));
+  }
+  function applySiteStageState(state = SITE_STATE) {
+    const stageId = String(state?.stage?.currentStageId || CURRENT_STAGE_ID || "").trim();
+    if (stageId) CURRENT_STAGE_ID = stageId;
+    const phaseInfo = resolveHomePhase(CURRENT_STAGE_ID);
+    const timers = state?.timers || {};
+    if (CURRENT_STAGE_ID === "team") {
+      COUNTDOWN_REMAIN = timerRemainingSeconds(timers.missionCountdown, phaseInfo.remain);
+    } else if (["vote", "result", "final"].includes(CURRENT_STAGE_ID)) {
+      COUNTDOWN_REMAIN = timerRemainingSeconds(timers.roadshow, phaseInfo.remain);
+    } else {
+      COUNTDOWN_REMAIN = phaseInfo.remain;
+    }
+  }
   async function syncHomeState() {
     try {
       const state = await apiRequest("/api/admin/state");
@@ -246,6 +273,7 @@
     TRAINEES = normalizeList(state?.trainees).map(normalizeSiteTrainee);
     D.teams = normalizeList(state?.teams).map((team, index) => normalizeSiteTeam(team, index, voteResults, works));
     D.computeRanking = computeSiteRanking;
+    applySiteStageState(state);
     updateSiteStats();
   }
   async function loadSiteState() {
@@ -267,8 +295,24 @@
     }
   }
 
+  function sitePersonSignatureToken(person = {}) {
+    return [
+      person.id || "",
+      person.userId || "",
+      person.name || "",
+      person.displayName || "",
+      person.role || "",
+      person.roleKey || "",
+      person.duty || "",
+      person.department || "",
+      person.avatar || "",
+      person.photo || "",
+      person.idPhoto || "",
+    ];
+  }
+
   function createSiteStateSignature(state = SITE_STATE) {
-    return JSON.stringify(normalizeList(state?.trainees).map((trainee) => {
+    const trainees = normalizeList(state?.trainees).map((trainee) => {
       const item = normalizeSiteTrainee(trainee);
       return [
         item.id || "",
@@ -287,7 +331,170 @@
         item.aiPower || "",
         item.funFact || "",
       ];
-    }));
+    });
+    const teams = normalizeList(state?.teams).map((team, index) => [
+      team.id || "",
+      team.index || team.trackCode || "",
+      team.name || "",
+      team.track || team.trackName || team.nameEn || "",
+      team.project || "",
+      team.pitch || "",
+      team.status || "",
+      team.capacity || "",
+      team.submitted || "",
+      sitePersonSignatureToken(team.advisor || {}),
+      normalizeList(team.members).map(sitePersonSignatureToken),
+      normalizeList(team.stack),
+      index,
+    ]);
+    const works = normalizeList(state?.works).map((work) => [
+      work.id || "",
+      work.teamId || "",
+      work.teamName || "",
+      work.project || "",
+      work.pitch || "",
+      normalizeList(work.stack),
+      work.demoUrl || "",
+      work.codeUrl || "",
+      work.docUrl || "",
+      normalizeList(work.screenshots),
+      work.status || "",
+      work.submittedAt || "",
+      work.reviewedAt || "",
+      work.reviewNote || "",
+    ]);
+    const vote = state?.vote || {};
+    const result = state?.result || {};
+    const me = state?.me || {};
+    const stage = state?.stage || {};
+    const timers = state?.timers || {};
+    return JSON.stringify({
+      trainees,
+      teams,
+      works,
+      stage: {
+        currentStageId: stage.currentStageId || "",
+        screenOverrideStageId: stage.screenOverrideStageId || "",
+        updatedAt: stage.updatedAt || "",
+        voteStatus: stage.voteStatus || "",
+        voteWindowLabel: stage.voteWindowLabel || "",
+        resultPublished: Boolean(stage.resultPublished),
+        stages: normalizeList(stage.stages).map((item) => [
+          item.id || "",
+          item.name || "",
+          item.subtitle || "",
+          item.time || "",
+          item.status || "",
+        ]),
+      },
+      timers: {
+        missionCountdown: [
+          timers.missionCountdown?.startedAt || "",
+          timers.missionCountdown?.durationMs || "",
+        ],
+        roadshow: [
+          timers.roadshow?.startedAt || "",
+          timers.roadshow?.durationMs || "",
+          timers.roadshow?.currentTeamId || "",
+          timers.roadshow?.nextTeamId || "",
+          timers.roadshow?.phase || "",
+        ],
+      },
+      vote: {
+        status: vote.status || "",
+        windowLabel: vote.windowLabel || "",
+        updatedAt: vote.updatedAt || "",
+        myVoteTeamId: vote.myVoteTeamId || "",
+        votersCount: vote.votersCount || 0,
+        pointScale: normalizeList(vote.pointScale),
+        results: normalizeList(vote.results).map((item) => [
+          item.id || item.teamId || "",
+          item.name || "",
+          item.votes || 0,
+          item.rank || "",
+          item.votePoint || item.voteScore || "",
+          item.expert || item.expertAverage || "",
+        ]),
+      },
+      result: {
+        published: Boolean(result.published),
+        snapshot: result.snapshot || null,
+      },
+      me: {
+        authenticated: Boolean(me.authenticated),
+        role: me.role || "",
+        teamId: me.teamId || "",
+        userId: me.user?.id || me.user?.userId || "",
+      },
+    });
+  }
+
+  function createResultViewSignature(state = SITE_STATE) {
+    const result = state?.result || {};
+    const snapshot = result.snapshot || null;
+    const vote = state?.vote || {};
+    const me = state?.me || {};
+    const localRole = currentRole() || "";
+    const teamDisplay = normalizeList(state?.teams).map((team, index) => [
+      team.id || "",
+      team.name || "",
+      team.track || team.trackName || team.nameEn || "",
+      team.project || "",
+      team.pitch || "",
+      team.accent || "",
+      team.rgb || team.colorRgb || "",
+      sitePersonSignatureToken(team.advisor || {}),
+      normalizeList(team.members).map(sitePersonSignatureToken),
+      index,
+    ]);
+    const worksDisplay = normalizeList(state?.works).map((work) => [
+      work.id || "",
+      work.teamId || "",
+      work.teamName || "",
+      work.project || "",
+      work.pitch || "",
+      normalizeList(work.stack),
+      work.status || "",
+      work.submittedAt || "",
+    ]);
+
+    return JSON.stringify({
+      view: "result",
+      result: {
+        published: Boolean(result.published),
+        pointScale: normalizeList(snapshot?.pointScale),
+        results: normalizeList(snapshot?.results).map((item, index) => [
+          item.id || item.teamId || "",
+          item.name || "",
+          item.track || item.trackName || "",
+          item.project || "",
+          item.rank || index + 1,
+          item.total ?? item.score ?? "",
+          item.expert ?? item.expertAverage ?? "",
+          item.votePoint ?? item.voteScore ?? "",
+          item.votes || 0,
+          Boolean(item.isChampion),
+        ]),
+      },
+      overview: {
+        localRole,
+        authenticated: Boolean(me.authenticated),
+        role: me.role || "",
+        userId: me.user?.id || me.user?.userId || "",
+        myVoteTeamId: vote.myVoteTeamId || "",
+        voteStatus: vote.status || "",
+      },
+      teamDisplay,
+      worksDisplay,
+    });
+  }
+
+  function createVisibleSiteStateSignature(state = SITE_STATE) {
+    const currentViewKey = resolveCurrentViewKey();
+    if (currentViewKey === "result") {
+      return createResultViewSignature(state);
+    }
+    return createSiteStateSignature(state);
   }
 
   async function syncSiteState() {
@@ -298,7 +505,7 @@
     siteStateSyncing = true;
     try {
       const state = await loadSiteState();
-      const nextSignature = createSiteStateSignature(state || SITE_STATE);
+      const nextSignature = createVisibleSiteStateSignature(state || SITE_STATE);
       if (nextSignature === siteStateSignature) {
         return;
       }
@@ -386,8 +593,13 @@
       ...options,
     });
     if (!response.ok) {
-      const error = new Error(`API ${path} responded ${response.status}`);
+      const errorPayload = await response.json().catch(() => null);
+      const message = errorPayload && errorPayload.error && errorPayload.error.message
+        ? errorPayload.error.message
+        : `API ${path} responded ${response.status}`;
+      const error = new Error(message);
       error.status = response.status;
+      error.payload = errorPayload;
       throw error;
     }
     return response.status === 204 ? null : response.json();
@@ -441,7 +653,8 @@
   const ICON = (name, accent) => `<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="${accent}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${G[name] || G.code}</svg>`;
 
   function pageHead(zh, sub, en) {
-    return `<section class="page-hero"><div class="container"><span class="ph-en">${esc(en)}</span><h1>${esc(zh)}</h1><p>${esc(sub)}</p></div></section>`;
+    const subText = String(sub || "").trim();
+    return `<section class="page-hero"><div class="container"><span class="ph-en">${esc(en)}</span><h1>${esc(zh)}</h1>${subText ? `<p>${esc(subText)}</p>` : ""}</div></section>`;
   }
   const teamLinks = (t) => ({
     gitlab: `https://git.joincare.com.cn/hackathon/${t.id}`,
@@ -771,17 +984,13 @@
   function renderMobileHome(totalVotes) {
     const list = traineeList();
     const sample = list.slice(0, 8).map((p, i) => `<span style="--i:${i};--lift:${i % 2}"><img src="${traineeIdImage(p)}" alt="${esc(p.name)}" /></span>`).join("");
-    const agenda = [
-      ["DAY 1", "发布挑战，完成组队"],
-      ["DAY 2", "集中制作可运行 Demo"],
-      ["DAY 3", "路演展评，投票颁奖"],
-    ].map(([day, text]) => `<li><b>${day}</b><span>${text}</span></li>`).join("");
+    const agenda = D.flowDays.map((day) => `<li><b>${esc(day.day)}</b><span>${esc(day.title)}</span></li>`).join("");
     const phaseInfo = resolveHomePhase(CURRENT_STAGE_ID);
     return `<section class="mobile-home">
       <div class="mh-hero">
         <span class="hero-kicker"><span class="live-dot"></span>LIVE · HACKATHON 2026</span>
         <h1>AI创新黑客松</h1>
-        <p>36小时，把 AI 创意做成可运行系统</p>
+        <p>36小时，用 AI 把创意照进现实</p>
         <div class="mh-live glass">
           <div><span>${esc(phaseInfo.phase)}</span><b>${esc(phaseInfo.label)}</b></div>
           <strong data-countdown data-remain="${COUNTDOWN_REMAIN}">${fmtHMS(COUNTDOWN_REMAIN)}</strong>
@@ -831,7 +1040,7 @@
           <span class="hero-kicker"><span class="live-dot"></span>LIVE · AI_INNOVATION_HACKATHON_2026</span>
           <h1 class="hero-title">AI创新黑客松</h1>
         </div>
-        <p class="hero-slogan">36小时，把 AI 创意做成可运行系统</p>
+        <p class="hero-slogan">36小时，用 AI 把创意照进现实</p>
         <p class="hero-desc">五大真实业务挑战，五支战队，从业务场景出发，用AI解决真实问题。认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。</p>
         <div class="hero-ctas"><a class="btn-primary" data-nav="gallery">进入作品展厅</a>${secondaryCta}</div>
       </div>
@@ -1174,6 +1383,9 @@
 
         <footer class="profile-console-footer">
           <span>AI INNOVATION HACKATHON &gt; JOINCARE</span>
+          <div class="challenge-slot" id="siteChallengeSlot">
+            <button class="blind-box-button" type="button" aria-label="我的数字盲盒">MY DIGITAL BLIND BOX</button>
+          </div>
         </footer>
       </article>
     `;
@@ -1251,7 +1463,7 @@
       return card + arrow;
     }).join("");
     const mech = D.mechanism.map((c) => `<div class="mech2 glass" style="--accent:${c.accent};--rgb:${c.rgb}"><div class="m2-top"><span>${esc(c.label)}<i>${esc(c.en)}</i></span>${ICON(c.icon, c.accent)}</div><b>${esc(c.headline)}</b><span class="m2-sub">${esc(c.sub)}</span></div>`).join("");
-    return `${pageHead("大赛介绍与全流程", "36小时，把 AI 创意做成可运行系统", "ABOUT")}
+    return `${pageHead("大赛介绍与全流程", "36小时，用 AI 把创意照进现实", "ABOUT")}
     <section class="container sec"><div class="sec-cap"><span></span>赛事全景 · HACKATHON OVERVIEW</div><div class="flow-row">${days}</div></section>
     <section class="container sec"><div class="sec-cap"><span></span>赛事机制</div><div class="mech2-grid">${mech}</div></section>`;
   }
@@ -1312,29 +1524,32 @@
     const role = currentRole();
     const journeyCards = getHomeActions(role);
     const snakeOrder = [0, 1, 2, 3, 7, 6, 5, 4];
-    const actionCards = snakeOrder.map((sourceIndex, gridIndex) => entryCard(journeyCards[sourceIndex], gridIndex, { hideEnglish: true })).join("");
+    const chronologicalOrder = [0, 1, 2, 3, 4, 5, 6, 7];
+    const journeyOrder = isMobileView() ? chronologicalOrder : snakeOrder;
+    const actionCards = journeyOrder.map((sourceIndex, gridIndex) => entryCard(journeyCards[sourceIndex], gridIndex, { hideEnglish: true })).join("");
     const mechanismBriefs = {
       format: { headline: "五大业务赛道开放命题", sub: "围绕真实场景自由发现问题" },
       delivery: { headline: "真实可运行方案", sub: "提交作品与现场展示" },
-      scoring: { headline: "专家评审 70% + 大众投票 30%", sub: "五维评审 + 全员投票" },
-      prize: { headline: "最终评选一支冠军团队", sub: "Grand Prize 冠军团队" },
+      scoring: { headline: "五维评审 + 全员投票", sub: "专家评审 70% + 大众投票 30%" },
+      prize: { headline: "Grand Prize 冠军团队", sub: "最终评选一支冠军团队" },
     };
     const mech = D.mechanism.map((c) => {
       const copy = mechanismBriefs[c.key] || c;
       return `<div class="mech2 glass" style="--accent:${c.accent};--rgb:${c.rgb}"><div class="m2-top"><span>${esc(c.label)}<i>${esc(c.en)}</i></span>${ICON(c.icon, c.accent)}</div><b>${esc(copy.headline)}</b><span class="m2-sub">${esc(copy.sub)}</span></div>`;
     }).join("");
     const dims = D.dimensions.map((d, index) => `<li class="score-dim-card" style="--score-width:${d.weight * 4}%"><i>${pad(index + 1)}</i><b>${esc(d.label)}</b><span><em>${d.weight}</em>%</span><small><ins></ins></small></li>`).join("");
+    const phaseInfo = resolveHomePhase(CURRENT_STAGE_ID);
 
     return `${pageHead("赛事指南", "了解赛事进展与赛事机制，快速掌握黑客松全貌", "EVENT GUIDE")}
     <section class="container sec schedule-board">
       <div class="schedule-live glass">
         <div class="schedule-info">
           <span class="status-chip on">当前阶段</span>
-          <h2>大众投票进行中</h2>
+          <h2>${esc(phaseInfo.phase)}</h2>
         </div>
         <div class="schedule-count">
-          <span class="status-chip on">距投票截止</span>
-          <b data-countdown data-remain="6353">${fmtHMS(6353)}</b>
+          <span class="status-chip on">${esc(phaseInfo.label)}</span>
+          <b data-countdown data-remain="${COUNTDOWN_REMAIN}">${fmtHMS(COUNTDOWN_REMAIN)}</b>
         </div>
       </div>
       <div class="sec-cap"><span></span>赛事旅程 · EVENT JOURNEY</div><div class="entry-grid four">${actionCards}</div>
@@ -1349,7 +1564,6 @@
     const canJoin = permissions.canJoinTeam;
     const selected = canJoin ? joinedTeam() : "";
     const selectedTeam = getTeam(selected);
-    const selectedTeamName = selectedTeam ? selectedTeam.name : "";
     const teams = D.teams.map((t) => {
       const count = 1 + t.members.length;
       const mine = selectedTeam && selectedTeam.id === t.id;
@@ -1367,7 +1581,7 @@
         ? mine
           ? `<button class="team-join is-joined is-leave" data-leave-team="${t.id}">退出队伍</button>`
           : `<button class="team-join" data-join-team="${t.id}" ${disabled}>选择队伍</button>`
-        : `<span class="team-readonly">仅查看组队进度</span>`;
+        : "";
       const openAction = mine
         ? `<button class="team-workspace-link" type="button" data-team-workspace="${t.id}">进入工作台</button>`
         : `<button class="team-workspace-link" type="button" data-work="${t.id}">查看公开作品</button>`;
@@ -1378,28 +1592,8 @@
         <div class="team-foot"><span>${count} 名成员已就位 · ${t.submitted ? "作品已提交" : "Demo 制作中"}</span><div class="team-actions">${action}${openAction}</div></div>
       </article>`;
     }).join("");
-    const teamStatusLabel = selectedTeam ? "已选择战队" : "尚未选择战队";
-    const teamStatusHeadline = selectedTeam ? "你已完成组队，期待与你的伙伴共同完成挑战" : "请选择一个赛道方向";
-    const statusSub = canJoin
-      ? (selectedTeam
-        ? `${esc(selectedTeamName)} · ${esc(selectedTeam.project)}。点击队伍卡片进入专属工作台，维护队名与作品信息；队伍数据以后端状态为准。`
-        : "登录参赛选手后，选择你感兴趣的挑战方向；加入队伍会写入后端队伍数据，刷新页面仍以后端状态为准。")
-      : "赛道名额、成员与作品方向可浏览，但不会出现选手操作按钮。";
-    const statusCta = canJoin && selectedTeam
-      ? `<button class="btn-ghost is-cancel" type="button" data-leave-team="${selectedTeam.id}">退出当前队伍</button>`
-      : rolePermissions(currentRole()).canAdmin
-      ? `<a class="btn-ghost" href="./admin.html">进入管理后台</a>`
-      : `<a class="btn-ghost" data-nav="schedule">查看赛事指南</a>`;
-
     return `${pageHead("组队", "选择赛道队伍，查看队长、成员与作品方向", "TEAM FORMATION")}
     <section class="container sec team-board">
-      <div class="team-formation-panel glass">
-        <div class="team-live-strip">
-          <div class="team-formation-copy"><span class="status-chip on">TEAM FORMATION HUB</span><h2>固定赛道，队伍自定义命名</h2><p>参考大屏组队方案，五条赛道对称呈现；加入队伍后队长可编辑队名、自定义队伍名称，队长、业务洞察、AI 开发、产品设计、路演运营等职责在队伍内沉淀。</p></div>
-          <div class="team-countdown-box"><span>任务倒计时</span><b data-countdown data-remain="129600">${fmtHMS(129600)}</b><em>组队锁定后进入 36H Demo preparation</em></div>
-        </div>
-        <div class="team-selection-summary"><div><span class="status-chip ${selectedTeam ? "on" : ""}">${canJoin ? teamStatusLabel : "只读进度"}</span><h2>${canJoin ? teamStatusHeadline : "当前角色仅可查看组队进度"}</h2><p>${statusSub}</p></div>${statusCta}</div>
-      </div>
       <div class="sec-cap"><span></span>队伍列表</div><div class="team-grid">${teams}</div>
     </section>`;
   }
@@ -1587,7 +1781,7 @@
     return (D.dimensions[index] && D.dimensions[index].key) || SCORE_DIMENSION_KEYS[index] || String(index);
   }
 
-  function judgeScoreValue(source, key, index, fallback = 80) {
+  function judgeScoreValue(source, key, index, fallback = "") {
     if (!source || typeof source !== "object") return fallback;
     if (source[key] != null && source[key] !== "") return source[key];
     const legacyKey = String(index);
@@ -1601,8 +1795,15 @@
     const rows = D.teams.map((t) => {
       const inputs = D.dimensions.map((d, i) => {
         const key = judgeDimensionKey(i);
-        const val = judgeScoreValue(draft[t.id], key, i, 80);
-        return `<label class="judge-slider" style="--score-pct:${esc(val)}%"><div class="judge-slider-top"><em>${esc(d.label)}</em><b data-score-value="${t.id}:${key}">${esc(val)}</b></div><input class="judge-score" type="range" min="0" max="100" step="1" value="${esc(val)}" data-score="${t.id}:${key}" /><small><i></i></small></label>`;
+        const val = judgeScoreValue(draft[t.id], key, i, "");
+        const hasScore = val !== "";
+        const displayValue = hasScore ? val : "未评分";
+        return `<label class="judge-score-card${hasScore ? "" : " is-empty"}">
+          <div class="judge-score-top"><em>${esc(d.label)}</em><b data-score-value="${t.id}:${key}">${esc(displayValue)}</b></div>
+          <div class="judge-score-control">
+            <input class="judge-score-number" type="number" min="0" max="100" step="1" inputmode="numeric" value="${hasScore ? esc(val) : ""}" placeholder="0-100" aria-label="${esc(t.name)} ${esc(d.label)}输入分数" data-score="${t.id}:${key}" data-score-touched="${hasScore ? "true" : "false"}" />
+          </div>
+        </label>`;
       }).join("");
       return `<article class="judge-row glass" data-judge-row="${esc(t.id)}" data-judge-status="draft" style="--accent:${t.accent};--rgb:${t.rgb}">
         <div class="judge-team"><span class="status-chip">${esc(t.trackCode)}</span><b>${esc(t.name)}</b><em>${esc(t.project)}</em><small data-judge-row-status="${esc(t.id)}">待评分</small></div>
@@ -1612,8 +1813,8 @@
 
     return `${pageHead("评委评分", "五维评分接入后端暂存与正式提交；提交后不可修改，管理员锁定后进入最终核算。", "JUDGE")}
     <section class="container sec judge-board">
-      <div class="judge-toolbar glass"><div><span class="status-chip on">专家评分</span><h2>评委评分表</h2><p>拖动滑杆完成 0-100 分五维评分；暂存评分不计入结果，正式提交后进入后台评审进度。</p></div><div class="judge-actions"><span class="judge-sync-status" data-judge-status>等待同步</span><button class="judge-save" data-judge-save>暂存评分</button><button class="judge-save judge-submit" data-judge-submit>正式提交</button></div></div>
-      <div class="judge-head">${head}</div>
+      <div class="judge-toolbar glass"><div><span class="status-chip on">专家评分</span><h2>评委评分表</h2><p>输入 0-100 分完成五维评分；暂存评分不计入结果，正式提交后进入后台评审进度。</p></div><div class="judge-actions"><span class="judge-sync-status" data-judge-status>等待同步</span><button class="judge-save" data-judge-save>暂存评分</button><button class="judge-save judge-submit" data-judge-submit>正式提交</button></div></div>
+      <div class="judge-head"><span class="judge-head-spacer" aria-hidden="true"></span><div class="judge-head-grid">${head}</div></div>
       <div class="judge-list">${rows}</div>
     </section>`;
   }
@@ -1627,8 +1828,8 @@
   /* ---- 作品展厅（5 个对称一排，可点进详情）-------------------------- */
   function renderGallery() {
     const permissions = rolePermissions(currentRole());
-    const voted = votedTeam();
     const canVote = canUseVoteAction();
+    const voted = canVote ? votedTeam() : "";
     const cards = D.teams.map((t) => {
       const avas = [t.advisor, ...t.members].slice(0, 5).map((p) => avatar(p, 34)).join("");
       const isVoted = voted === t.id;
@@ -1659,9 +1860,9 @@
   function renderWork(id) {
     const t = D.teams.find((x) => x.id === id);
     if (!t) return renderGallery();
-    const voted = votedTeam();
     const permissions = rolePermissions(currentRole());
     const canVote = canUseVoteAction();
+    const voted = canVote ? votedTeam() : "";
     const isVoted = voted === t.id;
     const L = teamLinks(t);
     const people = [{ ...t.advisor, role: "队长" }, ...t.members.map((m) => ({ ...m, role: "组员" }))]
@@ -1731,7 +1932,7 @@
   function renderOverviewBanner() {
     const permissions = rolePermissions(currentRole());
     const canVote = canUseVoteAction();
-    const voted = getTeam(votedTeam());
+    const voted = canVote ? getTeam(votedTeam()) : null;
 
     const chipText = !hasBackendSession() ? "登录后投票" : !canVote ? "无投票权限" : voted ? "已投票" : "待投票";
     const chipClass = voted ? "on" : "";
@@ -1959,6 +2160,15 @@
     awards: "result",
   };
 
+  function resolveCurrentViewKey() {
+    const raw = location.hash.slice(1);
+    const h = HASH_ALIASES[raw] || raw;
+    if (h.indexOf("work-") === 0) return "gallery";
+    if (h.indexOf("team-workspace-") === 0) return "team";
+    const view = VIEWS.find((x) => x.key === h);
+    return view ? view.key : "home";
+  }
+
   function route(push) {
     const raw = location.hash.slice(1);
     const h = HASH_ALIASES[raw] || raw;
@@ -1986,6 +2196,14 @@
   }
   function showConfirmDialog(options) {
     const { title, message, team, confirmText, onConfirm } = options;
+    const subject = team || {
+      accent: options.accent || "var(--neon)",
+      rgb: options.rgb || "40,255,200",
+      trackCode: options.code || "JUDGE",
+      track: options.track || "专家评分",
+      name: options.name || title,
+      project: options.project || message,
+    };
     let gate = doc.getElementById("confirmGate");
     if (!gate) {
       gate = doc.createElement("div");
@@ -1995,7 +2213,7 @@
     }
     gate.innerHTML = `<div class="confirm-backdrop" data-close></div>
       <div class="confirm-wrapper">
-        <div class="confirm-window glass" style="--accent: ${team.accent}; --rgb: ${team.rgb}">
+        <div class="confirm-window glass" style="--accent: ${subject.accent}; --rgb: ${subject.rgb}">
           <!-- Window Header -->
           <div class="confirm-win-header">
             <div class="confirm-win-dots">
@@ -2008,9 +2226,9 @@
           </div>
           <div class="confirm-win-body">
             <div class="confirm-team-section">
-              <span class="confirm-team-code" style="color: var(--accent); border-color: rgba(${team.rgb}, 0.3); background: rgba(${team.rgb}, 0.05);">${esc(team.trackCode)} · ${esc(team.track)}</span>
-              <h3 class="confirm-team-name">${esc(team.name)}</h3>
-              <p class="confirm-team-project">${esc(team.project)}</p>
+              <span class="confirm-team-code" style="color: var(--accent); border-color: rgba(${subject.rgb}, 0.3); background: rgba(${subject.rgb}, 0.05);">${esc(subject.trackCode)} · ${esc(subject.track)}</span>
+              <h3 class="confirm-team-name">${esc(subject.name)}</h3>
+              <p class="confirm-team-project">${esc(subject.project)}</p>
             </div>
             <div class="confirm-action-section">
               <p class="confirm-msg">${esc(message)}</p>
@@ -2186,7 +2404,8 @@
         const [, dimKey] = String(input.dataset.score || "").split(":");
         if (scores && Object.prototype.hasOwnProperty.call(scores, dimKey)) {
           input.value = scores[dimKey];
-          updateJudgeRange(input);
+          input.dataset.scoreTouched = "true";
+          updateJudgeScoreInput(input);
         }
       });
 
@@ -2222,41 +2441,58 @@
     } catch (error) {
       console.warn("Judge score load failed.", error);
       setJudgeSyncStatus("本地草稿模式", "local");
-      doc.querySelectorAll("[data-score]").forEach(updateJudgeRange);
+      doc.querySelectorAll("[data-score]").forEach(updateJudgeScoreInput);
     }
   }
 
   function setupJudgePage() {
-    doc.querySelectorAll("[data-score]").forEach(updateJudgeRange);
+    doc.querySelectorAll("[data-score]").forEach(updateJudgeScoreInput);
     loadJudgeScoresIntoPage();
   }
 
-  function collectJudgeScorePayload({ editableOnly = true } = {}) {
+  function collectJudgeScorePayload({ editableOnly = true, requireCompleteRows = false } = {}) {
     const draft = {};
     const teamIds = [];
+    let hasIncomplete = false;
     doc.querySelectorAll("[data-judge-row]").forEach((row) => {
       const teamId = row.dataset.judgeRow;
       if (!teamId) return;
       if (editableOnly && ["submitted", "locked"].includes(row.dataset.judgeStatus)) return;
+      const inputs = Array.from(row.querySelectorAll("[data-score]"));
+      let hasTouched = false;
+      let rowComplete = true;
+      for (const input of inputs) {
+        if (input.dataset.scoreTouched !== "true" || String(input.value || "").trim() === "") {
+          rowComplete = false;
+          continue;
+        }
+        hasTouched = true;
+      }
+      if (requireCompleteRows && !rowComplete) {
+        hasIncomplete = true;
+        return;
+      }
+      if (!hasTouched) return;
       teamIds.push(teamId);
-      row.querySelectorAll("[data-score]").forEach((input) => {
+      inputs.forEach((input) => {
+        if (input.dataset.scoreTouched !== "true") return;
         const [, dim] = String(input.dataset.score || "").split(":");
         if (!dim) return;
         const value = input.value === "" ? "" : Math.max(0, Math.min(100, +input.value || 0));
         if (!draft[teamId]) draft[teamId] = {};
         draft[teamId][dim] = value;
         input.value = value;
-        updateJudgeRange(input);
+        updateJudgeScoreInput(input);
       });
     });
-    return { scores: draft, teamIds: Array.from(new Set(teamIds)) };
+    return { scores: draft, teamIds: Array.from(new Set(teamIds)), hasIncomplete };
   }
 
   async function saveJudgeDraft() {
     if (!requireRole("judge", (p) => p.canScore, "只有专家评委可以保存评分")) return;
     const payload = collectJudgeScorePayload({ editableOnly: true });
     if (!payload.teamIds.length) {
-      toast("当前评分已提交或锁定，不能再暂存评分");
+      toast("请先调整至少一个评分维度");
       return;
     }
     root.localStorage.setItem(JUDGE_KEY, JSON.stringify(payload.scores));
@@ -2272,17 +2508,40 @@
     }
   }
 
-  async function submitJudgeScores() {
+  function getJudgeSubmitErrorMessage(error) {
+    const message = String((error && error.payload && error.payload.error && error.payload.error.message) || (error && error.message) || "");
+    if (message.includes("already been submitted")) return "评分已提交，不能重复提交";
+    if (message.includes("is locked")) return "评分已锁定，不能修改";
+    if (message.includes("is missing judge score dimensions")) return "请补齐所有评分维度后再提交";
+    if (error && (error.status === 401 || error.status === 403)) return "当前账号没有评委评分权限";
+    if (error && error.status === 409) return "评分提交冲突，请刷新后重试";
+    return "评分提交失败，请稍后重试";
+  }
+
+  async function submitJudgeScores(confirmed = false) {
     if (!requireRole("judge", (p) => p.canScore, "只有专家评委可以提交评分")) return;
-    const payload = collectJudgeScorePayload({ editableOnly: true });
+    const payload = collectJudgeScorePayload({ editableOnly: true, requireCompleteRows: true });
+    if (payload.hasIncomplete) {
+      toast("请先完成所有未提交队伍的五维评分，再正式提交");
+      return;
+    }
     if (!payload.teamIds.length) {
       toast("当前评分已提交或锁定");
       return;
     }
-    const confirmed = typeof root.confirm === "function"
-      ? root.confirm("正式提交后将无法修改评分，确认提交吗？")
-      : true;
-    if (!confirmed) return;
+    if (!confirmed) {
+      showConfirmDialog({
+        title: "正式提交评分",
+        message: "是否要提交成绩？正式提交后不可修改。",
+        code: "JUDGE",
+        track: "专家评分",
+        name: "确认提交成绩",
+        project: `将提交 ${payload.teamIds.length} 支队伍的完整评分，并进入后台评审进度。`,
+        confirmText: "正式提交",
+        onConfirm: () => submitJudgeScores(true)
+      });
+      return;
+    }
     root.localStorage.setItem(JUDGE_KEY, JSON.stringify(payload.scores));
     try {
       setJudgeSyncStatus("提交中", "syncing");
@@ -2292,16 +2551,43 @@
     } catch (e) {
       console.warn("Judge score submit failed.", e);
       setJudgeSyncStatus("提交失败", "error");
-      toast(e.status === 409 ? "请先补齐所有评分维度" : "评分提交失败，请稍后重试");
+      toast(getJudgeSubmitErrorMessage(e));
     }
   }
-  function updateJudgeRange(input) {
-    if (!input || !input.dataset || !input.dataset.score) return;
-    const value = Math.max(0, Math.min(100, +input.value || 0));
-    const box = input.closest(".judge-slider");
-    if (box) box.style.setProperty("--score-pct", `${value}%`);
-    const output = doc.querySelector(`[data-score-value="${input.dataset.score}"]`);
-    if (output) output.textContent = value;
+  function updateJudgeScoreInput(input, markTouched = false) {
+    if (!input || !input.dataset) return;
+    const scoreKey = input.dataset.score;
+    if (!scoreKey) return;
+    const rawValue = String(input.value || "").trim();
+    const numericValue = Number(rawValue);
+    const hasNumericValue = rawValue !== "" && Number.isFinite(numericValue);
+    let touched = input.dataset.scoreTouched === "true" && hasNumericValue;
+    if (markTouched) {
+      touched = hasNumericValue;
+      input.dataset.scoreTouched = touched ? "true" : "false";
+    }
+    const value = hasNumericValue ? Math.max(0, Math.min(100, Math.round(numericValue))) : "";
+    if (hasNumericValue && String(value) !== rawValue) input.value = String(value);
+    if (!hasNumericValue) input.dataset.scoreTouched = "false";
+    const card = input.closest(".judge-score-card");
+    if (card) card.classList.toggle("is-empty", !touched);
+    if (markTouched) persistJudgeScoreDraft(input, value, touched);
+    const output = doc.querySelector(`[data-score-value="${scoreKey}"]`);
+    if (output) output.textContent = touched ? value : "未评分";
+  }
+
+  function persistJudgeScoreDraft(input, value, touched) {
+    const [teamId, dim] = String(input?.dataset?.score || "").split(":");
+    if (!teamId || !dim) return;
+    const draft = readJson(JUDGE_KEY, {});
+    if (touched) {
+      draft[teamId] = { ...(draft[teamId] || {}) };
+      draft[teamId][dim] = value;
+    } else if (draft[teamId]) {
+      delete draft[teamId][dim];
+      if (!Object.keys(draft[teamId]).length) delete draft[teamId];
+    }
+    root.localStorage.setItem(JUDGE_KEY, JSON.stringify(draft));
   }
 
   function renderPreviewTags(value) {
@@ -2460,7 +2746,7 @@
       const workField = e.target.closest("[data-work-field]");
       if (workField) updateWorkPreview(workField);
       const score = e.target.closest("[data-score]");
-      if (score) updateJudgeRange(score);
+      if (score) updateJudgeScoreInput(score, true);
     });
     doc.addEventListener("change", (e) => {
     });
@@ -2511,7 +2797,7 @@
     const handledLogin = await consumeFeishuCallback();
     if (!handledLogin) await syncRoleFromBackend();
     const initialSiteState = await loadSiteState();
-    siteStateSignature = createSiteStateSignature(initialSiteState || SITE_STATE);
+    siteStateSignature = createVisibleSiteStateSignature(initialSiteState || SITE_STATE);
     await syncHomeState();
     bind();
     route(false);

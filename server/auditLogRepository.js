@@ -24,6 +24,21 @@ function normalizeState(payload = {}) {
   };
 }
 
+function applyLogFilters(logs = [], filters = {}) {
+  const action = String(filters.action || "").trim();
+  const actor = String(filters.actor || "").trim().toLowerCase();
+  const targetType = String(filters.targetType || "").trim();
+  const targetId = String(filters.targetId || "").trim().toLowerCase();
+
+  return logs.filter((log) => {
+    if (action && log.action !== action) return false;
+    if (actor && !String(log.actor || "").toLowerCase().includes(actor)) return false;
+    if (targetType && log.targetType !== targetType) return false;
+    if (targetId && !String(log.targetId || "").toLowerCase().includes(targetId)) return false;
+    return true;
+  });
+}
+
 function createAuditLogRepository(dataPath = DEFAULT_DATA_PATH) {
   const resolvedDataPath = path.resolve(dataPath);
 
@@ -47,12 +62,13 @@ function createAuditLogRepository(dataPath = DEFAULT_DATA_PATH) {
     }
   }
 
-  async function listLogs({ limit = 80 } = {}) {
+  async function listLogs({ limit = 80, action = "", actor = "", targetType = "", targetId = "" } = {}) {
     const state = await readState();
     const cleanLimit = Number.isFinite(Number(limit)) && Number(limit) > 0 ? Number(limit) : 80;
+    const filteredLogs = applyLogFilters(state.logs, { action, actor, targetType, targetId });
 
     return {
-      logs: state.logs.slice(0, cleanLimit),
+      logs: filteredLogs.slice(0, cleanLimit),
     };
   }
 

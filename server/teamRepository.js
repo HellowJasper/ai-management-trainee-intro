@@ -6,6 +6,7 @@ const DEFAULT_DATA_PATH = path.join(__dirname, "../data/teams.json");
 const DEFAULT_TEAM_CAPACITY = 5;
 const LOCKED_TEAM_STATUSES = new Set(["locked", "closed"]);
 const WRITABLE_TEAM_STATUSES = new Set(["open", "locked"]);
+const SCENARIO_LIST_FIELDS = new Set(["scenarios", "scenariosEn"]);
 
 function writeJsonFile(filePath, data) {
   return fs.writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`);
@@ -45,6 +46,48 @@ function normalizeTeamStatus(value) {
   }
 
   return status;
+}
+
+function normalizeScenarioList(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+
+  return String(value || "")
+    .split(/\r?\n|[；;]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function normalizeTeamScenarioPayload(payload = {}, currentTeam = {}) {
+  const next = {};
+  [
+    "name",
+    "nameEn",
+    "hostDepartment",
+    "hostDepartmentEn",
+    "focus",
+    "focusEn",
+    "deliverable",
+    "deliverableEn",
+    "docUrl",
+  ].forEach((field) => {
+    if (Object.prototype.hasOwnProperty.call(payload, field)) {
+      next[field] = String(payload[field] || "").trim();
+    }
+  });
+
+  SCENARIO_LIST_FIELDS.forEach((field) => {
+    if (Object.prototype.hasOwnProperty.call(payload, field)) {
+      next[field] = normalizeScenarioList(payload[field]);
+    }
+  });
+
+  return {
+    ...currentTeam,
+    ...next,
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 function memberMatchesUser(member, userId) {
@@ -302,15 +345,42 @@ function createTeamRepository(dataPath = DEFAULT_DATA_PATH) {
     };
   }
 
+  async function updateTeamScenario(teamId, payload = {}) {
+    const cleanTeamId = String(teamId || payload.teamId || "").trim();
+    if (!cleanTeamId) {
+      throw createHttpError(400, "teamId is required.");
+    }
+
+    const teams = await readTeams();
+    const targetIndex = teams.findIndex((team) => team.id === cleanTeamId);
+
+    if (targetIndex === -1) {
+      throw createHttpError(404, `Team ${cleanTeamId} was not found.`);
+    }
+
+    const nextTeams = [...teams];
+    const nextTeam = normalizeTeamScenarioPayload(payload, teams[targetIndex]);
+    nextTeams[targetIndex] = nextTeam;
+
+    await writeTeams(nextTeams);
+    return {
+      accepted: true,
+      team: nextTeam,
+      teams: nextTeams,
+    };
+  }
+
   return {
     claimRole,
     joinTeam,
     leaveTeam,
     listTeams,
+    updateTeamScenario,
     updateTeamStatus,
   };
 }
 
 module.exports = {
   createTeamRepository,
+  normalizeTeamScenarioPayload,
 };

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI 星锐黑客松 管理后台</title>
-    <link rel="stylesheet" href="./admin.css?v=20260625-admin-user" />
+    <link rel="stylesheet" href="./admin.css?v=20260625-admin-scale-restore" />
   </head>
   <body>
     <main class="admin-shell">
@@ -12,7 +12,7 @@
       <div class="admin-vignette" aria-hidden="true"></div>
 
       <aside class="admin-sidebar" aria-label="后台导航">
-        <a class="admin-brand" href="/" aria-label="返回主会场大屏">
+        <a class="admin-brand" href="/index.html" aria-label="返回主会场大屏">
           <img src="./assets/joincare-full-cyber.png" alt="健康元 Joincare" />
         </a>
 
@@ -51,7 +51,7 @@
           </button>
           <button type="button" data-admin-nav="settings" aria-pressed="false">
             <span class="nav-icon">⚙</span>
-            系统设置
+            系统状态
           </button>
           <button type="button" data-admin-nav="logs" aria-pressed="false">
             <span class="nav-icon">☷</span>
@@ -61,7 +61,7 @@
 
         <section class="admin-version-panel" aria-label="项目版本">
           <strong>AI星锐黑客松 2026</strong>
-          <span>三天，把 AI 创意做成可运行系统</span>
+          <span>36小时，用 AI 把创意照进现实</span>
           <small>版本：v3.4-preview</small>
         </section>
       </aside>
@@ -115,142 +115,71 @@
         </section>
 
         <div class="admin-grid admin-view-panel is-active" data-admin-view-panel="flow">
-          <section class="panel flow-panel" aria-labelledby="flowTitle">
-            <div class="panel-heading">
-              <div>
-                <p>PROCESS_CONTROL</p>
-                <h2 id="flowTitle">流程控制台</h2>
+          <div class="admin-flow-column admin-flow-column-primary">
+            <section class="panel flow-panel" aria-labelledby="flowTitle">
+              <div class="panel-heading">
+                <div>
+                  <p>PROCESS_CONTROL</p>
+                  <h2 id="flowTitle">流程控制台</h2>
+                </div>
+                <span class="panel-code">SYNC 02ms</span>
               </div>
-              <span class="panel-code">SYNC 02ms</span>
-            </div>
 
-            <div class="current-stage-card">
-              <div class="stage-radar" aria-hidden="true">
-                <span></span>
-                <span></span>
+              <div class="current-stage-card">
+                <div class="stage-radar" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                </div>
+                <div class="stage-summary">
+                  <span>当前阶段</span>
+                  <h3 id="currentStageName">组队开启</h3>
+                  <p id="currentStageTime">开始时间：2026-05-22 14:00:00</p>
+                </div>
+                <strong class="status-pill status-active" id="currentStageStatus">进行中</strong>
               </div>
-              <div class="stage-summary">
-                <span>当前阶段</span>
-                <h3 id="currentStageName">组队开启</h3>
-                <p id="currentStageTime">开始时间：2026-05-22 14:00:00</p>
+
+              <div class="quick-switch">
+                <button class="primary-admin-action" type="button" id="startNextStage">开启下一阶段</button>
+                <button class="secondary-admin-action" type="button" id="finishCurrentStage">结束当前阶段</button>
               </div>
-              <strong class="status-pill status-active" id="currentStageStatus">进行中</strong>
-            </div>
 
-            <div class="quick-switch">
-              <button class="primary-admin-action" type="button" id="startNextStage">开启下一阶段</button>
-              <button class="secondary-admin-action" type="button" id="finishCurrentStage">结束当前阶段</button>
-            </div>
-
-            <div class="flow-table" role="table" aria-label="阶段流程">
-              <div class="flow-row flow-head" role="row">
-                <span role="columnheader">阶段流程</span>
-                <span role="columnheader">状态</span>
-                <span role="columnheader">时间</span>
-                <span role="columnheader">操作</span>
+              <div class="flow-table" role="table" aria-label="阶段流程">
+                <div class="flow-row flow-head" role="row">
+                  <span role="columnheader">阶段流程</span>
+                  <span role="columnheader">状态</span>
+                  <span role="columnheader">时间</span>
+                  <span role="columnheader">操作</span>
+                </div>
+                <div id="stageRows"></div>
               </div>
-              <div id="stageRows"></div>
-            </div>
 
-            <p class="panel-note">说明：阶段切换后，大屏将自动加载对应页面并全屏展示。</p>
-          </section>
-
-          <section class="panel preview-panel" aria-labelledby="previewTitle">
-            <div class="panel-heading">
-              <div>
-                <p>LIVE_PREVIEW</p>
-                <h2 id="previewTitle">大屏预览</h2>
-              </div>
-              <div class="preview-actions">
-                <span class="live-dot">LIVE</span>
-                <a href="/" target="_blank" rel="noreferrer">全屏预览 ↗</a>
-              </div>
-            </div>
-
-            <article class="screen-preview" aria-label="主会场大屏预览">
-              <div class="preview-rain" aria-hidden="true"></div>
-              <img src="./assets/joincare-full-cyber.png" alt="健康元 Joincare" />
-              <h3>AI星锐黑客松</h3>
-              <p>三天，把 AI 创意做成可运行系统</p>
-              <strong id="previewStageName">组队开启</strong>
-              <span>2026 AI 管培生入职创新实战培训</span>
-              <div class="preview-timeline" id="previewTimeline"></div>
-            </article>
-          </section>
-
-          <section class="panel data-panel" id="adminDataPanel" aria-labelledby="dataTitle">
-            <div class="panel-heading">
-              <div>
-                <p>DATA_OPS</p>
-                <h2 id="dataTitle">数据与投票</h2>
-              </div>
-              <button type="button" id="refreshBusinessDataButton">刷新</button>
-            </div>
-
-            <div class="admin-metric-grid" aria-label="业务数据概览">
-              <article class="admin-metric-card">
-                <span>赛道</span>
-                <strong id="adminTeamCount">--</strong>
-              </article>
-              <article class="admin-metric-card">
-                <span>参赛者</span>
-                <strong id="adminPlayerCount">--</strong>
-              </article>
-              <article class="admin-metric-card">
-                <span>总票数</span>
-                <strong id="adminVoteTotal">--</strong>
-              </article>
-              <article class="admin-metric-card">
-                <span>评分进度</span>
-                <strong id="adminJudgeCount">--</strong>
-              </article>
-            </div>
-
-            <div class="admin-data-columns">
-              <section class="admin-data-block" aria-label="投票排名">
-                <header>
-                  <span>VOTE RANKING</span>
-                  <small id="adminVoteStatus">等待同步</small>
-                </header>
-                <ol class="admin-vote-ranking" id="adminVoteRanking"></ol>
-              </section>
-
-              <section class="admin-data-block" aria-label="作品与评分">
-                <header>
-                  <span>WORK REVIEW</span>
-                  <small id="adminWorkStatus">等待提交</small>
-                </header>
-                <div class="admin-work-list" id="adminWorkList"></div>
-                <p class="admin-judge-summary" id="adminJudgeSummary">评分数据等待同步</p>
-                <div class="admin-judge-progress" id="adminJudgeProgress"></div>
-                <button class="primary-admin-action admin-judge-lock" type="button" data-lock-judge-scores>锁定专家评分</button>
-              </section>
-            </div>
-
-            <section class="admin-result-snapshot-panel" id="adminResultSnapshotPanel" aria-label="最新结果快照">
-              <header>
-                <span>FINAL SNAPSHOT</span>
-                <small id="adminResultSnapshotStatus">等待发布</small>
-              </header>
-              <div class="admin-result-snapshot" id="adminResultSnapshot"></div>
+              <p class="panel-note">说明：阶段切换后，大屏将自动加载对应页面并全屏展示。</p>
             </section>
-          </section>
 
-          <section class="panel timing-panel" aria-labelledby="timingTitle">
+            <section class="panel timing-panel" aria-labelledby="timingTitle">
             <div class="panel-heading">
               <div>
                 <p>TIME_CONTROL</p>
                 <h2 id="timingTitle">时间控制</h2>
               </div>
-              <button type="button" id="saveDisplayTimesButton">保存阶段时间</button>
+              <button type="button" id="saveDisplayTimesButton">保存时间配置</button>
             </div>
 
             <div class="timer-control-grid">
               <section class="timer-control-card">
                 <span>任务倒计时</span>
-                <label>
-                  展示时长（分钟）
-                  <input id="missionCountdownDuration" type="number" min="1" step="1" value="1440" />
+                <label class="timer-duration-label">
+                  展示时长
+                  <span class="timer-duration-fields">
+                    <span class="timer-duration-unit">
+                      <input id="missionCountdownHours" type="number" min="0" step="1" value="24" aria-label="任务倒计时小时" />
+                      <em>小时</em>
+                    </span>
+                    <span class="timer-duration-unit">
+                      <input id="missionCountdownMinutes" type="number" min="0" max="59" step="1" value="0" aria-label="任务倒计时分钟" />
+                      <em>分钟</em>
+                    </span>
+                  </span>
                 </label>
                 <div class="timer-control-actions">
                   <button type="button" id="startMissionCountdownButton">启动</button>
@@ -261,9 +190,18 @@
 
               <section class="timer-control-card">
                 <span>路演计时</span>
-                <label>
-                  展示时长（分钟）
-                  <input id="roadshowDuration" type="number" min="1" step="1" value="15" />
+                <label class="timer-duration-label">
+                  展示时长
+                  <span class="timer-duration-fields">
+                    <span class="timer-duration-unit">
+                      <input id="roadshowHours" type="number" min="0" step="1" value="0" aria-label="路演计时小时" />
+                      <em>小时</em>
+                    </span>
+                    <span class="timer-duration-unit">
+                      <input id="roadshowMinutes" type="number" min="0" max="59" step="1" value="15" aria-label="路演计时分钟" />
+                      <em>分钟</em>
+                    </span>
+                  </span>
                 </label>
                 <div class="timer-team-selectors">
                   <label>
@@ -284,9 +222,34 @@
             </div>
 
             <p class="panel-note">说明：展示端只读取这些时间配置；启动、重置和时长修改均从管理员后台下发。</p>
-          </section>
+            </section>
+          </div>
 
-          <section class="panel guard-panel" aria-labelledby="guardTitle">
+          <div class="admin-flow-column admin-flow-column-secondary">
+            <section class="panel preview-panel" aria-labelledby="previewTitle">
+              <div class="panel-heading">
+                <div>
+                  <p>LIVE_PREVIEW</p>
+                  <h2 id="previewTitle">大屏预览</h2>
+                </div>
+                <div class="preview-actions">
+                  <span class="live-dot">LIVE</span>
+                  <a href="/index.html" target="_blank" rel="noreferrer">全屏预览 ↗</a>
+                </div>
+              </div>
+
+              <article class="screen-preview" aria-label="主会场大屏预览">
+                <div class="preview-rain" aria-hidden="true"></div>
+                <img src="./assets/joincare-full-cyber.png" alt="健康元 Joincare" />
+                <h3>AI星锐黑客松</h3>
+                <p>36小时，用 AI 把创意照进现实</p>
+                <strong id="previewStageName">组队开启</strong>
+                <span>2026 AI 管培生入职创新实战培训</span>
+                <div class="preview-timeline" id="previewTimeline"></div>
+              </article>
+            </section>
+
+            <section class="panel guard-panel" aria-labelledby="guardTitle">
             <div class="panel-heading">
               <div>
                 <p>SAFE_GUARD</p>
@@ -302,18 +265,9 @@
               <input type="checkbox" id="confirmDangerAction" />
               <span>我已确认当前操作</span>
             </label>
-          </section>
+            </section>
 
-          <section class="panel log-panel" aria-labelledby="logTitle">
-            <div class="panel-heading">
-              <div>
-                <p>OPERATION_LOG</p>
-                <h2 id="logTitle">操作日志</h2>
-              </div>
-              <button type="button" id="clearLogButton">清空</button>
-            </div>
-            <ol class="operation-log" id="operationLog"></ol>
-          </section>
+          </div>
         </div>
 
         <section class="admin-view-panel admin-management-view" data-admin-view-panel="screen" aria-labelledby="screenControlTitle">
@@ -322,7 +276,7 @@
               <p>SCREEN_CONTROL</p>
               <h2 id="screenControlTitle">大屏控制</h2>
             </div>
-            <a class="management-link" href="/" target="_blank" rel="noreferrer">打开主会场大屏</a>
+            <a class="management-link" href="/index.html" target="_blank" rel="noreferrer">打开主会场大屏</a>
           </div>
 
           <div class="management-split">
@@ -379,8 +333,79 @@
             <button type="button" id="refreshContentManagerButton">刷新内容</button>
           </div>
 
+          <nav class="admin-content-subnav" aria-label="内容管理分区">
+            <button class="is-active" type="button" data-content-tab="scenario" aria-pressed="true">业务场景大屏内容</button>
+            <button type="button" data-content-tab="profiles" aria-pressed="false">星锐档案</button>
+            <button type="button" data-content-tab="links" aria-pressed="false">内容数据入口</button>
+          </nav>
+
           <div class="management-split admin-content-layout">
-            <section class="panel admin-wide-panel admin-trainee-profile-manager" id="adminTraineeProfileManager" aria-labelledby="adminTraineeProfileTitle">
+            <section class="panel admin-wide-panel admin-content-section admin-business-scenario-manager is-active" id="adminBusinessScenarioManager" data-content-panel="scenario" aria-labelledby="adminBusinessScenarioTitle">
+              <header class="wide-panel-heading">
+                <div>
+                  <span>BUSINESS_SCENARIO</span>
+                  <strong id="adminBusinessScenarioTitle">业务场景大屏内容</strong>
+                </div>
+                <small id="adminBusinessScenarioStatus">等待同步</small>
+              </header>
+
+              <form class="admin-business-scenario-form" id="adminBusinessScenarioForm">
+                <label>
+                  目标赛道
+                  <select id="adminBusinessScenarioTeam" name="teamId" required></select>
+                </label>
+                <label>
+                  文档链接
+                  <input id="adminBusinessScenarioDocUrl" type="text" name="docUrl" autocomplete="off" placeholder="飞书文档或已有文档链接" />
+                </label>
+                <label>
+                  顶部中文
+                  <input id="adminBusinessScenarioName" type="text" name="name" autocomplete="off" placeholder="如 药学" />
+                </label>
+                <label>
+                  顶部英文
+                  <input id="adminBusinessScenarioNameEn" type="text" name="nameEn" autocomplete="off" placeholder="PHARMACEUTICALS" data-business-scenario-en-for="name" />
+                </label>
+                <label>
+                  主办部门
+                  <input id="adminBusinessScenarioHost" type="text" name="hostDepartment" autocomplete="off" placeholder="如 药学研发中心" />
+                </label>
+                <label>
+                  主办部门英文
+                  <input id="adminBusinessScenarioHostEn" type="text" name="hostDepartmentEn" autocomplete="off" placeholder="Pharmaceutical R&D Center" data-business-scenario-en-for="hostDepartment" />
+                </label>
+                <label class="admin-business-scenario-field-wide">
+                  赛道重点
+                  <textarea id="adminBusinessScenarioFocus" name="focus" rows="2" placeholder="如 文献靶点筛选"></textarea>
+                </label>
+                <label class="admin-business-scenario-field-wide">
+                  赛道重点英文
+                  <textarea id="adminBusinessScenarioFocusEn" name="focusEn" rows="2" placeholder="Literature Target Screening" data-business-scenario-en-for="focus"></textarea>
+                </label>
+                <label class="admin-business-scenario-field-wide">
+                  AI 场景，每行一个
+                  <textarea id="adminBusinessScenarioScenarios" name="scenarios" rows="3" placeholder="文献靶点筛选&#10;药物信息检索及数据库分析报告"></textarea>
+                </label>
+                <label class="admin-business-scenario-field-wide">
+                  AI 场景英文，每行一个
+                  <textarea id="adminBusinessScenarioScenariosEn" name="scenariosEn" rows="3" placeholder="Literature Target Screening&#10;Drug Information Retrieval and Database Analysis Report" data-business-scenario-en-for="scenarios"></textarea>
+                </label>
+                <label class="admin-business-scenario-field-wide">
+                  交付物
+                  <textarea id="adminBusinessScenarioDeliverable" name="deliverable" rows="2" placeholder="如 可视化 Demo"></textarea>
+                </label>
+                <label class="admin-business-scenario-field-wide">
+                  交付物英文
+                  <textarea id="adminBusinessScenarioDeliverableEn" name="deliverableEn" rows="2" placeholder="Visual Demo" data-business-scenario-en-for="deliverable"></textarea>
+                </label>
+                <div class="admin-business-scenario-actions admin-business-scenario-field-wide">
+                  <button class="primary-admin-action" type="submit">保存业务场景</button>
+                  <button class="secondary-admin-action" type="button" id="resetBusinessScenarioFormButton">恢复当前赛道</button>
+                </div>
+              </form>
+            </section>
+
+            <section class="panel admin-wide-panel admin-content-section admin-trainee-profile-manager" id="adminTraineeProfileManager" data-content-panel="profiles" aria-labelledby="adminTraineeProfileTitle">
               <header class="wide-panel-heading">
                 <div>
                   <span>TRAINEE_PROFILE</span>
@@ -406,17 +431,29 @@
                   部门
                   <input id="adminTraineeProfileDepartment" type="text" name="department" autocomplete="off" placeholder="如 AI 创新部" />
                 </label>
-                <label>
+                <label class="admin-trainee-profile-department-en">
                   部门英文
                   <input id="adminTraineeProfileDepartmentEn" type="text" name="departmentEn" autocomplete="off" placeholder="Department" />
                 </label>
-                <label>
-                  头像路径
-                  <input id="adminTraineeProfilePhoto" type="text" name="photo" autocomplete="off" placeholder="./assets/xxx.jpg" />
+                <label class="admin-trainee-image-field">
+                  头像图片
+                  <button class="admin-trainee-image-picker" type="button" data-trainee-image-picker="photo">
+                    <span class="admin-trainee-image-preview" data-trainee-image-preview="photo"></span>
+                    <span class="admin-trainee-image-add">+</span>
+                    <em>点击选择本地图片</em>
+                  </button>
+                  <input class="admin-trainee-image-path" id="adminTraineeProfilePhoto" type="text" name="photo" autocomplete="off" readonly placeholder="选择后自动生成路径" />
+                  <input id="adminTraineeProfilePhotoFile" type="file" accept="image/*" data-trainee-image-file="photo" hidden />
                 </label>
-                <label>
-                  表情包路径
-                  <input id="adminTraineeProfileMemeImage" type="text" name="memeImage" autocomplete="off" placeholder="./assets/xxx.png" />
+                <label class="admin-trainee-image-field">
+                  表情包图片
+                  <button class="admin-trainee-image-picker" type="button" data-trainee-image-picker="memeImage">
+                    <span class="admin-trainee-image-preview" data-trainee-image-preview="memeImage"></span>
+                    <span class="admin-trainee-image-add">+</span>
+                    <em>点击选择本地图片</em>
+                  </button>
+                  <input class="admin-trainee-image-path" id="adminTraineeProfileMemeImage" type="text" name="memeImage" autocomplete="off" readonly placeholder="选择后自动生成路径" />
+                  <input id="adminTraineeProfileMemeImageFile" type="file" accept="image/*" data-trainee-image-file="memeImage" hidden />
                 </label>
                 <label class="admin-trainee-profile-field-wide">
                   个人展示语
@@ -444,7 +481,7 @@
               <div class="admin-trainee-profile-list" id="adminTraineeProfileList"></div>
             </section>
 
-            <section class="panel admin-wide-panel" aria-labelledby="adminContentDataTitle">
+            <section class="panel admin-wide-panel admin-content-data-panel admin-content-section" data-content-panel="links" aria-labelledby="adminContentDataTitle">
               <header class="wide-panel-heading">
                 <div>
                   <span>DATA_LINKS</span>
@@ -457,15 +494,31 @@
         </section>
 
         <section class="admin-view-panel admin-management-view" data-admin-view-panel="data" aria-labelledby="dataWorkspaceTitle">
-          <div class="management-heading">
-            <div>
-              <p>DATA_CENTER</p>
-              <h2 id="dataWorkspaceTitle">数据与投票管理</h2>
+            <div class="management-heading">
+              <div>
+                <p>DATA_CENTER</p>
+                <h2 id="dataWorkspaceTitle">数据与投票管理</h2>
+              </div>
+            <div class="admin-export-actions" aria-label="数据导出">
+              <button type="button" data-admin-export="teams">导出队伍</button>
+              <button type="button" data-admin-export="votes">导出票数</button>
+              <button type="button" data-admin-export="works">导出作品</button>
+              <button type="button" data-admin-export="scores">导出评分</button>
+              <button type="button" data-admin-export="results">导出结果</button>
+              <div class="admin-auto-refresh" aria-label="业务数据自动刷新">
+                <label><input type="checkbox" id="adminAutoRefreshToggle" /> 自动刷新</label>
+                <select id="adminAutoRefreshInterval" aria-label="自动刷新间隔">
+                  <option value="5000">5秒</option>
+                  <option value="10000" selected>10秒</option>
+                  <option value="30000">30秒</option>
+                </select>
+                <small id="adminAutoRefreshState">手动刷新</small>
+              </div>
+              <button type="button" id="refreshDataWorkspaceButton">刷新数据</button>
             </div>
-            <button type="button" id="refreshDataWorkspaceButton">刷新数据</button>
           </div>
 
-          <div class="management-split">
+          <div class="management-split admin-data-management-layout">
             <div class="admin-vote-management-stack">
               <section class="panel admin-wide-panel admin-vote-window-manager" id="adminVoteWindowManager" aria-labelledby="adminVoteWindowTitle">
                 <header class="wide-panel-heading">
@@ -499,9 +552,17 @@
                 </header>
                 <ol class="admin-vote-ranking admin-vote-ranking-full" id="adminVoteRankingFull"></ol>
               </section>
+
+              <section class="panel admin-wide-panel admin-result-snapshot-panel" id="adminResultSnapshotPanel" aria-label="最新结果快照">
+                <header>
+                  <span>FINAL SNAPSHOT</span>
+                  <small id="adminResultSnapshotStatus">等待发布</small>
+                </header>
+                <div class="admin-result-snapshot" id="adminResultSnapshot"></div>
+              </section>
             </div>
 
-            <section class="panel admin-wide-panel" aria-label="作品审核列表">
+            <section class="panel admin-wide-panel admin-work-review-panel" aria-label="作品审核列表">
               <header class="wide-panel-heading">
                 <div>
                   <span>WORK REVIEW</span>
@@ -550,9 +611,15 @@
                     目标赛道
                     <select id="adminTeamMemberTeamId" name="teamId" required></select>
                   </label>
+                  <label class="admin-team-member-field-wide admin-team-member-select-row">
+                    从已登记用户选择
+                    <select id="adminTeamMemberUserSelect" data-team-member-user-select>
+                      <option value="">手动填写新成员 / 从用户管理选择</option>
+                    </select>
+                  </label>
                   <label>
                     用户 ID
-                    <input id="adminTeamMemberUserId" type="text" name="userId" autocomplete="off" placeholder="如 player-001" required />
+                    <input id="adminTeamMemberUserId" type="text" name="userId" autocomplete="off" placeholder="留空自动生成，如 manual-001" />
                   </label>
                   <label>
                     姓名
@@ -564,7 +631,16 @@
                   </label>
                   <label>
                     角色 Key
-                    <input id="adminTeamMemberRoleKey" type="text" name="roleKey" autocomplete="off" placeholder="如 pm / dev" />
+                    <select id="adminTeamMemberRoleKey" name="roleKey">
+                      <option value="">队员</option>
+                      <option value="advisor">队长</option>
+                      <option value="pm">产品策划</option>
+                      <option value="dev">开发实现</option>
+                      <option value="algorithm">算法 / 数据</option>
+                      <option value="design">体验 / 设计</option>
+                      <option value="presentation">展示汇报</option>
+                      <option value="other">其他职责</option>
+                    </select>
                   </label>
                   <label>
                     职责
@@ -594,7 +670,42 @@
               <p>AUDIT_TRAIL</p>
               <h2 id="auditLogTitle">操作日志</h2>
             </div>
-            <button type="button" id="refreshAuditLogButton">刷新日志</button>
+            <div class="admin-export-actions" aria-label="日志导出">
+              <span class="admin-audit-status" id="adminAuditStatus">等待同步</span>
+              <button type="button" data-admin-export="audit">导出日志</button>
+              <button type="button" id="refreshAuditLogButton">刷新日志</button>
+            </div>
+          </div>
+
+          <div class="admin-audit-filter-bar" id="adminAuditFilterBar" aria-label="审计日志筛选">
+            <select id="adminAuditActionFilter" data-audit-filter aria-label="按操作类型筛选">
+              <option value="">全部操作</option>
+              <option value="stage.changed">阶段切换</option>
+              <option value="vote.window.updated">投票窗口</option>
+              <option value="result.published">结果发布</option>
+              <option value="team.member.added">添加成员</option>
+              <option value="team.member.removed">移除成员</option>
+              <option value="team.status.updated">组队开关</option>
+              <option value="work.statusChanged">作品审核</option>
+              <option value="user.roles.updated">用户权限</option>
+              <option value="screen.override.updated">大屏锁定</option>
+              <option value="screen.override.cleared">大屏解锁</option>
+              <option value="timer.missionCountdown.updated">任务倒计时</option>
+              <option value="timer.roadshow.updated">路演计时</option>
+            </select>
+            <input id="adminAuditActorFilter" data-audit-filter type="search" autocomplete="off" placeholder="操作人" aria-label="按操作人筛选" />
+            <select id="adminAuditTargetFilter" data-audit-filter aria-label="按对象类型筛选">
+              <option value="">全部对象</option>
+              <option value="stage">阶段</option>
+              <option value="vote">投票</option>
+              <option value="result">结果</option>
+              <option value="team">队伍</option>
+              <option value="work">作品</option>
+              <option value="user">用户</option>
+              <option value="screen">大屏</option>
+              <option value="timer">计时器</option>
+            </select>
+            <button type="button" id="resetAuditFiltersButton">重置筛选</button>
           </div>
 
           <ol class="admin-audit-list" id="adminAuditLogList"></ol>
@@ -682,18 +793,18 @@
         <section class="admin-view-panel admin-management-view" data-admin-view-panel="settings" aria-labelledby="systemSettingsTitle">
           <div class="management-heading">
             <div>
-              <p>SYSTEM_SETTINGS</p>
-              <h2 id="systemSettingsTitle">系统设置</h2>
+              <p>SYSTEM_STATUS</p>
+              <h2 id="systemSettingsTitle">系统状态</h2>
             </div>
-            <span id="adminSystemRuntimeStatus">运行时配置</span>
+            <span id="adminSystemRuntimeStatus">只读运行状态</span>
           </div>
 
           <div class="management-split admin-settings-grid">
             <section class="panel admin-wide-panel" aria-labelledby="adminRuntimeConfigTitle">
               <header class="wide-panel-heading">
                 <div>
-                  <span>RUNTIME_CONFIG</span>
-                  <strong id="adminRuntimeConfigTitle">运行时配置</strong>
+                  <span>RUNTIME_STATUS</span>
+                  <strong id="adminRuntimeConfigTitle">运行状态</strong>
                 </div>
               </header>
               <div class="admin-control-list admin-system-settings" id="adminSystemSettings"></div>
@@ -704,7 +815,7 @@
     </main>
 
     <script src="./runtime-config.js?v=20260624-split"></script>
-    <script src="./src/data.js?v=20260624-split"></script>
-    <script src="./src/admin.js?v=20260625-index-nav"></script>
+    <script src="./src/data.js?v=20260625-time-sync"></script>
+    <script src="./src/admin.js?v=20260625-time-sync"></script>
   </body>
 </html>

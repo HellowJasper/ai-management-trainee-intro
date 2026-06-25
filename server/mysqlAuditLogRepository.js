@@ -37,6 +37,42 @@ function normalizeLog(entry = {}) {
   };
 }
 
+function normalizeLimit(limit) {
+  const cleanLimit = Math.trunc(Number(limit));
+  return Number.isFinite(cleanLimit) && cleanLimit > 0 ? cleanLimit : 80;
+}
+
+function buildWhereClause(filters = {}) {
+  const clauses = [];
+  const params = [];
+  const action = String(filters.action || "").trim();
+  const actor = String(filters.actor || "").trim();
+  const targetType = String(filters.targetType || "").trim();
+  const targetId = String(filters.targetId || "").trim();
+
+  if (action) {
+    clauses.push("action = ?");
+    params.push(action);
+  }
+  if (actor) {
+    clauses.push("actor LIKE ?");
+    params.push(`%${actor}%`);
+  }
+  if (targetType) {
+    clauses.push("target_type = ?");
+    params.push(targetType);
+  }
+  if (targetId) {
+    clauses.push("target_id LIKE ?");
+    params.push(`%${targetId}%`);
+  }
+
+  return {
+    whereSql: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "",
+    params,
+  };
+}
+
 function rowToLog(row = {}) {
   const before = parseJsonValue(row.before_json || row.beforeJson);
   const after = parseJsonValue(row.after_json || row.afterJson);
@@ -61,14 +97,16 @@ function createMysqlAuditLogRepository(pool) {
     throw new Error("A mysql2-compatible pool with execute(sql, params) is required.");
   }
 
-  async function listLogs({ limit = 80 } = {}) {
-    const cleanLimit = Number.isFinite(Number(limit)) && Number(limit) > 0 ? Number(limit) : 80;
+  async function listLogs({ limit = 80, action = "", actor = "", targetType = "", targetId = "" } = {}) {
+    const cleanLimit = normalizeLimit(limit);
+    const { whereSql, params } = buildWhereClause({ action, actor, targetType, targetId });
     const [rows] = await pool.execute(
       `SELECT id, actor, action, target_type, target_id, message, before_json, after_json, ip, created_at
        FROM audit_logs
+       ${whereSql}
        ORDER BY created_at DESC, id DESC
-       LIMIT ?`,
-      [cleanLimit],
+       LIMIT ${cleanLimit}`,
+      params,
     );
 
     return {

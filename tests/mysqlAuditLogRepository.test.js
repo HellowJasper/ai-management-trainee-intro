@@ -26,7 +26,8 @@ class MemoryMysqlAuditLogPool {
     const compactSql = sql.replace(/\s+/g, " ").trim().toLowerCase();
 
     if (compactSql.startsWith("select id, actor, action, target_type, target_id, message")) {
-      const limit = Number(params[0]) || 80;
+      const literalLimit = compactSql.match(/\blimit\s+(\d+)\b/);
+      const limit = Number(params[0] || literalLimit?.[1]) || 80;
       return [this.rows
         .slice()
         .sort((a, b) => Number(b.id) - Number(a.id))
@@ -53,6 +54,15 @@ class MemoryMysqlAuditLogPool {
     }
 
     throw new Error(`Unexpected SQL: ${sql}`);
+  }
+}
+
+class StrictMemoryMysqlAuditLogPool extends MemoryMysqlAuditLogPool {
+  async execute(sql, params) {
+    if (!Array.isArray(params)) {
+      throw new Error("mysql execute params must be an array");
+    }
+    return super.execute(sql, params);
   }
 }
 
@@ -87,6 +97,29 @@ test("MySQL audit log repository records and lists newest logs first", async () 
   assert.equal(state.logs.length, 1);
   assert.equal(state.logs[0].action, "work.statusChanged");
   assert.equal(state.logs[0].message, "发布作品");
+
+  const selectCall = pool.calls.find((call) => call.sql.includes("FROM audit_logs"));
+  assert.match(selectCall.sql, /LIMIT 1\b/);
+  assert.deepEqual(selectCall.params, []);
+});
+
+test("MySQL audit log repository passes an empty params array for list queries", async () => {
+  const pool = new StrictMemoryMysqlAuditLogPool([
+    {
+      id: 1,
+      actor: "admin-a",
+      action: "stage.changed",
+      targetType: "stage",
+      targetId: "team",
+      message: "开启组队",
+    },
+  ]);
+  const repository = createMysqlAuditLogRepository(pool);
+
+  const state = await repository.listLogs({ limit: 1 });
+
+  assert.equal(state.logs.length, 1);
+  assert.deepEqual(pool.calls[0].params, []);
 });
 
 test("repository factory wires the MySQL audit log repository", async () => {

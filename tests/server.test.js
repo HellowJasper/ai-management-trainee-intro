@@ -142,6 +142,37 @@ function createSiteBootstrapTestRepositories(overrides = {}) {
         return null;
       },
     },
+    adminStateRepository: {
+      async getState() {
+        return {
+          currentStageId: "vote",
+          screenOverrideStageId: "",
+          updatedAt: "2026-06-25T08:00:00.000Z",
+          stages: [
+            { id: "team", name: "组队开启", status: "done" },
+            { id: "vote", name: "投票开启", status: "active" },
+          ],
+        };
+      },
+    },
+    missionCountdownRepository: {
+      async getState() {
+        return {
+          startedAt: "2026-06-25T06:00:00.000Z",
+          durationMs: 129600000,
+          serverNow: "2026-06-25T08:00:00.000Z",
+        };
+      },
+    },
+    roadshowRepository: {
+      async getState() {
+        return {
+          startedAt: "2026-06-25T07:45:00.000Z",
+          durationMs: 900000,
+          serverNow: "2026-06-25T08:00:00.000Z",
+        };
+      },
+    },
     ...overrides,
   };
 }
@@ -182,6 +213,35 @@ test("API lists trainees and persists host sentence updates", async (t) => {
 
   const storedTrainees = JSON.parse(await fs.readFile(dataPath, "utf8"));
   assert.equal(storedTrainees[0].sentence, "我把咖啡变成自动化工作流的启动按钮。");
+});
+
+test("admin trainee asset upload saves local images under the public assets folder", async (t) => {
+  const publicRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-upload-assets-"));
+  const server = createServer({ publicRoot });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/admin/trainee-assets`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      traineeId: "jasper",
+      field: "photo",
+      filename: "头像.png",
+      dataUrl: "data:image/png;base64,iVBORw0KGgo=",
+    }),
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 201);
+  assert.match(payload.path, /^\.\/assets\/uploads\/trainees\/jasper\/photo-\d+-image\.png$/);
+
+  const savedPath = path.join(publicRoot, payload.path.replace(/^\.\//, ""));
+  const savedFile = await fs.readFile(savedPath);
+  assert.deepEqual(savedFile, Buffer.from("iVBORw0KGgo=", "base64"));
 });
 
 test("API responses allow the separated frontend origin with credentials", async (t) => {
@@ -235,6 +295,10 @@ test("site bootstrap API composes public audience state from backend repositorie
   assert.equal(payload.stage.voteStatus, "voting");
   assert.equal(payload.stage.voteWindowLabel, "决赛投票");
   assert.deepEqual(payload.stage.pointScale, [100, 85, 70, 55, 40]);
+  assert.equal(payload.stage.currentStageId, "vote");
+  assert.equal(payload.stage.currentStage.name, "投票开启");
+  assert.equal(payload.timers.missionCountdown.durationMs, 129600000);
+  assert.equal(payload.timers.roadshow.durationMs, 900000);
   assert.equal(payload.trainees.length, 1);
   assert.equal(payload.teams.length, 1);
   assert.equal(payload.works.length, 1);
@@ -1192,6 +1256,11 @@ test("strict auth enforcement protects vote, score, work, and admin write APIs",
   });
   assert.equal(deniedScoreResponse.status, 403);
 
+  const deniedScoreListResponse = await fetch(`${baseUrl}/api/judge/scores`, {
+    headers: { Cookie: judgeCookie },
+  });
+  assert.equal(deniedScoreListResponse.status, 403);
+
   const scoreResponse = await fetch(`${baseUrl}/api/judge/scores`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Cookie: judgeCookie },
@@ -1200,6 +1269,11 @@ test("strict auth enforcement protects vote, score, work, and admin write APIs",
   const score = await scoreResponse.json();
   assert.equal(scoreResponse.status, 200);
   assert.equal(score.judgeId, "judge-001");
+
+  const adminScoreListResponse = await fetch(`${baseUrl}/api/judge/scores`, {
+    headers: { Cookie: adminCookie },
+  });
+  assert.equal(adminScoreListResponse.status, 200);
 
   const workResponse = await fetch(`${baseUrl}/api/work/submit`, {
     method: "POST",
@@ -1540,6 +1614,69 @@ test("admin team status API locks a track and blocks later joins", async (t) => 
   assert.equal(auditState.logs[0].targetId, "marketing");
 });
 
+test("admin team scenario API updates editable big-screen content and document link", async (t) => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-admin-team-scenario-"));
+  const dataPath = path.join(tempDir, "teams.json");
+  const auditLogPath = path.join(tempDir, "audit-logs.json");
+  await fs.writeFile(dataPath, `${JSON.stringify([
+    {
+      id: "pharma",
+      index: "01",
+      name: "药学",
+      nameEn: "PHARMACEUTICALS",
+      hostDepartment: "药学研发中心",
+      focus: "文献挖掘、靶点筛选。",
+      scenarios: ["药物信息检索助手"],
+      deliverable: "知识库 + 分析报告。",
+      docUrl: "https://joincare.feishu.cn/docx/old",
+      members: [],
+    },
+  ], null, 2)}\n`);
+  await fs.writeFile(auditLogPath, `${JSON.stringify({ logs: [] }, null, 2)}\n`);
+
+  const teamRepository = createTeamRepository(dataPath);
+  const auditLogRepository = createAuditLogRepository(auditLogPath);
+  const server = createServer({ publicRoot: tempDir, teamRepository, auditLogRepository });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/admin/teams/pharma/scenario`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "药学创新",
+      nameEn: "PHARMACEUTICAL INNOVATION",
+      hostDepartment: "药学研发中心",
+      hostDepartmentEn: "PHARMACEUTICAL R&D CENTER",
+      focus: "文献靶点筛选",
+      focusEn: "Literature Target Screening",
+      scenarios: ["文献靶点筛选", "药物信息检索及数据库分析报告"],
+      scenariosEn: ["Literature Target Screening", "Drug Information Retrieval and Database Analysis Report"],
+      deliverable: "可视化 Demo",
+      deliverableEn: "Visual Demo",
+      docUrl: "https://joincare.feishu.cn/docx/scenario-doc",
+      actor: "admin-ui",
+    }),
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.team.name, "药学创新");
+  assert.equal(payload.team.hostDepartmentEn, "PHARMACEUTICAL R&D CENTER");
+  assert.deepEqual(payload.team.scenarios, ["文献靶点筛选", "药物信息检索及数据库分析报告"]);
+  assert.equal(payload.team.docUrl, "https://joincare.feishu.cn/docx/scenario-doc");
+  assert.equal(payload.teams[0].deliverableEn, "Visual Demo");
+
+  const stored = JSON.parse(await fs.readFile(dataPath, "utf8"));
+  assert.equal(stored[0].focusEn, "Literature Target Screening");
+  assert.deepEqual(stored[0].scenariosEn, ["Literature Target Screening", "Drug Information Retrieval and Database Analysis Report"]);
+
+  const auditState = JSON.parse(await fs.readFile(auditLogPath, "utf8"));
+  assert.equal(auditState.logs[0].action, "team.scenario.updated");
+  assert.equal(auditState.logs[0].targetId, "pharma");
+});
+
 test("vote APIs persist one vote per user and update ranked results", async (t) => {
   const { dataPath, publicRoot } = await createTempJsonFile("ai-votes-", "vote-results.json", {
     pointScale: [100, 85, 70, 55, 40],
@@ -1691,6 +1828,7 @@ test("judge score API supports draft, submit, progress, and admin lock workflow"
   const usersFile = await createTempJsonFile("ai-score-sop-users-", "user-roles.json", {
     users: [
       { id: "judge-001", name: "评委 001", roles: ["judge"], status: "active" },
+      { id: "judge-disabled", name: "停用评委", roles: ["judge"], status: "inactive" },
       { id: "admin-001", name: "管理员 001", roles: ["admin"], status: "active" },
     ],
   });
@@ -1868,6 +2006,37 @@ test("audit log API records backend write events", async (t) => {
   assert.match(next.logs[0].id, /^audit_/);
 });
 
+test("audit log API passes filter query parameters to the repository", async (t) => {
+  const publicRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-audit-filter-"));
+  let capturedFilters = null;
+  const auditLogRepository = {
+    async listLogs(filters) {
+      capturedFilters = filters;
+      return { logs: [] };
+    },
+    async record(entry) {
+      return entry;
+    },
+  };
+  const server = createServer({ publicRoot, auditLogRepository });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/admin/audit-logs?limit=25&action=stage.changed&actor=admin-001&targetType=stage&targetId=team`);
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(payload.logs, []);
+  assert.deepEqual(capturedFilters, {
+    limit: "25",
+    action: "stage.changed",
+    actor: "admin-001",
+    targetType: "stage",
+    targetId: "team",
+  });
+});
+
 test("API lists vote results with the confirmed ranking point scale", async (t) => {
   const publicRoot = path.join(__dirname, "..");
   const voteResultsRepository = {
@@ -2012,7 +2181,7 @@ test("admin / screen / big-screen pages require an admin session", async (t) => 
   assert.match(response.headers.get("content-type"), /text\/html/);
   assert.match(html, /AI 星锐黑客松 管理后台/);
   assert.match(html, /id="stageRows"/);
-  assert.match(html, /src="\.\/src\/admin\.js\?v=20260625-index-nav"/);
+  assert.match(html, /src="\.\/src\/admin\.js\?v=20260625-time-sync"/);
 });
 
 test("root serves the user site for everyone; big screen stays admin-only", async (t) => {
@@ -2147,6 +2316,36 @@ test("admin stage API updates current stage and persists a log", async (t) => {
   const storedState = JSON.parse(await fs.readFile(dataPath, "utf8"));
   assert.equal(storedState.currentStageId, "vote");
   assert.equal(storedState.logs[0].stageId, "vote");
+});
+
+test("admin stage API can advance from result publishing to the final champion stage", async (t) => {
+  const { publicRoot, adminStateRepository, auditLogRepository } = await createTempAdminStateRepository({
+    currentStageId: "result",
+    updatedAt: "2026-05-24T09:30:00.000Z",
+    stages: [
+      { id: "team", name: "组队开启" },
+      { id: "vote", name: "投票开启" },
+      { id: "result", name: "结果发布" },
+    ],
+    logs: [],
+  });
+  const server = createServer({ publicRoot, adminStateRepository, auditLogRepository });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/admin/stage`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ stageId: "final" }),
+  });
+  const state = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(state.currentStageId, "final");
+  assert.equal(state.stages.find((stage) => stage.id === "final").name, "冠军展示");
+  assert.equal(state.stages.find((stage) => stage.id === "result").status, "done");
+  assert.equal(state.stages.find((stage) => stage.id === "final").status, "active");
 });
 
 test("admin screen override API toggles the forced big screen stage without changing the flow stage", async (t) => {

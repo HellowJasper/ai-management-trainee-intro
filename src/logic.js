@@ -710,6 +710,37 @@
     return stageViews[stageId] || "";
   }
 
+  function resolveScreenViewFromRouteStage(stageValue) {
+    const cleanValue = String(stageValue || "").trim();
+    if (!cleanValue) {
+      return "";
+    }
+
+    const routeViews = new Set([
+      "home",
+      "welcome",
+      "wall",
+      "discover",
+      "team",
+      "countdown",
+      "roadshow",
+      "vote",
+      "vote-result",
+      "final-result",
+    ]);
+    const routeAliases = {
+      "vote-progress": "vote",
+      result: "vote-result",
+      final: "final-result",
+    };
+
+    if (routeViews.has(cleanValue)) {
+      return cleanValue;
+    }
+
+    return routeAliases[cleanValue] || resolveStageScreenView(cleanValue);
+  }
+
   function createAdminStageSyncKey(stageId, updatedAt) {
     const cleanStageId = String(stageId || "").trim();
     if (!cleanStageId) {
@@ -803,6 +834,7 @@
     resolveAdjacentTraineeId,
     shouldApplyAdminStageChange,
     resolveDiscoverTarget,
+    resolveScreenViewFromRouteStage,
     resolveStageScreenView,
     resolveWelcomeEntryTarget,
     toggleProfileMedia,

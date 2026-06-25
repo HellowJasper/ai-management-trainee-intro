@@ -66,9 +66,35 @@ function createMysqlVoteResultsRepository(pool) {
     throw new Error("A mysql2-compatible pool with execute(sql, params) is required.");
   }
 
-  async function readVoteWindow() {
-    const [rows] = await pool.execute(
-      "SELECT status, window_label, point_scale_json FROM vote_windows WHERE id = ? LIMIT 1",
+  async function withTransaction(operation) {
+    if (typeof pool.getConnection !== "function") {
+      return operation(pool);
+    }
+
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const result = await operation(connection);
+      await connection.commit();
+      return result;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  function isDuplicateActiveVoteError(error) {
+    return Boolean(error && (error.code === "ER_DUP_ENTRY" || error.errno === 1062));
+  }
+
+  async function readVoteWindow(db = pool, { forUpdate = false } = {}) {
+    const [rows] = await db.execute(
+      `SELECT status, window_label, point_scale_json
+       FROM vote_windows
+       WHERE id = ?
+       LIMIT 1${forUpdate ? " FOR UPDATE" : ""}`,
       [DEFAULT_WINDOW_ID],
     );
     if (!rows.length) {
@@ -85,15 +111,15 @@ function createMysqlVoteResultsRepository(pool) {
     };
   }
 
-  async function readVoteCounts() {
-    const [rows] = await pool.execute(
+  async function readVoteCounts(db = pool) {
+    const [rows] = await db.execute(
       "SELECT team_id, COUNT(*) AS votes FROM votes WHERE status = 'active' GROUP BY team_id",
     );
     return new Map(rows.map((row) => [normalizeId(row.team_id || row.teamId), Number(row.votes || 0)]));
   }
 
-  async function readActiveVoters() {
-    const [rows] = await pool.execute(
+  async function readActiveVoters(db = pool) {
+    const [rows] = await db.execute(
       "SELECT voter_id, team_id FROM votes WHERE status = 'active'",
     );
     return rows.reduce((voters, row) => {
@@ -127,8 +153,14 @@ function createMysqlVoteResultsRepository(pool) {
     }
   }
 
-  async function ensureTeamExists(teamId) {
-    const [rows] = await pool.execute(
+  function ensureExistingVoteMatches(userId, teamId, existingTeamId) {
+    if (existingTeamId && existingTeamId !== teamId) {
+      throw createHttpError(409, `User ${userId} already voted for ${existingTeamId}.`);
+    }
+  }
+
+  async function ensureTeamExists(teamId, db = pool) {
+    const [rows] = await db.execute(
       "SELECT id FROM teams WHERE id = ? LIMIT 1",
       [teamId],
     );
@@ -137,9 +169,12 @@ function createMysqlVoteResultsRepository(pool) {
     }
   }
 
-  async function getCurrentActiveVote(userId) {
-    const [rows] = await pool.execute(
-      "SELECT team_id FROM votes WHERE voter_id = ? AND status = 'active' LIMIT 1",
+  async function getCurrentActiveVote(userId, db = pool, { forUpdate = false } = {}) {
+    const [rows] = await db.execute(
+      `SELECT team_id
+       FROM votes
+       WHERE voter_id = ? AND status = 'active'
+       LIMIT 1${forUpdate ? " FOR UPDATE" : ""}`,
       [userId],
     );
     return rows[0] ? normalizeId(rows[0].team_id || rows[0].teamId) : "";
@@ -153,21 +188,31 @@ function createMysqlVoteResultsRepository(pool) {
       throw createHttpError(400, "teamId is required.");
     }
 
-    const state = await listVoteResults();
-    ensureVotingOpen(state);
-    await ensureTeamExists(teamId);
+    await withTransaction(async (db) => {
+      const windowState = await readVoteWindow(db, { forUpdate: true });
+      ensureVotingOpen(windowState);
+      await ensureTeamExists(teamId, db);
 
-    const currentVote = await getCurrentActiveVote(userId);
-    if (currentVote && currentVote !== teamId) {
-      throw createHttpError(409, `User ${userId} already voted for ${currentVote}.`);
-    }
+      const currentVote = await getCurrentActiveVote(userId, db, { forUpdate: true });
+      ensureExistingVoteMatches(userId, teamId, currentVote);
+      if (currentVote) {
+        return;
+      }
 
-    if (!currentVote) {
-      await pool.execute(
-        "INSERT INTO votes (voter_id, team_id, source, status) VALUES (?, ?, ?, 'active')",
-        [userId, teamId, source],
-      );
-    }
+      try {
+        await db.execute(
+          "INSERT INTO votes (voter_id, team_id, source, status) VALUES (?, ?, ?, 'active')",
+          [userId, teamId, source || "web"],
+        );
+      } catch (error) {
+        if (!isDuplicateActiveVoteError(error)) {
+          throw error;
+        }
+
+        const racedVote = await getCurrentActiveVote(userId, db, { forUpdate: true });
+        ensureExistingVoteMatches(userId, teamId, racedVote);
+      }
+    });
 
     return {
       accepted: true,
@@ -179,35 +224,42 @@ function createMysqlVoteResultsRepository(pool) {
 
   async function cancelVote(payload = {}) {
     const userId = normalizeUserId(payload);
-    const state = await listVoteResults();
-    ensureVotingOpen(state);
-    const currentVote = await getCurrentActiveVote(userId);
-    const teamId = normalizeId(payload.teamId || currentVote);
+    const result = await withTransaction(async (db) => {
+      const windowState = await readVoteWindow(db, { forUpdate: true });
+      ensureVotingOpen(windowState);
+      const currentVote = await getCurrentActiveVote(userId, db, { forUpdate: true });
+      const teamId = normalizeId(payload.teamId || currentVote);
 
-    if (!teamId) {
-      throw createHttpError(400, "teamId is required.");
-    }
-    if (!currentVote) {
+      if (!teamId) {
+        throw createHttpError(400, "teamId is required.");
+      }
+      if (!currentVote) {
+        return {
+          accepted: false,
+          teamId,
+          userId,
+        };
+      }
+      if (currentVote !== teamId) {
+        throw createHttpError(409, `User ${userId} voted for ${currentVote}, not ${teamId}.`);
+      }
+
+      await db.execute(
+        `UPDATE votes
+         SET status = CONCAT('cancelled-', id), updated_at = CURRENT_TIMESTAMP
+         WHERE voter_id = ? AND team_id = ? AND status = 'active'`,
+        [userId, teamId],
+      );
+
       return {
-        accepted: false,
+        accepted: true,
         teamId,
         userId,
-        ...state,
       };
-    }
-    if (currentVote !== teamId) {
-      throw createHttpError(409, `User ${userId} voted for ${currentVote}, not ${teamId}.`);
-    }
-
-    await pool.execute(
-      "UPDATE votes SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE voter_id = ? AND team_id = ? AND status = 'active'",
-      [userId, teamId],
-    );
+    });
 
     return {
-      accepted: true,
-      teamId,
-      userId,
+      ...result,
       ...await listVoteResults(),
     };
   }

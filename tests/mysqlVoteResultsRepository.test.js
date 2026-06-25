@@ -9,9 +9,12 @@ class MemoryMysqlVotePool {
     teams = [],
     votes = [],
     window = null,
+    duplicateActiveVoteOnInsert = null,
   } = {}) {
     this.calls = [];
+    this.transactionEvents = [];
     this.window = window ? { ...window } : null;
+    this.duplicateActiveVoteOnInsert = duplicateActiveVoteOnInsert ? { ...duplicateActiveVoteOnInsert } : null;
     this.teams = new Map(teams.map((team, index) => [team.id, {
       id: team.id,
       name: team.name || "",
@@ -27,6 +30,32 @@ class MemoryMysqlVotePool {
       status: vote.status || "active",
       source: vote.source || "web",
     }));
+  }
+
+  async getConnection() {
+    this.transactionEvents.push("getConnection");
+    return {
+      execute: (sql, params) => this.execute(sql, params),
+      beginTransaction: async () => {
+        this.transactionEvents.push("begin");
+      },
+      commit: async () => {
+        this.transactionEvents.push("commit");
+      },
+      rollback: async () => {
+        this.transactionEvents.push("rollback");
+      },
+      release: () => {
+        this.transactionEvents.push("release");
+      },
+    };
+  }
+
+  createDuplicateEntryError(voterId, status = "active") {
+    const error = new Error(`Duplicate entry '${voterId}-${status}' for key 'uq_active_vote'`);
+    error.code = "ER_DUP_ENTRY";
+    error.errno = 1062;
+    return error;
   }
 
   async execute(sql, params = []) {
@@ -71,6 +100,30 @@ class MemoryMysqlVotePool {
 
     if (compactSql.startsWith("insert into votes")) {
       const [voterId, teamId, source] = params;
+      const simulatedRace = this.duplicateActiveVoteOnInsert;
+      if (
+        simulatedRace
+        && !simulatedRace.used
+        && simulatedRace.voterId === voterId
+        && simulatedRace.teamId === teamId
+      ) {
+        simulatedRace.used = true;
+        if (!this.votes.some((vote) => vote.voter_id === voterId && vote.status === "active")) {
+          this.votes.push({
+            id: this.votes.length + 1,
+            voter_id: voterId,
+            team_id: simulatedRace.existingTeamId || teamId,
+            status: "active",
+            source: simulatedRace.source || "web",
+          });
+        }
+        throw this.createDuplicateEntryError(voterId);
+      }
+
+      if (this.votes.some((vote) => vote.voter_id === voterId && vote.status === "active")) {
+        throw this.createDuplicateEntryError(voterId);
+      }
+
       this.votes.push({
         id: this.votes.length + 1,
         voter_id: voterId,
@@ -85,7 +138,11 @@ class MemoryMysqlVotePool {
       const [voterId, teamId] = params;
       const current = this.votes.find((vote) => vote.voter_id === voterId && vote.team_id === teamId && vote.status === "active");
       if (!current) return [{ affectedRows: 0 }];
-      current.status = "cancelled";
+      const nextStatus = compactSql.includes("concat('cancelled-', id)") ? `cancelled-${current.id}` : "cancelled";
+      if (this.votes.some((vote) => vote !== current && vote.voter_id === voterId && vote.status === nextStatus)) {
+        throw this.createDuplicateEntryError(voterId, nextStatus);
+      }
+      current.status = nextStatus;
       return [{ affectedRows: 1 }];
     }
 
@@ -143,6 +200,101 @@ test("MySQL vote repository keeps the vote window and one-active-vote contract",
     () => repository.castVote({ teamId: "pharma", userId: "u3" }),
     /Vote window is not open/,
   );
+});
+
+test("MySQL vote repository wraps vote writes in a transaction and locks the vote window", async () => {
+  const pool = new MemoryMysqlVotePool({
+    window: {
+      status: "voting",
+      windowLabel: "投票窗口开启中",
+      pointScale: [100, 85, 70, 55, 40],
+    },
+    teams: [{ id: "pharma", name: "药学", track: "PHARMACEUTICALS", project: "药物信息检索助手" }],
+  });
+  const repository = createMysqlVoteResultsRepository(pool);
+
+  await repository.castVote({ teamId: "pharma", userId: "u-lock" });
+
+  assert.deepEqual(pool.transactionEvents, ["getConnection", "begin", "commit", "release"]);
+  assert.ok(pool.calls.some((call) => /from vote_windows/i.test(call.sql) && /for update/i.test(call.sql)));
+});
+
+test("MySQL vote repository treats duplicate same-team active inserts as idempotent", async () => {
+  const pool = new MemoryMysqlVotePool({
+    window: {
+      status: "voting",
+      windowLabel: "投票窗口开启中",
+      pointScale: [100, 85, 70, 55, 40],
+    },
+    teams: [
+      { id: "pharma", name: "药学", track: "PHARMACEUTICALS", project: "药物信息检索助手" },
+    ],
+    duplicateActiveVoteOnInsert: {
+      voterId: "u-race",
+      teamId: "pharma",
+      existingTeamId: "pharma",
+    },
+  });
+  const repository = createMysqlVoteResultsRepository(pool);
+
+  const cast = await repository.castVote({ teamId: "pharma", userId: "u-race" });
+
+  assert.equal(cast.accepted, true);
+  assert.equal(cast.teamId, "pharma");
+  assert.equal(cast.results.find((team) => team.id === "pharma").votes, 1);
+  assert.equal(pool.votes.filter((vote) => vote.voter_id === "u-race" && vote.status === "active").length, 1);
+});
+
+test("MySQL vote repository rejects duplicate active inserts for another team", async () => {
+  const pool = new MemoryMysqlVotePool({
+    window: {
+      status: "voting",
+      windowLabel: "投票窗口开启中",
+      pointScale: [100, 85, 70, 55, 40],
+    },
+    teams: [
+      { id: "marketing", name: "营销", track: "SALES & MARKETING", project: "全域内容生成引擎" },
+      { id: "pharma", name: "药学", track: "PHARMACEUTICALS", project: "药物信息检索助手" },
+    ],
+    duplicateActiveVoteOnInsert: {
+      voterId: "u-race",
+      teamId: "pharma",
+      existingTeamId: "marketing",
+    },
+  });
+  const repository = createMysqlVoteResultsRepository(pool);
+
+  await assert.rejects(
+    () => repository.castVote({ teamId: "pharma", userId: "u-race" }),
+    /already voted for marketing/,
+  );
+  assert.equal(pool.votes.filter((vote) => vote.voter_id === "u-race" && vote.status === "active").length, 1);
+});
+
+test("MySQL vote repository keeps cancelled vote history unique across revotes", async () => {
+  const pool = new MemoryMysqlVotePool({
+    window: {
+      status: "voting",
+      windowLabel: "投票窗口开启中",
+      pointScale: [100, 85, 70, 55, 40],
+    },
+    teams: [
+      { id: "marketing", name: "营销", track: "SALES & MARKETING", project: "全域内容生成引擎" },
+      { id: "pharma", name: "药学", track: "PHARMACEUTICALS", project: "药物信息检索助手" },
+    ],
+    votes: [{ voterId: "u-revote", teamId: "marketing" }],
+  });
+  const repository = createMysqlVoteResultsRepository(pool);
+
+  await repository.cancelVote({ teamId: "marketing", userId: "u-revote" });
+  await repository.castVote({ teamId: "pharma", userId: "u-revote" });
+  await repository.cancelVote({ teamId: "pharma", userId: "u-revote" });
+
+  assert.deepEqual(
+    pool.votes.filter((vote) => vote.voter_id === "u-revote").map((vote) => vote.status),
+    ["cancelled-1", "cancelled-2"],
+  );
+  assert.equal(pool.votes.filter((vote) => vote.voter_id === "u-revote" && vote.status === "active").length, 0);
 });
 
 test("repository factory wires the MySQL vote results repository", async () => {

@@ -155,7 +155,7 @@
       brandChip: "AI INNOVATION HACKATHON",
       protocol: "HACKATHON_PROTOCOL_2026",
       company: "健康元药业集团 · Joincare Pharmaceutical",
-      slogan: "36小时，把 AI 创意做成可运行系统",
+      slogan: "36小时，用 AI 把创意照进现实",
       logo: "./assets/joincare-full-clean.png",
       icon: "./assets/joincare-icon-clean.png",
     },

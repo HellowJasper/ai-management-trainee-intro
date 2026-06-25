@@ -79,6 +79,32 @@ function findJoinedTeamId(teams = [], userId = "") {
   return team ? team.id : null;
 }
 
+function normalizeStageState(adminState = {}) {
+  const stages = normalizeArrayPayload(adminState?.stages, "stages");
+  const currentStageId = String(adminState?.currentStageId || "").trim();
+  const screenOverrideStageId = String(adminState?.screenOverrideStageId || "").trim();
+  const currentStage = stages.find((stage) => stage?.id === currentStageId) || null;
+
+  return {
+    currentStageId,
+    screenOverrideStageId,
+    currentStage,
+    stages,
+    updatedAt: adminState?.updatedAt || null,
+  };
+}
+
+function normalizeTimerState(timerState = {}) {
+  return timerState && typeof timerState === "object" ? { ...timerState } : {};
+}
+
+async function readOptionalState(repository, methodName, fallback) {
+  if (!repository || typeof repository[methodName] !== "function") {
+    return fallback;
+  }
+  return repository[methodName]();
+}
+
 function createSiteStateService({
   repository,
   teamRepository,
@@ -86,6 +112,9 @@ function createSiteStateService({
   worksRepository,
   resultSnapshotRepository,
   authSessionRepository,
+  adminStateRepository,
+  missionCountdownRepository,
+  roadshowRepository,
 } = {}) {
   if (!repository || typeof repository.listTrainees !== "function") {
     throw new Error("site state service requires a trainee repository.");
@@ -107,26 +136,35 @@ function createSiteStateService({
   }
 
   async function getBootstrapState({ sessionId } = {}) {
-    const [session, trainees, teams, voteState, worksPayload, snapshot] = await Promise.all([
+    const [session, trainees, teams, voteState, worksPayload, snapshot, adminState, missionCountdown, roadshow] = await Promise.all([
       authSessionRepository.getSession(sessionId),
       repository.listTrainees(),
       teamRepository.listTeams(),
       voteResultsRepository.listVoteResults(),
       worksRepository.listWorks(),
       resultSnapshotRepository.getLatestSnapshot(),
+      readOptionalState(adminStateRepository, "getState", {}),
+      readOptionalState(missionCountdownRepository, "getState", {}),
+      readOptionalState(roadshowRepository, "getState", {}),
     ]);
     const normalizedTeams = normalizeArrayPayload(teams, "teams");
     const me = normalizeSession(session);
     me.teamId = findJoinedTeamId(normalizedTeams, me.user?.id);
     const vote = normalizeVoteState(voteState, me.user?.id);
+    const stage = normalizeStageState(adminState);
 
     return {
       me,
       stage: {
+        ...stage,
         voteStatus: vote.status,
         voteWindowLabel: vote.windowLabel,
         pointScale: vote.pointScale,
         resultPublished: Boolean(snapshot),
+      },
+      timers: {
+        missionCountdown: normalizeTimerState(missionCountdown),
+        roadshow: normalizeTimerState(roadshow),
       },
       trainees: normalizeArrayPayload(trainees, "trainees"),
       teams: normalizedTeams,

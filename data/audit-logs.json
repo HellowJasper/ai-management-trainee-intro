@@ -1,6 +1,476 @@
 {
   "logs": [
     {
+      "id": "audit_1782392576605_7rrwxk",
+      "at": "2026-06-25T13:02:56.605Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782392576605-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782392518659_047jtu",
+      "at": "2026-06-25T13:01:58.659Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782392518658-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782392407478_ad5sh5",
+      "at": "2026-06-25T13:00:07.478Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782392407477-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782392396064_fs22vv",
+      "at": "2026-06-25T12:59:56.064Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782392396063-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782392174345_zsoh0x",
+      "at": "2026-06-25T12:56:14.345Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782392174344-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782392016576_vpi1or",
+      "at": "2026-06-25T12:53:36.576Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782392016575-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782391950964_wrvv6t",
+      "at": "2026-06-25T12:52:30.964Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782391950963-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782391799551_bba8g2",
+      "at": "2026-06-25T12:49:59.551Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782391799550-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782391571277_vtj7fn",
+      "at": "2026-06-25T12:46:11.277Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782391571276-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782391231887_w2bdms",
+      "at": "2026-06-25T12:40:31.887Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782391231885-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782391170434_1m5vvg",
+      "at": "2026-06-25T12:39:30.434Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782391170433-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782390940247_6x85ik",
+      "at": "2026-06-25T12:35:40.247Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782390940246-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782390861422_bmxkjl",
+      "at": "2026-06-25T12:34:21.423Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782390861422-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782390845276_j47izl",
+      "at": "2026-06-25T12:34:05.276Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782390845275-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782390832973_03wp2y",
+      "at": "2026-06-25T12:33:52.973Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782390832973-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782390669618_pdj15c",
+      "at": "2026-06-25T12:31:09.618Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782390669616-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782390551844_is97uu",
+      "at": "2026-06-25T12:29:11.844Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782390551843-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782390532006_h2w0s2",
+      "at": "2026-06-25T12:28:52.006Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782390532005-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782390494543_qryz0x",
+      "at": "2026-06-25T12:28:14.543Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782390494543-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782390242979_9a6rra",
+      "at": "2026-06-25T12:24:02.979Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782390242979-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782390196487_bfhb5w",
+      "at": "2026-06-25T12:23:16.487Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782390196487-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782390095649_52p8um",
+      "at": "2026-06-25T12:21:35.649Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782390095648-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782389997549_rvm3p3",
+      "at": "2026-06-25T12:19:57.549Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782389997548-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782389869661_ayvp17",
+      "at": "2026-06-25T12:17:49.661Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782389869658-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782389766550_76icpi",
+      "at": "2026-06-25T12:16:06.550Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782389766538-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782389483203_hlft97",
+      "at": "2026-06-25T12:11:23.203Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782389483202-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782389403949_8nzy9c",
+      "at": "2026-06-25T12:10:03.949Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782389403942-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782389050734_qe0nai",
+      "at": "2026-06-25T12:04:10.734Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782389050733-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782389033635_tvuead",
+      "at": "2026-06-25T12:03:53.635Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782389033634-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782388790343_s41dvy",
+      "at": "2026-06-25T11:59:50.343Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782388790341-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782388790197_qajzx1",
+      "at": "2026-06-25T11:59:50.197Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782388790192-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782388704155_dzu4n6",
+      "at": "2026-06-25T11:58:24.155Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782388704153-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782388643574_0mr1mx",
+      "at": "2026-06-25T11:57:23.574Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782388643560-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782388556846_nxq7ev",
+      "at": "2026-06-25T11:55:56.846Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782388556845-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782388225417_y9s5qd",
+      "at": "2026-06-25T11:50:25.417Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782388225416-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782388131461_ebhfwy",
+      "at": "2026-06-25T11:48:51.461Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782388131461-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782388051175_lkn44v",
+      "at": "2026-06-25T11:47:31.175Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782388051174-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782387839887_g6b8md",
+      "at": "2026-06-25T11:43:59.887Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782387839887-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782387770565_3zxoqz",
+      "at": "2026-06-25T11:42:50.565Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782387770565-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782387609287_72swhg",
+      "at": "2026-06-25T11:40:09.287Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782387609287-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782387557725_iwf86j",
+      "at": "2026-06-25T11:39:17.725Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782387557725-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782387546225_mlg09b",
+      "at": "2026-06-25T11:39:06.225Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782387546224-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782387115949_yaflas",
+      "at": "2026-06-25T11:31:55.949Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782387115949-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782386709763_f2d9k8",
+      "at": "2026-06-25T11:25:09.763Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782386709762-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782386614048_4b0jxh",
+      "at": "2026-06-25T11:23:34.048Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782386614047-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782386534505_1gcd9h",
+      "at": "2026-06-25T11:22:14.505Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782386534504-image.png",
+      "meta": {}
+    },
+    {
+      "id": "audit_1782386525909_kf79cd",
+      "at": "2026-06-25T11:22:05.909Z",
+      "actor": "admin",
+      "action": "trainee.asset.uploaded",
+      "targetType": "trainee",
+      "targetId": "jasper",
+      "message": "上传星锐图片：./assets/uploads/trainees/jasper/photo-1782386525908-image.png",
+      "meta": {}
+    },
+    {
       "id": "audit_1782278504772_zuxtt9",
       "at": "2026-06-24T05:21:44.772Z",
       "actor": "admin",

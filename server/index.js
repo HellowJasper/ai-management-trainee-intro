@@ -19,6 +19,13 @@ const DEFAULT_DEV_CORS_ORIGINS = new Set([
   "http://localhost:5173",
   "http://127.0.0.1:5173",
 ]);
+const TRAINEE_ASSET_FIELDS = new Set(["photo", "memeImage", "idPhoto"]);
+const IMAGE_MIME_EXTENSIONS = {
+  "image/gif": "gif",
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
 
 const MIME_TYPES = {
   ".css": "text/css; charset=utf-8",
@@ -51,6 +58,12 @@ function sendRedirect(response, location, headers = {}) {
     ...headers,
   });
   response.end();
+}
+
+function createStatusError(statusCode, message) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
 }
 
 function configuredCorsOrigins() {
@@ -124,6 +137,69 @@ function readJsonBody(request, maxBytes = 1024 * 1024) {
 
     request.on("error", reject);
   });
+}
+
+function slugifyAssetPart(value, fallback) {
+  const cleanValue = String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return cleanValue || fallback;
+}
+
+async function saveTraineeAssetUpload(payload, publicRoot) {
+  const field = String(payload.field || "").trim();
+  if (!TRAINEE_ASSET_FIELDS.has(field)) {
+    throw createStatusError(400, "Unsupported trainee asset field.");
+  }
+
+  const traineeId = slugifyAssetPart(payload.traineeId, "");
+  if (!traineeId) {
+    throw createStatusError(400, "Trainee id is required.");
+  }
+
+  const dataUrl = String(payload.dataUrl || "");
+  const match = dataUrl.match(/^data:(image\/[a-z0-9.+-]+);base64,([a-z0-9+/=\s]+)$/i);
+  if (!match) {
+    throw createStatusError(400, "Image data must be a base64 data URL.");
+  }
+
+  const mimeType = match[1].toLowerCase();
+  const extension = IMAGE_MIME_EXTENSIONS[mimeType];
+  if (!extension) {
+    throw createStatusError(400, "Only PNG, JPG, WEBP, and GIF images are supported.");
+  }
+
+  const bytes = Buffer.from(match[2].replace(/\s+/g, ""), "base64");
+  if (!bytes.length) {
+    throw createStatusError(400, "Image data is empty.");
+  }
+  if (bytes.length > 8 * 1024 * 1024) {
+    throw createStatusError(413, "Image file is too large.");
+  }
+
+  const originalBase = path.basename(String(payload.filename || ""), path.extname(String(payload.filename || "")));
+  const fileBase = slugifyAssetPart(originalBase, "image");
+  const relativeDir = path.join("assets", "uploads", "trainees", traineeId);
+  const publicDir = path.resolve(publicRoot, relativeDir);
+  if (!publicDir.startsWith(`${publicRoot}${path.sep}`)) {
+    throw createStatusError(400, "Invalid asset path.");
+  }
+
+  await fs.promises.mkdir(publicDir, { recursive: true });
+  const filename = `${field}-${Date.now()}-${fileBase}.${extension}`;
+  const absolutePath = path.join(publicDir, filename);
+  await fs.promises.writeFile(absolutePath, bytes);
+
+  return {
+    field,
+    mimeType,
+    path: `./${path.join(relativeDir, filename).replace(/\\/g, "/")}`,
+    size: bytes.length,
+  };
 }
 
 function decodePathname(pathname) {
@@ -234,6 +310,7 @@ async function routeApi(
   authSessionRepository,
   authEnforcement = null,
   siteStateService,
+  publicRoot,
   runtimeInfo = {},
 ) {
   const segments = url.pathname.split("/").filter(Boolean);
@@ -277,12 +354,20 @@ async function routeApi(
     return payload;
   }
 
+  function isActiveJudgeUser(user = {}) {
+    if (!Array.isArray(user.roles) || !user.roles.includes("judge")) {
+      return false;
+    }
+    const status = String(user.status || "active").trim().toLowerCase();
+    return !["inactive", "disabled", "archived", "deleted"].includes(status);
+  }
+
   async function listJudgeUsers() {
     if (!userRoleRepository || typeof userRoleRepository.listUsers !== "function") {
       return [];
     }
     const state = await userRoleRepository.listUsers();
-    return (state.users || []).filter((user) => Array.isArray(user.roles) && user.roles.includes("judge"));
+    return (state.users || []).filter(isActiveJudgeUser);
   }
 
   async function listScoredTeamIds() {
@@ -303,6 +388,22 @@ async function routeApi(
       "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
     });
     response.end();
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/trainee-assets" && request.method === "POST") {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
+    const payload = await readJsonBody(request, 12 * 1024 * 1024);
+    const result = await saveTraineeAssetUpload(payload, publicRoot);
+    await recordAuditSafe({
+      actor: session.user?.id || "admin",
+      action: "trainee.asset.uploaded",
+      targetType: "trainee",
+      targetId: payload.traineeId || "",
+      message: `上传星锐图片：${result.path}`,
+    });
+    sendJson(response, 201, result);
     return true;
   }
 
@@ -729,6 +830,31 @@ async function routeApi(
     return true;
   }
 
+  if (
+    segments[0] === "api"
+    && segments[1] === "admin"
+    && segments[2] === "teams"
+    && segments.length === 5
+    && segments[4] === "scenario"
+    && ["POST", "PATCH"].includes(request.method)
+  ) {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
+    const payload = await readJsonBody(request);
+    const actor = authEnforcement === "strict" ? session.user.id : payload.actor || "admin";
+    const result = await teamRepository.updateTeamScenario(segments[3], payload);
+    await auditLogRepository.record({
+      actor,
+      action: "team.scenario.updated",
+      targetType: "team",
+      targetId: result.team?.id || segments[3],
+      message: `更新业务场景【${result.team?.name || segments[3]}】展示内容`,
+      after: result.team,
+    });
+    sendJson(response, 200, result);
+    return true;
+  }
+
   if (url.pathname === "/api/team/join" && request.method === "POST") {
     const session = await enforcePermission(request, response, "canJoinTeam");
     if (!session) return true;
@@ -832,6 +958,8 @@ async function routeApi(
   }
 
   if (url.pathname === "/api/judge/scores" && request.method === "GET") {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
     sendJson(response, 200, await judgeScoresRepository.readState());
     return true;
   }
@@ -923,6 +1051,10 @@ async function routeApi(
   if (url.pathname === "/api/admin/audit-logs" && request.method === "GET") {
     sendJson(response, 200, await auditLogRepository.listLogs({
       limit: url.searchParams.get("limit"),
+      action: url.searchParams.get("action"),
+      actor: url.searchParams.get("actor"),
+      targetType: url.searchParams.get("targetType"),
+      targetId: url.searchParams.get("targetId"),
     }));
     return true;
   }
@@ -1285,6 +1417,9 @@ function createServer(options = {}) {
     worksRepository,
     resultSnapshotRepository,
     authSessionRepository,
+    adminStateRepository,
+    missionCountdownRepository,
+    roadshowRepository,
   });
   const resolvedPublicRoot = path.resolve(publicRoot);
   const runtimeInfo = {
@@ -1317,6 +1452,7 @@ function createServer(options = {}) {
           authSessionRepository,
           authEnforcement,
           siteStateService,
+          resolvedPublicRoot,
           runtimeInfo,
         );
         if (!handled) {

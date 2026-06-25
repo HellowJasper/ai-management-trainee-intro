@@ -28,6 +28,7 @@ const {
   resolveAdjacentTraineeId,
   shouldApplyAdminStageChange,
   resolveDiscoverTarget,
+  resolveScreenViewFromRouteStage,
   resolveStageScreenView,
   resolveWelcomeEntryTarget,
   toggleProfileMedia,
@@ -373,6 +374,33 @@ test("data loader exposes the site bootstrap API without fake-data fallback", as
   assert.deepEqual(bootstrap.vote, { myVoteTeamId: null });
 });
 
+test("data loader surfaces backend error messages", async () => {
+  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
+  const context = {
+    JOINCARE_API_BASE_URL: "http://localhost:63779",
+    console: { warn() {} },
+    fetch: async () => ({
+      ok: false,
+      status: 403,
+      json: async () => ({ error: { message: "没有管理员权限" } }),
+      text: async () => JSON.stringify({ error: { message: "没有管理员权限" } }),
+    }),
+    localStorage: {
+      getItem: () => null,
+      setItem() {},
+      removeItem() {},
+    },
+  };
+  context.globalThis = context;
+
+  vm.runInNewContext(dataJs, context);
+
+  await assert.rejects(
+    () => context.AppData.fetchJson("/api/admin/users"),
+    /没有管理员权限/,
+  );
+});
+
 test("admin console renders API health for separated frontend deployments", () => {
   const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
   const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
@@ -427,6 +455,18 @@ test("admin console exposes backend sync status feedback for refresh actions", (
   assert.match(adminJs, /judgeResult\.status === "rejected"/);
 });
 
+test("admin topbar status chips and action buttons share a balanced frame", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+
+  assert.match(css, /\.admin-topbar-actions\s*{[\s\S]*--topbar-action-height:\s*42px;/);
+  assert.match(css, /\.admin-topbar-actions\s*{[\s\S]*--topbar-status-width:\s*clamp\(180px,\s*12vw,\s*220px\);/);
+  assert.match(css, /\.admin-topbar-actions\s*{[\s\S]*--topbar-control-width:\s*clamp\(118px,\s*8vw,\s*150px\);/);
+  assert.match(css, /\.admin-topbar-actions \.connection-chip,[\s\S]*\.admin-topbar-actions \.admin-user\s*{[\s\S]*min-height:\s*var\(--topbar-action-height\);[\s\S]*box-sizing:\s*border-box;/);
+  assert.match(css, /\.admin-topbar-actions \.connection-chip,[\s\S]*\.admin-topbar-actions \.admin-sync-status\s*{[\s\S]*height:\s*var\(--topbar-action-height\);[\s\S]*min-width:\s*var\(--topbar-status-width\);[\s\S]*max-width:\s*var\(--topbar-status-width\);/);
+  assert.match(css, /\.admin-topbar-actions \.connection-chip span,[\s\S]*\.admin-topbar-actions \.admin-sync-status span\s*{[\s\S]*line-height:\s*1\.1;/);
+  assert.match(css, /\.admin-topbar-actions \.screen-select,[\s\S]*\.admin-topbar-actions \.admin-user\s*{[\s\S]*height:\s*var\(--topbar-action-height\);[\s\S]*min-width:\s*var\(--topbar-control-width\);/);
+});
+
 test("admin safe guard buttons update vote window through the backend", () => {
   const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
   const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
@@ -438,6 +478,20 @@ test("admin safe guard buttons update vote window through the backend", () => {
   assert.match(adminJs, /window\.AppData\.updateAdminVoteWindow\(status\)/);
   assert.match(adminJs, /closeVoteButton\?\.addEventListener\("click", \(\) => updateAdminVoteWindow\("closed"\)\)/);
   assert.match(adminJs, /publishResultButton\?\.addEventListener\("click", \(\) => updateAdminVoteWindow\("published"\)\)/);
+});
+
+test("admin vote window dangerous actions require confirmation", () => {
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.match(adminJs, /function isDangerousVoteWindowStatus/);
+  assert.match(adminJs, /status === "closed" \|\| status === "published"/);
+  assert.match(adminJs, /function buildVoteWindowConfirmMessage/);
+  assert.match(adminJs, /getVoteTotal\(\)/);
+  assert.match(adminJs, /scoreCoverage\(businessDataState\.judgeScores\)/);
+  assert.match(adminJs, /window\.confirm/);
+  assert.match(adminJs, /async function updateAdminVoteWindow\(status, \{ skipConfirm = false \} = \{\}\)/);
+  assert.match(adminJs, /if \(!skipConfirm && !confirmVoteWindowAction\(status\)\)/);
+  assert.match(adminJs, /try \{[\s\S]*await updateAdminVoteWindow\(status\);[\s\S]*finally \{[\s\S]*renderVoteWindowManager\(\);/);
 });
 
 test("admin data workspace exposes explicit vote window controls", () => {
@@ -456,6 +510,21 @@ test("admin data workspace exposes explicit vote window controls", () => {
   assert.match(adminJs, /function renderVoteWindowManager/);
   assert.match(adminJs, /document\.addEventListener\("click", async \(event\) => \{[\s\S]*?data-vote-window-status/);
   assert.match(adminJs, /window\.AppData\.updateAdminVoteWindow\(status/);
+});
+
+test("admin data workspace keeps vote and work panels in a dedicated responsive grid", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+
+  assert.match(html, /class="management-split admin-data-management-layout"/);
+  assert.match(html, /class="panel admin-wide-panel admin-work-review-panel"/);
+  assert.match(css, /\.admin-management-view\[data-admin-view-panel="data"\]\s*{[\s\S]*grid-template-rows:\s*auto auto;[\s\S]*height:\s*auto;/);
+  assert.match(css, /\.admin-data-management-layout\s*{[\s\S]*grid-template-columns:\s*minmax\(0,\s*0\.95fr\) minmax\(0,\s*1\.05fr\);[\s\S]*width:\s*100%;[\s\S]*align-items:\s*start;/);
+  assert.match(css, /\.admin-data-management-layout \.admin-vote-management-stack\s*{[\s\S]*grid-column:\s*1;[\s\S]*gap:\s*18px;/);
+  assert.match(css, /\.admin-data-management-layout \.admin-work-review-panel\s*{[\s\S]*grid-column:\s*2;/);
+  assert.match(css, /\.admin-data-management-layout \.admin-vote-window-body\s*{[\s\S]*min-height:\s*156px;/);
+  assert.match(css, /@media \(max-width:\s*1100px\)[\s\S]*\.admin-data-management-layout\s*{[\s\S]*grid-template-columns:\s*1fr;/);
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*\.admin-data-management-layout \.admin-vote-window-body\s*{[\s\S]*grid-template-columns:\s*1fr;/);
 });
 
 test("admin publish result action creates a backend result snapshot", () => {
@@ -545,23 +614,50 @@ test("admin content manager edits trainee profiles through backend data APIs", (
   assert.match(html, /id="adminTraineeProfileSentence"/);
   assert.match(html, /id="createTraineeProfileButton"/);
   assert.match(html, /data-create-trainee-profile/);
+  assert.match(html, /data-trainee-image-picker="photo"/);
+  assert.match(html, /id="adminTraineeProfilePhotoFile"/);
+  assert.match(html, /data-trainee-image-picker="memeImage"/);
+  assert.match(html, /id="adminTraineeProfileMemeImageFile"/);
   assert.match(css, /\.admin-trainee-profile-manager/);
+  assert.match(css, /\.admin-trainee-profile-manager\s*{[\s\S]*display:\s*grid/);
+  assert.match(css, /\.admin-trainee-profile-manager\s*{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(260px,\s*0\.42fr\)/);
+  assert.match(css, /\.admin-trainee-profile-manager \.wide-panel-heading\s*{[\s\S]*grid-column:\s*1 \/ -1/);
+  assert.match(css, /\.admin-trainee-profile-form\s*{[\s\S]*overflow:\s*auto/);
+  assert.match(css, /\.admin-trainee-image-picker/);
+  assert.match(css, /\.admin-trainee-image-add/);
   assert.match(css, /\.admin-trainee-profile-list/);
+  assert.match(css, /\.admin-trainee-profile-card menu\s*{[\s\S]*flex-wrap:\s*wrap/);
   assert.match(dataJs, /function normalizeTraineeRecord/);
+  assert.match(dataJs, /async function uploadTraineeAsset/);
   assert.match(dataJs, /createTrainee,/);
   assert.match(dataJs, /updateTrainee,/);
   assert.match(dataJs, /deleteTrainee,/);
+  assert.match(dataJs, /uploadTraineeAsset,/);
   assert.match(adminJs, /const adminTraineeProfileForm/);
   assert.match(adminJs, /function renderTraineeProfileManager/);
   assert.match(adminJs, /function loadTraineeProfiles/);
   assert.match(adminJs, /function startCreateTraineeProfile/);
+  assert.match(adminJs, /function uploadTraineeProfileImage/);
+  assert.match(adminJs, /FileReader/);
   assert.match(adminJs, /window\.AppData\.loadTrainees/);
   assert.match(adminJs, /window\.AppData\.createTrainee/);
   assert.match(adminJs, /window\.AppData\.updateTrainee/);
   assert.match(adminJs, /window\.AppData\.deleteTrainee/);
+  assert.match(adminJs, /window\.AppData\.uploadTraineeAsset/);
   assert.match(adminJs, /data-edit-trainee-profile/);
   assert.match(adminJs, /data-delete-trainee-profile/);
   assert.match(adminJs, /档案 ID 已存在/);
+});
+
+test("admin trainee profile form keeps compact fields separate from media uploads", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+
+  assert.match(html, /class="admin-trainee-profile-department-en"/);
+  assert.match(css, /\.admin-trainee-profile-form label\s*{[\s\S]*align-content:\s*start/);
+  assert.match(css, /\.admin-trainee-profile-department-en\s*{[\s\S]*grid-column:\s*1 \/ -1/);
+  assert.match(css, /\.admin-trainee-image-field\s*{[\s\S]*min-width:\s*0/);
+  assert.match(css, /\.admin-trainee-image-picker\s*{[\s\S]*min-height:\s*112px/);
 });
 
 test("main screen refreshes trainee profiles after admin content changes", () => {
@@ -585,6 +681,60 @@ test("official site refreshes bootstrap data so newly added trainees appear", ()
   assert.match(siteJs, /root\.setInterval\(syncSiteState,\s*SITE_STATE_POLL_MS\)/);
   assert.match(siteJs, /root\.clearInterval\(siteStatePollTimer\)/);
   assert.match(siteJs, /refreshCurrentView\(\{ preserveScroll: true \}\)/);
+});
+
+test("official site bootstrap signature tracks all backend-owned mobile data", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const signatureStart = siteJs.indexOf("function createSiteStateSignature(state = SITE_STATE)");
+  const signatureEnd = siteJs.indexOf("\n\n  async function syncSiteState", signatureStart);
+
+  assert.notEqual(signatureStart, -1, "createSiteStateSignature should exist");
+  assert.ok(signatureEnd > signatureStart, "createSiteStateSignature should end before syncSiteState");
+  const signatureBody = siteJs.slice(signatureStart, signatureEnd);
+
+  assert.match(signatureBody, /state\?\.trainees/);
+  assert.match(signatureBody, /state\?\.teams/);
+  assert.match(signatureBody, /state\?\.works/);
+  assert.match(signatureBody, /state\?\.vote/);
+  assert.match(signatureBody, /state\?\.result/);
+  assert.match(signatureBody, /state\?\.me/);
+  assert.match(signatureBody, /state\?\.stage/);
+  assert.match(signatureBody, /state\?\.timers/);
+});
+
+test("official site result page polling only rerenders for visible leaderboard changes", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const resultSignatureStart = siteJs.indexOf("function createResultViewSignature");
+  const resultSignatureEnd = siteJs.indexOf("\n\n  function createVisibleSiteStateSignature", resultSignatureStart);
+  const visibleSignatureStart = siteJs.indexOf("function createVisibleSiteStateSignature");
+  const visibleSignatureEnd = siteJs.indexOf("\n\n  async function syncSiteState", visibleSignatureStart);
+
+  assert.notEqual(resultSignatureStart, -1, "createResultViewSignature should exist");
+  assert.ok(resultSignatureEnd > resultSignatureStart, "result signature should end before visible signature");
+  assert.notEqual(visibleSignatureStart, -1, "createVisibleSiteStateSignature should exist");
+  assert.ok(visibleSignatureEnd > visibleSignatureStart, "visible signature should end before syncSiteState");
+
+  const resultSignatureBody = siteJs.slice(resultSignatureStart, resultSignatureEnd);
+  const visibleSignatureBody = siteJs.slice(visibleSignatureStart, visibleSignatureEnd);
+  assert.match(visibleSignatureBody, /resolveCurrentViewKey\(\)/);
+  assert.match(visibleSignatureBody, /currentViewKey === "result"/);
+  assert.match(visibleSignatureBody, /createResultViewSignature\(state\)/);
+  assert.match(resultSignatureBody, /normalizeList\(snapshot\?\.results\)\.map/);
+  assert.doesNotMatch(resultSignatureBody, /snapshot:\s*result\.snapshot/);
+  assert.match(siteJs, /const nextSignature = createVisibleSiteStateSignature\(state \|\| SITE_STATE\)/);
+});
+
+test("official site schedule status reads the synchronized backend stage timer", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const renderScheduleBody = siteJs.match(/function renderSchedule\(\) \{([\s\S]*?)\n  \}/);
+
+  assert.ok(renderScheduleBody, "renderSchedule should exist");
+  assert.match(renderScheduleBody[1], /const phaseInfo = resolveHomePhase\(CURRENT_STAGE_ID\)/);
+  assert.match(renderScheduleBody[1], /\$\{esc\(phaseInfo\.phase\)\}/);
+  assert.match(renderScheduleBody[1], /\$\{esc\(phaseInfo\.label\)\}/);
+  assert.match(renderScheduleBody[1], /data-remain="\$\{COUNTDOWN_REMAIN\}"/);
+  assert.doesNotMatch(renderScheduleBody[1], />大众投票进行中</);
+  assert.doesNotMatch(renderScheduleBody[1], /data-remain="6353"/);
 });
 
 test("admin topbar quick menus expose real links and session actions", () => {
@@ -669,7 +819,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260625-gitlab-latest-sync/);
+  assert.match(siteHtml, /site\.js\?v=20260625-team-subcopy-restore/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -691,8 +841,8 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.css\?v=20260625-auth-sync-team-panel/);
-  assert.match(siteHtml, /site\.js\?v=20260625-gitlab-latest-sync/);
+  assert.match(siteHtml, /site\.css\?v=20260625-gallery-heading-unify/);
+  assert.match(siteHtml, /site\.js\?v=20260625-team-subcopy-restore/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /浏览五大战队作品，选出你最认可的解决方案，并投出关键一票。/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -700,10 +850,37 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   assert.match(siteJs, /<b class="gl2-project-name">\$\{esc\(t\.project\)\}<\/b>/);
   assert.doesNotMatch(siteJs, /class="gl2-track2"/);
   assert.doesNotMatch(siteJs, /\$\{esc\(t\.trackCode\)\} PROJECT/);
-  assert.match(siteCss, /\.site-body\[data-view="gallery"\] \.page-hero\s*\{[\s\S]*padding:/);
-  assert.match(siteCss, /\.site-body\[data-view="gallery"\] \.ph-en\s*\{[\s\S]*font-size:\s*clamp\(38px,\s*4\.7vw,\s*78px\)/);
-  assert.match(siteCss, /\.site-body\[data-view="gallery"\] \.page-hero h1\s*\{[\s\S]*font-size:\s*clamp\(22px,\s*2vw,\s*34px\)/);
+  assert.doesNotMatch(siteCss, /\.site-body\[data-view="gallery"\] \.page-hero/);
+  assert.doesNotMatch(siteCss, /font-size:\s*clamp\(38px,\s*4\.7vw,\s*78px\)/);
+  assert.doesNotMatch(siteCss, /font-size:\s*clamp\(22px,\s*2vw,\s*34px\)/);
   assert.match(siteCss, /\.gl2-h \.gl2-project-name\s*\{[\s\S]*font-size:\s*clamp\(24px,\s*2\.3vw,\s*36px\)/);
+});
+
+test("official site regular page headers match the talent profile title scale", () => {
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+  const cssBlock = (selector) => {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return siteCss.match(new RegExp(`${escaped}\\s*\\{[^}]*\\}`))?.[0] || "";
+  };
+
+  assert.match(cssBlock(".ph-en"), /font-size:\s*11px/);
+  assert.match(cssBlock(".people-head .ph-en"), /font-size:\s*11px/);
+  assert.match(siteCss, /--site-heading-title-size:\s*clamp\(30px,\s*3\.6vw,\s*56px\)/);
+  assert.match(siteCss, /--site-heading-title-size-mobile:\s*clamp\(27px,\s*8\.4vw,\s*34px\)/);
+  assert.match(siteCss, /--site-heading-copy-size:\s*clamp\(13px,\s*1\.1vw,\s*17px\)/);
+  assert.match(cssBlock(".page-hero h1"), /font-size:\s*var\(--site-heading-title-size\)/);
+  assert.match(cssBlock(".people-head h1"), /font-size:\s*var\(--site-heading-title-size\)/);
+  assert.match(cssBlock(".page-hero p"), /font-size:\s*var\(--site-heading-copy-size\)/);
+  assert.match(cssBlock(".people-head p"), /font-size:\s*var\(--site-heading-copy-size\)/);
+  assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.page-hero h1,\s*\.people-head h1,\s*\.mobile-people-head h1\s*\{[\s\S]*font-size:\s*var\(--site-heading-title-size-mobile\)/);
+  assert.doesNotMatch(siteCss, /\.page-hero h1\s*\{[^}]*font-size:\s*38px/);
+  assert.doesNotMatch(siteCss, /\.people-head h1\s*\{[^}]*font-size:\s*34px/);
+  assert.doesNotMatch(siteCss, /\.mobile-people-head h1\s*\{[^}]*font-size:\s*2[78]px/);
+  assert.doesNotMatch(siteCss, /\.site-body\[data-view="gallery"\] \.page-hero/);
+  assert.doesNotMatch(siteCss, /font-size:\s*clamp\(38px,\s*4\.7vw,\s*78px\)/);
+  assert.doesNotMatch(siteCss, /font-size:\s*clamp\(22px,\s*2vw,\s*34px\)/);
+  assert.doesNotMatch(siteCss, /\.site-body\[data-view="gallery"\] \.ph-en\s*\{/);
+  assert.doesNotMatch(siteCss, /\.site-body\[data-view="gallery"\] \.page-hero h1\s*\{/);
 });
 
 test("official site hydrates audience state from backend bootstrap without local vote mutation fallback", () => {
@@ -732,6 +909,15 @@ test("official site requires a backend authenticated session before enabling vot
   assert.match(siteJs, /const authVote = e\.target\.closest\("\[data-auth-vote\]"\)/);
   assert.doesNotMatch(siteJs, /!currentRole\(\)\s*\?\s*`<button class="gl2-vote" data-vote=/);
   assert.doesNotMatch(siteJs, /!currentRole\(\)\s*\?\s*`<button class="btn-primary" data-vote=/);
+});
+
+test("official site scopes displayed vote state to audience voting permission", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /function canUseVoteAction\(\) \{/);
+  assert.match(siteJs, /function renderGallery\(\) \{[\s\S]*?const canVote = canUseVoteAction\(\);\s*const voted = canVote \? votedTeam\(\) : "";/);
+  assert.match(siteJs, /function renderWork\(id\) \{[\s\S]*?const canVote = canUseVoteAction\(\);\s*const voted = canVote \? votedTeam\(\) : "";/);
+  assert.match(siteJs, /function renderOverviewBanner\(\) \{[\s\S]*?const canVote = canUseVoteAction\(\);\s*const voted = canVote \? getTeam\(votedTeam\(\)\) : null;/);
 });
 
 test("role permissions reserve team joining, voting, judging, and admin control for the right roles", () => {
@@ -820,34 +1006,36 @@ test("role navigation exposes role-specific operational entries", () => {
   assert.ok(!publicNav.some((item) => item.label === "赛程" || item.label === "最终排行"));
 });
 
-test("team page treats tracks as fixed lanes and team names as editable", () => {
+test("team page keeps grouping focused on the team list and editable team names", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteJs, /固定赛道，队伍自定义命名/);
-  assert.match(siteJs, /自定义队伍名称/);
-  assert.match(siteJs, /队长可编辑队名/);
+  assert.doesNotMatch(siteJs, /固定赛道，队伍自定义命名/);
+  assert.doesNotMatch(siteJs, /队长可编辑队名/);
+  assert.doesNotMatch(siteJs, /只读进度|当前角色仅可查看组队进度|仅查看组队进度/);
   assert.match(siteJs, /team-name-draft/);
   assert.match(siteCss, /\.team-name-draft/);
 });
 
-test("team page hero uses a single formation panel with clear selection states", () => {
+test("team page removes the repeated formation explanation panel from the audience view", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
   assert.match(siteJs, /pageHead\("组队", "选择赛道队伍，查看队长、成员与作品方向", "TEAM FORMATION"\)/);
-  assert.match(siteJs, /const teamStatusLabel = selectedTeam \? "已选择战队" : "尚未选择战队"/);
-  assert.match(siteJs, /const teamStatusHeadline = selectedTeam \? "你已完成组队，期待与你的伙伴共同完成挑战" : "请选择一个赛道方向"/);
-  assert.match(siteJs, /class="team-formation-panel glass"/);
-  assert.match(siteJs, /class="team-selection-summary"/);
-  assert.match(siteJs, /class="team-countdown-box"/);
+  assert.doesNotMatch(siteJs, /const teamStatusLabel/);
+  assert.doesNotMatch(siteJs, /const teamStatusHeadline/);
+  assert.doesNotMatch(siteJs, /class="team-formation-panel/);
+  assert.doesNotMatch(siteJs, /class="team-selection-summary"/);
+  assert.doesNotMatch(siteJs, /class="team-countdown-box"/);
+  assert.doesNotMatch(siteJs, /TEAM FORMATION HUB|任务倒计时|36H Demo preparation/);
   assert.doesNotMatch(siteJs, /class="team-status glass"/);
   assert.doesNotMatch(siteJs, /class="team-live-strip glass"/);
   assert.doesNotMatch(siteJs, /class="team-selection-summary glass"/);
-  assert.match(siteCss, /\.team-formation-panel\s*\{[\s\S]*overflow:\s*hidden/);
-  assert.match(siteCss, /\.team-live-strip\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\) minmax\(260px,\s*360px\)/);
-  assert.match(siteCss, /\.team-countdown-box\s*\{[\s\S]*border:\s*2px solid rgba\(40,\s*255,\s*200,\s*0\.58\)/);
-  assert.match(siteCss, /\.team-selection-summary h2\s*\{[\s\S]*font-size:\s*clamp\(28px,\s*3vw,\s*48px\)/);
+  assert.doesNotMatch(siteCss, /\.site-body\[data-view="team"\]\s+\.page-hero/);
+  assert.doesNotMatch(siteCss, /\.team-formation-panel\b/);
+  assert.doesNotMatch(siteCss, /\.team-live-strip\b/);
+  assert.doesNotMatch(siteCss, /\.team-countdown-box\b/);
+  assert.doesNotMatch(siteCss, /\.team-selection-summary\b/);
 });
 
 test("team cards route into a dedicated team workspace page", () => {
@@ -1135,18 +1323,34 @@ test("vote result ranking table keeps five rows readable in compressed viewports
   assert.match(css, /\.vote-result-row\s*\{[^}]*overflow:\s*hidden/s);
 });
 
+test("index big-screen mobile layout converts fixed stage compositions to scroll views", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+
+  assert.match(css, /@media \(max-width:\s*760px\)/);
+  assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*\.stage-header\s*\{[^}]*position:\s*sticky/s);
+  assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*\.photo-wall-wrap\s*\{[^}]*position:\s*relative[^}]*transform:\s*none/s);
+  assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*\.photo-wall\s*\{[^}]*display:\s*flex[^}]*overflow-x:\s*auto/s);
+  assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*\.profile-card\s*\{[^}]*position:\s*relative[^}]*transform:\s*none !important/s);
+  assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*\.photo-wall-svg\s*\{[^}]*display:\s*none/s);
+  assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*\.discover-glow-orb\s*\{[^}]*display:\s*none/s);
+  assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*\.discover-hub-wrap\s*\{[^}]*position:\s*relative[^}]*min-height:\s*100dvh/s);
+  assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*\.department-grid\s*\{[^}]*height:\s*auto[^}]*transform:\s*none/s);
+  assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*\.dept-card\s*\{[^}]*display:\s*flex[^}]*flex-direction:\s*column[^}]*overflow:\s*visible/s);
+  assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*\.vote-progress-cockpit,\n\s*\.vote-result-cockpit,\n\s*\.final-result-cockpit\s*\{[^}]*height:\s*auto[^}]*max-height:\s*none[^}]*overflow:\s*visible/s);
+  assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*\.vote-result-table,\n\s*\.final-result-leaderboard\s*\{[^}]*grid-template-rows:\s*none/s);
+});
+
 test("final result screen reserves enough vertical room for the champion showcase", () => {
   const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
 
   assert.match(css, /\.final-result-stage\s*\{[^}]*--final-result-footer-safe:\s*clamp\(92px,\s*9vh,\s*116px\)/s);
-  assert.match(css, /\.final-result-stage\s*\{[^}]*--final-result-cockpit-height:\s*min\(760px,\s*calc\(100vh - clamp\(162px,\s*17vh,\s*204px\)\)\)/s);
-  assert.match(css, /\.final-result-hub-wrap\s*\{[^}]*padding-top:\s*clamp\(72px,\s*7vh,\s*92px\)[^}]*padding-bottom:\s*var\(--final-result-footer-safe\)/s);
-  assert.match(css, /\.final-result-cockpit\s*\{[^}]*height:\s*var\(--final-result-cockpit-height\)/s);
-  assert.match(css, /\.final-result-cockpit\s*\{[^}]*max-height:\s*var\(--final-result-cockpit-height\)/s);
-  assert.match(css, /\.final-result-champion\s*\{[^}]*gap:\s*clamp\(9px,\s*1\.15vh,\s*16px\)[^}]*padding:\s*clamp\(22px,\s*2\.6vw,\s*38px\)/s);
-  assert.match(css, /\.final-result-score strong\s*\{[^}]*font-size:\s*clamp\(66px,\s*6vw,\s*116px\)/s);
-  assert.match(css, /@media \(max-height:\s*780px\)\s*\{[\s\S]*?\.final-result-champion\s*\{[^}]*gap:\s*7px[^}]*padding:\s*clamp\(18px,\s*2vw,\s*28px\)/s);
-  assert.match(css, /@media \(max-height:\s*780px\)\s*\{[\s\S]*?\.final-result-score strong\s*\{[^}]*font-size:\s*clamp\(58px,\s*5\.2vw,\s*96px\)/s);
+  assert.match(css, /\.final-result-stage\s*\{[^}]*--final-result-chrome-space:\s*clamp\(150px,\s*15vh,\s*196px\)/s);
+  assert.match(css, /\.final-result-hub-wrap\s*\{[^}]*position:\s*relative[^}]*min-height:\s*100dvh[^}]*align-items:\s*center[^}]*justify-items:\s*center/s);
+  assert.doesNotMatch(css, /\.final-result-hub-wrap\s*\{[^}]*position:\s*absolute/s);
+  assert.match(css, /\.final-result-cockpit\s*\{[^}]*height:\s*auto[^}]*max-height:\s*calc\(100dvh - var\(--final-result-chrome-space\)\)[^}]*overflow:\s*auto/s);
+  assert.doesNotMatch(css, /\.final-result-cockpit\s*\{[^}]*height:\s*var\(--final-result-cockpit-height\)/s);
+  assert.match(css, /\.final-result-champion\s*\{[^}]*min-height:\s*clamp\(460px,\s*55vh,\s*620px\)[^}]*gap:\s*clamp\(8px,\s*1vh,\s*13px\)[^}]*padding:\s*clamp\(20px,\s*2\.1vw,\s*32px\)/s);
+  assert.match(css, /\.final-result-score strong\s*\{[^}]*font-size:\s*clamp\(58px,\s*5\.2vw,\s*98px\)/s);
 });
 
 test("official site wires my page, team join and judge score interactions", () => {
@@ -1182,7 +1386,25 @@ test("schedule journey follows the snake arrow order", () => {
 
   assert.match(siteJs, /赛事旅程\s*·\s*EVENT JOURNEY/);
   assert.match(siteJs, /const snakeOrder = \[0, 1, 2, 3, 7, 6, 5, 4\]/);
-  assert.match(siteJs, /snakeOrder\.map\(\(sourceIndex, gridIndex\) => entryCard\(journeyCards\[sourceIndex\], gridIndex, \{ hideEnglish: true \}\)\)/);
+  assert.match(siteJs, /const journeyOrder = isMobileView\(\) \? chronologicalOrder : snakeOrder/);
+});
+
+test("schedule journey uses chronological order on the mobile app view", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /const chronologicalOrder = \[0, 1, 2, 3, 4, 5, 6, 7\]/);
+  assert.match(siteJs, /const journeyOrder = isMobileView\(\) \? chronologicalOrder : snakeOrder/);
+  assert.match(siteJs, /journeyOrder\.map\(\(sourceIndex, gridIndex\) => entryCard\(journeyCards\[sourceIndex\], gridIndex, \{ hideEnglish: true \}\)\)/);
+});
+
+test("mobile home agenda reuses the shared flow day order", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /const agenda = D\.flowDays\.map\(\(day\) =>/);
+  assert.match(siteJs, /<li><b>\$\{esc\(day\.day\)\}<\/b><span>\$\{esc\(day\.title\)\}<\/span><\/li>/);
+  assert.doesNotMatch(siteJs, /\["DAY 1", "发布挑战，完成组队"\]/);
+  assert.doesNotMatch(siteJs, /\["DAY 2", "集中制作可运行 Demo"\]/);
+  assert.doesNotMatch(siteJs, /\["DAY 3", "路演展评，投票颁奖"\]/);
 });
 
 test("official site result page uses leaderboard copy and final award labels", () => {
@@ -1226,9 +1448,14 @@ test("schedule mechanism section uses briefing cards and separate evaluation cri
   assert.doesNotMatch(siteJs, /\$\{esc\(d\.en\)\}\s*·/);
 
   assert.match(siteCss, /\.score-dim-grid\s*{[\s\S]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/);
-  assert.match(siteCss, /\.score-dim-card\s*{[\s\S]*grid-template-columns:\s*auto 1fr/);
-  assert.match(siteCss, /\.score-dim-card span em\s*{[\s\S]*font-size:\s*clamp\(26px,\s*2\.2vw,\s*38px\)/);
-  assert.match(siteCss, /\.score-dim-card small ins\s*{[\s\S]*width:\s*var\(--score-width\)/);
+  assert.match(siteCss, /\.score-dim-card\s*{[\s\S]*display:\s*flex/);
+  assert.match(siteCss, /\.score-dim-card\s*{[\s\S]*align-items:\s*center/);
+  assert.match(siteCss, /\.score-dim-card\s*{[\s\S]*justify-content:\s*center/);
+  assert.match(siteCss, /\.score-dim-card\s*{[\s\S]*text-align:\s*center/);
+  assert.match(siteCss, /\.score-dim-card b\s*{[\s\S]*font-size:\s*clamp\(28px,\s*2\.05vw,\s*34px\)/);
+  assert.match(siteCss, /\.score-dim-card span\s*{[\s\S]*justify-content:\s*center/);
+  assert.match(siteCss, /\.score-dim-card span em\s*{[\s\S]*font-size:\s*clamp\(24px,\s*1\.7vw,\s*30px\)/);
+  assert.match(siteCss, /\.score-dim-card small\s*{\s*display:\s*none/);
 });
 
 test("team page uses a symmetric five-column desktop layout", () => {
@@ -1257,19 +1484,19 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260625-auth-sync-team-panel/);
-  assert.match(siteCss, /--site-detail-console-width:\s*min\(calc\(100dvw - var\(--site-detail-edge\) - var\(--site-detail-edge\)\), clamp\(980px, 60vw, 1240px\)\)/);
-  assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*var\(--site-detail-edge\)/);
-  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*50%/);
-  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?right:\s*auto/);
+  assert.match(html, /src\/site\.css\?v=20260625-gallery-heading-unify/);
+  assert.match(siteCss, /--site-detail-console-width:\s*calc\(min\(80vw,\s*1260px\) - 24px\)/);
+  assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*max\(3vw,\s*calc\(100dvw - var\(--site-detail-console-width\) - var\(--site-detail-card-width\) - 40px\)\)/);
+  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*auto/);
+  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?right:\s*0/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?width:\s*var\(--site-detail-console-width\)/);
-  assert.match(siteCss, /\.site-detail-layer\.is-open \.profile-console\s*\{[\s\S]*?transform:\s*translate\(-50%, 0\)/);
-  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?100dvh/);
+  assert.match(siteCss, /\.site-detail-layer\.is-open \.profile-console\s*\{[\s\S]*?transform:\s*translateX\(0\)/);
+  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?bottom:\s*clamp\(18px,\s*3dvh,\s*34px\)/);
   assert.doesNotMatch(siteCss, /calc\(100vh - 210px\)/);
   assert.doesNotMatch(siteCss, /left:\s*var\(--site-detail-side-rail\)/);
-  assert.match(siteCss, /@media \(max-width:\s*1679px\)[\s\S]*?\.site-detail-layer \.draw-card\s*\{[\s\S]*?display:\s*none/);
-  assert.match(siteCss, /@media \(max-width:\s*1679px\)[\s\S]*?--site-detail-console-width:\s*min\(calc\(100dvw - var\(--site-detail-edge\) - var\(--site-detail-edge\)\), 1180px\)/);
-  assert.match(siteCss, /@media \(max-width:\s*1180px\)[\s\S]*?\.site-detail-layer \.draw-card\s*\{[\s\S]*?display:\s*none/);
+  assert.doesNotMatch(siteCss, /@media \(max-width:\s*1679px\)[\s\S]*?\.site-detail-layer \.draw-card\s*\{[\s\S]*?display:\s*none/);
+  assert.match(siteCss, /@media \(max-width:\s*1679px\)[\s\S]*?--site-detail-console-width:\s*calc\(min\(78vw,\s*1180px\) - 24px\)/);
+  assert.match(siteCss, /@media \(max-width:\s*1180px\)[\s\S]*?\.site-detail-layer > \.draw-card\s*\{[\s\S]*?display:\s*none/);
   assert.match(siteCss, /@media \(max-width:\s*1180px\)[\s\S]*?grid-template-columns:\s*minmax\(480px,\s*1fr\) minmax\(240px,\s*min\(32vw,\s*320px\)\)/);
   assert.match(siteCss, /@media \(max-width:\s*1180px\)[\s\S]*?\.site-detail-layer\.is-open \.profile-console\s*\{[\s\S]*?transform:\s*none/);
   assert.match(siteCss, /@media \(max-width:\s*980px\)[\s\S]*?\.site-detail-layer \.profile-media-panel\s*\{[\s\S]*?height:\s*clamp\(240px,\s*42dvh,\s*360px\)/);
@@ -1280,7 +1507,7 @@ test("mobile site opens on event home and uses a natural swipe-card browser", ()
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
   assert.match(siteJs, /function renderMobileHome\(/);
-  assert.match(siteJs, /36小时，把 AI 创意做成可运行系统/);
+  assert.match(siteJs, /36小时，用 AI 把创意照进现实/);
   assert.match(siteJs, /参赛伙伴图鉴/);
   assert.match(siteJs, /看懂比赛怎么进行/);
   assert.match(siteJs, /key: "people", label: "星锐"/);
@@ -1350,17 +1577,67 @@ test("event copy consistently describes the hackathon as 36 hours", () => {
   assert.doesNotMatch(joined, /DAY 1 下午|DAY 3 上午/);
 });
 
-test("mobile voting and judge scoring avoid heart cues and use draggable sliders", () => {
+test("mobile voting and judge scoring avoid heart cues and use manual score inputs", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const screenJs = fs.readFileSync(path.join(__dirname, "../src/screen.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
   assert.doesNotMatch(`${siteJs}\n${screenJs}`, /♥/);
-  assert.match(siteJs, /type="range"/);
-  assert.match(siteJs, /function updateJudgeRange\(/);
-  assert.match(siteCss, /\.judge-slider/);
-  assert.match(siteCss, /\.team-live-strip/);
+  assert.doesNotMatch(siteJs, /type="range"/);
+  assert.match(siteJs, /function updateJudgeScoreInput\(/);
+  assert.match(siteCss, /\.judge-score-card/);
+  assert.doesNotMatch(siteCss, /\.team-live-strip\b/);
   assert.match(siteCss, /\.mobile-tabbar\s*{[\s\S]*bottom:\s*0/);
+});
+
+test("judge scoring uses manual numeric input only", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.match(siteJs, /function updateJudgeScoreInput\(/);
+  assert.match(siteJs, /function persistJudgeScoreDraft\(/);
+  assert.match(siteJs, /if \(markTouched\) persistJudgeScoreDraft\(input, value, touched\)/);
+  assert.match(siteJs, /class="judge-score-control"/);
+  assert.doesNotMatch(siteJs, /type="range"/);
+  assert.match(siteJs, /type="number"[^>]*data-score="\$\{t\.id\}:\$\{key\}"/);
+  assert.doesNotMatch(siteJs, /data-score-input/);
+  assert.match(siteJs, /inputmode="numeric"/);
+  assert.doesNotMatch(siteJs, /<small><i><\/i><\/small>/);
+  assert.match(siteJs, /querySelectorAll\("\[data-score\]"\)/);
+  assert.match(siteJs, /const score = e\.target\.closest\("\[data-score\]"\)/);
+  assert.match(siteCss, /\.judge-score-control\s*\{[\s\S]*grid-template-columns:\s*1fr/);
+  assert.match(siteCss, /\.judge-score-number\s*\{/);
+  assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.judge-input-grid\s*\{[\s\S]*grid-template-columns:\s*1fr/);
+  assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.judge-score-control\s*\{[\s\S]*grid-template-columns:\s*1fr/);
+  assert.doesNotMatch(siteCss, /judge-score\[type="range"\]/);
+});
+
+test("judge formal submit uses the shared confirm dialog and preserves backend errors", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /async function submitJudgeScores\(confirmed = false\)/);
+  assert.match(siteJs, /showConfirmDialog\(\{[\s\S]*title:\s*"正式提交评分"[\s\S]*onConfirm:\s*\(\) => submitJudgeScores\(true\)[\s\S]*\}\);/);
+  assert.doesNotMatch(siteJs, /root\.confirm\(/);
+  assert.match(siteJs, /const errorPayload = await response\.json\(\)\.catch\(\(\) => null\)/);
+  assert.match(siteJs, /error\.payload = errorPayload/);
+  assert.match(siteJs, /function getJudgeSubmitErrorMessage\(error\)/);
+  assert.match(siteJs, /already been submitted/);
+  assert.match(siteJs, /is missing judge score dimensions/);
+  assert.match(siteJs, /评分已提交，不能重复提交/);
+});
+
+test("judge scoring desktop header and score cards share the same five-column grid", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.match(siteJs, /<div class="judge-head"><span class="judge-head-spacer" aria-hidden="true"><\/span><div class="judge-head-grid">\$\{head\}<\/div><\/div>/);
+  assert.match(siteCss, /\.judge-board\s*{[\s\S]*--judge-team-col:\s*minmax\(240px,\s*310px\)/);
+  assert.match(siteCss, /\.judge-head\s*{[\s\S]*grid-template-columns:\s*var\(--judge-team-col\) minmax\(0,\s*1fr\)/);
+  assert.match(siteCss, /\.judge-row\s*{[\s\S]*grid-template-columns:\s*var\(--judge-team-col\) minmax\(0,\s*1fr\)/);
+  assert.match(siteCss, /\.judge-head-grid\s*{[\s\S]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(siteCss, /\.judge-input-grid\s*{[\s\S]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/);
+  assert.doesNotMatch(siteCss, /@media \(max-width:\s*1560px\) and \(min-width:\s*681px\)[\s\S]*?\.judge-input-grid\s*\{[\s\S]*?repeat\(3/);
+  assert.doesNotMatch(siteCss, /@media \(max-width:\s*1180px\) and \(min-width:\s*681px\)[\s\S]*?\.judge-input-grid\s*\{[\s\S]*?repeat\(2/);
 });
 
 test("site removes low-value team capacity and work delivery buttons", () => {
@@ -1398,9 +1675,9 @@ test("official site cache keys are bumped after navigation and detail layout pol
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
-  assert.match(html, /src\/site\.css\?v=20260625-auth-sync-team-panel/);
+  assert.match(html, /src\/site\.css\?v=20260625-gallery-heading-unify/);
   assert.match(html, /src\/logic\.js\?v=20260624-nav-labels/);
-  assert.match(html, /src\/site\.js\?v=20260625-gitlab-latest-sync/);
+  assert.match(html, /src\/site\.js\?v=20260625-team-subcopy-restore/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
@@ -1412,17 +1689,42 @@ test("terminal boot welcome stage is wired into the HTML", () => {
   assert.match(html, /进入未来伙伴档案/);
 });
 
+test("terminal boot welcome stage uses a balanced centered composition", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+  const terminalBlock = css.match(/\.welcome-terminal\s*{[\s\S]*?\n}/)?.[0] || "";
+  const bodyBlock = css.match(/\.welcome-terminal-body\s*{[\s\S]*?\n}/)?.[0] || "";
+  const linesBlock = css.match(/\.welcome-boot-lines\s*{[\s\S]*?\n}/)?.[0] || "";
+  const lineItemBlock = css.match(/\.welcome-boot-lines section\s*{[\s\S]*?\n}/)?.[0] || "";
+  const buttonBlock = css.match(/\.welcome-enter-button\s*{[\s\S]*?\n}/)?.[0] || "";
+
+  assert.match(terminalBlock, /width:\s*min\(1180px,\s*calc\(100vw - clamp\(120px,\s*14vw,\s*280px\)\)\)/);
+  assert.match(bodyBlock, /display:\s*grid/);
+  assert.match(bodyBlock, /align-content:\s*center/);
+  assert.match(linesBlock, /max-width:\s*980px/);
+  assert.match(lineItemBlock, /grid-template-columns:\s*minmax\(0,\s*1\.08fr\)\s*minmax\(260px,\s*0\.72fr\)/);
+  assert.match(buttonBlock, /width:\s*min\(440px,\s*100%\)/);
+});
+
 test("admin console keeps the event control cockpit structure wired", () => {
   const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
   const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
   const js = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+  const flowView = html.match(/<div class="admin-grid admin-view-panel is-active" data-admin-view-panel="flow"[\s\S]*?<section class="admin-view-panel admin-management-view" data-admin-view-panel="screen"/)?.[0] || "";
 
   assert.match(html, /<aside class="admin-sidebar"/);
-  assert.match(html, /流程控制台/);
-  assert.match(html, /大屏预览/);
-  assert.match(html, /安全确认/);
-  assert.match(html, /操作日志/);
+  assert.match(flowView, /class="admin-flow-column admin-flow-column-primary"[\s\S]*class="panel flow-panel"[\s\S]*class="panel timing-panel"/);
+  assert.match(flowView, /class="admin-flow-column admin-flow-column-secondary"[\s\S]*class="panel preview-panel"[\s\S]*class="panel guard-panel"/);
+  assert.doesNotMatch(flowView, /id="adminDataPanel"/);
+  assert.doesNotMatch(flowView, /class="panel log-panel"/);
+  assert.match(flowView, /流程控制台/);
+  assert.match(flowView, /大屏预览/);
+  assert.match(flowView, /安全确认/);
   assert.match(css, /--neon:\s*#28ffc8/);
+  assert.match(css, /\.admin-grid\s*{[\s\S]*grid-template-columns:\s*minmax\(460px,\s*0\.96fr\) minmax\(520px,\s*1\.04fr\)/);
+  assert.match(css, /\.admin-flow-column\s*{[\s\S]*display:\s*flex[\s\S]*flex-direction:\s*column/);
+  assert.match(css, /\.admin-flow-column-primary\s*{[\s\S]*grid-column:\s*1/);
+  assert.match(css, /\.admin-flow-column-secondary\s*{[\s\S]*grid-column:\s*2/);
+  assert.doesNotMatch(css, /\.flow-panel\s*{[\s\S]*grid-row:\s*1 \/ 4/);
   assert.match(css, /\.admin-nav button\.is-active/);
   assert.match(js, /name:\s*"组队开启"/);
   assert.match(js, /data-stage-command/);
@@ -1434,10 +1736,10 @@ test("admin console exposes backend data operations for teams, votes, works, and
   const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
   const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
 
-  assert.match(html, /id="adminDataPanel"/);
-  assert.match(html, /id="adminVoteRanking"/);
-  assert.match(html, /id="adminWorkList"/);
-  assert.match(html, /id="adminJudgeSummary"/);
+  assert.match(html, /data-admin-view-panel="data"/);
+  assert.match(html, /id="adminVoteRankingFull"/);
+  assert.match(html, /id="adminWorkReviewList"/);
+  assert.match(html, /id="adminVoteWindowManager"/);
   assert.match(css, /\.data-panel/);
   assert.match(css, /\.admin-metric-grid/);
   assert.match(dataJs, /function loadWorks/);
@@ -1463,6 +1765,63 @@ test("admin content manager links to runtime backend data APIs", () => {
   assert.match(adminJs, /apiRoute:\s*"\/api\/admin\/audit-logs"/);
   assert.match(adminJs, /const href = resolveAdminRouteHref\(item\.apiRoute \|\| item\.route\)/);
   assert.match(adminJs, /href="\$\{escapeHtml\(href\)\}"/);
+});
+
+test("admin content data links use a compact operational list", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.match(html, /class="[^"]*\bpanel\b[^"]*\badmin-wide-panel\b[^"]*\badmin-content-data-panel\b[^"]*"/);
+  assert.match(css, /\.admin-content-route-grid\s*{[\s\S]*gap:\s*12px/);
+  assert.match(css, /\.admin-content-route-grid\s*{[\s\S]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(280px,\s*100%\),\s*1fr\)\)/);
+  assert.match(css, /\.admin-content-data-card\s*{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\) auto 64px/);
+  assert.match(css, /\.admin-content-data-card\s*{[\s\S]*overflow:\s*hidden/);
+  assert.match(css, /@media \(max-width:\s*560px\)[\s\S]*\.admin-content-data-card\s*{[\s\S]*grid-template-columns:\s*1fr/);
+  assert.match(css, /\.admin-content-data-route/);
+  assert.match(css, /\.admin-content-data-count/);
+  assert.match(css, /\.admin-content-data-action\s*{[\s\S]*justify-self:\s*end/);
+  assert.match(css, /\.admin-content-data-action\s*{[\s\S]*width:\s*64px/);
+  assert.match(css, /\.admin-content-data-action\s*{[\s\S]*box-sizing:\s*border-box/);
+  assert.match(adminJs, /class="admin-content-data-card"/);
+  assert.match(adminJs, /class="admin-content-data-route"/);
+  assert.match(adminJs, /class="admin-content-data-count"/);
+  assert.match(adminJs, /class="admin-content-data-action"/);
+});
+
+test("admin content manager switches editing panels through an embedded subnav", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.match(html, /class="admin-content-subnav"/);
+  assert.match(html, /data-content-tab="scenario"[^>]*aria-pressed="true"[\s\S]*业务场景大屏内容/);
+  assert.match(html, /data-content-tab="profiles"[\s\S]*星锐档案/);
+  assert.match(html, /data-content-tab="links"[\s\S]*内容数据入口/);
+  assert.match(html, /data-content-panel="scenario"/);
+  assert.match(html, /data-content-panel="profiles"/);
+  assert.match(html, /data-content-panel="links"/);
+  assert.match(css, /\.admin-management-view\[data-admin-view-panel="content"\]\s*{[\s\S]*grid-template-rows:\s*auto auto minmax\(0,\s*1fr\)/);
+  assert.match(css, /\.admin-content-subnav\s*{[\s\S]*display:\s*flex/);
+  assert.match(css, /\.admin-content-subnav button\.is-active/);
+  assert.match(css, /\.admin-content-layout\s*{[\s\S]*grid-template-rows:\s*minmax\(0,\s*1fr\)/);
+  assert.match(css, /\.admin-content-layout\s*{[\s\S]*justify-items:\s*stretch/);
+  assert.match(css, /\.admin-content-layout\s*{[\s\S]*width:\s*100%/);
+  assert.match(css, /\.admin-content-section\s*{[\s\S]*display:\s*none/);
+  assert.match(css, /\.admin-content-section\s*{[\s\S]*grid-column:\s*1 \/ -1/);
+  assert.match(css, /\.admin-content-section\s*{[\s\S]*grid-row:\s*1 \/ -1/);
+  assert.match(css, /\.admin-content-section\s*{[\s\S]*width:\s*100%/);
+  assert.match(css, /\.admin-content-section\.is-active\s*{[\s\S]*display:\s*flex/);
+  assert.match(css, /\.admin-business-scenario-form\s*{[\s\S]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(css, /\.admin-business-scenario-form\s*{[\s\S]*overflow:\s*auto/);
+  assert.match(css, /\.admin-business-scenario-form label:nth-child\(2\)\s*{[\s\S]*grid-column:\s*span 3/);
+  assert.match(css, /\.admin-trainee-profile-form,\n\.admin-trainee-profile-list\s*{[\s\S]*height:\s*100%/);
+  assert.match(css, /\.admin-content-route-grid\s*{[\s\S]*overflow:\s*auto/);
+  assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*\.admin-content-subnav\s*{[\s\S]*overflow-x:\s*auto/);
+  assert.match(adminJs, /const adminContentTabs/);
+  assert.match(adminJs, /const adminContentPanels/);
+  assert.match(adminJs, /function switchAdminContentPanel/);
+  assert.match(adminJs, /event\.target\.closest\("\[data-content-tab\]"\)/);
 });
 
 test("admin console navigation switches dedicated management views", () => {
@@ -1553,6 +1912,31 @@ test("admin team roster manages members through backend admin APIs", () => {
   assert.match(adminJs, /button\.isConnected/);
 });
 
+test("admin team member maintenance uses user and role selectors", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.match(html, /id="adminTeamMemberUserSelect"/);
+  assert.match(html, /data-team-member-user-select/);
+  assert.match(html, /手动填写新成员/);
+  assert.match(html, /placeholder="留空自动生成/);
+  assert.match(html, /<select id="adminTeamMemberRoleKey"/);
+  assert.match(html, /value="advisor">队长/);
+  assert.match(css, /\.admin-team-member-select-row/);
+  assert.match(adminJs, /const adminTeamMemberUserSelect/);
+  assert.match(adminJs, /function renderTeamMemberUserOptions/);
+  assert.match(adminJs, /function createManualTeamMemberUserId/);
+  assert.match(adminJs, /function enterManualTeamMemberMode/);
+  assert.match(adminJs, /function syncTeamMemberFieldsFromUser/);
+  assert.match(adminJs, /enterManualTeamMemberMode\(\{ clearUserFields: true \}\)/);
+  assert.match(adminJs, /if \(!payload\.userId && payload\.name\)/);
+  assert.match(adminJs, /payload\.userId = createManualTeamMemberUserId\(payload\.name,\s*payload\.teamId\)/);
+  assert.match(adminJs, /function syncTeamMemberDutyFromRole/);
+  assert.match(adminJs, /roleKey === "advisor"/);
+  assert.match(adminJs, /队长/);
+});
+
 test("admin team roster controls backend track lock state", () => {
   const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
   const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
@@ -1573,6 +1957,110 @@ test("admin team roster controls backend track lock state", () => {
   assert.match(adminJs, /data-team-status-command/);
   assert.match(adminJs, /开放组队/);
   assert.match(adminJs, /锁定组队/);
+});
+
+test("admin console exports key operation datasets", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  ["teams", "votes", "works", "scores", "results", "audit"].forEach((target) => {
+    assert.match(html, new RegExp(`data-admin-export="${target}"`));
+  });
+  assert.match(css, /\.admin-export-actions/);
+  assert.match(adminJs, /function escapeCsvValue/);
+  assert.match(adminJs, /function downloadAdminCsv/);
+  assert.match(adminJs, /function buildTeamExportRows/);
+  assert.match(adminJs, /function buildVoteExportRows/);
+  assert.match(adminJs, /function buildWorkExportRows/);
+  assert.match(adminJs, /function buildJudgeScoreExportRows/);
+  assert.match(adminJs, /function buildResultExportRows/);
+  assert.match(adminJs, /function buildAuditExportRows/);
+  assert.match(adminJs, /function handleAdminExport/);
+  assert.match(adminJs, /data-admin-export/);
+});
+
+test("admin data workspace supports manual opt-in auto refresh", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.match(html, /id="adminAutoRefreshToggle"/);
+  assert.match(html, /id="adminAutoRefreshInterval"/);
+  assert.match(html, /id="adminAutoRefreshState"/);
+  assert.match(css, /\.admin-auto-refresh/);
+  assert.match(adminJs, /let adminAutoRefreshTimer = null/);
+  assert.match(adminJs, /function syncAdminAutoRefresh/);
+  assert.match(adminJs, /setInterval\(\(\) => loadBusinessData\(\{ writeLog: false/);
+  assert.match(adminJs, /clearInterval\(adminAutoRefreshTimer\)/);
+  assert.match(adminJs, /adminAutoRefreshToggle\?\.addEventListener\("change", syncAdminAutoRefresh\)/);
+});
+
+test("admin audit log view supports filters and expandable details", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.match(html, /id="adminAuditActionFilter"/);
+  assert.match(html, /id="adminAuditActorFilter"/);
+  assert.match(html, /id="adminAuditTargetFilter"/);
+  assert.match(css, /\.admin-audit-filter-bar/);
+  assert.match(css, /\.admin-audit-list details/);
+  assert.match(dataJs, /function loadAuditLogs\(filters = \{\}, fallback = \{ logs: \[\] \}\)/);
+  assert.match(dataJs, /new URLSearchParams/);
+  assert.match(adminJs, /const adminAuditActionFilter/);
+  assert.match(adminJs, /function getAuditLogFilters/);
+  assert.match(adminJs, /function syncAuditLogFilters/);
+  assert.match(adminJs, /loadAuditLogs\(getAuditLogFilters\(\)\)/);
+  assert.match(adminJs, /<details/);
+  assert.match(adminJs, /data-audit-filter/);
+});
+
+test("admin audit log view exposes visible sync states and reset filters", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.match(html, /id="adminAuditStatus"/);
+  assert.match(html, /id="resetAuditFiltersButton"/);
+  assert.match(css, /\.admin-audit-status/);
+  assert.match(css, /\.admin-audit-list \.admin-empty strong/);
+  assert.match(css, /\.admin-audit-list \.admin-empty span/);
+  assert.match(adminJs, /const adminAuditStatus/);
+  assert.match(adminJs, /const resetAuditFiltersButton/);
+  assert.match(adminJs, /function setAuditStatus/);
+  assert.match(adminJs, /function resetAuditFilters/);
+  assert.match(adminJs, /setAuditStatus\("syncing"/);
+  assert.match(adminJs, /setAuditStatus\("empty"/);
+  assert.match(adminJs, /setAuditStatus\("error"/);
+});
+
+test("admin flow cockpit removes low-value panels and enlarges the big screen preview", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+  const flowView = html.match(/<div class="admin-grid admin-view-panel is-active" data-admin-view-panel="flow"[\s\S]*?<section class="admin-view-panel admin-management-view" data-admin-view-panel="screen"/)?.[0] || "";
+  const screenPreviewBlock = css.match(/\.screen-preview\s*{[\s\S]*?\n}/)?.[0] || "";
+  const timerGridBlock = css.match(/\.timer-control-grid\s*{[\s\S]*?\n}/)?.[0] || "";
+
+  assert.doesNotMatch(flowView, /admin-ops-panel/);
+  assert.doesNotMatch(flowView, /id="operationLog"/);
+  assert.match(flowView, /class="panel timing-panel"/);
+  assert.match(flowView, /class="panel preview-panel"/);
+  assert.match(css, /\.flow-panel\s*{[\s\S]*?min-height:\s*clamp\(360px,\s*38vh,\s*500px\)/);
+  assert.match(css, /\.preview-panel\s*{[\s\S]*?min-height:\s*clamp\(420px,\s*44vh,\s*560px\)/);
+  assert.match(screenPreviewBlock, /height:\s*min\(520px,\s*calc\(100% - 58px\)\)/);
+  assert.match(timerGridBlock, /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+});
+
+test("admin settings view is labeled as system status until editable settings exist", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.match(html, /系统状态/);
+  assert.match(html, /SYSTEM_STATUS/);
+  assert.match(html, /id="adminSystemRuntimeStatus">只读运行状态/);
+  assert.match(adminJs, /setText\(adminSystemRuntimeStatus, apiBaseUrl \? "前后端分离状态" : "同源运行状态"\)/);
 });
 
 test("admin console exposes all primary sidebar sections as real views", () => {
@@ -1597,6 +2085,17 @@ test("admin console exposes all primary sidebar sections as real views", () => {
   assert.match(adminJs, /function renderScreenControl/);
   assert.match(adminJs, /function renderPageManager/);
   assert.match(adminJs, /function renderSystemSettings/);
+});
+
+test("admin and big screen cache keys stay current", () => {
+  const adminHtml = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const indexHtml = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+
+  assert.match(adminHtml, /admin\.css\?v=20260625-admin-scale-restore/);
+  assert.match(adminHtml, /src\/data\.js\?v=20260625-time-sync/);
+  assert.match(adminHtml, /src\/admin\.js\?v=20260625-time-sync/);
+  assert.match(indexHtml, /src\/data\.js\?v=20260625-time-sync/);
+  assert.match(indexHtml, /src\/app\.js\?v=20260625-time-sync/);
 });
 
 test("landing stage starts with its main CTA visible and clickable", () => {
@@ -1629,7 +2128,7 @@ test("landing hero uses the merged two-line cinematic hierarchy", () => {
   assert.doesNotMatch(html, /AI创新黑客松大赛2026/);
   assert.doesNotMatch(html, /AI Innovation Hackathon 2026<\/span>/);
   assert.match(html, /<span class="landing-title-cn">AI创新黑客松<\/span>/);
-  assert.match(html, /<span class="landing-title-sub">36小时，把 AI 创意做成可运行系统<\/span>/);
+  assert.match(html, /<span class="landing-title-sub">36小时，用 AI 把创意照进现实<\/span>/);
   assert.match(html, /<button class="enter-button" type="button" id="enterButton"[^>]*>解锁任务<\/button>/);
   assert.match(logoBlock, /top:\s*23%/);
   assert.match(logoBlock, /width:\s*min\(32vw,\s*500px\)/);
@@ -1678,6 +2177,15 @@ test("resolveStageScreenView maps admin stages to existing screen views", () => 
   assert.equal(resolveStageScreenView("unknown"), "");
 });
 
+test("resolveScreenViewFromRouteStage keeps direct big-screen links on the requested view", () => {
+  assert.equal(resolveScreenViewFromRouteStage("icebreaker"), "wall");
+  assert.equal(resolveScreenViewFromRouteStage("opening"), "welcome");
+  assert.equal(resolveScreenViewFromRouteStage("wall"), "wall");
+  assert.equal(resolveScreenViewFromRouteStage("vote-progress"), "vote");
+  assert.equal(resolveScreenViewFromRouteStage("vote-result"), "vote-result");
+  assert.equal(resolveScreenViewFromRouteStage("unknown"), "");
+});
+
 test("admin stage polling treats the first fetched stage as baseline only", () => {
   const firstTeamPublish = createAdminStageSyncKey("team", "2026-05-22T06:00:00.000Z");
   const secondTeamPublish = createAdminStageSyncKey("team", "2026-06-17T03:12:47.953Z");
@@ -1723,12 +2231,54 @@ test("admin console publishes phase changes through the admin state API", () => 
   assert.match(js, /window\.AppData\.loadAdminState\(\)/);
   assert.match(js, /window\.AppData\.updateAdminStage\(stageId\)/);
   assert.match(html, /id="saveDisplayTimesButton"/);
-  assert.match(html, /id="missionCountdownDuration"/);
-  assert.match(html, /id="roadshowDuration"/);
+  assert.match(html, /id="missionCountdownHours"/);
+  assert.match(html, /id="missionCountdownMinutes"/);
+  assert.match(html, /id="roadshowHours"/);
+  assert.match(html, /id="roadshowMinutes"/);
   assert.match(js, /window\.AppData\.updateAdminDisplayTimes/);
   assert.match(js, /window\.AppData\.updateAdminMissionCountdown/);
   assert.match(js, /window\.AppData\.updateAdminRoadshow/);
   assert.match(js, /catch\s*\(error\)[\s\S]*同步失败/);
+});
+
+test("admin timer controls edit durations as hours and minutes while preserving durationMs", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+  const js = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.doesNotMatch(html, /展示时长（分钟）/);
+  assert.match(html, /展示时长/);
+  assert.match(html, /id="missionCountdownHours"[^>]*value="24"/);
+  assert.match(html, /id="missionCountdownMinutes"[^>]*value="0"/);
+  assert.match(html, /id="roadshowHours"[^>]*value="0"/);
+  assert.match(html, /id="roadshowMinutes"[^>]*value="15"/);
+  assert.match(css, /\.timer-duration-fields/);
+  assert.match(js, /const missionCountdownHours/);
+  assert.match(js, /const missionCountdownMinutes/);
+  assert.match(js, /const roadshowHours/);
+  assert.match(js, /const roadshowMinutes/);
+  assert.match(js, /function durationMsToHourMinuteParts/);
+  assert.match(js, /function setDurationInputs/);
+  assert.match(js, /function durationInputsToDurationMs/);
+  assert.match(js, /durationMs:\s*durationInputsToDurationMs\(missionCountdownHours,\s*missionCountdownMinutes,\s*1440\)/);
+  assert.match(js, /durationMs:\s*durationInputsToDurationMs\(roadshowHours,\s*roadshowMinutes,\s*15\)/);
+  assert.doesNotMatch(js, /minutesInputToDurationMs/);
+});
+
+test("admin time save synchronizes stage labels and timer durations without starting timers", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const js = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+  const saveTimeConfigurationBlock = js.match(/async function saveTimeConfiguration\(\) \{[\s\S]*?\n}\n\nasync function loadTimerControls/)?.[0] || "";
+
+  assert.match(html, /id="saveDisplayTimesButton"[^>]*>保存时间配置<\/button>/);
+  assert.match(js, /async function saveTimeConfiguration\(\)/);
+  assert.match(js, /saveDisplayTimesButton\?\.addEventListener\("click", saveTimeConfiguration\)/);
+  assert.match(saveTimeConfigurationBlock, /window\.AppData\.updateAdminDisplayTimes\(\{[\s\S]*stages:\s*collectStageDisplayTimes\(\)/);
+  assert.match(saveTimeConfigurationBlock, /window\.AppData\.updateAdminMissionCountdown\(\{[\s\S]*durationMs:\s*durationInputsToDurationMs\(missionCountdownHours,\s*missionCountdownMinutes,\s*1440\)/);
+  assert.match(saveTimeConfigurationBlock, /window\.AppData\.updateAdminRoadshow\(\{[\s\S]*durationMs:\s*durationInputsToDurationMs\(roadshowHours,\s*roadshowMinutes,\s*15\)/);
+  assert.match(saveTimeConfigurationBlock, /renderMissionCountdownState\(missionCountdownStatePayload\)/);
+  assert.match(saveTimeConfigurationBlock, /renderRoadshowState\(roadshowStatePayload\)/);
+  assert.doesNotMatch(saveTimeConfigurationBlock, /startedAt/);
 });
 
 test("admin screen control toggles a dedicated big screen override", () => {
@@ -1737,14 +2287,25 @@ test("admin screen control toggles a dedicated big screen override", () => {
 
   assert.match(js, /admin-control-actions/);
   assert.match(js, /let screenOverrideStageId\s*=/);
-  assert.match(js, /data-screen-stage-command/);
-  assert.match(js, /event\.target\.closest\("\[data-screen-stage-command\]"\)/);
+  assert.match(js, /data-screen-stage-flow-command/);
+  assert.match(js, /data-screen-stage-lock-command/);
+  assert.match(js, /event\.target\.closest\("\[data-screen-stage-flow-command\]"\)/);
+  assert.match(js, /event\.target\.closest\("\[data-screen-stage-lock-command\]"\)/);
+  assert.match(js, /function setScreenFlowStage\(stageId\)/);
   assert.match(js, /function toggleScreenOverride\(stageId\)/);
-  assert.match(js, /screenOverrideStageId === cleanStageId \? "" : cleanStageId/);
-  assert.match(js, /window\.AppData\.updateAdminScreenOverride\(nextStageId\)/);
-  assert.match(js, /await toggleScreenOverride\(button\.dataset\.screenStageCommand\)/);
+  assert.match(js, /await window\.AppData\.updateAdminStage\(cleanStageId\)/);
+  assert.match(js, /await window\.AppData\.updateAdminScreenOverride\(""\)/);
+  assert.match(js, /await toggleScreenOverride\(button\.dataset\.screenStageLockCommand\)/);
+  assert.match(js, /await setScreenFlowStage\(button\.dataset\.screenStageFlowCommand\)/);
+  assert.match(js, /锁定显示/);
+  assert.match(js, /设为流程/);
   assert.match(js, /取消锁定/);
+  assert.doesNotMatch(js, /\$\{escapeHtml\(item\.note\)\}\s*·\s*\$\{escapeHtml\(stageStatus\)\}/);
+  assert.doesNotMatch(js, /大屏跟随中/);
+  assert.match(js, /class="admin-screen-route-main"/);
   assert.match(css, /\.admin-control-actions/);
+  assert.match(css, /\.admin-control-actions\s*{[\s\S]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(css, /\.admin-control-actions\s*{[\s\S]*width:\s*min\(360px,\s*100%\)/);
   assert.match(css, /\.admin-control-actions button/);
   assert.match(css, /\.admin-control-actions button\.is-cancel/);
 });
@@ -1771,6 +2332,8 @@ test("admin roadshow timer selects current and next teams through the backend AP
 test("main screen polls admin state and switches views only on stage changes", () => {
   const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
 
+  assert.match(appJs, /const explicitScreenViewRoute = resolveExplicitScreenViewRoute\(\)/);
+  assert.match(appJs, /if\s*\(explicitScreenViewRoute\)\s*{[\s\S]*?return;/);
   assert.match(appJs, /window\.AppData\.loadAdminState\(\)/);
   assert.match(appJs, /const stageId = state\?\.screenOverrideStageId \|\| state\?\.currentStageId \|\| ""/);
   assert.match(appJs, /window\.AppLogic\.createAdminStageSyncKey\(stageId,\s*state\.updatedAt\)/);
@@ -1812,6 +2375,19 @@ test("team formation keeps static fallback content while backend teams sync", ()
   assert.match(appJs, /let teamState = getFallbackTeamState\(\)/);
   assert.match(appJs, /window\.AppData\.loadTeams\(getFallbackTeamState\(\)\)/);
   assert.doesNotMatch(appJs, /window\.AppData\.loadTeams\(\[\]\)/);
+});
+
+test("central team formation screen polls backend teams without changing the stage UI", () => {
+  const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+
+  assert.match(appJs, /const TEAM_STATE_POLL_MS\s*=\s*5000/);
+  assert.match(appJs, /let teamStatePollTimer\s*=\s*null/);
+  assert.match(appJs, /function createTeamStateSignature\(/);
+  assert.match(appJs, /async function syncTeamState\(/);
+  assert.match(appJs, /teamStatePollTimer\s*=\s*window\.setInterval\(syncTeamState,\s*TEAM_STATE_POLL_MS\)/);
+  assert.match(appJs, /window\.clearInterval\(teamStatePollTimer\)/);
+  assert.match(appJs, /data-team-action="claim-track"/);
+  assert.match(appJs, /data-team-action="claim-role"/);
 });
 
 test("team header opens the mission countdown stage", () => {
@@ -2044,17 +2620,46 @@ test("team formation screen uses a squad-card role claiming layout", () => {
 });
 
 test("business scenario cards use the requested 02-03-04 accent rotation", () => {
-  const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
-  const medicineCard = html.match(/<a href="https:\/\/joincare\.feishu\.cn\/docx\/placeholder-medicine"[\s\S]*?<\/a>/)?.[0] || "";
-  const marketingCard = html.match(/<a href="https:\/\/joincare\.feishu\.cn\/docx\/placeholder-marketing"[\s\S]*?<\/a>/)?.[0] || "";
-  const functionsCard = html.match(/<a href="https:\/\/joincare\.feishu\.cn\/docx\/placeholder-functions"[\s\S]*?<\/a>/)?.[0] || "";
+  const teams = JSON.parse(fs.readFileSync(path.join(__dirname, "../data/teams.json"), "utf8"));
+  const medicine = teams.find((team) => team.id === "medicine") || {};
+  const marketing = teams.find((team) => team.id === "marketing") || {};
+  const functions = teams.find((team) => team.id === "functions") || {};
 
-  assert.match(medicineCard, /--dept-color:\s*rgb\(205,\s*255,\s*92\)/);
-  assert.match(medicineCard, /--dept-color-rgb:\s*205,\s*255,\s*92/);
-  assert.match(marketingCard, /--dept-color:\s*rgb\(100,\s*232,\s*214\)/);
-  assert.match(marketingCard, /--dept-color-rgb:\s*100,\s*232,\s*214/);
-  assert.match(functionsCard, /--dept-color:\s*var\(--neon-2\)/);
-  assert.match(functionsCard, /--dept-color-rgb:\s*167,\s*255,\s*79/);
+  assert.equal(medicine.color, "rgb(205, 255, 92)");
+  assert.equal(medicine.colorRgb, "205, 255, 92");
+  assert.equal(marketing.color, "rgb(100, 232, 214)");
+  assert.equal(marketing.colorRgb, "100, 232, 214");
+  assert.equal(functions.color, "var(--neon-2)");
+  assert.equal(functions.colorRgb, "167, 255, 79");
+});
+
+test("business scenario cards are editable from admin and use dynamic document links", () => {
+  const indexHtml = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  const adminHtml = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+
+  assert.match(indexHtml, /id="departmentGrid"/);
+  assert.doesNotMatch(indexHtml, /placeholder-pharmaceuticals/);
+  assert.match(appJs, /function renderBusinessScenarioCards/);
+  assert.match(appJs, /team\.docUrl/);
+  assert.match(appJs, /target="_blank"/);
+
+  assert.match(adminHtml, /id="adminBusinessScenarioForm"/);
+  assert.match(adminHtml, /id="adminBusinessScenarioTeam"/);
+  assert.match(adminHtml, /id="adminBusinessScenarioDocUrl"/);
+  assert.match(adminHtml, /name="hostDepartment"/);
+  assert.match(adminHtml, /name="focus"/);
+  assert.match(adminHtml, /name="deliverable"/);
+  assert.match(adminHtml, /name="scenarios"/);
+  assert.match(adminJs, /function translateBusinessScenarioText/);
+  assert.match(adminJs, /function syncBusinessScenarioEnglish/);
+  assert.match(adminJs, /function saveBusinessScenario/);
+  assert.match(dataJs, /async function updateTeamScenario/);
+  assert.match(dataJs, /\/api\/admin\/teams\/\$\{encodeURIComponent\(teamId\)\}\/scenario/);
+  assert.match(css, /\.admin-business-scenario-form/);
 });
 
 test("resolveAdjacentTraineeId moves to neighboring profile with wraparound", () => {
@@ -2086,6 +2691,7 @@ test("profile arc cards do not use yaw perspective that breaks left-right symmet
 test("business scenario cards use five-column briefing layout", () => {
   const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
   const gridBlock = css.match(/\.department-grid\s*{[\s\S]*?\n}/)?.[0] || "";
   const cardBlock = css.match(/\.dept-card\s*{[\s\S]*?\n}/)?.[0] || "";
   const hoverBlock = css.match(/\.dept-card:hover\s*{[\s\S]*?\n}/)?.[0] || "";
@@ -2098,9 +2704,10 @@ test("business scenario cards use five-column briefing layout", () => {
   assert.match(css, /\.dept-status\s*{[\s\S]*?align-self:\s*end/);
   assert.match(css, /\.dept-link-badge\s*{[\s\S]*?margin-top:\s*0/);
   assert.match(css, /\.dept-link-badge\s*{[\s\S]*?justify-content:\s*center/);
-  assert.match(html, /class="dept-body"/);
-  assert.match(html, /class="dept-info"/);
-  assert.match(html, /class="dept-status" aria-hidden="true"/);
+  assert.match(html, /id="departmentGrid"/);
+  assert.match(appJs, /class="dept-body"/);
+  assert.match(appJs, /class="dept-info"/);
+  assert.match(appJs, /class="dept-status" aria-hidden="true"/);
   assert.doesNotMatch(html, /五列展示五个赛道/);
 });
 

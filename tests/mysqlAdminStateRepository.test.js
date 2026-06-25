@@ -14,6 +14,7 @@ class MemoryMysqlAdminStatePool {
       display_time: stage.time || stage.displayTime || "",
       status: stage.status || "pending",
       sort_order: stage.sortOrder ?? index,
+      updated_at: stage.updatedAt || "2026-01-01T00:00:00.000Z",
     }));
     this.bigscreenState = null;
   }
@@ -22,7 +23,7 @@ class MemoryMysqlAdminStatePool {
     this.calls.push({ sql, params });
     const compactSql = sql.replace(/\s+/g, " ").trim().toLowerCase();
 
-    if (compactSql.startsWith("select id, name, subtitle, display_time, status, sort_order from event_stages order by")) {
+    if (compactSql.startsWith("select id, name, subtitle, display_time, status, sort_order")) {
       return [this.stages
         .slice()
         .sort((a, b) => a.sort_order - b.sort_order || a.id.localeCompare(b.id))
@@ -38,6 +39,7 @@ class MemoryMysqlAdminStatePool {
         display_time: displayTime,
         status,
         sort_order: sortOrder,
+        updated_at: "2026-01-01T00:00:10.000Z",
       };
       const index = this.stages.findIndex((stage) => stage.id === id);
       if (index === -1) this.stages.push(next);
@@ -45,7 +47,7 @@ class MemoryMysqlAdminStatePool {
       return [{ affectedRows: 1 }];
     }
 
-    if (compactSql.startsWith("select view_name, params_json from bigscreen_state where id = ?")) {
+    if (compactSql.startsWith("select view_name, params_json")) {
       return [this.bigscreenState ? [{ ...this.bigscreenState }] : []];
     }
 
@@ -57,6 +59,7 @@ class MemoryMysqlAdminStatePool {
         view_name: viewName,
         params_json: paramsJson,
         pushed_by: pushedBy,
+        updated_at: "2026-01-01T00:00:20.000Z",
       };
       return [{ affectedRows: 1 }];
     }
@@ -75,22 +78,28 @@ test("MySQL admin state repository preserves stage switching and display time co
 
   const state = await repository.getState();
   assert.equal(state.currentStageId, "team");
-  assert.deepEqual(state.stages.map((stage) => stage.status), ["active", "pending", "pending"]);
+  assert.deepEqual(state.stages.map((stage) => stage.id), ["team", "vote", "result", "final"]);
+  assert.deepEqual(state.stages.map((stage) => stage.status), ["active", "pending", "pending", "pending"]);
 
   const voteState = await repository.setCurrentStage("vote");
   assert.equal(voteState.currentStageId, "vote");
   assert.equal(voteState.screenOverrideStageId, "");
-  assert.deepEqual(voteState.stages.map((stage) => stage.status), ["done", "active", "pending"]);
+  assert.deepEqual(voteState.stages.map((stage) => stage.status), ["done", "active", "pending", "pending"]);
   assert.equal(voteState.logs[0].message, "开启阶段【投票开启】");
 
+  const finalState = await repository.setCurrentStage("final");
+  assert.equal(finalState.currentStageId, "final");
+  assert.equal(finalState.stages.find((stage) => stage.id === "result").status, "done");
+  assert.equal(finalState.stages.find((stage) => stage.id === "final").status, "active");
+
   const lockedState = await repository.setScreenOverride("result", "admin-user");
-  assert.equal(lockedState.currentStageId, "vote");
+  assert.equal(lockedState.currentStageId, "final");
   assert.equal(lockedState.screenOverrideStageId, "result");
   assert.equal(lockedState.logs[0].message, "锁定大屏【结果发布】");
   assert.deepEqual(JSON.parse(pool.bigscreenState.params_json), { stageId: "result" });
 
   const clearedState = await repository.setScreenOverride("");
-  assert.equal(clearedState.currentStageId, "vote");
+  assert.equal(clearedState.currentStageId, "final");
   assert.equal(clearedState.screenOverrideStageId, "");
   assert.deepEqual(JSON.parse(pool.bigscreenState.params_json), { stageId: "" });
 
@@ -107,6 +116,20 @@ test("MySQL admin state repository preserves stage switching and display time co
     () => repository.setCurrentStage("missing"),
     /Unknown admin stage id/,
   );
+});
+
+test("MySQL admin state repository keeps updatedAt stable between reads", async () => {
+  const pool = new MemoryMysqlAdminStatePool([
+    { id: "team", name: "组队开启", status: "active", updatedAt: "2026-06-17T03:12:47.953Z" },
+    { id: "vote", name: "投票开启", status: "pending", updatedAt: "2026-06-17T03:11:00.000Z" },
+  ]);
+  const repository = createMysqlAdminStateRepository(pool);
+
+  const firstState = await repository.getState();
+  const secondState = await repository.getState();
+
+  assert.equal(firstState.updatedAt, "2026-06-17T03:12:47.953Z");
+  assert.equal(secondState.updatedAt, firstState.updatedAt);
 });
 
 test("repository factory wires the MySQL admin state repository", async () => {

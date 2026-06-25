@@ -1,3 +1,4 @@
+const { normalizeTeamScenarioPayload } = require("./teamRepository");
 const { createHttpError } = require("./traineeRepository");
 
 const DEFAULT_TEAM_CAPACITY = 5;
@@ -362,11 +363,49 @@ function createMysqlTeamRepository(pool) {
     };
   }
 
+  async function updateTeamScenario(teamId, payload = {}) {
+    const cleanTeamId = normalizeId(teamId || payload.teamId);
+    if (!cleanTeamId) {
+      throw createHttpError(400, "teamId is required.");
+    }
+
+    const { target } = await findTeamFromList(cleanTeamId);
+    const nextTeam = normalizeTeamScenarioPayload(payload, target);
+    const meta = {
+      ...nextTeam,
+      advisor: undefined,
+      members: undefined,
+    };
+
+    await pool.execute(
+      `UPDATE teams SET
+        name = ?,
+        track_name = ?,
+        meta_json = ?,
+        updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [
+        nextTeam.name || target.name || cleanTeamId,
+        nextTeam.nameEn || target.nameEn || "",
+        JSON.stringify(meta),
+        cleanTeamId,
+      ],
+    );
+
+    const nextTeams = await listTeams();
+    return {
+      accepted: true,
+      team: nextTeams.find((team) => team.id === cleanTeamId),
+      teams: nextTeams,
+    };
+  }
+
   return {
     claimRole,
     joinTeam,
     leaveTeam,
     listTeams,
+    updateTeamScenario,
     updateTeamStatus,
   };
 }

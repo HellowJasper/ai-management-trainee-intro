@@ -47,6 +47,12 @@ const DEFAULT_STAGES = [
     subtitle: "结果揭晓与颁奖",
     time: "预计 05-24 17:30\n-",
   },
+  {
+    id: "final",
+    name: "冠军展示",
+    subtitle: "综合得分与冠军队伍展示",
+    time: "预计 05-24 18:00\n-",
+  },
 ];
 
 const DEFAULT_STATE = {
@@ -76,6 +82,21 @@ function normalizeDisplayTime(time) {
   return String(time || "").trim();
 }
 
+function normalizeAdminStages(stages) {
+  const list = Array.isArray(stages) && stages.length > 0
+    ? stages.map((stage) => ({ ...stage }))
+    : clone(DEFAULT_STAGES);
+  const hasFinalStage = list.some((stage) => stage.id === "final");
+  const resultStageIndex = list.findIndex((stage) => stage.id === "result");
+  const defaultFinalStage = DEFAULT_STAGES.find((stage) => stage.id === "final");
+
+  if (!hasFinalStage && resultStageIndex >= 0 && defaultFinalStage) {
+    list.splice(resultStageIndex + 1, 0, { ...defaultFinalStage });
+  }
+
+  return list;
+}
+
 function withStageStatuses(state) {
   const currentIndex = state.stages.findIndex((stage) => stage.id === state.currentStageId);
 
@@ -89,7 +110,7 @@ function withStageStatuses(state) {
 }
 
 function normalizeState(state) {
-  const stages = Array.isArray(state?.stages) && state.stages.length > 0 ? state.stages : clone(DEFAULT_STAGES);
+  const stages = normalizeAdminStages(state?.stages);
   const currentStageId = normalizeId(state?.currentStageId) || stages[0].id;
   const stageExists = stages.some((stage) => stage.id === currentStageId);
   const screenOverrideStageId = normalizeId(state?.screenOverrideStageId);
@@ -236,5 +257,6 @@ function createAdminStateRepository(dataPath = DEFAULT_DATA_PATH) {
 
 module.exports = {
   DEFAULT_ADMIN_STAGES: DEFAULT_STAGES,
+  normalizeAdminStages,
   createAdminStateRepository,
 };

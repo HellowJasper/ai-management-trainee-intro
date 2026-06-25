@@ -343,6 +343,14 @@ function getFallbackTeamState() {
       name: "药学",
       nameEn: "PHARMACEUTICALS",
       hostDepartment: "药学研发中心",
+      hostDepartmentEn: "PHARMACEUTICAL R&D CENTER",
+      focus: "文献挖掘、靶点筛选、处方工艺、专利检索。",
+      focusEn: "Literature Mining, Target Screening, Formulation Process, Patent Search.",
+      scenarios: ["药物信息检索助手", "实验方案生成", "文献摘要与对比"],
+      scenariosEn: ["Drug Information Retrieval Assistant", "Experiment Plan Generation", "Literature Summary and Comparison"],
+      deliverable: "知识库 + 分析报告 + 可演示 Demo。",
+      deliverableEn: "Knowledge Base + Analysis Report + Demo.",
+      docUrl: "",
       color: "var(--neon)",
       colorRgb: "40, 255, 200",
       advisor: { name: "队长 A", department: "药学研发中心", role: "队长" },
@@ -354,6 +362,14 @@ function getFallbackTeamState() {
       name: "医学",
       nameEn: "CLINICAL MEDICINE",
       hostDepartment: "临床研发中心",
+      hostDepartmentEn: "CLINICAL R&D CENTER",
+      focus: "临床资料、医学问答、病例归纳、研究辅助。",
+      focusEn: "Clinical Data, Medical Q&A, Case Summaries, Research Assistance.",
+      scenarios: ["医学资料问答", "临床方案比对", "研究资料结构化"],
+      scenariosEn: ["Medical Data Q&A", "Clinical Plan Comparison", "Research Data Structuring"],
+      deliverable: "问答系统 + 资料库 + 风险提示。",
+      deliverableEn: "Q&A System + Knowledge Base + Risk Alerts.",
+      docUrl: "",
       color: "rgb(205, 255, 92)",
       colorRgb: "205, 255, 92",
       advisor: { name: "队长 B", department: "临床研发中心", role: "队长" },
@@ -365,6 +381,14 @@ function getFallbackTeamState() {
       name: "营销",
       nameEn: "SALES & MARKETING",
       hostDepartment: "健康品事业部",
+      hostDepartmentEn: "HEALTH PRODUCTS BUSINESS UNIT",
+      focus: "用户洞察、内容生成、投放优化、经营分析。",
+      focusEn: "User Insight, Content Generation, Media Optimization, Business Analytics.",
+      scenarios: ["营销文案生成", "客户分层与标签", "活动复盘和 ROI 分析"],
+      scenariosEn: ["Marketing Copy Generation", "Customer Segmentation and Tagging", "Campaign Review and ROI Analysis"],
+      deliverable: "营销助手 + 内容模板 + 数据看板。",
+      deliverableEn: "Marketing Assistant + Content Templates + Data Dashboard.",
+      docUrl: "",
       color: "rgb(100, 232, 214)",
       colorRgb: "100, 232, 214",
       advisor: { name: "队长 C", department: "健康品事业部", role: "队长" },
@@ -376,6 +400,14 @@ function getFallbackTeamState() {
       name: "职能",
       nameEn: "GENERAL FUNCTIONS",
       hostDepartment: "董事长办公室",
+      hostDepartmentEn: "CHAIRMAN OFFICE",
+      focus: "流程自动化、知识管理、会议纪要、制度问答。",
+      focusEn: "Workflow Automation, Knowledge Management, Meeting Minutes, Policy Q&A.",
+      scenarios: ["办公 Copilot", "制度检索与问答", "会议总结与待办提取"],
+      scenariosEn: ["Office Copilot", "Policy Search and Q&A", "Meeting Summary and Action Extraction"],
+      deliverable: "流程助手 + 问答库 + 自动化脚本。",
+      deliverableEn: "Workflow Assistant + Q&A Base + Automation Scripts.",
+      docUrl: "",
       color: "var(--neon-2)",
       colorRgb: "167, 255, 79",
       advisor: { name: "队长 D", department: "董事长办公室", role: "队长" },
@@ -387,6 +419,14 @@ function getFallbackTeamState() {
       name: "生产",
       nameEn: "PRODUCTION & MANUFACTURING",
       hostDepartment: "生产管理中心",
+      hostDepartmentEn: "PRODUCTION MANAGEMENT CENTER",
+      focus: "智能制造、质量管控、设备预测、排产优化。",
+      focusEn: "Smart Manufacturing, Quality Control, Equipment Prediction, Scheduling Optimization.",
+      scenarios: ["质检视觉识别", "设备维保预测", "能耗监控与排班建议"],
+      scenariosEn: ["Visual Quality Inspection", "Equipment Maintenance Prediction", "Energy Monitoring and Shift Recommendations"],
+      deliverable: "生产看板 + 预警模型 + 操作建议。",
+      deliverableEn: "Production Dashboard + Warning Model + Operation Recommendations.",
+      docUrl: "",
       color: "rgb(110, 235, 150)",
       colorRgb: "110, 235, 150",
       advisor: { name: "队长 E", department: "生产管理中心", role: "队长" },
@@ -416,6 +456,10 @@ let introExitTimer = null;
 let isIntroExiting = false;
 let lastAdminStageSyncKey = "";
 let adminPollTimer = null;
+const TEAM_STATE_POLL_MS = 5000;
+let teamStatePollTimer = null;
+let teamStateSignature = "";
+let teamStateSyncing = false;
 const TRAINEE_PROFILE_POLL_MS = 5000;
 let traineeProfilePollTimer = null;
 let traineeProfileSignature = "";
@@ -511,6 +555,7 @@ const redrawWordsButton = document.getElementById("redrawWordsButton");
 const discoverButton = document.getElementById("discoverButton");
 const discoverMenu = document.getElementById("discoverMenu");
 const discoverPanel = document.getElementById("discoverPanel");
+const departmentGrid = document.getElementById("departmentGrid");
 const landingActions = document.getElementById("landingActions");
 const enterButton = document.getElementById("enterButton");
 
@@ -558,6 +603,12 @@ const viewStages = {
   voteResult: document.getElementById("voteResultStage"),
   finalResult: document.getElementById("finalResultStage"),
 };
+const explicitScreenViewRoute = resolveExplicitScreenViewRoute();
+
+function resolveExplicitScreenViewRoute() {
+  const params = new URLSearchParams(window.location.search || "");
+  return window.AppLogic.resolveScreenViewFromRouteStage(params.get("stage") || params.get("view") || "");
+}
 
 function createRain(id, options) {
   if (!window.CodeRain) return null;
@@ -885,6 +936,166 @@ function renderPhotoWall() {
   `;
 
   photoWall.innerHTML = cardsHtml + svgHtml;
+}
+
+function createTeamStateSignature(teams = []) {
+  return JSON.stringify((Array.isArray(teams) ? teams : []).map((team) => ({
+    id: team?.id || "",
+    name: team?.name || "",
+    nameEn: team?.nameEn || "",
+    index: team?.index || "",
+    status: team?.status || "",
+    hostDepartment: team?.hostDepartment || "",
+    hostDepartmentEn: team?.hostDepartmentEn || "",
+    focus: team?.focus || "",
+    focusEn: team?.focusEn || "",
+    scenarios: Array.isArray(team?.scenarios) ? team.scenarios : [],
+    scenariosEn: Array.isArray(team?.scenariosEn) ? team.scenariosEn : [],
+    deliverable: team?.deliverable || "",
+    deliverableEn: team?.deliverableEn || "",
+    docUrl: team?.docUrl || "",
+    advisor: team?.advisor || null,
+    members: Array.isArray(team?.members) ? team.members : [],
+    work: team?.work || null,
+  })));
+}
+
+function normalizeBusinessScenarioList(value, fallback = []) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+
+  return String(value || "")
+    .split(/\r?\n|[；;]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .concat([])
+    .filter(Boolean)
+    || fallback;
+}
+
+function businessScenarioHref(team = {}) {
+  const href = String(team.docUrl || "").trim();
+  return href || "#";
+}
+
+function bindBusinessScenarioCardEffects() {
+  if (!departmentGrid) {
+    return;
+  }
+
+  departmentGrid.querySelectorAll(".dept-card").forEach((card) => {
+    card.addEventListener("click", (event) => {
+      if (card.classList.contains("is-doc-missing")) {
+        event.preventDefault();
+      }
+    });
+
+    card.addEventListener("pointermove", (event) => {
+      const rect = card.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const width = rect.width || 1;
+      const height = rect.height || 1;
+      const px = (x / width) * 100;
+      const py = (y / height) * 100;
+
+      card.style.setProperty("--mouse-x", `${px}%`);
+      card.style.setProperty("--mouse-y", `${py}%`);
+      card.style.transition = "none";
+      card.style.transform = `translateY(-6px) rotateX(${((y / height) - 0.5) * -12}deg) rotateY(${((x / width) - 0.5) * 12}deg)`;
+    });
+
+    card.addEventListener("pointerleave", () => {
+      card.style.transition = "";
+      card.style.transform = "";
+    });
+  });
+}
+
+function renderBusinessScenarioCards() {
+  if (!departmentGrid) {
+    return;
+  }
+
+  const teams = Array.isArray(teamState) && teamState.length ? teamState : getFallbackTeamState();
+  departmentGrid.innerHTML = teams.slice(0, 5).map((team, index) => {
+    const scenarios = normalizeBusinessScenarioList(team.scenarios, []);
+    const href = businessScenarioHref(team);
+    const disabledLink = href === "#";
+
+    return `
+      <a
+        href="${escapeAttribute(href)}"
+        target="_blank"
+        rel="noreferrer"
+        class="dept-card${disabledLink ? " is-doc-missing" : ""}"
+        style="--dept-color: ${escapeAttribute(team.color || "var(--neon)")}; --dept-color-rgb: ${escapeAttribute(team.colorRgb || "40, 255, 200")};"
+        aria-label="${escapeAttribute(`${team.name || `赛道 ${index + 1}`} 查看文档`)}"
+      >
+        <header class="dept-head">
+          <div class="dept-icon-glow">${escapeHtml(team.index || String(index + 1).padStart(2, "0"))}</div>
+          <div>
+            <h3>${escapeHtml(team.name || "")}</h3>
+            <span class="dept-en">${escapeHtml(team.nameEn || "")}</span>
+          </div>
+        </header>
+        <div class="dept-mentor">
+          <span class="dept-label">HOST DEPARTMENT</span>
+          <b>${escapeHtml(team.hostDepartment || "")}</b>
+        </div>
+        <div class="dept-body">
+          <div class="dept-info">
+            <span class="dept-label">TRACK FOCUS</span>
+            <p>${escapeHtml(team.focus || "")}</p>
+          </div>
+          <div class="dept-info">
+            <span class="dept-label">AI SCENARIOS</span>
+            <ul>
+              ${scenarios.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+            </ul>
+          </div>
+          <div class="dept-info">
+            <span class="dept-label">DELIVERABLE</span>
+            <p>${escapeHtml(team.deliverable || "")}</p>
+          </div>
+        </div>
+        <div class="dept-status" aria-hidden="true"></div>
+        <div class="dept-link-badge">${disabledLink ? "待配置文档" : "查看文档 ➔"}</div>
+      </a>
+    `;
+  }).join("");
+  bindBusinessScenarioCardEffects();
+}
+
+async function syncTeamState() {
+  if (teamStateSyncing) {
+    return;
+  }
+
+  teamStateSyncing = true;
+  try {
+    const nextTeamState = await window.AppData.loadTeams(getFallbackTeamState());
+    const nextSignature = createTeamStateSignature(nextTeamState);
+    if (nextSignature === teamStateSignature) {
+      return;
+    }
+
+    teamState = nextTeamState;
+    teamStateSignature = nextSignature;
+    renderBusinessScenarioCards();
+    renderTeamFormation();
+    renderRoadshowStage();
+  } catch (error) {
+    console.warn("Team state polling failed.", error);
+  } finally {
+    teamStateSyncing = false;
+  }
+}
+
+function startTeamStatePolling() {
+  window.clearInterval(teamStatePollTimer);
+  teamStatePollTimer = window.setInterval(syncTeamState, TEAM_STATE_POLL_MS);
 }
 
 function renderTeamFormation() {
@@ -1844,6 +2055,9 @@ async function pollAdminState() {
   try {
     const state = await window.AppData.loadAdminState();
     await syncVisibleTimerState();
+    if (explicitScreenViewRoute) {
+      return;
+    }
     const stageId = state?.screenOverrideStageId || state?.currentStageId || "";
     if (!stageId) {
       return;
@@ -2068,36 +2282,6 @@ function bindEvents() {
     }
   });
 
-  // 3D Card Hover Tilting & Gloss Effects
-  const deptCards = document.querySelectorAll(".dept-card");
-  deptCards.forEach((card) => {
-    card.addEventListener("pointermove", (e) => {
-      const rect = card.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
-      const width = rect.width;
-      const height = rect.height;
-
-      const px = (x / width) * 100;
-      const py = (y / height) * 100;
-
-      card.style.setProperty("--mouse-x", `${px}%`);
-      card.style.setProperty("--mouse-y", `${py}%`);
-
-      const rotateX = ((y / height) - 0.5) * -12;
-      const rotateY = ((x / width) - 0.5) * 12;
-
-      card.style.transition = "none";
-      card.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.015, 1.015, 1.015)`;
-    });
-
-    card.addEventListener("pointerleave", () => {
-      card.style.transition = "transform 450ms cubic-bezier(0.16, 1, 0.3, 1), border-color 300ms ease, box-shadow 300ms ease";
-      card.style.transform = "rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)";
-    });
-  });
-
   window.addEventListener("resize", () => {
     renderPhotoWall();
     resetDock();
@@ -2108,22 +2292,28 @@ function bindEvents() {
 
   window.addEventListener("pagehide", () => {
     window.clearInterval(adminPollTimer);
+    window.clearInterval(teamStatePollTimer);
     window.clearInterval(traineeProfilePollTimer);
   });
 }
 
 async function initApp() {
-  appShell.classList.add("view-intro");
+  if (explicitScreenViewRoute) {
+    setView(explicitScreenViewRoute);
+  } else {
+    appShell.classList.add("view-intro");
+    syncStages("intro");
+    syncRain("intro");
+    syncParticles("intro");
+  }
   appShell.style.setProperty("--intro-hold-duration", `${INTRO_HOLD_MS}ms`);
   appShell.style.setProperty("--intro-exit-duration", `${INTRO_EXIT_MS}ms`);
-  syncStages("intro");
   bindEvents();
-  syncRain("intro");
-  syncParticles("intro");
   renderPhotoWall();
+  renderBusinessScenarioCards();
   renderTeamFormation();
   resetDock();
-  if (typeof window.IntroSequence === "undefined") {
+  if (!explicitScreenViewRoute && typeof window.IntroSequence === "undefined") {
     introTimer = window.setTimeout(() => {
       startIntroExit(false);
     }, INTRO_HOLD_MS);
@@ -2132,6 +2322,7 @@ async function initApp() {
   traineeState = normalizeTraineeList(await window.AppData.loadTrainees(fallbackTrainees));
   traineeProfileSignature = createTraineeProfileSignature(traineeState);
   teamState = await window.AppData.loadTeams(getFallbackTeamState());
+  teamStateSignature = createTeamStateSignature(teamState);
   applyRoadshowState(await window.AppData.loadRoadshow({
     storageKey: ROADSHOW_STORAGE_KEY,
     durationMs: ROADSHOW_DURATION_MS,
@@ -2139,12 +2330,14 @@ async function initApp() {
   applyVoteResultsState(await window.AppData.loadVoteResults([]));
   selectedId = traineeState.find((t) => t.id === "jasper")?.id || traineeState[0]?.id || "";
   renderPhotoWall();
+  renderBusinessScenarioCards();
   renderTeamFormation();
   renderRoadshowStage();
   renderVoteProgress();
   renderVoteResult();
   resetDock();
   startAdminStatePolling();
+  startTeamStatePolling();
   startTraineeProfilePolling();
 }
 

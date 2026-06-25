@@ -957,7 +957,7 @@ button:disabled {
 .welcome-terminal {
   position: relative;
   z-index: 4;
-  width: min(1020px, calc(100vw - 80px));
+  width: min(1180px, calc(100vw - clamp(120px, 14vw, 280px)));
   border: 1px solid rgba(103, 255, 213, 0.18);
   border-top: 1px solid rgba(103, 255, 213, 0.35);
   border-radius: var(--radius);
@@ -1029,7 +1029,10 @@ button:disabled {
 .welcome-terminal-body {
   position: relative;
   z-index: 1;
-  padding: clamp(48px, 6vw, 76px) clamp(34px, 4.5vw, 52px) clamp(44px, 5.5vw, 70px);
+  display: grid;
+  align-content: center;
+  min-height: min(720px, calc(100vh - 150px));
+  padding: clamp(40px, 5vh, 62px) clamp(44px, 5.4vw, 74px) clamp(38px, 4.8vh, 58px);
 }
 
 .welcome-kicker {
@@ -1070,19 +1073,21 @@ button:disabled {
 .welcome-boot-lines {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 16px;
-  margin: clamp(32px, 3.8vw, 48px) 0 clamp(32px, 3.8vw, 48px);
+  gap: 12px;
+  width: 100%;
+  max-width: 980px;
+  margin: clamp(26px, 3vh, 34px) 0 clamp(22px, 2.8vh, 32px);
 }
 
 .welcome-boot-lines section {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(200px, 0.75fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1.08fr) minmax(260px, 0.72fr);
+  gap: clamp(18px, 3vw, 40px);
   align-items: center;
   min-height: 0;
   border-left: 2px solid var(--neon);
   border-radius: 0;
-  padding: 14px 0 14px 20px;
+  padding: 12px 0 12px 20px;
   background: linear-gradient(90deg, rgba(40, 255, 200, 0.04) 0%, transparent 80%);
   color: rgba(255, 255, 255, 0.95);
   line-height: 1.45;
@@ -1125,11 +1130,11 @@ button:disabled {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  width: min(540px, 100%);
-  margin: clamp(32px, 4.2vw, 56px) auto 0;
+  width: min(440px, 100%);
+  margin: clamp(16px, 2.2vh, 28px) auto 0;
   border: 1px solid rgba(167, 255, 79, 0.42);
   border-radius: 999px;
-  padding: clamp(16px, 2.2vw, 20px) clamp(36px, 4.5vw, 52px);
+  padding: clamp(13px, 1.7vw, 17px) clamp(30px, 4vw, 46px);
   background: linear-gradient(180deg, rgba(167, 255, 79, 0.15) 0%, rgba(167, 255, 79, 0.04) 100%);
   color: #eafff8;
   cursor: pointer;
@@ -2806,6 +2811,14 @@ button:disabled {
   transform: translateZ(20px);
 }
 
+.dept-card.is-doc-missing .dept-link-badge,
+.dept-card.is-doc-missing:hover .dept-link-badge {
+  border-color: rgba(160, 190, 185, 0.24);
+  background: rgba(160, 190, 185, 0.08);
+  color: rgba(206, 230, 225, 0.62);
+  box-shadow: none;
+}
+
 /* ==========================================================================
    Team Formation Stage
    ========================================================================== */
@@ -3722,7 +3735,8 @@ button:disabled {
 
 .final-result-stage {
   --final-result-footer-safe: clamp(92px, 9vh, 116px);
-  --final-result-cockpit-height: min(760px, calc(100vh - clamp(162px, 17vh, 204px)));
+  --final-result-chrome-space: clamp(150px, 15vh, 196px);
+  overflow: auto;
 }
 
 .app-shell[data-view="vote"] > .vote-stage,
@@ -3753,8 +3767,7 @@ button:disabled {
 }
 
 .vote-hub-wrap,
-.vote-result-hub-wrap,
-.final-result-hub-wrap {
+.vote-result-hub-wrap {
   position: absolute;
   inset: 0;
   z-index: 3;
@@ -3768,8 +3781,13 @@ button:disabled {
 }
 
 .final-result-hub-wrap {
-  padding-top: clamp(72px, 7vh, 92px);
-  padding-bottom: var(--final-result-footer-safe);
+  position: relative;
+  z-index: 3;
+  display: grid;
+  min-height: 100dvh;
+  align-items: center;
+  justify-items: center;
+  padding: clamp(76px, 8vh, 104px) clamp(42px, 4.8vw, 88px) var(--final-result-footer-safe);
 }
 
 .vote-progress-cockpit,
@@ -3789,8 +3807,10 @@ button:disabled {
 
 .final-result-cockpit {
   width: min(1680px, 92vw);
+  max-width: 1540px;
   display: grid;
-  grid-template-columns: minmax(430px, 0.95fr) minmax(520px, 1.05fr);
+  grid-template-columns: minmax(360px, 0.92fr) minmax(520px, 1.08fr);
+  align-items: start;
   gap: clamp(14px, 1.4vw, 22px);
   padding: clamp(14px, 1.55vw, 24px);
   border: 1px solid rgba(103, 255, 213, 0.28);
@@ -4118,10 +4138,10 @@ button:disabled {
 }
 
 .final-result-cockpit {
-  height: var(--final-result-cockpit-height);
-  max-height: var(--final-result-cockpit-height);
-  min-height: 0;
-  overflow: hidden;
+  height: auto;
+  max-height: calc(100dvh - var(--final-result-chrome-space));
+  min-height: min(540px, calc(100dvh - var(--final-result-chrome-space)));
+  overflow: auto;
 }
 
 .vote-winner-panel {
@@ -4219,8 +4239,9 @@ button:disabled {
   display: grid;
   align-content: center;
   justify-items: center;
-  gap: clamp(9px, 1.15vh, 16px);
-  padding: clamp(22px, 2.6vw, 38px);
+  min-height: clamp(460px, 55vh, 620px);
+  gap: clamp(8px, 1vh, 13px);
+  padding: clamp(20px, 2.1vw, 32px);
   border-color: rgba(var(--vote-color-rgb), 0.46);
   background:
     radial-gradient(circle at 50% 24%, rgba(var(--vote-color-rgb), 0.24), transparent 34%),
@@ -4263,7 +4284,7 @@ button:disabled {
 
 .final-result-score strong {
   color: rgba(244, 255, 250, 0.98);
-  font-size: clamp(66px, 6vw, 116px);
+  font-size: clamp(58px, 5.2vw, 98px);
   line-height: 0.9;
   text-shadow: 0 0 34px rgba(var(--vote-color-rgb), 0.18);
 }
@@ -4945,6 +4966,7 @@ button:disabled {
   }
 
   .welcome-terminal-body {
+    min-height: auto;
     overflow-y: auto;
   }
 
@@ -5197,6 +5219,398 @@ button:disabled {
   }
 }
 
+@media (max-width: 760px) {
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    overflow: hidden;
+  }
+
+  .app-shell {
+    min-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .landing-stage,
+  .welcome-stage,
+  .home-stage,
+  .discover-stage,
+  .team-stage,
+  .countdown-stage,
+  .roadshow-stage,
+  .vote-stage,
+  .vote-result-stage,
+  .final-result-stage {
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .stage-header {
+    position: sticky;
+    top: 0;
+    left: auto;
+    right: auto;
+    width: auto;
+    padding: calc(12px + env(safe-area-inset-top)) 14px 10px;
+    background: linear-gradient(180deg, rgba(2, 8, 14, 0.94), rgba(2, 8, 14, 0.68) 70%, transparent);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .brand-chip,
+  .cohort-mark {
+    min-width: 0;
+    max-width: 100%;
+    justify-content: center;
+    min-height: 32px;
+    padding: 7px 9px;
+    font-size: 8px;
+  }
+
+  .stage-title-lockup {
+    position: relative;
+    left: auto;
+    top: auto;
+    margin: 72px 14px 0;
+    font-size: clamp(58px, 21vw, 104px);
+    line-height: 0.86;
+  }
+
+  .photo-wall-wrap {
+    position: relative;
+    left: auto;
+    top: auto;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    margin-top: 8px;
+    padding: 10px 0 34px;
+    transform: none;
+  }
+
+  .photo-wall {
+    display: flex;
+    gap: 12px;
+    height: auto;
+    min-height: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 10px 18px 26px;
+    perspective: none;
+    scroll-padding-inline: 18px;
+    scroll-snap-type: x mandatory;
+  }
+
+  .photo-wall-svg {
+    display: none;
+  }
+
+  .profile-card {
+    position: relative;
+    left: auto;
+    bottom: auto;
+    flex: 0 0 var(--card-width, 118px);
+    width: var(--card-width, 118px);
+    height: var(--card-height, 196px);
+    transform: none !important;
+    scroll-snap-align: center;
+  }
+
+  .profile-card::after {
+    display: none;
+  }
+
+  .profile-meta {
+    min-height: var(--meta-height, 38px);
+  }
+
+  .profile-meta span {
+    white-space: normal;
+  }
+
+  .discover-hub-wrap {
+    position: relative;
+    inset: auto;
+    min-height: 100dvh;
+    gap: 22px;
+    padding: 78px 14px 30px;
+  }
+
+  .discover-hub-title {
+    font-size: clamp(27px, 8vw, 38px);
+    letter-spacing: 0.04em;
+  }
+
+  .discover-hub-desc {
+    margin-bottom: 10px;
+  }
+
+  .discover-glow-orb {
+    display: none;
+  }
+
+  .department-grid {
+    height: auto;
+    min-height: 0;
+    transform: none;
+    grid-template-columns: 1fr;
+  }
+
+  .dept-card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: auto;
+    padding: 18px;
+    overflow: visible;
+    transform: none !important;
+    transform-style: flat;
+  }
+
+  .dept-head,
+  .dept-mentor {
+    min-height: 0;
+  }
+
+  .dept-head {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .dept-icon-glow,
+  .dept-card h3,
+  .dept-link-badge {
+    transform: none !important;
+  }
+
+  .dept-en {
+    overflow-wrap: anywhere;
+    letter-spacing: 0.08em;
+  }
+
+  .dept-mentor {
+    margin: 0;
+    padding: 12px;
+  }
+
+  .dept-body {
+    gap: 12px;
+  }
+
+  .dept-status {
+    display: none;
+  }
+
+  .dept-link-badge {
+    min-height: 42px;
+    margin-top: 0;
+    border-radius: 8px;
+  }
+
+  .team-hub-wrap {
+    min-height: 100dvh;
+    padding: 78px 14px 30px;
+    gap: 18px;
+  }
+
+  .team-hub-title {
+    font-size: clamp(27px, 8vw, 38px);
+    letter-spacing: 0.04em;
+  }
+
+  .team-grid {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+    gap: 14px;
+  }
+
+  .team-squad-card {
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .team-role-grid {
+    grid-template-rows: none;
+    auto-rows: minmax(58px, auto);
+  }
+
+  .team-role-slot {
+    grid-template-columns: auto minmax(0, 1fr);
+    row-gap: 8px;
+  }
+
+  .team-role-action {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .countdown-hub-wrap,
+  .roadshow-hub-wrap,
+  .vote-hub-wrap,
+  .vote-result-hub-wrap,
+  .final-result-hub-wrap {
+    min-height: 100dvh;
+    padding: 78px 14px 30px;
+    place-items: start stretch;
+  }
+
+  .mission-countdown-core {
+    width: 100%;
+  }
+
+  .countdown-digits {
+    gap: 6px;
+    font-size: clamp(42px, 15vw, 72px);
+  }
+
+  .countdown-labels {
+    gap: 8px;
+  }
+
+  .roadshow-cockpit,
+  .vote-progress-cockpit,
+  .vote-result-cockpit,
+  .final-result-cockpit {
+    width: 100%;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    overflow: visible;
+    border-radius: 10px;
+  }
+
+  .roadshow-command-grid,
+  .vote-progress-layout,
+  .vote-result-cockpit,
+  .final-result-cockpit {
+    grid-template-columns: 1fr;
+  }
+
+  .roadshow-control-stack {
+    grid-template-rows: auto;
+  }
+
+  .roadshow-member {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .roadshow-member-seat,
+  .roadshow-member-status {
+    display: none;
+  }
+
+  .roadshow-timer-digits {
+    font-size: clamp(58px, 21vw, 96px);
+  }
+
+  .vote-command-bar {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 6px;
+    padding: 12px;
+    text-align: center;
+  }
+
+  .vote-command-bar span:last-child {
+    text-align: center;
+  }
+
+  .vote-progress-layout {
+    height: auto;
+    padding: 12px;
+  }
+
+  .vote-live-hero {
+    padding: 20px;
+  }
+
+  .vote-live-hero h2 {
+    white-space: normal;
+  }
+
+  .vote-total-orbit {
+    width: min(210px, 62vw);
+  }
+
+  .vote-progress-list,
+  .vote-result-table,
+  .final-result-leaderboard {
+    grid-template-rows: none;
+    gap: 10px;
+  }
+
+  .vote-progress-row {
+    grid-template-columns: 44px minmax(0, 1fr) 70px;
+    padding: 12px;
+  }
+
+  .vote-row-meter {
+    grid-column: 1 / -1;
+  }
+
+  .vote-result-cockpit,
+  .final-result-cockpit {
+    padding: 12px;
+  }
+
+  .vote-result-board,
+  .final-result-sideboard {
+    min-height: 0;
+  }
+
+  .vote-result-head {
+    grid-template-columns: 1fr;
+  }
+
+  .vote-result-row {
+    grid-template-columns: 42px minmax(0, 1fr) 72px;
+    gap: 10px;
+    min-height: auto;
+    padding: 12px;
+  }
+
+  .vote-result-number,
+  .vote-result-share {
+    display: none;
+  }
+
+  .vote-result-points {
+    grid-column: auto;
+  }
+
+  .vote-rule-panel strong,
+  .final-result-rule-panel strong {
+    white-space: normal;
+  }
+
+  .vote-winner-stats,
+  .final-result-metrics,
+  .final-result-score-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .final-result-row {
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 10px;
+    min-height: auto;
+  }
+
+  .final-result-total {
+    grid-column: 1 / -1;
+    justify-items: start;
+  }
+
+  .vote-result-team span,
+  .final-result-team span {
+    white-space: normal;
+  }
+}
+
 @media (max-width: 560px) {
   .stage-header {
     align-items: stretch;
@@ -5346,6 +5760,7 @@ button:disabled {
     max-height: calc(100vh - 82px);
   }
   .welcome-terminal-body {
+    min-height: auto;
     padding-top: 17px;
     padding-bottom: 18px;
   }

@@ -86,11 +86,13 @@ const confirmDangerAction = document.querySelector("#confirmDangerAction");
 const closeVoteButton = document.querySelector("#closeVoteButton");
 const publishResultButton = document.querySelector("#publishResultButton");
 const saveDisplayTimesButton = document.querySelector("#saveDisplayTimesButton");
-const missionCountdownDuration = document.querySelector("#missionCountdownDuration");
+const missionCountdownHours = document.querySelector("#missionCountdownHours");
+const missionCountdownMinutes = document.querySelector("#missionCountdownMinutes");
 const missionCountdownState = document.querySelector("#missionCountdownState");
 const startMissionCountdownButton = document.querySelector("#startMissionCountdownButton");
 const resetMissionCountdownButton = document.querySelector("#resetMissionCountdownButton");
-const roadshowDuration = document.querySelector("#roadshowDuration");
+const roadshowHours = document.querySelector("#roadshowHours");
+const roadshowMinutes = document.querySelector("#roadshowMinutes");
 const roadshowCurrentTeamSelect = document.querySelector("#roadshowCurrentTeamSelect");
 const roadshowNextTeamSelect = document.querySelector("#roadshowNextTeamSelect");
 const roadshowStateLabel = document.querySelector("#roadshowState");
@@ -131,9 +133,14 @@ const adminScreenMissionState = document.querySelector("#adminScreenMissionState
 const adminScreenRoadshowState = document.querySelector("#adminScreenRoadshowState");
 const adminPageManager = document.querySelector("#adminPageManager");
 const adminContentManager = document.querySelector("#adminContentManager");
+const adminContentTabs = [...document.querySelectorAll("[data-content-tab]")];
+const adminContentPanels = [...document.querySelectorAll("[data-content-panel]")];
 const refreshContentManagerButton = document.querySelector("#refreshContentManagerButton");
 const refreshDataWorkspaceButton = document.querySelector("#refreshDataWorkspaceButton");
 const refreshAuditLogButton = document.querySelector("#refreshAuditLogButton");
+const adminAutoRefreshToggle = document.querySelector("#adminAutoRefreshToggle");
+const adminAutoRefreshInterval = document.querySelector("#adminAutoRefreshInterval");
+const adminAutoRefreshState = document.querySelector("#adminAutoRefreshState");
 const adminVoteWorkspaceStatus = document.querySelector("#adminVoteWorkspaceStatus");
 const adminWorkWorkspaceStatus = document.querySelector("#adminWorkWorkspaceStatus");
 const adminVoteRankingFull = document.querySelector("#adminVoteRankingFull");
@@ -144,6 +151,7 @@ const adminTeamStatusList = document.querySelector("#adminTeamStatusList");
 const adminTeamMemberStatus = document.querySelector("#adminTeamMemberStatus");
 const adminTeamMemberForm = document.querySelector("#adminTeamMemberForm");
 const adminTeamMemberTeamId = document.querySelector("#adminTeamMemberTeamId");
+const adminTeamMemberUserSelect = document.querySelector("#adminTeamMemberUserSelect");
 const adminTeamMemberUserId = document.querySelector("#adminTeamMemberUserId");
 const adminTeamMemberName = document.querySelector("#adminTeamMemberName");
 const adminTeamMemberDepartment = document.querySelector("#adminTeamMemberDepartment");
@@ -153,6 +161,11 @@ const adminTeamMemberPhoto = document.querySelector("#adminTeamMemberPhoto");
 const adminTeamMemberSubmit = document.querySelector("[data-add-team-member]");
 const resetTeamMemberFormButton = document.querySelector("#resetTeamMemberFormButton");
 const adminAuditLogList = document.querySelector("#adminAuditLogList");
+const adminAuditActionFilter = document.querySelector("#adminAuditActionFilter");
+const adminAuditActorFilter = document.querySelector("#adminAuditActorFilter");
+const adminAuditTargetFilter = document.querySelector("#adminAuditTargetFilter");
+const adminAuditStatus = document.querySelector("#adminAuditStatus");
+const resetAuditFiltersButton = document.querySelector("#resetAuditFiltersButton");
 const adminSystemRuntimeStatus = document.querySelector("#adminSystemRuntimeStatus");
 const adminSystemSettings = document.querySelector("#adminSystemSettings");
 const adminUserRoleStatus = document.querySelector("#adminUserRoleStatus");
@@ -163,6 +176,21 @@ const adminUserRoleName = document.querySelector("#adminUserRoleName");
 const adminUserRoleOpenId = document.querySelector("#adminUserRoleOpenId");
 const adminUserRoleUnionId = document.querySelector("#adminUserRoleUnionId");
 const adminUserRoleDepartment = document.querySelector("#adminUserRoleDepartment");
+const adminBusinessScenarioStatus = document.querySelector("#adminBusinessScenarioStatus");
+const adminBusinessScenarioForm = document.querySelector("#adminBusinessScenarioForm");
+const adminBusinessScenarioTeam = document.querySelector("#adminBusinessScenarioTeam");
+const adminBusinessScenarioName = document.querySelector("#adminBusinessScenarioName");
+const adminBusinessScenarioNameEn = document.querySelector("#adminBusinessScenarioNameEn");
+const adminBusinessScenarioHost = document.querySelector("#adminBusinessScenarioHost");
+const adminBusinessScenarioHostEn = document.querySelector("#adminBusinessScenarioHostEn");
+const adminBusinessScenarioFocus = document.querySelector("#adminBusinessScenarioFocus");
+const adminBusinessScenarioFocusEn = document.querySelector("#adminBusinessScenarioFocusEn");
+const adminBusinessScenarioScenarios = document.querySelector("#adminBusinessScenarioScenarios");
+const adminBusinessScenarioScenariosEn = document.querySelector("#adminBusinessScenarioScenariosEn");
+const adminBusinessScenarioDeliverable = document.querySelector("#adminBusinessScenarioDeliverable");
+const adminBusinessScenarioDeliverableEn = document.querySelector("#adminBusinessScenarioDeliverableEn");
+const adminBusinessScenarioDocUrl = document.querySelector("#adminBusinessScenarioDocUrl");
+const resetBusinessScenarioFormButton = document.querySelector("#resetBusinessScenarioFormButton");
 const adminTraineeProfileStatus = document.querySelector("#adminTraineeProfileStatus");
 const adminTraineeProfileForm = document.querySelector("#adminTraineeProfileForm");
 const adminTraineeProfileList = document.querySelector("#adminTraineeProfileList");
@@ -173,6 +201,9 @@ const adminTraineeProfileDepartment = document.querySelector("#adminTraineeProfi
 const adminTraineeProfileDepartmentEn = document.querySelector("#adminTraineeProfileDepartmentEn");
 const adminTraineeProfilePhoto = document.querySelector("#adminTraineeProfilePhoto");
 const adminTraineeProfileMemeImage = document.querySelector("#adminTraineeProfileMemeImage");
+const adminTraineeImagePickers = Array.from(document.querySelectorAll("[data-trainee-image-picker]"));
+const adminTraineeImageFiles = Array.from(document.querySelectorAll("[data-trainee-image-file]"));
+const adminTraineeImagePreviews = Array.from(document.querySelectorAll("[data-trainee-image-preview]"));
 const adminTraineeProfileSentence = document.querySelector("#adminTraineeProfileSentence");
 const adminTraineeProfileAiPartners = document.querySelector("#adminTraineeProfileAiPartners");
 const adminTraineeProfileFavoriteAI = document.querySelector("#adminTraineeProfileFavoriteAI");
@@ -203,6 +234,9 @@ let syncStatusState = {
   meta: "业务数据 / 日志",
 };
 
+let adminAutoRefreshTimer = null;
+let auditFilterDebounceTimer = null;
+
 let roadshowTeamState = {
   currentTeamId: "",
   nextTeamId: "",
@@ -227,12 +261,89 @@ const USER_ROLE_PAGE_SIZE = 10;
 
 // 用户管理用的角色筛选标签（与用户站口径一致：观众/选手/评委/管理员）。
 const USER_FILTER_LABELS = { public: "观众", player: "选手", judge: "评委", admin: "管理员" };
+const TEAM_MEMBER_ROLE_LABELS = {
+  advisor: "队长",
+  pm: "产品策划",
+  dev: "开发实现",
+  algorithm: "算法 / 数据",
+  design: "体验 / 设计",
+  presentation: "展示汇报",
+  other: "其他职责",
+};
 
 let traineeProfileState = {
   trainees: [],
   loading: false,
   editingId: "",
 };
+let businessScenarioEnglishTouched = new Set();
+
+const BUSINESS_SCENARIO_TRANSLATIONS = [
+  ["药物信息检索及数据库分析报告", "Drug Information Retrieval and Database Analysis Report"],
+  ["能耗监控与排班建议", "Energy Monitoring and Shift Recommendations"],
+  ["会议总结与待办提取", "Meeting Summary and Action Extraction"],
+  ["客户分层与标签", "Customer Segmentation and Tagging"],
+  ["活动复盘和 ROI 分析", "Campaign Review and ROI Analysis"],
+  ["活动复盘和ROI分析", "Campaign Review and ROI Analysis"],
+  ["制度检索与问答", "Policy Search and Q&A"],
+  ["设备维保预测", "Equipment Maintenance Prediction"],
+  ["研究资料结构化", "Research Data Structuring"],
+  ["临床方案比对", "Clinical Plan Comparison"],
+  ["医学资料问答", "Medical Data Q&A"],
+  ["实验方案生成", "Experiment Plan Generation"],
+  ["文献摘要与对比", "Literature Summary and Comparison"],
+  ["药物信息检索助手", "Drug Information Retrieval Assistant"],
+  ["质检视觉识别", "Visual Quality Inspection"],
+  ["文献靶点筛选", "Literature Target Screening"],
+  ["文献挖掘", "Literature Mining"],
+  ["靶点筛选", "Target Screening"],
+  ["处方工艺", "Formulation Process"],
+  ["专利检索", "Patent Search"],
+  ["临床资料", "Clinical Data"],
+  ["医学问答", "Medical Q&A"],
+  ["病例归纳", "Case Summaries"],
+  ["研究辅助", "Research Assistance"],
+  ["用户洞察", "User Insight"],
+  ["内容生成", "Content Generation"],
+  ["投放优化", "Media Optimization"],
+  ["经营分析", "Business Analytics"],
+  ["流程自动化", "Workflow Automation"],
+  ["知识管理", "Knowledge Management"],
+  ["会议纪要", "Meeting Minutes"],
+  ["制度问答", "Policy Q&A"],
+  ["智能制造", "Smart Manufacturing"],
+  ["质量管控", "Quality Control"],
+  ["设备预测", "Equipment Prediction"],
+  ["排产优化", "Scheduling Optimization"],
+  ["药学研发中心", "Pharmaceutical R&D Center"],
+  ["临床研发中心", "Clinical R&D Center"],
+  ["健康品事业部", "Health Products Business Unit"],
+  ["董事长办公室", "Chairman Office"],
+  ["生产管理中心", "Production Management Center"],
+  ["药学", "Pharmaceuticals"],
+  ["医学", "Clinical Medicine"],
+  ["营销", "Sales & Marketing"],
+  ["职能", "General Functions"],
+  ["生产", "Production & Manufacturing"],
+  ["知识库", "Knowledge Base"],
+  ["分析报告", "Analysis Report"],
+  ["可演示 Demo", "Demo"],
+  ["可视化 Demo", "Visual Demo"],
+  ["问答系统", "Q&A System"],
+  ["资料库", "Knowledge Base"],
+  ["风险提示", "Risk Alerts"],
+  ["营销助手", "Marketing Assistant"],
+  ["内容模板", "Content Templates"],
+  ["数据看板", "Data Dashboard"],
+  ["流程助手", "Workflow Assistant"],
+  ["问答库", "Q&A Base"],
+  ["自动化脚本", "Automation Scripts"],
+  ["生产看板", "Production Dashboard"],
+  ["预警模型", "Warning Model"],
+  ["操作建议", "Operation Recommendations"],
+  ["办公 Copilot", "Office Copilot"],
+  ["办公Copilot", "Office Copilot"],
+];
 
 const adminRoleLabels = {
   admin: "管理员",
@@ -247,17 +358,17 @@ const teamStatusLabels = {
 };
 
 const screenRoutes = [
-  { stageId: "opening", name: "启动仪式", route: "/?stage=welcome", note: "开场和入场引导" },
-  { stageId: "icebreaker", name: "新生破冰", route: "/?stage=discover", note: "星锐档案与互动破冰" },
-  { stageId: "tracks", name: "赛道发布", route: "/?stage=team", note: "五条赛道与组队大屏" },
-  { stageId: "team", name: "组队开启", route: "/?stage=team", note: "实时组队展示" },
-  { stageId: "vote", name: "投票开启", route: "/?stage=vote-progress", note: "大众投票进度" },
-  { stageId: "result", name: "结果发布", route: "/?stage=vote-result", note: "票数与赋分结果" },
-  { stageId: "final", name: "冠军展示", route: "/?stage=final-result", note: "冠军队伍展示" },
+  { stageId: "opening", name: "启动仪式", route: "/index.html?stage=opening", note: "开场和入场引导" },
+  { stageId: "icebreaker", name: "新生破冰", route: "/index.html?stage=icebreaker", note: "星锐档案与互动破冰" },
+  { stageId: "tracks", name: "赛道发布", route: "/index.html?stage=tracks", note: "五条赛道与组队大屏" },
+  { stageId: "team", name: "组队开启", route: "/index.html?stage=team", note: "实时组队展示" },
+  { stageId: "vote", name: "投票开启", route: "/index.html?stage=vote", note: "大众投票进度" },
+  { stageId: "result", name: "结果发布", route: "/index.html?stage=result", note: "票数与赋分结果" },
+  { stageId: "final", name: "冠军展示", route: "/index.html?stage=final", note: "冠军队伍展示" },
 ];
 
 const pageRoutes = [
-  { name: "主入口大屏", route: "/", note: "开场、组队、倒计时、投票与最终展示。" },
+  { name: "主入口大屏", route: "/index.html", note: "开场、组队、倒计时、投票与最终展示。" },
   { name: "移动端 / 公众端", route: "/site.html", note: "面向参赛选手、评委和观众的移动端入口。" },
   { name: "演示 Deck", route: "/screen.html", note: "独立赛事流程展示页面。" },
   { name: "管理后台", route: "/admin", note: "管理员控制台与数据管理入口。" },
@@ -285,6 +396,11 @@ function setText(node, value) {
   }
 }
 
+function formatErrorStatus(prefix, error) {
+  const message = String(error?.message || "").trim();
+  return message ? `${prefix}：${message}` : prefix;
+}
+
 function formatNumber(value) {
   const number = Number(value) || 0;
   return number.toLocaleString("zh-CN");
@@ -292,6 +408,11 @@ function formatNumber(value) {
 
 function formatSyncTime() {
   return new Date().toLocaleTimeString("zh-CN", { hour12: false });
+}
+
+function formatAutoRefreshInterval(milliseconds) {
+  const seconds = Math.max(1, Math.round((Number(milliseconds) || 10000) / 1000));
+  return `${seconds}秒`;
 }
 
 function renderSyncStatus() {
@@ -313,6 +434,98 @@ function setSyncStatus(status, label, meta) {
     meta,
   };
   renderSyncStatus();
+}
+
+function getAdminAutoRefreshInterval() {
+  const interval = Number(adminAutoRefreshInterval?.value);
+  return [5000, 10000, 30000].includes(interval) ? interval : 10000;
+}
+
+function setAdminAutoRefreshState(value) {
+  setText(adminAutoRefreshState, value);
+}
+
+function stopAdminAutoRefresh() {
+  if (adminAutoRefreshTimer) {
+    clearInterval(adminAutoRefreshTimer);
+    adminAutoRefreshTimer = null;
+  }
+}
+
+function syncAdminAutoRefresh() {
+  stopAdminAutoRefresh();
+  const enabled = Boolean(adminAutoRefreshToggle?.checked);
+  const interval = getAdminAutoRefreshInterval();
+
+  if (!enabled) {
+    setAdminAutoRefreshState("手动刷新");
+    return;
+  }
+
+  setAdminAutoRefreshState(`每 ${formatAutoRefreshInterval(interval)} 刷新`);
+  adminAutoRefreshTimer = setInterval(() => loadBusinessData({ writeLog: false }).catch((error) => {
+    console.warn("Auto refresh failed.", error);
+    setAdminAutoRefreshState("自动刷新失败");
+  }), interval);
+}
+
+function getAuditLogFilters() {
+  return {
+    limit: "80",
+    action: adminAuditActionFilter?.value || "",
+    actor: adminAuditActorFilter?.value || "",
+    targetType: adminAuditTargetFilter?.value || "",
+  };
+}
+
+function hasActiveAuditFilters(filters = getAuditLogFilters()) {
+  return Boolean(filters.action || filters.actor || filters.targetType || filters.targetId);
+}
+
+function setAuditStatus(status, message) {
+  if (!adminAuditStatus) {
+    return;
+  }
+
+  adminAuditStatus.classList.toggle("is-syncing", status === "syncing");
+  adminAuditStatus.classList.toggle("is-empty", status === "empty");
+  adminAuditStatus.classList.toggle("is-error", status === "error");
+  adminAuditStatus.classList.toggle("is-success", status === "success");
+  adminAuditStatus.textContent = message;
+}
+
+function syncAuditLogFilters() {
+  loadAuditTrail().catch((error) => {
+    console.warn("Audit log filter refresh failed.", error);
+  });
+}
+
+function scheduleAuditLogFilterSync() {
+  if (auditFilterDebounceTimer) {
+    clearTimeout(auditFilterDebounceTimer);
+  }
+  auditFilterDebounceTimer = setTimeout(syncAuditLogFilters, 260);
+}
+
+function resetAuditFilters() {
+  if (adminAuditActionFilter) adminAuditActionFilter.value = "";
+  if (adminAuditActorFilter) adminAuditActorFilter.value = "";
+  if (adminAuditTargetFilter) adminAuditTargetFilter.value = "";
+  syncAuditLogFilters();
+}
+
+function stringifyAuditMeta(value) {
+  if (!value) {
+    return "";
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  try {
+    return JSON.stringify(value);
+  } catch (error) {
+    return String(value);
+  }
 }
 
 function countTeamMembers(teams) {
@@ -516,6 +729,247 @@ function renderTeamMemberOptions(teams = businessDataState.teams) {
   }
 }
 
+function normalizeScenarioLines(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+
+  return String(value || "")
+    .split(/\r?\n|[；;]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function formatScenarioLines(value) {
+  return normalizeScenarioLines(value).join("\n");
+}
+
+function translateBusinessScenarioText(value) {
+  const lines = String(value || "").split(/\r?\n/);
+  return lines.map((line) => {
+    let translated = line.trim();
+    BUSINESS_SCENARIO_TRANSLATIONS.forEach(([source, target]) => {
+      translated = translated.split(source).join(target);
+    });
+    translated = translated
+      .replace(/[，、]/g, ", ")
+      .replace(/。/g, ".")
+      .replace(/[；;]/g, "\n")
+      .replace(/\s*\+\s*/g, " + ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    return translated;
+  }).join("\n").trim();
+}
+
+function setBusinessScenarioValue(element, value) {
+  if (element) {
+    element.value = String(value || "");
+  }
+}
+
+function getBusinessScenarioFields() {
+  return [
+    ["name", adminBusinessScenarioName, adminBusinessScenarioNameEn],
+    ["hostDepartment", adminBusinessScenarioHost, adminBusinessScenarioHostEn],
+    ["focus", adminBusinessScenarioFocus, adminBusinessScenarioFocusEn],
+    ["scenarios", adminBusinessScenarioScenarios, adminBusinessScenarioScenariosEn],
+    ["deliverable", adminBusinessScenarioDeliverable, adminBusinessScenarioDeliverableEn],
+  ];
+}
+
+function syncBusinessScenarioEnglish(sourceField) {
+  const fields = getBusinessScenarioFields();
+  fields.forEach(([field, source, target]) => {
+    if (sourceField && sourceField !== field) {
+      return;
+    }
+    if (!source || !target || businessScenarioEnglishTouched.has(field)) {
+      return;
+    }
+    if (sourceField || !target.value.trim()) {
+      target.value = translateBusinessScenarioText(source.value);
+    }
+  });
+}
+
+function getSelectedBusinessScenarioTeam() {
+  const teamId = String(adminBusinessScenarioTeam?.value || "").trim();
+  const teams = Array.isArray(businessDataState.teams) ? businessDataState.teams : [];
+  return teams.find((team) => String(team.id || "").trim() === teamId) || teams[0] || null;
+}
+
+function fillBusinessScenarioForm(team = getSelectedBusinessScenarioTeam()) {
+  if (!adminBusinessScenarioForm || !team) {
+    return;
+  }
+
+  businessScenarioEnglishTouched = new Set();
+  if (adminBusinessScenarioTeam) {
+    adminBusinessScenarioTeam.value = team.id || "";
+  }
+  setBusinessScenarioValue(adminBusinessScenarioName, team.name);
+  setBusinessScenarioValue(adminBusinessScenarioNameEn, team.nameEn);
+  setBusinessScenarioValue(adminBusinessScenarioHost, team.hostDepartment);
+  setBusinessScenarioValue(adminBusinessScenarioHostEn, team.hostDepartmentEn);
+  setBusinessScenarioValue(adminBusinessScenarioFocus, team.focus);
+  setBusinessScenarioValue(adminBusinessScenarioFocusEn, team.focusEn);
+  setBusinessScenarioValue(adminBusinessScenarioScenarios, formatScenarioLines(team.scenarios));
+  setBusinessScenarioValue(adminBusinessScenarioScenariosEn, formatScenarioLines(team.scenariosEn));
+  setBusinessScenarioValue(adminBusinessScenarioDeliverable, team.deliverable);
+  setBusinessScenarioValue(adminBusinessScenarioDeliverableEn, team.deliverableEn);
+  setBusinessScenarioValue(adminBusinessScenarioDocUrl, team.docUrl);
+  syncBusinessScenarioEnglish();
+}
+
+function renderBusinessScenarioOptions(teams = businessDataState.teams) {
+  if (!adminBusinessScenarioTeam) {
+    return;
+  }
+
+  const normalizedTeams = Array.isArray(teams) ? teams : [];
+  const currentValue = adminBusinessScenarioTeam.value;
+  adminBusinessScenarioTeam.innerHTML = normalizedTeams.length
+    ? normalizedTeams.map((team) => {
+        const teamId = String(team.id || "").trim();
+        return `<option value="${escapeHtml(teamId)}">${escapeHtml(getRoadshowTeamLabel(team, teamId))}</option>`;
+      }).join("")
+    : '<option value="">等待赛道数据</option>';
+
+  if (currentValue && normalizedTeams.some((team) => String(team.id || "").trim() === currentValue)) {
+    adminBusinessScenarioTeam.value = currentValue;
+  }
+
+  fillBusinessScenarioForm(getSelectedBusinessScenarioTeam());
+  setText(adminBusinessScenarioStatus, normalizedTeams.length ? `${normalizedTeams.length} 个业务场景` : "等待同步");
+}
+
+function readBusinessScenarioPayload() {
+  return {
+    name: adminBusinessScenarioName?.value || "",
+    nameEn: adminBusinessScenarioNameEn?.value || "",
+    hostDepartment: adminBusinessScenarioHost?.value || "",
+    hostDepartmentEn: adminBusinessScenarioHostEn?.value || "",
+    focus: adminBusinessScenarioFocus?.value || "",
+    focusEn: adminBusinessScenarioFocusEn?.value || "",
+    scenarios: normalizeScenarioLines(adminBusinessScenarioScenarios?.value || ""),
+    scenariosEn: normalizeScenarioLines(adminBusinessScenarioScenariosEn?.value || ""),
+    deliverable: adminBusinessScenarioDeliverable?.value || "",
+    deliverableEn: adminBusinessScenarioDeliverableEn?.value || "",
+    docUrl: adminBusinessScenarioDocUrl?.value || "",
+    actor: getAdminUserDisplayName(),
+  };
+}
+
+async function saveBusinessScenario() {
+  const teamId = String(adminBusinessScenarioTeam?.value || "").trim();
+  if (!teamId) {
+    setText(adminBusinessScenarioStatus, "请先选择赛道");
+    return;
+  }
+
+  setText(adminBusinessScenarioStatus, "保存中");
+  try {
+    const result = await window.AppData.updateTeamScenario(teamId, readBusinessScenarioPayload());
+    renderBusinessData({ teams: Array.isArray(result.teams) ? result.teams : businessDataState.teams });
+    fillBusinessScenarioForm(result.team);
+    setText(adminBusinessScenarioStatus, "业务场景已保存");
+  } catch (error) {
+    console.warn("Business scenario save failed.", error);
+    setText(adminBusinessScenarioStatus, formatErrorStatus("业务场景保存失败", error));
+  }
+}
+
+function renderTeamMemberUserOptions(users = userRoleState.users) {
+  if (!adminTeamMemberUserSelect) {
+    return;
+  }
+
+  const normalizedUsers = Array.isArray(users) ? users : [];
+  const currentValue = adminTeamMemberUserSelect.value;
+  const options = normalizedUsers
+    .filter((user) => String(user?.id || "").trim())
+    .map((user) => {
+      const userId = String(user.id || "").trim();
+      const roles = Array.isArray(user.roles) && user.roles.length
+        ? ` · ${user.roles.map(getAdminRoleLabel).join("/")}`
+        : "";
+      const label = `${user.name || userId}${user.department ? ` · ${user.department}` : ""}${roles}`;
+      return `<option value="${escapeHtml(userId)}">${escapeHtml(label)}</option>`;
+    });
+
+  adminTeamMemberUserSelect.innerHTML = [
+    '<option value="">手动填写新成员 / 从用户管理选择</option>',
+    ...options,
+  ].join("");
+
+  if (currentValue && normalizedUsers.some((user) => String(user?.id || "").trim() === currentValue)) {
+    adminTeamMemberUserSelect.value = currentValue;
+  }
+}
+
+function createManualTeamMemberUserId(name = "", teamId = "") {
+  const toIdToken = (value, fallback) => {
+    const token = String(value || "")
+      .normalize("NFKD")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 24);
+    return token || fallback;
+  };
+  const teamToken = toIdToken(teamId, "team");
+  const nameToken = toIdToken(name, "member");
+  return `manual-${teamToken}-${nameToken}-${Date.now().toString(36)}`;
+}
+
+function enterManualTeamMemberMode({ clearUserFields = false } = {}) {
+  if (adminTeamMemberUserSelect) adminTeamMemberUserSelect.value = "";
+  if (clearUserFields) {
+    if (adminTeamMemberUserId) adminTeamMemberUserId.value = "";
+    if (adminTeamMemberName) adminTeamMemberName.value = "";
+    if (adminTeamMemberDepartment) adminTeamMemberDepartment.value = "";
+    if (adminTeamMemberPhoto) adminTeamMemberPhoto.value = "";
+  }
+  setText(adminTeamMemberStatus, "手动填写模式：填写姓名即可保存，用户 ID 留空会自动生成");
+}
+
+function syncTeamMemberFieldsFromUser() {
+  const userId = String(adminTeamMemberUserSelect?.value || "").trim();
+  if (!userId) {
+    enterManualTeamMemberMode({ clearUserFields: true });
+    return;
+  }
+
+  const user = (Array.isArray(userRoleState.users) ? userRoleState.users : [])
+    .find((item) => String(item?.id || "").trim() === userId);
+  if (!user) {
+    return;
+  }
+
+  if (adminTeamMemberUserId) adminTeamMemberUserId.value = user.id || "";
+  if (adminTeamMemberName) adminTeamMemberName.value = user.name || "";
+  if (adminTeamMemberDepartment) adminTeamMemberDepartment.value = user.department || "";
+  if (adminTeamMemberPhoto && user.avatar) adminTeamMemberPhoto.value = user.avatar;
+  setText(adminTeamMemberStatus, "已从登录用户选择");
+}
+
+function syncTeamMemberDutyFromRole() {
+  const roleKey = adminTeamMemberRoleKey?.value || "";
+  if (!adminTeamMemberDuty) {
+    return;
+  }
+
+  if (roleKey === "advisor" && !adminTeamMemberDuty.value.trim()) {
+    adminTeamMemberDuty.value = "队长";
+    return;
+  }
+
+  if (roleKey && TEAM_MEMBER_ROLE_LABELS[roleKey] && !adminTeamMemberDuty.value.trim()) {
+    adminTeamMemberDuty.value = TEAM_MEMBER_ROLE_LABELS[roleKey];
+  }
+}
+
 function renderVoteRankingItems(container, sortedResults, limit) {
   if (!container) {
     return;
@@ -558,6 +1012,40 @@ function renderVoteWindowManager(voteResults = businessDataState.voteResults) {
     button.classList.toggle("is-active", isActive);
     button.disabled = isActive;
   });
+}
+
+function isDangerousVoteWindowStatus(status) {
+  return status === "closed" || status === "published";
+}
+
+function buildVoteWindowConfirmMessage(status) {
+  const actionLabel = {
+    closed: "关闭投票窗口",
+    published: "发布最终结果快照",
+  }[status] || "更新投票窗口";
+  const voteTotal = getVoteTotal();
+  const coverage = scoreCoverage(businessDataState.judgeScores);
+  const works = normalizeWorks(businessDataState.works);
+  const publishedWorks = works.filter((work) => work.status === "published").length;
+
+  return [
+    `确认要${actionLabel}吗？`,
+    "",
+    `当前总票数：${formatNumber(voteTotal)}`,
+    `评分覆盖：${formatNumber(coverage.teamCount)} 个队伍 / ${formatNumber(coverage.judgeCount)} 位评委`,
+    `作品审核：${formatNumber(publishedWorks)} / ${formatNumber(works.length)} 已发布`,
+    status === "published" ? "发布后会生成正式结果快照，请确认现场口径已经一致。" : "关闭后观众将不能继续投票。",
+  ].join("\n");
+}
+
+function confirmVoteWindowAction(status) {
+  if (!isDangerousVoteWindowStatus(status)) {
+    return true;
+  }
+  if (!window.confirm) {
+    return true;
+  }
+  return window.confirm(buildVoteWindowConfirmMessage(status));
 }
 
 function formatSnapshotTime(value) {
@@ -697,7 +1185,9 @@ function renderTeamStatusManager(teams = businessDataState.teams) {
 function renderTeamRoster(teams = businessDataState.teams) {
   const normalizedTeams = Array.isArray(teams) ? teams : [];
   renderTeamStatusManager(normalizedTeams);
+  renderBusinessScenarioOptions(normalizedTeams);
   renderTeamMemberOptions(normalizedTeams);
+  renderTeamMemberUserOptions();
   const openSlots = normalizedTeams.reduce((total, team) => {
     const members = Array.isArray(team.members) ? team.members : [];
     return total + Math.max(0, getTeamCapacity(team) - getTeamRosterPeople(team, members).length);
@@ -787,8 +1277,11 @@ function normalizeAuditEntry(entry) {
   return {
     time: displayTime,
     actor: entry?.actor || "system",
+    action: entry?.action || "event.recorded",
+    targetType: entry?.targetType || entry?.resourceType || "",
+    targetId: entry?.targetId || entry?.resourceId || "",
     message: entry?.message || entry?.action || "后台事件",
-    meta: [entry?.resourceType, entry?.resourceId].filter(Boolean).join(" / ") || entry?.ip || "后台操作",
+    meta: stringifyAuditMeta(entry?.meta) || [entry?.targetType || entry?.resourceType, entry?.targetId || entry?.resourceId].filter(Boolean).join(" / ") || entry?.ip || "后台操作",
   };
 }
 
@@ -798,16 +1291,40 @@ function renderAuditLogList(entries = businessDataState.auditLogs) {
   }
 
   const normalizedEntries = Array.isArray(entries) ? entries.map(normalizeAuditEntry) : [];
+  const emptyHint = hasActiveAuditFilters()
+    ? "当前筛选没有匹配记录，重置筛选后可查看全部后台操作。"
+    : "后台暂未返回审计记录；如刚执行过操作，请刷新日志或检查 API 连接。";
   adminAuditLogList.innerHTML = normalizedEntries.length
     ? normalizedEntries.slice(0, 80).map((entry) => `
         <li>
-          <span>${escapeHtml(entry.time)}</span>
-          <strong>${escapeHtml(entry.actor)}</strong>
-          <span>${escapeHtml(entry.message)}</span>
-          <small>${escapeHtml(entry.meta)}</small>
+          <details>
+            <summary>
+              <span>${escapeHtml(entry.time)}</span>
+              <strong>${escapeHtml(entry.actor)}</strong>
+              <span>${escapeHtml(entry.message)}</span>
+              <small>${escapeHtml(entry.action)}</small>
+            </summary>
+            <div class="admin-audit-detail">
+              <dl>
+                <dt>操作类型</dt>
+                <dd>${escapeHtml(entry.action)}</dd>
+                <dt>对象类型</dt>
+                <dd>${escapeHtml(entry.targetType || "未记录")}</dd>
+                <dt>对象ID</dt>
+                <dd>${escapeHtml(entry.targetId || "未记录")}</dd>
+                <dt>详情</dt>
+                <dd>${escapeHtml(entry.meta || "无")}</dd>
+              </dl>
+            </div>
+          </details>
         </li>
       `).join("")
-    : '<li class="admin-empty">暂无审计日志</li>';
+    : `
+        <li class="admin-empty">
+          <strong>暂无审计日志</strong>
+          <span>${escapeHtml(emptyHint)}</span>
+        </li>
+      `;
 }
 
 function renderJudgeProgress(progress = businessDataState.judgeProgress) {
@@ -994,29 +1511,36 @@ function renderScreenControl() {
   setText(
     adminScreenRouteStatus,
     overrideStage
-      ? `已锁定：${overrideStage.name || screenOverrideStageId}`
+      ? `已锁定：${overrideStage.name || screenOverrideStageId} · 取消后停留此流程`
       : `${active.name} · ${statusLabel[active.status] || active.status} · 跟随流程`,
   );
   adminScreenControl.innerHTML = screenRoutes.map((item) => {
-    const stage = stages.find((entry) => entry.id === item.stageId);
     const isFlowCurrent = active.id === item.stageId;
     const isOverride = screenOverrideStageId === item.stageId;
-    const badge = isOverride ? " · 已锁定" : (isFlowCurrent ? " · 流程当前" : "");
-    const stageStatus = isOverride ? "大屏当前画面" : (statusLabel[stage?.status] || stage?.status || "未配置");
+    const badges = [
+      isOverride ? "大屏锁定" : "",
+      isFlowCurrent ? "流程当前" : "",
+    ].filter(Boolean);
+    const badgeItems = badges.map((badge) => `<span>${escapeHtml(badge)}</span>`).join("");
     return `
-      <article>
-        <div>
-          <b>${escapeHtml(item.name)}${escapeHtml(badge)}</b>
-          <span>${escapeHtml(item.note)} · ${escapeHtml(stageStatus)}</span>
+      <article class="admin-screen-route-card">
+        <div class="admin-screen-route-main">
+          <b>${escapeHtml(item.name)}</b>
+          ${badgeItems ? `<em>${badgeItems}</em>` : ""}
         </div>
         <div class="admin-control-actions">
           <a href="${escapeHtml(item.route)}" target="_blank" rel="noreferrer">打开</a>
           <button
             type="button"
+            data-screen-stage-flow-command="${escapeHtml(item.stageId)}"
+            ${isFlowCurrent && !screenOverrideStageId ? "disabled" : ""}
+          >${isFlowCurrent && !screenOverrideStageId ? "流程当前" : "设为流程"}</button>
+          <button
+            type="button"
             class="${isOverride ? "is-cancel" : ""}"
-            data-screen-stage-command="${escapeHtml(item.stageId)}"
+            data-screen-stage-lock-command="${escapeHtml(item.stageId)}"
             aria-pressed="${isOverride ? "true" : "false"}"
-          >${isOverride ? "取消锁定" : "设为当前"}</button>
+          >${isOverride ? "取消锁定" : "锁定显示"}</button>
         </div>
       </article>
     `;
@@ -1157,6 +1681,7 @@ function renderContentManager() {
   const snapshot = businessDataState.resultSnapshot;
   const contentCards = [
     { name: "赛道与成员", route: "data/teams.json", apiRoute: "/api/teams", count: `${businessDataState.teams.length} 个赛道`, note: `${countTeamMembers(businessDataState.teams)} 名成员，供组队页和后台队伍页使用。` },
+    { name: "业务场景", route: "data/teams.json", apiRoute: "/api/teams", count: `${businessDataState.teams.length} 张卡片`, note: "主会场 AI BUSINESS SCENARIOS 卡片内容与文档链接。" },
     { name: "投票排名", route: "data/vote-results.json", apiRoute: "/api/vote-results", count: `${formatNumber(getVoteTotal())} 票`, note: businessDataState.voteResults.windowLabel || "投票窗口状态待同步。" },
     { name: "最终结果快照", route: "data/result-snapshots.json", apiRoute: "/api/results/latest", count: snapshot?.id ? "已发布" : "未发布", note: snapshot?.id || "发布结果后生成不可变最终排名快照。" },
     { name: "作品提交", route: "data/works.json", apiRoute: "/api/works", count: `${works.length} 件作品`, note: "作品提交后可在数据与投票页审核发布或退回。" },
@@ -1168,14 +1693,178 @@ function renderContentManager() {
   adminContentManager.innerHTML = contentCards.map((item) => {
     const href = resolveAdminRouteHref(item.apiRoute || item.route);
     return `
-      <article class="admin-route-card">
-        <span>${escapeHtml(item.apiRoute || item.route)}</span>
-        <b>${escapeHtml(item.name)} · ${escapeHtml(item.count)}</b>
-        <p>${escapeHtml(item.note)}</p>
-        <a href="${escapeHtml(href)}" target="_blank" rel="noreferrer">查看数据</a>
+      <article class="admin-content-data-card">
+        <div class="admin-content-data-main">
+          <span class="admin-content-data-route">${escapeHtml(item.apiRoute || item.route)}</span>
+          <b>${escapeHtml(item.name)}</b>
+          <p>${escapeHtml(item.note)}</p>
+        </div>
+        <strong class="admin-content-data-count">${escapeHtml(item.count)}</strong>
+        <a class="admin-content-data-action" href="${escapeHtml(href)}" target="_blank" rel="noreferrer">查看</a>
       </article>
     `;
   }).join("");
+}
+
+function escapeCsvValue(value) {
+  const text = String(value ?? "");
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function downloadAdminCsv(filename, rows) {
+  const safeRows = Array.isArray(rows) ? rows : [];
+  if (!safeRows.length) {
+    setSyncStatus("error", "没有可导出的数据", filename);
+    return;
+  }
+
+  const headers = Object.keys(safeRows[0]);
+  const csv = [
+    headers.map(escapeCsvValue).join(","),
+    ...safeRows.map((row) => headers.map((header) => escapeCsvValue(row[header])).join(",")),
+  ].join("\n");
+  const blob = new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  setSyncStatus("success", "导出已生成", filename);
+}
+
+function buildTeamExportRows() {
+  const teams = Array.isArray(businessDataState.teams) ? businessDataState.teams : [];
+  return teams.flatMap((team) => {
+    const people = getTeamRosterPeople(team, Array.isArray(team.members) ? team.members : []);
+    return people.map((person, index) => ({
+      赛道ID: team.id || "",
+      赛道: team.name || "",
+      序号: index + 1,
+      用户ID: person.userId || person.id || "",
+      姓名: person.name || "",
+      部门: person.department || "",
+      职责: person.isLeader ? "队长" : (person.duty || person.role || ""),
+      角色Key: person.roleKey || "",
+      队伍人数上限: getTeamCapacity(team),
+      赛道状态: getTeamStatus(team),
+    }));
+  });
+}
+
+function buildVoteExportRows() {
+  const results = Array.isArray(businessDataState.voteResults?.results)
+    ? [...businessDataState.voteResults.results]
+    : [];
+  return results
+    .sort((left, right) => (Number(right.votes) || 0) - (Number(left.votes) || 0))
+    .map((team, index) => ({
+      排名: index + 1,
+      队伍ID: team.id || "",
+      队伍: team.name || "",
+      赛道: team.track || "",
+      作品: team.project || "",
+      票数: Number(team.votes) || 0,
+      投票窗口: businessDataState.voteResults?.windowLabel || businessDataState.voteResults?.status || "",
+    }));
+}
+
+function buildWorkExportRows() {
+  return normalizeWorks(businessDataState.works).map((work) => ({
+    作品ID: work.id || "",
+    队伍ID: work.teamId || "",
+    队伍: work.teamName || "",
+    赛道: work.track || work.category || "",
+    作品名称: work.project || work.title || "",
+    状态: workStatusText[work.status] || work.status || "",
+    摘要: work.summary || work.description || work.problem || "",
+  }));
+}
+
+function buildJudgeScoreExportRows() {
+  const scores = businessDataState.judgeScores?.scores && typeof businessDataState.judgeScores.scores === "object"
+    ? businessDataState.judgeScores.scores
+    : {};
+  const teamsById = new Map((businessDataState.teams || []).map((team) => [team.id, team]));
+  const rows = [];
+
+  Object.entries(scores).forEach(([judgeId, teamScores]) => {
+    Object.entries(teamScores || {}).forEach(([teamId, scoreValue]) => {
+      const team = teamsById.get(teamId) || {};
+      if (scoreValue && typeof scoreValue === "object") {
+        Object.entries(scoreValue).forEach(([metric, value]) => {
+          rows.push({
+            评委ID: judgeId,
+            队伍ID: teamId,
+            队伍: team.name || "",
+            指标: metric,
+            分数: Number(value) || 0,
+          });
+        });
+        return;
+      }
+
+      rows.push({
+        评委ID: judgeId,
+        队伍ID: teamId,
+        队伍: team.name || "",
+        指标: "总分",
+        分数: Number(scoreValue) || 0,
+      });
+    });
+  });
+
+  return rows;
+}
+
+function buildResultExportRows() {
+  const snapshot = businessDataState.resultSnapshot || {};
+  const results = Array.isArray(snapshot.results) ? snapshot.results : [];
+  return results.map((item, index) => ({
+    快照ID: snapshot.id || "",
+    发布时间: snapshot.publishedAt || "",
+    发布人: snapshot.publishedBy || "",
+    排名: index + 1,
+    队伍ID: item.id || "",
+    队伍: item.name || "",
+    作品: item.project || "",
+    票数: Number(item.votes) || 0,
+    总分: Number(item.totalScore) || 0,
+    是否冠军: item.isChampion ? "是" : "",
+  }));
+}
+
+function buildAuditExportRows() {
+  const auditLogs = Array.isArray(businessDataState.auditLogs) ? businessDataState.auditLogs : [];
+  return auditLogs.map((entry) => {
+    const log = normalizeAuditEntry(entry);
+    return {
+      时间: log.time || "",
+      操作人: log.actor || "",
+      动作: log.message || "",
+      详情: log.meta || "",
+    };
+  });
+}
+
+function handleAdminExport(target) {
+  const exporters = {
+    teams: ["joincare-teams.csv", buildTeamExportRows],
+    votes: ["joincare-votes.csv", buildVoteExportRows],
+    works: ["joincare-works.csv", buildWorkExportRows],
+    scores: ["joincare-judge-scores.csv", buildJudgeScoreExportRows],
+    results: ["joincare-results.csv", buildResultExportRows],
+    audit: ["joincare-audit-logs.csv", buildAuditExportRows],
+  };
+  const exporter = exporters[target];
+  if (!exporter) {
+    return;
+  }
+  const [filename, buildRows] = exporter;
+  downloadAdminCsv(filename, buildRows());
+  addLog("admin", `导出数据【${filename}】`);
 }
 
 function renderTraineeProfileManager(trainees = traineeProfileState.trainees) {
@@ -1253,7 +1942,7 @@ async function loadTraineeProfiles() {
       ...traineeProfileState,
       loading: false,
     };
-    setText(adminTraineeProfileStatus, "同步失败");
+    setText(adminTraineeProfileStatus, formatErrorStatus("同步失败", error));
     renderTraineeProfileManager(traineeProfileState.trainees);
   }
 }
@@ -1281,6 +1970,93 @@ function collectTraineeProfilePayload() {
   return payload;
 }
 
+function getTraineeImagePathInput(field) {
+  return field === "photo"
+    ? adminTraineeProfilePhoto
+    : field === "memeImage"
+      ? adminTraineeProfileMemeImage
+      : null;
+}
+
+function setTraineeImagePreview(field, path) {
+  const cleanField = String(field || "").trim();
+  const cleanPath = String(path || "").trim();
+  const picker = adminTraineeImagePickers.find((item) => item.dataset.traineeImagePicker === cleanField);
+  const preview = adminTraineeImagePreviews.find((item) => item.dataset.traineeImagePreview === cleanField);
+
+  picker?.classList.toggle("has-image", Boolean(cleanPath));
+  if (preview) {
+    preview.style.backgroundImage = cleanPath ? `url("${cleanPath.replace(/"/g, '\\"')}")` : "";
+  }
+}
+
+function syncTraineeImagePreviews() {
+  setTraineeImagePreview("photo", adminTraineeProfilePhoto?.value || "");
+  setTraineeImagePreview("memeImage", adminTraineeProfileMemeImage?.value || "");
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result || "")));
+    reader.addEventListener("error", () => reject(reader.error || new Error("图片读取失败")));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadTraineeProfileImage(field, fileInput) {
+  const cleanField = String(field || "").trim();
+  const file = fileInput?.files?.[0];
+  if (!file) {
+    return;
+  }
+
+  const traineeId = adminTraineeProfileId?.value.trim() || "";
+  if (!traineeId) {
+    setText(adminTraineeProfileStatus, "请先填写档案 ID，再选择图片");
+    adminTraineeProfileId?.focus();
+    fileInput.value = "";
+    return;
+  }
+
+  if (!file.type.startsWith("image/")) {
+    setText(adminTraineeProfileStatus, "请选择图片文件");
+    fileInput.value = "";
+    return;
+  }
+
+  if (file.size > 8 * 1024 * 1024) {
+    setText(adminTraineeProfileStatus, "图片不能超过 8MB");
+    fileInput.value = "";
+    return;
+  }
+
+  const pathInput = getTraineeImagePathInput(cleanField);
+  if (!pathInput) {
+    fileInput.value = "";
+    return;
+  }
+
+  try {
+    setText(adminTraineeProfileStatus, "图片上传中");
+    const dataUrl = await readFileAsDataUrl(file);
+    const result = await window.AppData.uploadTraineeAsset({
+      traineeId,
+      field: cleanField,
+      filename: file.name,
+      dataUrl,
+    });
+    pathInput.value = result.path || "";
+    setTraineeImagePreview(cleanField, pathInput.value);
+    setText(adminTraineeProfileStatus, "图片已加入档案，保存后生效");
+  } catch (error) {
+    console.warn("Trainee image upload failed.", error);
+    setText(adminTraineeProfileStatus, formatErrorStatus("图片上传失败", error));
+  } finally {
+    fileInput.value = "";
+  }
+}
+
 function resetTraineeProfileForm() {
   traineeProfileState = {
     ...traineeProfileState,
@@ -1290,6 +2066,7 @@ function resetTraineeProfileForm() {
   if (adminTraineeProfileId) {
     adminTraineeProfileId.readOnly = false;
   }
+  syncTraineeImagePreviews();
   setText(adminTraineeProfileStatus, `${traineeProfileState.trainees.length || 0} 份档案`);
 }
 
@@ -1314,6 +2091,7 @@ function fillTraineeProfileForm(trainee) {
   if (adminTraineeProfileDepartmentEn) adminTraineeProfileDepartmentEn.value = trainee.departmentEn || "";
   if (adminTraineeProfilePhoto) adminTraineeProfilePhoto.value = trainee.photo || "";
   if (adminTraineeProfileMemeImage) adminTraineeProfileMemeImage.value = trainee.memeImage || "";
+  syncTraineeImagePreviews();
   if (adminTraineeProfileSentence) adminTraineeProfileSentence.value = trainee.sentence || "";
   if (adminTraineeProfileAiPartners) adminTraineeProfileAiPartners.value = trainee.aiPartners || trainee.tools || "";
   if (adminTraineeProfileFavoriteAI) adminTraineeProfileFavoriteAI.value = trainee.favoriteAI || trainee.favoriteTool || "";
@@ -1362,13 +2140,14 @@ async function saveTraineeProfile(event) {
     if (adminTraineeProfileId) {
       adminTraineeProfileId.readOnly = false;
     }
+    syncTraineeImagePreviews();
     renderTraineeProfileManager();
     renderContentManager();
     setText(adminTraineeProfileStatus, `${editingId ? "已更新" : "已新增"}：${savedTrainee.name || savedTrainee.id}`);
     addLog("admin", `保存星锐档案【${savedTrainee.name || savedTrainee.id}】`);
   } catch (error) {
     console.warn("Trainee profile save failed.", error);
-    setText(adminTraineeProfileStatus, "保存失败");
+    setText(adminTraineeProfileStatus, formatErrorStatus("保存失败", error));
     addLog("system", "同步失败：星锐档案未保存");
   } finally {
     if (submitButton) submitButton.disabled = false;
@@ -1404,7 +2183,7 @@ async function deleteTraineeProfile(traineeId) {
     addLog("admin", `删除星锐档案【${displayName}】`);
   } catch (error) {
     console.warn("Trainee profile delete failed.", error);
-    setText(adminTraineeProfileStatus, "删除失败");
+    setText(adminTraineeProfileStatus, formatErrorStatus("删除失败", error));
     addLog("system", "同步失败：星锐档案未删除");
   }
 }
@@ -1432,7 +2211,7 @@ function renderSystemSettings() {
     ["当前存储", dataBackendLabel],
   ];
 
-  setText(adminSystemRuntimeStatus, apiBaseUrl ? "前后端分离" : "同源运行");
+  setText(adminSystemRuntimeStatus, apiBaseUrl ? "前后端分离状态" : "同源运行状态");
   adminSystemSettings.innerHTML = settings.map(([label, value]) => `
     <article>
       <b>${escapeHtml(label)}</b>
@@ -1564,13 +2343,14 @@ async function loadUserRoles() {
       loading: false,
     };
     renderUserRoleManager();
+    renderTeamMemberUserOptions();
   } catch (error) {
     console.warn("User role mappings load failed.", error);
     userRoleState = {
       ...userRoleState,
       loading: false,
     };
-    setText(adminUserRoleStatus, "同步失败");
+    setText(adminUserRoleStatus, formatErrorStatus("同步失败", error));
     renderUserRoleManager(userRoleState.users);
   }
 }
@@ -1667,12 +2447,13 @@ async function upsertUserRole(event) {
       loading: false,
     };
     adminUserRoleForm?.reset();
+    renderTeamMemberUserOptions();
     closeUserModal();
     addLog("admin", `更新用户权限【${user.name || user.id}】`);
     await loadAuditTrail();
   } catch (error) {
     console.warn("User role mapping update failed.", error);
-    setText(adminUserRoleStatus, "保存失败");
+    setText(adminUserRoleStatus, formatErrorStatus("保存失败", error));
     addLog("system", "同步失败：用户权限未保存");
   } finally {
     if (submitButton) submitButton.disabled = false;
@@ -1898,12 +2679,39 @@ async function publishStage(stageId) {
   }
 }
 
-async function toggleScreenOverride(stageId) {
+async function setScreenFlowStage(stageId) {
   const cleanStageId = String(stageId || "").trim();
-  const nextStageId = screenOverrideStageId === cleanStageId ? "" : cleanStageId;
+  if (!cleanStageId) {
+    return;
+  }
 
   try {
-    const state = await window.AppData.updateAdminScreenOverride(nextStageId);
+    let state = await window.AppData.updateAdminStage(cleanStageId);
+    if (screenOverrideStageId) {
+      state = await window.AppData.updateAdminScreenOverride("");
+    }
+    applyAdminState(state);
+  } catch (error) {
+    console.warn("Admin screen flow sync failed.", error);
+    addLog("system", "同步失败：流程当前阶段未切换");
+  }
+}
+
+async function toggleScreenOverride(stageId) {
+  const cleanStageId = String(stageId || "").trim();
+  if (!cleanStageId) {
+    return;
+  }
+  const shouldClearOverride = screenOverrideStageId === cleanStageId;
+
+  try {
+    let state;
+    if (shouldClearOverride) {
+      await window.AppData.updateAdminStage(cleanStageId);
+      state = await window.AppData.updateAdminScreenOverride("");
+    } else {
+      state = await window.AppData.updateAdminScreenOverride(cleanStageId);
+    }
     applyAdminState(state);
   } catch (error) {
     console.warn("Admin screen override sync failed.", error);
@@ -1925,15 +2733,39 @@ async function finishCurrentStage() {
   addLog("system", "同步失败：当前已是最后阶段，无法继续结束");
 }
 
-function durationMsToMinutes(durationMs, fallbackMinutes) {
+function durationMsToTotalMinutes(durationMs, fallbackMinutes) {
   const minutes = Math.round((Number(durationMs) || 0) / 60000);
   return Number.isFinite(minutes) && minutes > 0 ? minutes : fallbackMinutes;
 }
 
-function minutesInputToDurationMs(input, fallbackMinutes) {
-  const minutes = Number(input?.value);
-  const cleanMinutes = Number.isFinite(minutes) && minutes > 0 ? minutes : fallbackMinutes;
-  return Math.round(cleanMinutes * 60000);
+function durationMsToHourMinuteParts(durationMs, fallbackMinutes) {
+  const totalMinutes = durationMsToTotalMinutes(durationMs, fallbackMinutes);
+  return {
+    hours: Math.floor(totalMinutes / 60),
+    minutes: totalMinutes % 60,
+    totalMinutes,
+  };
+}
+
+function formatDurationLabel(durationMs, fallbackMinutes) {
+  const { hours, minutes } = durationMsToHourMinuteParts(durationMs, fallbackMinutes);
+  return `${hours} 小时 ${minutes} 分钟`;
+}
+
+function setDurationInputs(hoursInput, minutesInput, durationMs, fallbackMinutes) {
+  const { hours, minutes } = durationMsToHourMinuteParts(durationMs, fallbackMinutes);
+  if (hoursInput) hoursInput.value = String(hours);
+  if (minutesInput) minutesInput.value = String(minutes);
+}
+
+function durationInputsToDurationMs(hoursInput, minutesInput, fallbackMinutes) {
+  const fallback = durationMsToHourMinuteParts(null, fallbackMinutes);
+  const rawHours = Number(hoursInput?.value);
+  const rawMinutes = Number(minutesInput?.value);
+  const cleanHours = Number.isFinite(rawHours) && rawHours >= 0 ? Math.floor(rawHours) : fallback.hours;
+  const cleanMinutes = Number.isFinite(rawMinutes) && rawMinutes >= 0 ? Math.floor(rawMinutes) : fallback.minutes;
+  const totalMinutes = cleanHours * 60 + cleanMinutes;
+  return Math.round((totalMinutes > 0 ? totalMinutes : fallback.totalMinutes) * 60000);
 }
 
 function formatStartedAt(startedAt) {
@@ -1944,13 +2776,11 @@ function formatStartedAt(startedAt) {
 }
 
 function renderMissionCountdownState(state = {}) {
-  if (missionCountdownDuration) {
-    missionCountdownDuration.value = String(durationMsToMinutes(state.durationMs, 1440));
-  }
+  setDurationInputs(missionCountdownHours, missionCountdownMinutes, state.durationMs, 1440);
   if (missionCountdownState) {
     missionCountdownState.textContent = `状态：${formatStartedAt(state.startedAt)}`;
   }
-  setText(adminScreenMissionState, `状态：${formatStartedAt(state.startedAt)} / ${durationMsToMinutes(state.durationMs, 1440)} 分钟`);
+  setText(adminScreenMissionState, `状态：${formatStartedAt(state.startedAt)} / ${formatDurationLabel(state.durationMs, 1440)}`);
 }
 
 function renderRoadshowState(state = {}) {
@@ -1963,14 +2793,12 @@ function renderRoadshowState(state = {}) {
   };
   renderRoadshowTeamOptions();
 
-  if (roadshowDuration) {
-    roadshowDuration.value = String(durationMsToMinutes(state.durationMs, 15));
-  }
+  setDurationInputs(roadshowHours, roadshowMinutes, state.durationMs, 15);
   if (roadshowStateLabel) {
     const currentTeamName = roadshowTeamState.currentTeam?.name || roadshowTeamState.currentTeamId || "未选择队伍";
     roadshowStateLabel.textContent = `状态：${formatStartedAt(state.startedAt)} · 当前：${currentTeamName}`;
   }
-  setText(adminScreenRoadshowState, `状态：${formatStartedAt(state.startedAt)} / ${durationMsToMinutes(state.durationMs, 15)} 分钟 / ${roadshowTeamState.currentTeamId || "未选择队伍"}`);
+  setText(adminScreenRoadshowState, `状态：${formatStartedAt(state.startedAt)} / ${formatDurationLabel(state.durationMs, 15)} / ${roadshowTeamState.currentTeamId || "未选择队伍"}`);
 }
 
 function collectStageDisplayTimes() {
@@ -1982,15 +2810,31 @@ function collectStageDisplayTimes() {
     .filter((stage) => stage.id);
 }
 
-async function saveDisplayTimes() {
+async function saveTimeConfiguration() {
   try {
-    const state = await window.AppData.updateAdminDisplayTimes({
-      stages: collectStageDisplayTimes(),
-    });
-    applyAdminState(state);
+    const [stageState, missionCountdownStatePayload, roadshowStatePayload] = await Promise.all([
+      window.AppData.updateAdminDisplayTimes({
+        stages: collectStageDisplayTimes(),
+      }),
+      window.AppData.updateAdminMissionCountdown({
+        durationMs: durationInputsToDurationMs(missionCountdownHours, missionCountdownMinutes, 1440),
+      }),
+      window.AppData.updateAdminRoadshow({
+        durationMs: durationInputsToDurationMs(roadshowHours, roadshowMinutes, 15),
+        currentTeamId: roadshowCurrentTeamSelect?.value || roadshowTeamState.currentTeamId,
+        currentTeam: getSelectedRoadshowTeam(roadshowCurrentTeamSelect?.value || roadshowTeamState.currentTeamId),
+        nextTeamId: roadshowNextTeamSelect?.value || roadshowTeamState.nextTeamId,
+        nextTeam: getSelectedRoadshowTeam(roadshowNextTeamSelect?.value || roadshowTeamState.nextTeamId),
+      }),
+    ]);
+
+    applyAdminState(stageState);
+    renderMissionCountdownState(missionCountdownStatePayload);
+    renderRoadshowState(roadshowStatePayload);
+    addLog("admin", "保存时间配置");
   } catch (error) {
-    console.warn("Display time sync failed.", error);
-    addLog("system", "同步失败：时间显示配置未保存");
+    console.warn("Time configuration sync failed.", error);
+    addLog("system", "同步失败：时间配置未保存");
   }
 }
 
@@ -2012,8 +2856,9 @@ async function loadTimerControls() {
 
 async function loadAuditTrail() {
   setSyncStatus("syncing", "同步审计日志", "正在读取后台操作记录");
+  setAuditStatus("syncing", "正在同步日志");
   try {
-    const payload = await window.AppData.loadAuditLogs();
+    const payload = await window.AppData.loadAuditLogs(getAuditLogFilters());
     const auditLogs = Array.isArray(payload.logs) ? payload.logs : [];
     businessDataState = {
       ...businessDataState,
@@ -2027,10 +2872,21 @@ async function loadAuditTrail() {
     renderAuditLogList(auditLogs);
     renderDashboardSummary();
     renderContentManager();
+    if (payload.error && !auditLogs.length) {
+      setAuditStatus("error", `同步失败：${payload.error}`);
+      setSyncStatus("error", "审计日志同步失败", `最近失败 ${formatSyncTime()}`);
+      return;
+    }
+    if (auditLogs.length) {
+      setAuditStatus("success", `已同步 ${auditLogs.length} 条 · ${formatSyncTime()}`);
+    } else {
+      setAuditStatus("empty", hasActiveAuditFilters() ? "筛选无结果" : "暂无日志记录");
+    }
     setSyncStatus("success", "审计日志已同步", `最近同步 ${formatSyncTime()}`);
   } catch (error) {
     console.warn("Audit log load failed.", error);
     renderAuditLogList(businessDataState.auditLogs);
+    setAuditStatus("error", formatErrorStatus("同步失败", error));
     setSyncStatus("error", "审计日志同步失败", `最近失败 ${formatSyncTime()}`);
   }
 }
@@ -2103,9 +2959,14 @@ function collectAdminTeamMemberPayload() {
     actor: getAdminUserDisplayName(),
   };
 
-  if (!payload.teamId || !payload.userId || !payload.name) {
-    setText(adminTeamMemberStatus, "请补全赛道、用户 ID 和姓名");
+  if (!payload.teamId || !payload.name) {
+    setText(adminTeamMemberStatus, "请补全赛道和姓名");
     return null;
+  }
+
+  if (!payload.userId && payload.name) {
+    payload.userId = createManualTeamMemberUserId(payload.name, payload.teamId);
+    if (adminTeamMemberUserId) adminTeamMemberUserId.value = payload.userId;
   }
 
   return payload;
@@ -2114,6 +2975,7 @@ function collectAdminTeamMemberPayload() {
 function resetTeamMemberForm() {
   adminTeamMemberForm?.reset();
   renderTeamMemberOptions();
+  renderTeamMemberUserOptions();
   setText(adminTeamMemberStatus, "等待维护");
 }
 
@@ -2133,12 +2995,13 @@ async function saveAdminTeamMember(event) {
     renderBusinessData({ teams: Array.isArray(result.teams) ? result.teams : businessDataState.teams });
     adminTeamMemberForm?.reset();
     renderTeamMemberOptions();
+    renderTeamMemberUserOptions();
     setText(adminTeamMemberStatus, "已保存");
     addLog("admin", `维护队伍成员【${payload.name}】`);
     await loadAuditTrail();
   } catch (error) {
     console.warn("Admin team member save failed.", error);
-    setText(adminTeamMemberStatus, "保存失败");
+    setText(adminTeamMemberStatus, formatErrorStatus("保存失败", error));
     addLog("system", "同步失败：队伍成员未保存");
   } finally {
     if (submitButton) submitButton.disabled = false;
@@ -2172,7 +3035,7 @@ async function removeAdminTeamMember(teamId, userId, memberName = "", roleKey = 
     await loadAuditTrail();
   } catch (error) {
     console.warn("Admin team member remove failed.", error);
-    setText(adminTeamMemberStatus, "移除失败");
+    setText(adminTeamMemberStatus, formatErrorStatus("移除失败", error));
     addLog("system", "同步失败：队伍成员未移除");
   }
 }
@@ -2200,7 +3063,7 @@ async function updateAdminTeamStatus(teamId, status, button = null) {
     await loadAuditTrail();
   } catch (error) {
     console.warn("Admin team status update failed.", error);
-    setText(adminTeamRosterStatus, "赛道状态更新失败");
+    setText(adminTeamRosterStatus, formatErrorStatus("赛道状态更新失败", error));
     addLog("system", "同步失败：赛道状态未更新");
   } finally {
     if (button && button.isConnected) button.disabled = false;
@@ -2227,8 +3090,11 @@ async function updateWorkReviewStatus(teamId, status) {
   }
 }
 
-async function updateAdminVoteWindow(status) {
+async function updateAdminVoteWindow(status, { skipConfirm = false } = {}) {
   if (!status) {
+    return;
+  }
+  if (!skipConfirm && !confirmVoteWindowAction(status)) {
     return;
   }
 
@@ -2269,7 +3135,7 @@ async function updateAdminVoteWindow(status) {
 async function updateMissionCountdown(startedAt) {
   try {
     const state = await window.AppData.updateAdminMissionCountdown({
-      durationMs: minutesInputToDurationMs(missionCountdownDuration, 1440),
+      durationMs: durationInputsToDurationMs(missionCountdownHours, missionCountdownMinutes, 1440),
       startedAt,
     });
     renderMissionCountdownState(state);
@@ -2283,7 +3149,7 @@ async function updateMissionCountdown(startedAt) {
 async function updateRoadshow(startedAt) {
   try {
     const state = await window.AppData.updateAdminRoadshow({
-      durationMs: minutesInputToDurationMs(roadshowDuration, 15),
+      durationMs: durationInputsToDurationMs(roadshowHours, roadshowMinutes, 15),
       currentTeamId: roadshowCurrentTeamSelect?.value || roadshowTeamState.currentTeamId,
       currentTeam: getSelectedRoadshowTeam(roadshowCurrentTeamSelect?.value || roadshowTeamState.currentTeamId),
       nextTeamId: roadshowNextTeamSelect?.value || roadshowTeamState.nextTeamId,
@@ -2346,6 +3212,7 @@ function renderTimeline() {
 }
 
 function renderLogs() {
+  if (!operationLog) return;
   operationLog.innerHTML = logs
     .slice(0, 9)
     .map(([time, actor, message]) => `<li><span>${time}</span><strong>${actor}</strong><span>${message}</span></li>`)
@@ -2359,6 +3226,22 @@ function render() {
   renderLogs();
   renderDashboardSummary();
   renderScreenControl();
+}
+
+function switchAdminContentPanel(panelId = "scenario") {
+  const targetPanel = adminContentPanels.some((panel) => panel.dataset.contentPanel === panelId)
+    ? panelId
+    : "scenario";
+
+  adminContentTabs.forEach((tab) => {
+    const isActive = tab.dataset.contentTab === targetPanel;
+    tab.classList.toggle("is-active", isActive);
+    tab.setAttribute("aria-pressed", String(isActive));
+  });
+
+  adminContentPanels.forEach((panel) => {
+    panel.classList.toggle("is-active", panel.dataset.contentPanel === targetPanel);
+  });
 }
 
 function switchAdminView(view) {
@@ -2386,6 +3269,8 @@ function switchAdminView(view) {
   }
 
   if (targetView === "content") {
+    const activeContentPanel = adminContentPanels.find((panel) => panel.classList.contains("is-active"));
+    switchAdminContentPanel(activeContentPanel?.dataset.contentPanel || "scenario");
     loadTraineeProfiles().catch((error) => {
       console.warn("Trainee profiles refresh failed.", error);
     });
@@ -2458,6 +3343,15 @@ document.addEventListener("click", async (event) => {
   }
 
   switchAdminView(navButton.dataset.adminNav);
+});
+
+document.addEventListener("click", (event) => {
+  const contentTab = event.target.closest("[data-content-tab]");
+  if (!contentTab) {
+    return;
+  }
+
+  switchAdminContentPanel(contentTab.dataset.contentTab);
 });
 
 // 用户管理：角色筛选器。
@@ -2557,7 +3451,20 @@ document.addEventListener("click", async (event) => {
 
   const status = button.dataset.voteWindowStatus;
   button.disabled = true;
-  await updateAdminVoteWindow(status);
+  try {
+    await updateAdminVoteWindow(status);
+  } finally {
+    renderVoteWindowManager();
+  }
+});
+
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-admin-export]");
+  if (!button) {
+    return;
+  }
+
+  handleAdminExport(button.dataset.adminExport);
 });
 
 document.addEventListener("click", async (event) => {
@@ -2633,14 +3540,30 @@ document.addEventListener("click", async (event) => {
 });
 
 document.addEventListener("click", async (event) => {
-  const button = event.target.closest("[data-screen-stage-command]");
+  const button = event.target.closest("[data-screen-stage-flow-command]");
   if (!button) {
     return;
   }
 
   button.disabled = true;
   try {
-    await toggleScreenOverride(button.dataset.screenStageCommand);
+    await setScreenFlowStage(button.dataset.screenStageFlowCommand);
+  } finally {
+    if (button.isConnected) {
+      button.disabled = false;
+    }
+  }
+});
+
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-screen-stage-lock-command]");
+  if (!button) {
+    return;
+  }
+
+  button.disabled = true;
+  try {
+    await toggleScreenOverride(button.dataset.screenStageLockCommand);
   } finally {
     if (button.isConnected) {
       button.disabled = false;
@@ -2658,26 +3581,65 @@ document.querySelector("#startNextStage").addEventListener("click", async () => 
 
 document.querySelector("#finishCurrentStage").addEventListener("click", finishCurrentStage);
 
-saveDisplayTimesButton?.addEventListener("click", saveDisplayTimes);
+saveDisplayTimesButton?.addEventListener("click", saveTimeConfiguration);
 startMissionCountdownButton?.addEventListener("click", () => updateMissionCountdown(new Date().toISOString()));
 resetMissionCountdownButton?.addEventListener("click", () => updateMissionCountdown(null));
 startRoadshowButton?.addEventListener("click", () => updateRoadshow(new Date().toISOString()));
 resetRoadshowButton?.addEventListener("click", () => updateRoadshow(null));
 refreshBusinessDataButton?.addEventListener("click", () => loadBusinessData({ writeLog: true }));
 refreshDataWorkspaceButton?.addEventListener("click", () => loadBusinessData({ writeLog: true }));
+adminAutoRefreshToggle?.addEventListener("change", syncAdminAutoRefresh);
+adminAutoRefreshInterval?.addEventListener("change", syncAdminAutoRefresh);
 refreshContentManagerButton?.addEventListener("click", () => {
   loadBusinessData({ writeLog: true });
   loadTraineeProfiles();
 });
 refreshAuditLogButton?.addEventListener("click", () => loadAuditTrail());
+resetAuditFiltersButton?.addEventListener("click", resetAuditFilters);
+document.addEventListener("change", (event) => {
+  if (!event.target.closest("[data-audit-filter]")) {
+    return;
+  }
+  syncAuditLogFilters();
+});
+document.addEventListener("input", (event) => {
+  if (!event.target.closest("#adminAuditActorFilter[data-audit-filter]")) {
+    return;
+  }
+  scheduleAuditLogFilterSync();
+});
 adminUserRoleForm?.addEventListener("submit", upsertUserRole);
+adminBusinessScenarioForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await saveBusinessScenario();
+});
+adminBusinessScenarioTeam?.addEventListener("change", () => fillBusinessScenarioForm(getSelectedBusinessScenarioTeam()));
+resetBusinessScenarioFormButton?.addEventListener("click", () => fillBusinessScenarioForm(getSelectedBusinessScenarioTeam()));
+getBusinessScenarioFields().forEach(([field, source, target]) => {
+  source?.addEventListener("input", () => syncBusinessScenarioEnglish(field));
+  target?.addEventListener("input", () => businessScenarioEnglishTouched.add(field));
+});
 adminTraineeProfileForm?.addEventListener("submit", saveTraineeProfile);
 createTraineeProfileButton?.addEventListener("click", startCreateTraineeProfile);
 resetTraineeProfileFormButton?.addEventListener("click", resetTraineeProfileForm);
+adminTraineeImagePickers.forEach((picker) => {
+  picker.addEventListener("click", () => {
+    const field = picker.dataset.traineeImagePicker;
+    const fileInput = adminTraineeImageFiles.find((item) => item.dataset.traineeImageFile === field);
+    fileInput?.click();
+  });
+});
+adminTraineeImageFiles.forEach((fileInput) => {
+  fileInput.addEventListener("change", () => {
+    uploadTraineeProfileImage(fileInput.dataset.traineeImageFile, fileInput);
+  });
+});
 adminTeamMemberForm?.addEventListener("submit", saveAdminTeamMember);
+adminTeamMemberUserSelect?.addEventListener("change", syncTeamMemberFieldsFromUser);
+adminTeamMemberRoleKey?.addEventListener("change", syncTeamMemberDutyFromRole);
 resetTeamMemberFormButton?.addEventListener("click", resetTeamMemberForm);
 
-document.querySelector("#clearLogButton").addEventListener("click", () => {
+document.querySelector("#clearLogButton")?.addEventListener("click", () => {
   logs.splice(0, logs.length, [new Date().toLocaleTimeString("zh-CN", { hour12: false }), "admin", "清空操作日志"]);
   renderLogs();
 });

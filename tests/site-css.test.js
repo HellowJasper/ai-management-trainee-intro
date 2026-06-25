@@ -44,12 +44,14 @@ test("site profile detail drawer stays aligned with the big-screen detail layout
 
   assert.match(css, /\.site-body:has\(\.site-detail-layer\.is-open\)\s*\{[^}]*overflow:\s*hidden/s);
   assert.match(css, /\.site-detail-layer\s*\{[^}]*z-index:\s*220/s);
-  assert.match(css, /--site-detail-console-width:\s*min\(calc\(100dvw - var\(--site-detail-edge\) - var\(--site-detail-edge\)\), clamp\(980px, 60vw, 1240px\)\)/);
-  assert.match(css, /\.site-detail-layer \.profile-console\s*\{[^}]*left:\s*50%;[^}]*right:\s*auto;[^}]*width:\s*var\(--site-detail-console-width\);[^}]*max-width:\s*none;[^}]*border-right:\s*1px solid var\(--line-strong\);[^}]*border-radius:\s*var\(--radius\)/s);
-  assert.match(css, /\.site-detail-layer\.is-open \.profile-console\s*\{[^}]*transform:\s*translate\(-50%, 0\)/s);
+  assert.match(css, /--site-detail-console-width:\s*calc\(min\(80vw,\s*1260px\) - 24px\)/);
+  assert.match(css, /\.site-detail-layer \.draw-card\s*\{[^}]*width:\s*var\(--site-detail-card-width\);[^}]*min-width:\s*190px/s);
+  assert.match(css, /\.site-detail-layer \.profile-console\s*\{[^}]*left:\s*auto;[^}]*right:\s*0;[^}]*width:\s*var\(--site-detail-console-width\);[^}]*border-right:\s*0;[^}]*border-radius:\s*var\(--radius\) 0 0 var\(--radius\)/s);
+  assert.match(css, /\.site-detail-layer\.is-open \.profile-console\s*\{[^}]*transform:\s*translateX\(0\)/s);
   assert.doesNotMatch(css, /left:\s*var\(--site-detail-side-rail\)/);
-  assert.doesNotMatch(css, /\.site-detail-layer \.profile-console\s*\{[^}]*right:\s*0;/s);
-  assert.doesNotMatch(css, /\.site-detail-layer \.profile-console\s*\{[^}]*border-right:\s*0;/s);
+  const wideDesktopBlock = extractMediaBlock(css, "@media (max-width: 1679px)", ".site-detail-layer");
+  assert.match(wideDesktopBlock, /--site-detail-console-width:\s*calc\(min\(78vw,\s*1180px\) - 24px\)/);
+  assert.doesNotMatch(wideDesktopBlock, /\.site-detail-layer \.draw-card\s*\{[^}]*display:\s*none/s);
 
   const compactBlock = extractMediaBlock(css, "@media (max-width: 980px)", ".site-detail-layer .profile-console");
   assert.match(compactBlock, /\.site-detail-layer \.profile-console\s*\{[^}]*left:\s*14px;[^}]*right:\s*14px;[^}]*width:\s*auto/s);
@@ -58,14 +60,12 @@ test("site profile detail drawer stays aligned with the big-screen detail layout
 test("site profile detail panels use the photo ratio and equal height", () => {
   const css = fs.readFileSync(cssPath, "utf8");
 
-  assert.match(css, /\.site-detail-layer \.profile-console\s*\{[^}]*--site-detail-panel-height:\s*min\(clamp\(500px,\s*35vw,\s*700px\),\s*calc\(100dvh - clamp\(132px,\s*15dvh,\s*180px\)\)\);[^}]*grid-template-rows:\s*minmax\(0,\s*var\(--site-detail-panel-height\)\) auto;[^}]*align-content:\s*center/s);
-  assert.match(css, /\.site-detail-layer \.profile-info-panel,\s*\.site-detail-layer \.profile-media-panel\s*\{[^}]*height:\s*100%;[^}]*max-height:\s*var\(--site-detail-panel-height\)/s);
-  assert.match(css, /\.site-detail-layer \.profile-media-panel\s*\{[^}]*aspect-ratio:\s*2736 \/ 3668;[^}]*max-width:\s*none;[^}]*padding:\s*0/s);
-  assert.match(css, /\.site-detail-layer \.profile-media-frame\s*\{[^}]*height:\s*100%/s);
-  assert.match(css, /\.site-detail-layer \.profile-media-frame\[data-mode="photo"\]\s*\{[^}]*background-size:\s*cover,\s*contain,\s*cover\s*!important/s);
+  assert.match(css, /\.site-detail-layer \.profile-console\s*\{[^}]*grid-template-columns:\s*minmax\(240px,\s*1fr\) auto;[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\) auto/s);
+  assert.match(css, /\.site-detail-layer \.profile-media-panel\s*\{[^}]*aspect-ratio:\s*3 \/ 4;[^}]*max-width:\s*420px;[^}]*padding:\s*clamp\(14px,\s*1\.8vw,\s*22px\)/s);
+  assert.match(css, /\.site-detail-layer \.profile-media-frame\[data-mode="photo"\]\s*\{[^}]*background-size:\s*cover,\s*cover,\s*cover\s*!important/s);
   assert.match(css, /\.site-detail-layer \.profile-media-frame\[data-mode="photo"\]\s*\{[^}]*background-repeat:\s*no-repeat,\s*no-repeat,\s*no-repeat\s*!important/s);
   assert.match(css, /\.site-detail-layer \.profile-media-frame\[data-mode="photo"\]\s*\{[^}]*background-position:\s*center,\s*center,\s*center\s*!important/s);
-  assert.doesNotMatch(css, /\.site-detail-layer \.profile-media-frame\[data-mode="photo"\]\s*\{[^}]*background-size:\s*cover,\s*cover,\s*cover\s*!important/s);
+  assert.doesNotMatch(css, /\.site-detail-layer \.profile-media-frame\[data-mode="photo"\]\s*\{[^}]*background-size:\s*cover,\s*contain,\s*cover\s*!important/s);
 });
 
 test("site profile detail text is compact enough for the shorter photo panel", () => {
@@ -77,10 +77,17 @@ test("site profile detail text is compact enough for the shorter photo panel", (
   assert.match(css, /\.site-detail-layer \.profile-fact-list p\s*\{[^}]*font-size:\s*clamp\(11\.5px,\s*0\.82vw,\s*13px\);[^}]*line-height:\s*1\.35/s);
 });
 
-test("site trainee detail does not include the digital blind box module", () => {
+test("site trainee detail includes the digital blind box footer module", () => {
   const siteJs = fs.readFileSync(siteJsPath, "utf8");
 
-  assert.doesNotMatch(siteJs, /challenge-slot/);
-  assert.doesNotMatch(siteJs, /MY DIGITAL BLIND BOX/);
-  assert.doesNotMatch(siteJs, /blind-box-button/);
+  assert.match(siteJs, /challenge-slot/);
+  assert.match(siteJs, /MY DIGITAL BLIND BOX/);
+  assert.match(siteJs, /blind-box-button/);
+});
+
+test("schedule journey cards keep consistent desktop height", () => {
+  const css = fs.readFileSync(cssPath, "utf8");
+
+  assert.match(css, /\.schedule-board \.entry-grid\.four \.entry-card\s*\{[^}]*height:\s*clamp\(124px,\s*7vw,\s*142px\)/s);
+  assert.match(css, /\.schedule-board \.entry-grid\.four \.entry-tx span\s*\{[^}]*-webkit-line-clamp:\s*2/s);
 });

@@ -1,4 +1,4 @@
-const { DEFAULT_ADMIN_STAGES } = require("./adminStateRepository");
+const { DEFAULT_ADMIN_STAGES, normalizeAdminStages } = require("./adminStateRepository");
 const { createHttpError } = require("./traineeRepository");
 
 const BIGSCREEN_STATE_ID = "main";
@@ -14,6 +14,30 @@ function normalizeId(id) {
 
 function normalizeDisplayTime(time) {
   return String(time || "").trim();
+}
+
+function normalizeTimestamp(value) {
+  if (!value) {
+    return "";
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  return String(value).trim();
+}
+
+function latestTimestamp(values = []) {
+  return values
+    .map(normalizeTimestamp)
+    .filter(Boolean)
+    .sort((a, b) => {
+      const aTime = Date.parse(a);
+      const bTime = Date.parse(b);
+      if (Number.isFinite(aTime) && Number.isFinite(bTime)) {
+        return bTime - aTime;
+      }
+      return b.localeCompare(a);
+    })[0] || "";
 }
 
 function parseJsonValue(value, fallback = {}) {
@@ -42,9 +66,11 @@ function withStageStatuses(state) {
 }
 
 function normalizeState(state = {}) {
-  const stages = Array.isArray(state.stages) && state.stages.length > 0
-    ? state.stages
-    : clone(DEFAULT_ADMIN_STAGES);
+  const stages = normalizeAdminStages(
+    Array.isArray(state.stages) && state.stages.length > 0
+      ? state.stages
+      : clone(DEFAULT_ADMIN_STAGES),
+  );
   const currentStageId = normalizeId(state.currentStageId) || stages[0].id;
   const stageExists = stages.some((stage) => stage.id === currentStageId);
   const screenOverrideStageId = normalizeId(state.screenOverrideStageId);
@@ -77,7 +103,7 @@ function createMysqlAdminStateRepository(pool) {
 
   async function readRows() {
     const [rows] = await pool.execute(
-      `SELECT id, name, subtitle, display_time, status, sort_order
+      `SELECT id, name, subtitle, display_time, status, sort_order, updated_at
        FROM event_stages
        ORDER BY sort_order ASC, id ASC`,
     );
@@ -86,18 +112,21 @@ function createMysqlAdminStateRepository(pool) {
 
   async function readScreenOverride() {
     const [rows] = await pool.execute(
-      `SELECT view_name, params_json
+      `SELECT view_name, params_json, updated_at
        FROM bigscreen_state
        WHERE id = ?
        LIMIT 1`,
       [BIGSCREEN_STATE_ID],
     );
     if (!rows.length) {
-      return "";
+      return { stageId: "", updatedAt: "" };
     }
 
     const params = parseJsonValue(rows[0].params_json || rows[0].paramsJson, {});
-    return normalizeId(params.stageId || params.screenOverrideStageId || rows[0].view_name);
+    return {
+      stageId: normalizeId(params.stageId || params.screenOverrideStageId || rows[0].view_name),
+      updatedAt: normalizeTimestamp(rows[0].updated_at || rows[0].updatedAt),
+    };
   }
 
   async function persistStages(stages) {
@@ -144,10 +173,11 @@ function createMysqlAdminStateRepository(pool) {
   }
 
   async function readState() {
-    const [rows, screenOverrideStageId] = await Promise.all([
+    const [rows, screenOverride] = await Promise.all([
       readRows(),
       readScreenOverride(),
     ]);
+    const screenOverrideStageId = screenOverride.stageId;
     if (!rows.length) {
       const seededState = normalizeState({
         currentStageId: "team",
@@ -161,9 +191,14 @@ function createMysqlAdminStateRepository(pool) {
 
     const stages = rows.map(rowToStage);
     const activeStage = stages.find((stage) => stage.status === "active");
+    const updatedAt = latestTimestamp([
+      screenOverride.updatedAt,
+      ...rows.map((row) => row.updated_at || row.updatedAt),
+    ]);
     return normalizeState({
       currentStageId: activeStage?.id || stages[0]?.id,
       screenOverrideStageId,
+      updatedAt,
       stages,
       logs: [],
     });
