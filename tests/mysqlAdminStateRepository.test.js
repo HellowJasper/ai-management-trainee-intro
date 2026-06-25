@@ -15,6 +15,7 @@ class MemoryMysqlAdminStatePool {
       status: stage.status || "pending",
       sort_order: stage.sortOrder ?? index,
     }));
+    this.bigscreenState = null;
   }
 
   async execute(sql, params = []) {
@@ -44,6 +45,22 @@ class MemoryMysqlAdminStatePool {
       return [{ affectedRows: 1 }];
     }
 
+    if (compactSql.startsWith("select view_name, params_json from bigscreen_state where id = ?")) {
+      return [this.bigscreenState ? [{ ...this.bigscreenState }] : []];
+    }
+
+    if (compactSql.startsWith("insert into bigscreen_state")) {
+      const [id, screenKey, viewName, paramsJson, pushedBy] = params;
+      this.bigscreenState = {
+        id,
+        screen_key: screenKey,
+        view_name: viewName,
+        params_json: paramsJson,
+        pushed_by: pushedBy,
+      };
+      return [{ affectedRows: 1 }];
+    }
+
     throw new Error(`Unexpected SQL: ${sql}`);
   }
 }
@@ -62,8 +79,20 @@ test("MySQL admin state repository preserves stage switching and display time co
 
   const voteState = await repository.setCurrentStage("vote");
   assert.equal(voteState.currentStageId, "vote");
+  assert.equal(voteState.screenOverrideStageId, "");
   assert.deepEqual(voteState.stages.map((stage) => stage.status), ["done", "active", "pending"]);
   assert.equal(voteState.logs[0].message, "开启阶段【投票开启】");
+
+  const lockedState = await repository.setScreenOverride("result", "admin-user");
+  assert.equal(lockedState.currentStageId, "vote");
+  assert.equal(lockedState.screenOverrideStageId, "result");
+  assert.equal(lockedState.logs[0].message, "锁定大屏【结果发布】");
+  assert.deepEqual(JSON.parse(pool.bigscreenState.params_json), { stageId: "result" });
+
+  const clearedState = await repository.setScreenOverride("");
+  assert.equal(clearedState.currentStageId, "vote");
+  assert.equal(clearedState.screenOverrideStageId, "");
+  assert.deepEqual(JSON.parse(pool.bigscreenState.params_json), { stageId: "" });
 
   const timeState = await repository.updateDisplayTimes({
     stages: [

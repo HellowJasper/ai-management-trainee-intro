@@ -73,8 +73,8 @@ function findJoinedTeamId(teams = [], userId = "") {
   if (!cleanUserId) {
     return null;
   }
-  const team = teams.find((item = {}) => (item.members || []).some((member = {}) => (
-    String(member.userId || member.id || "").trim() === cleanUserId
+  const team = teams.find((item = {}) => [item.advisor, ...(item.members || [])].some((member = {}) => (
+    String(member?.userId || member?.id || "").trim() === cleanUserId
   )));
   return team ? team.id : null;
 }

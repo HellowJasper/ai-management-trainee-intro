@@ -147,7 +147,7 @@ async function seedTeams(pool, teams) {
           clean(isAdvisor ? "advisor" : member.roleKey) || null,
           clean(member.duty || member.role),
           clean(member.photo || member.avatar || member.photoUrl),
-          clean(member.role || (isAdvisor ? "赛道顾问" : "队友")),
+          clean(member.role || (isAdvisor ? "队长" : "队友")),
           isAdvisor,
         ],
       );

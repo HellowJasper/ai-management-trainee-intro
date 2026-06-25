@@ -51,6 +51,39 @@ function memberMatchesUser(member, userId) {
   return String(member?.userId || member?.id || member?.name || "").trim() === userId;
 }
 
+function roleMatches(member = {}, roleKey = "") {
+  const cleanRoleKey = String(roleKey || "").trim();
+  const memberRoleKey = String(member.roleKey || "").trim();
+  if (memberRoleKey === cleanRoleKey) {
+    return true;
+  }
+  if (cleanRoleKey === "advisor") {
+    return /队长|leader|captain|advisor/i.test(`${member.role || ""} ${member.duty || ""}`);
+  }
+  return false;
+}
+
+function isAdvisorMember(member = {}) {
+  return roleMatches(member, "advisor");
+}
+
+function advisorMatchesUser(advisor = {}, userId = "") {
+  return Boolean(advisor) && memberMatchesUser(advisor, userId);
+}
+
+function normalizeAdvisor(member = {}, fallbackTeam = {}) {
+  return {
+    userId: member.userId || member.id || "",
+    name: member.name || member.displayName || "队长",
+    department: member.department || fallbackTeam.hostDepartment || "",
+    role: "队长",
+    roleKey: "advisor",
+    duty: member.duty || member.role || "队长",
+    photo: member.photo || member.avatar || "",
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 function createTeamRepository(dataPath = DEFAULT_DATA_PATH) {
   const resolvedDataPath = path.resolve(dataPath);
 
@@ -89,6 +122,7 @@ function createTeamRepository(dataPath = DEFAULT_DATA_PATH) {
 
     const nextTeams = teams.map((team) => ({
       ...team,
+      advisor: advisorMatchesUser(team.advisor, member.userId) ? null : team.advisor,
       members: Array.isArray(team.members)
         ? team.members.filter((item) => !memberMatchesUser(item, member.userId))
         : [],
@@ -100,6 +134,22 @@ function createTeamRepository(dataPath = DEFAULT_DATA_PATH) {
 
     if (!options.bypassStatus && LOCKED_TEAM_STATUSES.has(String(target.status || "open").trim().toLowerCase())) {
       throw createHttpError(409, `Team ${teamId} is locked.`);
+    }
+
+    if (isAdvisorMember(member)) {
+      if (!target.advisor && target.members.length >= teamCapacity(target)) {
+        throw createHttpError(409, `Team ${teamId} is already full.`);
+      }
+      target.advisor = normalizeAdvisor(member, target);
+      nextTeams[targetIndex] = target;
+
+      await writeTeams(nextTeams);
+      return {
+        accepted: true,
+        team: target,
+        member: target.advisor,
+        teams: nextTeams,
+      };
     }
 
     if (target.members.length >= teamCapacity(target) - 1) {
@@ -134,15 +184,20 @@ function createTeamRepository(dataPath = DEFAULT_DATA_PATH) {
 
     const target = teams[targetIndex];
     const members = Array.isArray(target.members) ? target.members : [];
+    const wantsAdvisor = isAdvisorMember(payload);
+    const advisorMatched = target.advisor && (wantsAdvisor || advisorMatchesUser(target.advisor, userId))
+      ? advisorMatchesUser(target.advisor, userId)
+      : false;
     const nextMembers = members.filter((member) => !memberMatchesUser(member, userId));
 
-    if (nextMembers.length === members.length) {
+    if (!advisorMatched && nextMembers.length === members.length) {
       throw createHttpError(404, `User ${userId} is not in team ${teamId}.`);
     }
 
     const nextTeams = [...teams];
     const nextTeam = {
       ...target,
+      advisor: advisorMatched ? null : target.advisor,
       members: nextMembers,
     };
     nextTeams[targetIndex] = nextTeam;
@@ -181,6 +236,15 @@ function createTeamRepository(dataPath = DEFAULT_DATA_PATH) {
 
     if (memberIndex === -1) {
       throw createHttpError(404, `User ${userId} is not in team ${teamId}.`);
+    }
+
+    const advisorUserId = String(target.advisor?.userId || target.advisor?.id || "").trim();
+    if (roleKey === "advisor" && advisorUserId && advisorUserId !== userId) {
+      throw createHttpError(409, `Role ${roleKey} is already claimed in team ${teamId}.`);
+    }
+    const occupied = members.find((member) => !memberMatchesUser(member, userId) && roleMatches(member, roleKey));
+    if (occupied) {
+      throw createHttpError(409, `Role ${roleKey} is already claimed in team ${teamId}.`);
     }
 
     const member = {

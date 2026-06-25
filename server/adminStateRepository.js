@@ -51,6 +51,7 @@ const DEFAULT_STAGES = [
 
 const DEFAULT_STATE = {
   currentStageId: "team",
+  screenOverrideStageId: "",
   updatedAt: "2026-05-22T06:00:00.000Z",
   stages: DEFAULT_STAGES,
   logs: [
@@ -91,9 +92,13 @@ function normalizeState(state) {
   const stages = Array.isArray(state?.stages) && state.stages.length > 0 ? state.stages : clone(DEFAULT_STAGES);
   const currentStageId = normalizeId(state?.currentStageId) || stages[0].id;
   const stageExists = stages.some((stage) => stage.id === currentStageId);
+  const screenOverrideStageId = normalizeId(state?.screenOverrideStageId);
+  const screenOverrideStageExists = !screenOverrideStageId
+    || stages.some((stage) => stage.id === screenOverrideStageId);
 
   return withStageStatuses({
     currentStageId: stageExists ? currentStageId : stages[0].id,
+    screenOverrideStageId: screenOverrideStageExists ? screenOverrideStageId : "",
     updatedAt: state?.updatedAt || new Date().toISOString(),
     stages,
     logs: Array.isArray(state?.logs) ? state.logs : [],
@@ -156,6 +161,39 @@ function createAdminStateRepository(dataPath = DEFAULT_DATA_PATH) {
     return nextState;
   }
 
+  async function setScreenOverride(stageId) {
+    const cleanStageId = normalizeId(stageId);
+    const state = await readState();
+    const stage = cleanStageId
+      ? state.stages.find((item) => item.id === cleanStageId)
+      : null;
+
+    if (cleanStageId && !stage) {
+      throw createHttpError(400, `Unknown admin stage id: ${cleanStageId}.`);
+    }
+
+    const updatedAt = new Date().toISOString();
+    const nextState = normalizeState({
+      ...state,
+      screenOverrideStageId: cleanStageId,
+      updatedAt,
+      logs: [
+        {
+          at: updatedAt,
+          actor: "admin",
+          stageId: cleanStageId,
+          message: cleanStageId
+            ? `锁定大屏【${stage.name || cleanStageId}】`
+            : "取消大屏锁定，恢复跟随流程阶段",
+        },
+        ...state.logs,
+      ],
+    });
+
+    await writeState(nextState);
+    return nextState;
+  }
+
   async function updateDisplayTimes(payload = {}) {
     const state = await readState();
     const incomingStages = Array.isArray(payload.stages) ? payload.stages : [];
@@ -191,6 +229,7 @@ function createAdminStateRepository(dataPath = DEFAULT_DATA_PATH) {
   return {
     getState,
     setCurrentStage,
+    setScreenOverride,
     updateDisplayTimes,
   };
 }

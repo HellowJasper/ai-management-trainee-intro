@@ -8,14 +8,18 @@
   const D = root.ScreenData;
   const AppData = root.AppData || {};
   const Logic = root.AppLogic || {};
-  const TEAM_KEY = "joincare_hackathon_team";
-  const TEAM_NAME_KEY = "joincare_hackathon_team_names";
-  const WORK_DRAFT_KEY = "joincare_hackathon_work_drafts";
-  const WORKSPACE_META_KEY = "joincare_hackathon_workspace_meta";
   const JUDGE_KEY = "joincare_hackathon_judge_scores";
   const ROLE_KEY = "joincare_hackathon_role";
   const SESSION_KEY = "joincare_hackathon_session";
   const VALID_ROLES = ["public", "player", "judge", "admin"];
+  const TEAM_ROLE_SLOTS = [
+    { roleKey: "advisor", label: "队长", duty: "队长" },
+    { roleKey: "biz", label: "业务洞察", duty: "业务洞察" },
+    { roleKey: "dev", label: "AI 开发", duty: "AI 开发" },
+    { roleKey: "design", label: "产品设计", duty: "产品设计" },
+    { roleKey: "roadshow", label: "路演运营", duty: "路演运营" },
+  ];
+  const SITE_STATE_POLL_MS = 5000;
   let TRAINEES = [];
   let MOBILE_TRAINEE_INDEX = 0;
   let MOBILE_TRAINEE_DETAIL = false;
@@ -23,6 +27,9 @@
   let MOBILE_TRAINEE_SHOULD_ENTER = false;
   let SITE_STATE = null;
   let SITE_STATE_ERROR = "";
+  let siteStatePollTimer = null;
+  let siteStateSignature = "";
+  let siteStateSyncing = false;
   let siteMediaMode = "photo";
   const STATIC_TEAMS = (D.teams || []).map((team) => ({
     ...team,
@@ -82,7 +89,7 @@
   const pad = (n) => String(n).padStart(2, "0");
   const fmtHMS = (s) => `${pad((s / 3600) | 0)}<i>:</i>${pad(((s % 3600) / 60) | 0)}<i>:</i>${pad(s % 60)}`;
   const votedTeam = () => (SITE_STATE && SITE_STATE.vote && SITE_STATE.vote.myVoteTeamId) || "";
-  const joinedTeam = () => (SITE_STATE && SITE_STATE.me && SITE_STATE.me.teamId) || root.localStorage.getItem(TEAM_KEY);
+  const joinedTeam = () => (SITE_STATE && SITE_STATE.me && SITE_STATE.me.teamId) || "";
   function currentRole() { return root.localStorage.getItem(ROLE_KEY); }
   const roleName = (role) => Logic.getRoleLabel ? Logic.getRoleLabel(role) : ({ player: "参赛选手", judge: "专家评委", public: "大众评委", admin: "管理员" }[role] || "待鉴权");
   const rolePermissions = (role) => Logic.getRolePermissions ? Logic.getRolePermissions(role) : { canJoinTeam: role === "player", canSubmitWork: role === "player", canVote: role === "public", canScore: role === "judge", canAdmin: role === "admin", canControlBigscreen: role === "admin", canViewTeamProgress: true };
@@ -106,8 +113,9 @@
   function canEditTeamWorkspace(teamId) {
     const team = getTeam(teamId);
     if (!team || !canOpenTeamWorkspace(teamId)) return false;
-    const meta = getTeamWorkspaceMeta(team);
-    return currentWorkspaceMemberId(team) === meta.leaderId;
+    const memberId = currentWorkspaceMemberId(team);
+    const leaderId = getTeamLeaderId(team);
+    return Boolean(memberId && leaderId && memberId === leaderId);
   }
   const readJson = (key, fallback) => {
     try { return JSON.parse(root.localStorage.getItem(key) || JSON.stringify(fallback)); } catch (e) { return fallback; }
@@ -144,6 +152,15 @@
       department: member.department || "",
     };
   }
+  function normalizeLeader(member = {}) {
+    const name = String(member.name || member.displayName || "队长").replace(/^赛道顾问/, "队长");
+    return {
+      ...member,
+      name,
+      role: String(member.role || member.duty || "队长").replace(/^赛道顾问$/, "队长"),
+      duty: String(member.duty || member.role || "队长").replace(/^赛道顾问$/, "队长"),
+    };
+  }
   function normalizeSiteTeam(team = {}, index = 0, voteResults = [], works = []) {
     const base = findStaticTeam(team, index);
     const work = workForTeam(works, team.id);
@@ -169,7 +186,7 @@
       pitch: work?.pitch || team.pitch || base.pitch || "",
       stack,
       submitted: Boolean(work && !["draft", "rejected"].includes(work.status)) || Boolean(team.submitted),
-      advisor: team.advisor || base.advisor || { name: "赛道顾问", avatar: "" },
+      advisor: normalizeLeader(team.advisor || base.advisor || { name: "队长", avatar: "" }),
       members: normalizeList(team.members).map(normalizeMember),
       votes: toNumber(vote?.votes, 0),
       expert: toNumber(vote?.expert ?? team.expert, 0),
@@ -247,6 +264,57 @@
       return null;
     }
   }
+
+  function createSiteStateSignature(state = SITE_STATE) {
+    return JSON.stringify(normalizeList(state?.trainees).map((trainee) => {
+      const item = normalizeSiteTrainee(trainee);
+      return [
+        item.id || "",
+        item.name || "",
+        item.romanName || "",
+        item.department || "",
+        item.departmentEn || "",
+        item.photo || "",
+        item.idPhoto || "",
+        item.memeImage || "",
+        item.sentence || "",
+        item.tools || "",
+        item.favoriteTool || "",
+        item.problem || "",
+        item.background || "",
+        item.aiPower || "",
+        item.funFact || "",
+      ];
+    }));
+  }
+
+  async function syncSiteState() {
+    if (siteStateSyncing) {
+      return;
+    }
+
+    siteStateSyncing = true;
+    try {
+      const state = await loadSiteState();
+      const nextSignature = createSiteStateSignature(state || SITE_STATE);
+      if (nextSignature === siteStateSignature) {
+        return;
+      }
+
+      siteStateSignature = nextSignature;
+      refreshCurrentView({ preserveScroll: true });
+    } catch (error) {
+      console.warn("Site state polling failed.", error);
+    } finally {
+      siteStateSyncing = false;
+    }
+  }
+
+  function startSiteStatePolling() {
+    root.clearInterval(siteStatePollTimer);
+    siteStatePollTimer = root.setInterval(syncSiteState, SITE_STATE_POLL_MS);
+  }
+
   function getRuntimeApiBaseUrl() {
     const runtimeConfig = root.JoincareRuntimeConfig || {};
     const value = root.JOINCARE_API_BASE_URL || runtimeConfig.apiBaseUrl || "";
@@ -259,35 +327,54 @@
     return apiBaseUrl ? `${apiBaseUrl}${value}` : value;
   }
   function teamPeople(team) {
-    return [{ ...team.advisor, id: `${team.id}-leader`, defaultDuty: defaultDuty(0) }, ...team.members.map((m, i) => ({ ...m, id: `${team.id}-m${i + 1}`, defaultDuty: defaultDuty(i + 1) }))];
+    const leader = team.advisor || {};
+    const leaderUserId = leader.userId || leader.id || "";
+    return [
+      { ...leader, id: leaderUserId || `${team.id}-leader`, realUserId: leaderUserId, defaultDuty: leader.duty || leader.role || defaultDuty(0), roleKey: leader.roleKey || "advisor" },
+      ...team.members.map((m, i) => {
+        const memberUserId = m.userId || m.id || "";
+        return {
+          ...m,
+          id: memberUserId || `${team.id}-m${i + 1}`,
+          realUserId: memberUserId,
+          defaultDuty: m.duty || m.role || defaultDuty(i + 1),
+        };
+      }),
+    ];
   }
-  function getTeamWorkspaceMeta(team) {
+  function getTeamLeaderId(team) {
     const people = teamPeople(team);
-    const saved = readJson(WORKSPACE_META_KEY, {})[team.id] || {};
-    const knownIds = new Set(people.map((p) => p.id));
-    const duties = {};
-    people.forEach((p) => { duties[p.id] = (saved.duties && saved.duties[p.id]) || p.defaultDuty; });
-    return {
-      leaderId: knownIds.has(saved.leaderId) ? saved.leaderId : people[0].id,
-      duties,
-    };
+    const explicit = people.find((person, index) => {
+      const roleText = `${person.roleKey || ""} ${person.role || ""} ${person.duty || ""}`;
+      const personId = String(person.realUserId || "").trim();
+      return personId && ((index === 0 && person.realUserId) || /advisor|leader|captain|队长/.test(roleText));
+    });
+    return explicit ? String(explicit.realUserId || "").trim() : "";
   }
-  function saveTeamWorkspaceMeta(teamId, meta) {
-    const all = readJson(WORKSPACE_META_KEY, {});
-    all[teamId] = meta;
-    root.localStorage.setItem(WORKSPACE_META_KEY, JSON.stringify(all));
+  function findTeamRoleOccupant(team, roleKey) {
+    const cleanRoleKey = String(roleKey || "").trim();
+    return teamPeople(team).find((person, index) => {
+      const personId = String(person.realUserId || "").trim();
+      if (!personId) return false;
+      const memberRoleKey = String(person.roleKey || "").trim();
+      if (memberRoleKey === cleanRoleKey) return true;
+      if (cleanRoleKey === "advisor") {
+        const roleText = `${person.role || ""} ${person.duty || ""}`;
+        return (index === 0 && person.realUserId) || /队长|leader|captain|advisor/i.test(roleText);
+      }
+      return false;
+    }) || null;
   }
   function currentWorkspaceMemberId(team) {
-    const session = readJson(SESSION_KEY, {});
+    const session = (SITE_STATE && SITE_STATE.me && SITE_STATE.me.user) || readJson(SESSION_KEY, {});
     const people = teamPeople(team);
-    const meta = getTeamWorkspaceMeta(team);
-    const sessionMemberId = session.memberId || session.traineeId || session.userId || "";
-    if (people.some((p) => p.id === sessionMemberId)) return sessionMemberId;
+    const sessionMemberId = session.id || session.userId || session.memberId || session.traineeId || "";
+    if (people.some((p) => p.realUserId === sessionMemberId)) return sessionMemberId;
     if (session.name) {
       const byName = people.find((p) => p.name === session.name);
-      if (byName) return byName.id;
+      if (byName && byName.realUserId) return byName.realUserId;
     }
-    return meta.leaderId;
+    return "";
   }
 
   async function apiRequest(path, options) {
@@ -313,6 +400,7 @@
     logout: () => apiRequest("/api/auth/logout", { method: "POST", body: "{}" }),
     joinTeam: (teamId) => apiRequest("/api/team/join", { method: "POST", body: JSON.stringify({ teamId }) }),
     leaveTeam: (teamId) => apiRequest("/api/team/leave", { method: "POST", body: JSON.stringify({ teamId }) }),
+    claimRole: (teamId, roleKey, duty) => apiRequest("/api/team/claim-role", { method: "POST", body: JSON.stringify({ teamId, roleKey, duty }) }),
     castVote: (teamId) => apiRequest("/api/vote/cast", { method: "POST", body: JSON.stringify({ teamId }) }),
     cancelVote: (teamId) => apiRequest("/api/vote/cancel", { method: "POST", body: JSON.stringify({ teamId }) }),
     saveJudgeScores: (scores) => apiRequest("/api/judge/scores", { method: "POST", body: JSON.stringify({ scores }) }),
@@ -1256,16 +1344,20 @@
     const canJoin = permissions.canJoinTeam;
     const selected = canJoin ? joinedTeam() : "";
     const selectedTeam = getTeam(selected);
-    const teamNameDrafts = readJson(TEAM_NAME_KEY, {});
-    const selectedTeamName = selectedTeam ? (teamNameDrafts[selectedTeam.id] || selectedTeam.name) : "";
+    const selectedTeamName = selectedTeam ? selectedTeam.name : "";
     const teams = D.teams.map((t) => {
       const count = 1 + t.members.length;
       const mine = selectedTeam && selectedTeam.id === t.id;
       const disabled = selectedTeam && !mine ? "disabled" : "";
-      const displayName = teamNameDrafts[t.id] || t.name;
+      const displayName = t.name;
       const openTarget = mine ? `data-team-workspace="${t.id}"` : `data-work="${t.id}"`;
-      const roster = [{ ...t.advisor, role: "技术顾问" }, ...t.members.map((m) => ({ ...m, role: "组员" }))]
-        .map((p) => `<span class="team-avatar">${avatar(p, 34)}<i>${esc(p.role)} · ${esc(p.name)}</i></span>`).join("");
+      const roster = [{ ...t.advisor, role: "队长" }, ...t.members.map((m) => ({ ...m, role: "组员" }))]
+        .map((p) => {
+          const label = p.role === "队长" && String(p.name || "").startsWith("队长")
+            ? p.name
+            : `${p.role} · ${p.name}`;
+          return `<span class="team-avatar">${avatar(p, 34)}<i>${esc(label)}</i></span>`;
+        }).join("");
       const action = canJoin
         ? mine
           ? `<button class="team-join is-joined is-leave" data-leave-team="${t.id}">退出队伍</button>`
@@ -1282,12 +1374,12 @@
       </article>`;
     }).join("");
     const title = canJoin ? "报名与组队" : "组队进度";
-    const subtitle = canJoin ? "选择赛道队伍，查看技术顾问、成员与作品方向" : "各角色均可查看队伍形成情况；选手操作仅向参赛选手开放";
+    const subtitle = canJoin ? "选择赛道队伍，查看队长、成员与作品方向" : "各角色均可查看队伍形成情况；选手操作仅向参赛选手开放";
     const statusTitle = canJoin
       ? (selectedTeam ? esc(selectedTeamName) : "请选择一个队伍加入")
       : rolePermissions(currentRole()).canAdmin ? "管理员可在后台调整组队" : "当前角色仅可查看组队进度";
     const statusSub = canJoin
-      ? (selectedTeam ? esc(selectedTeam.project) : "演示版会把选择保存在本地浏览器，用于“我的”页面同步状态。")
+      ? (selectedTeam ? esc(selectedTeam.project) : "登录参赛选手后，加入队伍会写入后端队伍数据；刷新页面仍以后端状态为准。")
       : "赛道名额、成员与作品方向可浏览，但不会出现选手操作按钮。";
     const statusCta = canJoin && selectedTeam
       ? `<button class="btn-ghost is-cancel" type="button" data-leave-team="${selectedTeam.id}">退出当前队伍</button>`
@@ -1298,7 +1390,7 @@
     return `${pageHead(title, subtitle, "TEAM")}
     <section class="container sec team-board">
       <div class="team-live-strip glass">
-        <div><span class="status-chip on">TEAM FORMATION HUB</span><h2>固定赛道，队伍自定义命名</h2><p>参考大屏组队方案，五条赛道对称呈现；加入队伍后队长可编辑队名，技术顾问、业务洞察、AI 开发、产品设计、路演运营等职责在队伍内沉淀。</p></div>
+        <div><span class="status-chip on">TEAM FORMATION HUB</span><h2>固定赛道，队伍自定义命名</h2><p>参考大屏组队方案，五条赛道对称呈现；加入队伍后队长可编辑队名，队长、业务洞察、AI 开发、产品设计、路演运营等职责在队伍内沉淀。</p></div>
         <div class="team-countdown"><span>任务倒计时</span><b data-countdown data-remain="129600">${fmtHMS(129600)}</b><em>组队锁定后进入 36H Demo preparation</em></div>
       </div>
       <div class="team-status glass"><div><span class="status-chip ${selectedTeam ? "on" : ""}">${canJoin ? (selectedTeam ? "已选择队伍" : "待选择队伍") : "只读进度"}</span><h2>${statusTitle}</h2><p>${statusSub} 点击任意队伍卡片进入专属工作台，维护队名与作品信息。</p></div>${statusCta}</div>
@@ -1306,21 +1398,33 @@
     </section>`;
   }
 
-  function getWorkDraft(team) {
-    const allDrafts = readJson(WORK_DRAFT_KEY, {});
-    const nameDrafts = readJson(TEAM_NAME_KEY, {});
-    const draft = allDrafts[team.id] || {};
-    const links = teamLinks(team);
+  function getWorkSubmission(team) {
+    const work = team.work || {};
     return {
-      teamName: draft.teamName || nameDrafts[team.id] || team.name,
-      project: draft.project || team.project,
-      pitch: draft.pitch || team.pitch || "",
-      stack: draft.stack || (team.stack || []).join(" / "),
-      demoUrl: draft.demoUrl || links.video,
-      codeUrl: draft.codeUrl || links.gitlab,
-      docUrl: draft.docUrl || links.page,
-      screenshots: draft.screenshots || "主界面截图 / 数据看板截图 / AI 输出截图",
+      teamName: work.teamName || team.name || "",
+      project: work.project || "",
+      pitch: work.pitch || "",
+      stack: Array.isArray(work.stack) ? work.stack.join(" / ") : "",
+      demoUrl: work.demoUrl || "",
+      codeUrl: work.codeUrl || "",
+      docUrl: work.docUrl || "",
+      screenshots: Array.isArray(work.screenshots) ? work.screenshots.join(" / ") : "",
+      status: work.status || "",
+      submittedAt: work.submittedAt || "",
+      reviewedAt: work.reviewedAt || "",
+      reviewNote: work.reviewNote || "",
     };
+  }
+
+  function renderWorkStatusLabel(status) {
+    return ({
+      not_submitted: "未提交",
+      draft: "草稿",
+      submitted: "已提交，待审核",
+      reviewing: "审核中",
+      published: "已发布",
+      rejected: "已退回",
+    })[status] || "未提交";
   }
 
   function renderWorkspaceField({ teamId, field, label, value, hint, multiline = false, editable = true }) {
@@ -1335,24 +1439,26 @@
     </label>`;
   }
 
-  function renderWorkspaceRoles(team, editable) {
-    const meta = getTeamWorkspaceMeta(team);
+  function renderWorkspaceRoles(team, canClaim) {
     const currentMemberId = currentWorkspaceMemberId(team);
-    const rows = teamPeople(team).map((person) => {
-      const isLeader = person.id === meta.leaderId;
-      const isCurrent = person.id === currentMemberId;
-      const locked = editable ? "" : "disabled";
-      const readonly = editable ? "" : 'readonly aria-readonly="true"';
-      return `<div class="workspace-person-role ${isLeader ? "is-leader" : ""} ${isCurrent ? "is-current" : ""}">
-        ${avatar(person, 42)}
+    const rows = TEAM_ROLE_SLOTS.map((slot) => {
+      const occupant = findTeamRoleOccupant(team, slot.roleKey);
+      const occupantId = occupant?.realUserId || "";
+      const isCurrent = occupantId && occupantId === currentMemberId;
+      const isOpen = !occupantId;
+      const canTake = canClaim && currentMemberId && (isOpen || isCurrent);
+      const button = isCurrent
+        ? `<button class="workspace-role-claim is-mine" type="button" disabled>我的职责</button>`
+        : isOpen
+          ? `<button class="workspace-role-claim" type="button" data-role-claim="${team.id}:${slot.roleKey}" ${canTake ? "" : "disabled"}>认领</button>`
+          : `<button class="workspace-role-claim is-locked" type="button" disabled>已占用</button>`;
+      return `<div class="workspace-person-role ${slot.roleKey === "advisor" ? "is-leader" : ""} ${isCurrent ? "is-current" : ""} ${isOpen ? "is-open" : ""}">
+        ${avatar(occupant || { name: slot.label }, 42)}
         <div class="workspace-role-main">
-          <b>${esc(person.name)}${isLeader ? "<i>当前队长</i>" : ""}${isCurrent ? "<em>当前身份</em>" : ""}</b>
-          <input type="text" data-team-duty="${team.id}:${person.id}" value="${esc(meta.duties[person.id])}" ${readonly} />
+          <b>${esc(slot.label)}${slot.roleKey === "advisor" ? "<i>队长</i>" : ""}${isCurrent ? "<em>当前身份</em>" : ""}</b>
+          <span>${occupant ? esc(occupant.name || "未命名成员") : "待认领"}</span>
         </div>
-        <label class="workspace-leader-pick">
-          <input type="radio" name="leader-${team.id}" data-team-leader="${team.id}" value="${person.id}" ${isLeader ? "checked" : ""} ${locked} />
-          <span>设为队长</span>
-        </label>
+        ${button}
       </div>`;
     }).join("");
     return `<section class="workspace-roles glass" aria-label="队长与职责">
@@ -1360,7 +1466,7 @@
         <span>SQUAD ROLES</span>
         <b>队长与职责</b>
       </div>
-      <p>队伍可以根据现场分工调整队长与职责；作品提交、Demo 链接、代码地址和展示截图仅队长可编辑。</p>
+      <p>点击认领会写入后端队伍数据；每个职责只能由一名成员占用，认领队长后才可提交作品。</p>
       <div class="workspace-role-list">${rows}</div>
     </section>`;
   }
@@ -1372,17 +1478,22 @@
     const selectedTeam = getTeam(joinedTeam());
     const isMine = selectedTeam && selectedTeam.id === team.id;
     const canEdit = canEditTeamWorkspace(team.id);
-    const draft = getWorkDraft(team);
-    const stackTags = splitTags(draft.stack).map((s) => `<span>${esc(s)}</span>`).join("");
-    const meta = getTeamWorkspaceMeta(team);
+    const submission = getWorkSubmission(team);
+    const submissionStatus = submission.status || "not_submitted";
+    const stackTags = splitTags(submission.stack).map((s) => `<span>${esc(s)}</span>`).join("");
+    const leaderId = getTeamLeaderId(team);
     const roster = teamPeople(team)
-      .map((p) => `<div class="workspace-person ${p.id === meta.leaderId ? "is-leader" : ""}">${avatar(p, 42)}<b>${esc(p.name)}</b><span>${esc(meta.duties[p.id])}${p.id === meta.leaderId ? " · 队长" : ""}</span></div>`).join("");
+      .map((p) => {
+        const personId = p.realUserId || "";
+        const duty = p.duty || p.role || p.defaultDuty || "队友协作";
+        return `<div class="workspace-person ${personId === leaderId ? "is-leader" : ""}">${avatar(p, 42)}<b>${esc(p.name)}</b><span>${esc(duty)}${personId === leaderId ? " · 队长" : ""}</span></div>`;
+      }).join("");
     const editHint = canEdit
-      ? "你是当前队长，可调整职责并编辑作品提交内容；后端接入后同步到队伍与作品表。"
-      : "当前身份为队友，可查看职责与作品预览；作品提交内容仅队长可编辑。";
+      ? "你是当前队长，可提交作品信息；提交后会写入后端作品表，并等待管理员审核。"
+      : leaderId ? "当前身份为队友，可查看职责与作品预览；作品提交内容仅队长可编辑。" : "当前队伍尚未绑定真实队长账号，请联系管理员在后台维护后再提交作品。";
     const joinAction = canEdit
-      ? `<button class="btn-primary" type="button" data-save-work-draft="${team.id}">保存草稿</button>`
-      : `<button class="btn-primary" type="button" disabled>仅队长可保存</button>`;
+      ? `<button class="btn-primary" type="button" data-submit-work="${team.id}">提交作品</button>`
+      : `<button class="btn-primary" type="button" disabled>仅队长可提交</button>`;
 
     return `${pageHead("队伍工作台 / 作品提交", "维护队伍名称、作品资料与发布预览；作品展厅只展示审核发布后的内容", "WORKSPACE")}
     <section class="container sec team-workspace" style="--accent:${team.accent};--rgb:${team.rgb}">
@@ -1391,8 +1502,9 @@
           <a class="wk-back" data-nav="team">‹ 返回队伍列表</a>
           <div>
             <span class="status-chip ${isMine ? "on" : ""}">${isMine ? "我的队伍" : `${team.trackCode} · ${team.track}`}</span>
-            <h2>${esc(draft.teamName)}</h2>
+            <h2>${esc(submission.teamName)}</h2>
             <p>${esc(editHint)}</p>
+            <em class="workspace-submit-state">提交状态：${esc(renderWorkStatusLabel(submissionStatus))}</em>
           </div>
           <div class="workspace-actions">
             ${joinAction}
@@ -1405,35 +1517,35 @@
               <span>SUBMISSION FORM</span>
               <b>提交内容</b>
             </div>
-            ${renderWorkspaceField({ teamId: team.id, field: "teamName", label: "自定义队伍名称", value: draft.teamName, hint: "展示在组队页、作品展厅和最终结果中。", editable: canEdit })}
-            ${renderWorkspaceField({ teamId: team.id, field: "project", label: "作品标题", value: draft.project, hint: "对应作品展厅卡片标题。", editable: canEdit })}
-            ${renderWorkspaceField({ teamId: team.id, field: "pitch", label: "一句话介绍", value: draft.pitch, hint: "对应作品展厅摘要与作品详情介绍。", multiline: true, editable: canEdit })}
-            ${renderWorkspaceField({ teamId: team.id, field: "stack", label: "技术栈 / AI 能力", value: draft.stack, hint: "用 / 或逗号分隔，会展示为标签。", editable: canEdit })}
-            ${renderWorkspaceField({ teamId: team.id, field: "demoUrl", label: "Demo 链接", value: draft.demoUrl, hint: "用于管理员审核和现场路演。", editable: canEdit })}
-            ${renderWorkspaceField({ teamId: team.id, field: "codeUrl", label: "代码地址", value: draft.codeUrl, hint: "用于技术复核，不在公开展厅直接暴露。", editable: canEdit })}
-            ${renderWorkspaceField({ teamId: team.id, field: "docUrl", label: "飞书作品页", value: draft.docUrl, hint: "作品详情页的正式说明文档。", editable: canEdit })}
-            ${renderWorkspaceField({ teamId: team.id, field: "screenshots", label: "展示截图", value: draft.screenshots, hint: "对应作品详情轮播，可先填写截图名称。", multiline: true, editable: canEdit })}
+            ${renderWorkspaceField({ teamId: team.id, field: "teamName", label: "自定义队伍名称", value: submission.teamName, hint: "随作品提交保存，展示在作品展厅和最终结果中。", editable: canEdit })}
+            ${renderWorkspaceField({ teamId: team.id, field: "project", label: "作品标题", value: submission.project, hint: "对应作品展厅卡片标题。", editable: canEdit })}
+            ${renderWorkspaceField({ teamId: team.id, field: "pitch", label: "一句话介绍", value: submission.pitch, hint: "对应作品展厅摘要与作品详情介绍。", multiline: true, editable: canEdit })}
+            ${renderWorkspaceField({ teamId: team.id, field: "stack", label: "技术栈 / AI 能力", value: submission.stack, hint: "用 / 或逗号分隔，会展示为标签。", editable: canEdit })}
+            ${renderWorkspaceField({ teamId: team.id, field: "demoUrl", label: "Demo 链接", value: submission.demoUrl, hint: "用于管理员审核和现场路演。", editable: canEdit })}
+            ${renderWorkspaceField({ teamId: team.id, field: "codeUrl", label: "代码地址", value: submission.codeUrl, hint: "用于技术复核，不在公开展厅直接暴露。", editable: canEdit })}
+            ${renderWorkspaceField({ teamId: team.id, field: "docUrl", label: "飞书作品页", value: submission.docUrl, hint: "作品详情页的正式说明文档。", editable: canEdit })}
+            ${renderWorkspaceField({ teamId: team.id, field: "screenshots", label: "展示截图", value: submission.screenshots, hint: "对应作品详情轮播，只保存已提交的真实材料信息。", multiline: true, editable: canEdit })}
           </section>
           <aside class="workspace-preview" aria-label="发布预览">
-            ${renderWorkspaceRoles(team, canEdit)}
+            ${renderWorkspaceRoles(team, canOpenTeamWorkspace(team.id))}
             <div class="workspace-preview-card">
               <span class="gl2-dots"></span>
               <span class="workspace-preview-kicker">发布预览 · ${esc(team.trackCode)} PROJECT</span>
-              <h3 data-work-preview="project">${esc(draft.project)}</h3>
-              <em data-work-preview="teamName">${esc(draft.teamName)}</em>
-              <p data-work-preview="pitch">${esc(draft.pitch)}</p>
+              <h3 data-work-preview="project">${esc(submission.project || "作品待提交")}</h3>
+              <em data-work-preview="teamName">${esc(submission.teamName)}</em>
+              <p data-work-preview="pitch">${esc(submission.pitch || "提交后展示真实作品介绍")}</p>
               <div class="workspace-preview-stack" data-work-preview="stack">${stackTags}</div>
               <div class="workspace-preview-shots" data-work-preview="screenshots">
-                ${splitTags(draft.screenshots).slice(0, 3).map((shot, index) => `<span>${pad(index + 1)} ${esc(shot)}</span>`).join("")}
+                ${splitTags(submission.screenshots).slice(0, 3).map((shot, index) => `<span>${pad(index + 1)} ${esc(shot)}</span>`).join("")}
               </div>
             </div>
             <div class="workspace-map glass">
               <b>作品展厅展示字段</b>
               <ul>
-                <li>队伍名称：${esc(draft.teamName)}</li>
-                <li>作品标题：${esc(draft.project)}</li>
-                <li>一句话介绍：${esc(draft.pitch)}</li>
-                <li>技术标签：${esc(draft.stack)}</li>
+                <li>队伍名称：${esc(submission.teamName)}</li>
+                <li>作品标题：${esc(submission.project || "未提交")}</li>
+                <li>一句话介绍：${esc(submission.pitch || "未提交")}</li>
+                <li>技术标签：${esc(submission.stack || "未提交")}</li>
                 <li>成员与票数：由队伍和投票数据自动同步</li>
               </ul>
             </div>
@@ -1533,7 +1645,7 @@
     const canVote = canUseVoteAction();
     const isVoted = voted === t.id;
     const L = teamLinks(t);
-    const people = [{ ...t.advisor, role: "技术顾问" }, ...t.members.map((m) => ({ ...m, role: "组员" }))]
+    const people = [{ ...t.advisor, role: "队长" }, ...t.members.map((m) => ({ ...m, role: "组员" }))]
       .map((p) => `<div class="wk-person">${avatar(p, 64, "ring")}<b>${esc(p.name)}</b><span>${esc(p.role)}</span></div>`).join("");
     const stack = (t.stack || []).map((s) => `<span>${esc(s)}</span>`).join("");
     const voteBtn = !hasBackendSession()
@@ -1968,10 +2080,11 @@
     }
     try {
       await SiteRoleApi.joinTeam(id);
+      await loadSiteState();
     } catch (e) {
-      // 后端未接入时使用本地演示组队状态。
+      toast("加入队伍失败，请稍后重试");
+      return;
     }
-    root.localStorage.setItem(TEAM_KEY, id);
     toast(`已加入「${team.name}」`);
     refreshCurrentView({ preserveScroll: true });
   }
@@ -1997,10 +2110,11 @@
     }
     try {
       await SiteRoleApi.leaveTeam(team.id);
+      await loadSiteState();
     } catch (e) {
-      // 后端未接入时使用本地演示组队状态。
+      toast("退出队伍失败，请稍后重试");
+      return;
     }
-    root.localStorage.removeItem(TEAM_KEY);
     toast(`已退出「${team.name}」`);
     refreshCurrentView({ preserveScroll: true });
   }
@@ -2034,32 +2148,13 @@
     if (output) output.textContent = value;
   }
 
-  function updateTeamNameDraft(input) {
-    const teamId = input?.dataset?.teamNameDraft || "";
-    if (!teamId) return;
-    const drafts = readJson(TEAM_NAME_KEY, {});
-    const value = input.value.trim();
-    if (value) drafts[teamId] = value;
-    else delete drafts[teamId];
-    root.localStorage.setItem(TEAM_NAME_KEY, JSON.stringify(drafts));
-  }
   function renderPreviewTags(value) {
     return splitTags(value).map((s) => `<span>${esc(s)}</span>`).join("");
   }
-  function updateWorkDraft(input) {
+  function updateWorkPreview(input) {
     const [teamId, field] = String(input?.dataset?.workField || "").split(":");
     if (!teamId || !field) return;
     if (!canEditTeamWorkspace(teamId)) return;
-    const drafts = readJson(WORK_DRAFT_KEY, {});
-    drafts[teamId] = { ...(drafts[teamId] || {}), [field]: input.value.trim() };
-    root.localStorage.setItem(WORK_DRAFT_KEY, JSON.stringify(drafts));
-
-    if (field === "teamName") {
-      const teamNameDraft = { ...readJson(TEAM_NAME_KEY, {}) };
-      if (input.value.trim()) teamNameDraft[teamId] = input.value.trim();
-      else delete teamNameDraft[teamId];
-      root.localStorage.setItem(TEAM_NAME_KEY, JSON.stringify(teamNameDraft));
-    }
 
     const preview = doc.querySelector(`[data-work-preview="${field}"]`);
     if (!preview) return;
@@ -2069,51 +2164,47 @@
     }
     else preview.textContent = input.value;
   }
-  function updateTeamLeader(input) {
-    const teamId = input?.dataset?.teamLeader || "";
+  async function claimTeamRole(teamId, roleKey) {
     const team = getTeam(teamId);
-    if (!team) return;
-    if (!canEditTeamWorkspace(teamId)) {
-      toast("只有当前队长可以调整队长与职责");
-      refreshCurrentView({ preserveScroll: true });
+    const slot = TEAM_ROLE_SLOTS.find((item) => item.roleKey === roleKey);
+    if (!team || !slot) return;
+    if (!canOpenTeamWorkspace(teamId)) {
+      toast("只有已加入该队伍的参赛选手可以认领职责");
       return;
     }
-    const people = teamPeople(team);
-    if (!people.some((p) => p.id === input.value)) return;
-    const meta = getTeamWorkspaceMeta(team);
-    meta.leaderId = input.value;
-    saveTeamWorkspaceMeta(teamId, meta);
-    toast("队长已更新");
-    refreshCurrentView({ preserveScroll: true });
+    try {
+      await SiteRoleApi.claimRole(teamId, roleKey, slot.duty);
+      await loadSiteState();
+      toast(`已认领「${slot.label}」`);
+      refreshCurrentView({ preserveScroll: true });
+    } catch (error) {
+      console.warn("Claim team role failed.", error);
+      toast(error.status === 409 ? "该职责已被其他成员认领" : "职责认领失败，请稍后重试");
+    }
   }
-  function updateTeamDuty(input) {
-    const [teamId, personId] = String(input?.dataset?.teamDuty || "").split(":");
-    const team = getTeam(teamId);
-    if (!team || !personId) return;
-    if (!canEditTeamWorkspace(teamId)) return;
-    const meta = getTeamWorkspaceMeta(team);
-    meta.duties[personId] = input.value.trim() || defaultDuty(teamPeople(team).findIndex((p) => p.id === personId));
-    saveTeamWorkspaceMeta(teamId, meta);
-  }
-  async function saveWorkDraft(teamId) {
+  async function submitTeamWork(teamId) {
     const team = getTeam(teamId);
     if (!team) return;
     if (!canEditTeamWorkspace(teamId)) {
-      toast("只有已加入该队伍的参赛选手可以保存作品草稿");
+      toast("只有当前队长可以提交作品");
       return;
     }
 
-    const draft = getWorkDraft(team);
+    const submission = getWorkSubmission(team);
+    doc.querySelectorAll(`[data-work-field^="${team.id}:"]`).forEach((input) => {
+      const field = String(input.dataset.workField || "").split(":")[1];
+      if (field) submission[field] = input.value.trim();
+    });
     try {
       await SiteRoleApi.submitWork({
-        ...draft,
+        ...submission,
         teamId: team.id,
-        userId: currentWorkspaceMemberId(team) || "local-player",
       });
-      toast(`「${draft.teamName || team.name}」作品草稿已同步`);
+      await loadSiteState();
+      toast(`「${submission.teamName || team.name}」作品已提交`);
     } catch (error) {
       console.warn("Work submit API failed.", error);
-      toast(`「${team.name}」作品草稿已保存在本地`);
+      toast(`「${team.name}」作品提交失败，请稍后重试`);
     }
   }
 
@@ -2129,7 +2220,8 @@
       const team = e.target.closest("[data-join-team]");
       const leaveTeamButton = e.target.closest("[data-leave-team]");
       const teamWorkspace = e.target.closest("[data-team-workspace]");
-      const saveWork = e.target.closest("[data-save-work-draft]");
+      const submitWork = e.target.closest("[data-submit-work]");
+      const roleClaim = e.target.closest("[data-role-claim]");
       const judgeSave = e.target.closest("[data-judge-save]");
       const mobileTrainee = e.target.closest("[data-mobile-trainee]");
       const mobileDetailClose = e.target.closest("[data-mobile-detail-close]");
@@ -2178,7 +2270,12 @@
       if (vote) { castVote(vote.dataset.vote); return; }
       if (leaveTeamButton) { leaveTeam(leaveTeamButton.dataset.leaveTeam); return; }
       if (team) { joinTeam(team.dataset.joinTeam); return; }
-      if (saveWork) { saveWorkDraft(saveWork.dataset.saveWorkDraft); return; }
+      if (submitWork) { submitTeamWork(submitWork.dataset.submitWork); return; }
+      if (roleClaim) {
+        const [teamId, roleKey] = String(roleClaim.dataset.roleClaim || "").split(":");
+        claimTeamRole(teamId, roleKey);
+        return;
+      }
       if (teamWorkspace) { showTeamWorkspace(teamWorkspace.dataset.teamWorkspace); return; }
       if (judgeSave) { saveJudgeDraft(); return; }
       if (work) { showWork(work.dataset.work); return; }
@@ -2202,21 +2299,18 @@
       closeUserMenu();
     });
     doc.addEventListener("input", (e) => {
-      const teamNameDraft = e.target.closest("[data-team-name-draft]");
-      if (teamNameDraft) updateTeamNameDraft(teamNameDraft);
       const workField = e.target.closest("[data-work-field]");
-      if (workField) updateWorkDraft(workField);
-      const teamDuty = e.target.closest("[data-team-duty]");
-      if (teamDuty) updateTeamDuty(teamDuty);
+      if (workField) updateWorkPreview(workField);
       const score = e.target.closest("[data-score]");
       if (score) updateJudgeRange(score);
     });
     doc.addEventListener("change", (e) => {
-      const teamLeader = e.target.closest("[data-team-leader]");
-      if (teamLeader) updateTeamLeader(teamLeader);
     });
     root.addEventListener("hashchange", () => route(false));
     root.addEventListener("scroll", () => doc.getElementById("siteNav").classList.toggle("scrolled", root.scrollY > 20));
+    root.addEventListener("pagehide", () => {
+      root.clearInterval(siteStatePollTimer);
+    });
     root.addEventListener("resize", () => {
       rain && rain.resize();
       const nowMobile = isMobileView();
@@ -2258,13 +2352,15 @@
     hydrateRole();
     const handledLogin = await consumeFeishuCallback();
     if (!handledLogin) await syncRoleFromBackend();
-    await loadSiteState();
+    const initialSiteState = await loadSiteState();
+    siteStateSignature = createSiteStateSignature(initialSiteState || SITE_STATE);
     await syncHomeState();
     bind();
     route(false);
     if (wantsAuthChooser()) showAuthGate("entry");
     if (authParams().get("denied")) showDeniedNotice();
     root.setInterval(tick, 1000);
+    startSiteStatePolling();
   }
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", init); else init();
 })(typeof window !== "undefined" ? window : globalThis, document);

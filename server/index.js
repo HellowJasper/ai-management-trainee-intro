@@ -260,6 +260,23 @@ async function routeApi(
     return session;
   }
 
+  function attachSessionUser(payload, session, { includeName = false, includeSubmitter = false } = {}) {
+    if (!session?.user?.id) {
+      return payload;
+    }
+    payload.userId = session.user.id;
+    if (includeName) {
+      payload.name = session.user.name;
+      payload.department = session.user.department || payload.department;
+      payload.photo = session.user.photo || session.user.avatar || payload.photo;
+    }
+    if (includeSubmitter) {
+      payload.submittedBy = session.user.id;
+      payload.name = session.user.name;
+    }
+    return payload;
+  }
+
   if (request.method === "OPTIONS") {
     response.writeHead(204, {
       "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
@@ -696,10 +713,7 @@ async function routeApi(
     const session = await enforcePermission(request, response, "canJoinTeam");
     if (!session) return true;
     const payload = await readJsonBody(request);
-    if (authEnforcement === "strict") {
-      payload.userId = session.user.id;
-      payload.name = session.user.name;
-    }
+    attachSessionUser(payload, session, { includeName: true });
     sendJson(response, 200, await teamRepository.joinTeam(payload));
     return true;
   }
@@ -708,9 +722,7 @@ async function routeApi(
     const session = await enforcePermission(request, response, "canJoinTeam");
     if (!session) return true;
     const payload = await readJsonBody(request);
-    if (authEnforcement === "strict") {
-      payload.userId = session.user.id;
-    }
+    attachSessionUser(payload, session);
     sendJson(response, 200, await teamRepository.leaveTeam(payload));
     return true;
   }
@@ -719,9 +731,7 @@ async function routeApi(
     const session = await enforcePermission(request, response, "canJoinTeam");
     if (!session) return true;
     const payload = await readJsonBody(request);
-    if (authEnforcement === "strict") {
-      payload.userId = session.user.id;
-    }
+    attachSessionUser(payload, session);
     sendJson(response, 200, await teamRepository.claimRole(payload));
     return true;
   }
@@ -773,11 +783,7 @@ async function routeApi(
     const session = await enforcePermission(request, response, "canSubmitWork");
     if (!session) return true;
     const payload = await readJsonBody(request);
-    if (authEnforcement === "strict") {
-      payload.userId = session.user.id;
-      payload.submittedBy = session.user.id;
-      payload.name = session.user.name;
-    }
+    attachSessionUser(payload, session, { includeName: true, includeSubmitter: true });
     const result = await worksRepository.submitWork(payload);
     await auditLogRepository.record({
       actor: payload.userId || payload.submittedBy || "system",
@@ -913,6 +919,33 @@ async function routeApi(
       targetType: "stage",
       targetId: state.currentStageId,
       message: `开启阶段【${state.stages.find((stage) => stage.id === state.currentStageId)?.name || state.currentStageId}】`,
+    });
+    sendJson(response, 200, state);
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/screen-override" && ["POST", "PATCH"].includes(request.method)) {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
+    const payload = await readJsonBody(request);
+    if (authEnforcement === "strict") {
+      payload.actor = session.user.id;
+    }
+    const state = await adminStateRepository.setScreenOverride(payload.stageId, payload.actor || "admin");
+    const stage = state.stages.find((item) => item.id === state.screenOverrideStageId);
+    const locked = Boolean(state.screenOverrideStageId);
+
+    await auditLogRepository.record({
+      actor: payload.actor || "admin",
+      action: locked ? "screen.override.updated" : "screen.override.cleared",
+      targetType: "screen",
+      targetId: locked ? state.screenOverrideStageId : "follow-current-stage",
+      message: locked
+        ? `锁定大屏【${stage?.name || state.screenOverrideStageId}】`
+        : "取消大屏锁定，恢复跟随流程阶段",
+      after: {
+        screenOverrideStageId: state.screenOverrideStageId,
+      },
     });
     sendJson(response, 200, state);
     return true;

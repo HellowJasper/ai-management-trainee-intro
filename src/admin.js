@@ -67,6 +67,8 @@ let logs = [
   ["09:30:15", "system", "大屏连接成功"],
 ];
 
+let screenOverrideStageId = "";
+
 const statusLabel = {
   done: "已完成",
   active: "进行中",
@@ -174,6 +176,7 @@ const adminTraineeProfileSentence = document.querySelector("#adminTraineeProfile
 const adminTraineeProfileAiPartners = document.querySelector("#adminTraineeProfileAiPartners");
 const adminTraineeProfileFavoriteAI = document.querySelector("#adminTraineeProfileFavoriteAI");
 const adminTraineeProfileAiProblem = document.querySelector("#adminTraineeProfileAiProblem");
+const createTraineeProfileButton = document.querySelector("#createTraineeProfileButton");
 const resetTraineeProfileFormButton = document.querySelector("#resetTraineeProfileFormButton");
 
 let businessDataState = {
@@ -270,6 +273,10 @@ function escapeHtml(value) {
   })[char]);
 }
 
+function normalizeLeaderDisplay(value) {
+  return String(value || "").replace(/^赛道顾问/, "队长").replace(/^技术顾问/, "队长");
+}
+
 function setText(node, value) {
   if (node) {
     node.textContent = value;
@@ -307,7 +314,10 @@ function setSyncStatus(status, label, meta) {
 }
 
 function countTeamMembers(teams) {
-  return teams.reduce((total, team) => total + (Array.isArray(team.members) ? team.members.length : 0), 0);
+  return teams.reduce((total, team) => {
+    const members = Array.isArray(team.members) ? team.members : [];
+    return total + getTeamRosterPeople(team, members).length;
+  }, 0);
 }
 
 function scoreCoverage(scoresState = {}) {
@@ -352,16 +362,51 @@ function getTeamMemberLimit(team = {}) {
   return Math.max(0, getTeamCapacity(team) - 1);
 }
 
-function getTeamRoleCoverage(team = {}, members = []) {
+function isTeamLeaderPerson(person = {}) {
+  const roleText = `${person.roleKey || ""} ${person.duty || ""} ${person.role || ""}`.toLowerCase();
+  return /advisor|leader|captain|队长/.test(roleText);
+}
+
+function getTeamRosterPeople(team = {}, members = []) {
+  const advisor = team.advisor || {};
   const normalizedMembers = Array.isArray(members) ? members : [];
-  const memberLimit = getTeamMemberLimit(team);
-  const coveredCount = normalizedMembers.filter((member) => (
+  const hasMemberLeader = normalizedMembers.some(isTeamLeaderPerson);
+  const hasAdvisor = Boolean(String(
+    advisor.name || advisor.displayName || advisor.userId || advisor.id || advisor.role || advisor.department || team.hostDepartment || "",
+  ).trim());
+  const leader = hasAdvisor && !hasMemberLeader
+    ? [{
+        ...advisor,
+        name: normalizeLeaderDisplay(advisor.name || advisor.displayName) || "队长未配置",
+        department: advisor.department || team.hostDepartment || "部门待补全",
+        duty: normalizeLeaderDisplay(advisor.duty || advisor.role || "队长") || "队长",
+        role: "队长",
+        roleKey: advisor.roleKey || "advisor",
+        photo: advisor.photo || advisor.avatar || "",
+        userId: advisor.userId || advisor.id || advisor.name || "",
+        isLeader: true,
+      }]
+    : [];
+
+  return [
+    ...leader,
+    ...normalizedMembers.map((member) => ({
+      ...member,
+      isLeader: isTeamLeaderPerson(member),
+    })),
+  ];
+}
+
+function getTeamRoleCoverage(team = {}, members = []) {
+  const teamPeople = getTeamRosterPeople(team, members);
+  const teamCapacity = getTeamCapacity(team);
+  const coveredCount = teamPeople.filter((member) => (
     String(member?.roleKey || member?.duty || member?.role || "").trim()
   )).length;
 
   return {
     coveredCount,
-    expectedCount: Math.max(memberLimit, normalizedMembers.length),
+    expectedCount: Math.max(teamCapacity, teamPeople.length),
   };
 }
 
@@ -606,13 +651,14 @@ function renderTeamStatusManager(teams = businessDataState.teams) {
         const teamId = String(team.id || "").trim();
         const status = getTeamStatus(team);
         const members = Array.isArray(team.members) ? team.members : [];
-        const memberLimit = getTeamMemberLimit(team);
+        const teamPeople = getTeamRosterPeople(team, members);
+        const teamCapacity = getTeamCapacity(team);
         const isLocked = status === "locked";
         return `
           <article class="admin-team-status-card ${isLocked ? "is-locked" : ""}">
             <div>
               <b>${escapeHtml(team.index ? `${team.index} · ${team.name || teamId}` : team.name || teamId || "未命名赛道")}</b>
-              <span>${members.length}/${memberLimit} 人 · ${escapeHtml(team.project || team.hostDepartment || team.nameEn || "组队状态")}</span>
+              <span>${teamPeople.length}/${teamCapacity} 人 · ${escapeHtml(team.project || team.hostDepartment || team.nameEn || "组队状态")}</span>
             </div>
             <small class="admin-team-status-chip">${escapeHtml(teamStatusLabels[status] || status || "开放组队")}</small>
             <div class="admin-team-status-actions">
@@ -631,7 +677,7 @@ function renderTeamRoster(teams = businessDataState.teams) {
   renderTeamMemberOptions(normalizedTeams);
   const openSlots = normalizedTeams.reduce((total, team) => {
     const members = Array.isArray(team.members) ? team.members : [];
-    return total + Math.max(0, getTeamMemberLimit(team) - members.length);
+    return total + Math.max(0, getTeamCapacity(team) - getTeamRosterPeople(team, members).length);
   }, 0);
   setText(
     adminTeamRosterStatus,
@@ -646,13 +692,13 @@ function renderTeamRoster(teams = businessDataState.teams) {
 
   adminTeamRoster.innerHTML = normalizedTeams.length
     ? normalizedTeams.map((team) => {
-        const advisor = team.advisor || {};
         const members = Array.isArray(team.members) ? team.members : [];
-        const memberLimit = getTeamMemberLimit(team);
-        const remainingSlots = Math.max(0, memberLimit - members.length);
+        const teamPeople = getTeamRosterPeople(team, members);
+        const teamCapacity = getTeamCapacity(team);
+        const remainingSlots = Math.max(0, teamCapacity - teamPeople.length);
         const roleCoverage = getTeamRoleCoverage(team, members);
-        const capacityPercent = memberLimit
-          ? Math.min(100, Math.round((members.length / memberLimit) * 100))
+        const capacityPercent = teamCapacity
+          ? Math.min(100, Math.round((teamPeople.length / teamCapacity) * 100))
           : 0;
         const rolePercent = roleCoverage.expectedCount
           ? Math.min(100, Math.round((roleCoverage.coveredCount / roleCoverage.expectedCount) * 100))
@@ -665,12 +711,12 @@ function renderTeamRoster(teams = businessDataState.teams) {
                 <h3>${escapeHtml(team.name || "未命名赛道")}</h3>
                 <span>${escapeHtml(team.nameEn || team.hostDepartment || "TRACK")}</span>
               </div>
-              <strong class="admin-team-count">${members.length}/${memberLimit} 人</strong>
+              <strong class="admin-team-count">${teamPeople.length}/${teamCapacity} 人</strong>
             </header>
             <div class="admin-team-capacity">
               <div>
-                <b>成员席位</b>
-                <span>${members.length}/${memberLimit} 已占 · ${remainingSlots} 个空位</span>
+                <b>队伍人数</b>
+                <span>${teamPeople.length}/${teamCapacity} 已就位 · 队长计入总人数 · ${remainingSlots} 个空位</span>
               </div>
               <i class="admin-team-capacity-meter" style="--capacity-percent: ${capacityPercent}%"></i>
             </div>
@@ -679,20 +725,17 @@ function renderTeamRoster(teams = businessDataState.teams) {
               <span>${roleCoverage.coveredCount}/${roleCoverage.expectedCount} 已配置职责</span>
               <i style="--role-percent: ${rolePercent}%"></i>
             </div>
-            <p class="admin-team-advisor">
-              顾问：${escapeHtml(advisor.name || "未配置")} · ${escapeHtml(advisor.department || team.hostDepartment || "部门待补全")}
-            </p>
-            <div class="admin-team-members">
-              ${members.map((member) => `
-                <div class="admin-team-member">
-                  ${member.photo
-                    ? `<img src="${escapeHtml(member.photo)}" alt="${escapeHtml(member.name || "成员")}" />`
-                    : `<i>${escapeHtml(String(member.name || "?").slice(0, 1))}</i>`}
+            <div class="admin-team-members" aria-label="${escapeHtml(team.name || "队伍")}五人阵容">
+              ${teamPeople.map((person) => `
+                <div class="admin-team-member ${person.isLeader ? "is-leader" : ""}">
+                  ${person.photo
+                    ? `<img src="${escapeHtml(person.photo)}" alt="${escapeHtml(person.name || "成员")}" />`
+                    : `<i>${escapeHtml(String(person.name || "?").slice(0, 1))}</i>`}
                   <div>
-                    <strong>${escapeHtml(member.name || "未命名成员")}</strong>
-                    <span>${escapeHtml(member.department || "部门待补全")} · ${escapeHtml(member.duty || member.role || "成员")}</span>
+                    <strong>${escapeHtml(person.name || "未命名成员")}${person.isLeader ? '<em class="admin-team-member-badge">队长</em>' : ""}</strong>
+                    <span>${escapeHtml(person.department || "部门待补全")} · ${escapeHtml(person.duty || person.role || "成员")}</span>
                   </div>
-                  <button class="admin-team-member-remove" type="button" data-remove-team-member="${escapeHtml(team.id || "")}" data-member-id="${escapeHtml(member.userId || member.id || member.name || "")}" data-member-name="${escapeHtml(member.name || member.userId || "成员")}">移除</button>
+                  <button class="admin-team-member-remove" type="button" data-remove-team-member="${escapeHtml(team.id || "")}" data-member-id="${escapeHtml(person.userId || person.id || person.name || "")}" data-member-name="${escapeHtml(person.name || person.userId || "成员")}" data-member-role-key="${escapeHtml(person.roleKey || "")}">移除</button>
                 </div>
               `).join("")}
             </div>
@@ -862,19 +905,35 @@ function renderScreenControl() {
   }
 
   const active = getActiveStage();
-  setText(adminScreenRouteStatus, `${active.name} · ${statusLabel[active.status] || active.status}`);
+  const overrideStage = screenOverrideStageId
+    ? stages.find((entry) => entry.id === screenOverrideStageId)
+    : null;
+  setText(
+    adminScreenRouteStatus,
+    overrideStage
+      ? `已锁定：${overrideStage.name || screenOverrideStageId}`
+      : `${active.name} · ${statusLabel[active.status] || active.status} · 跟随流程`,
+  );
   adminScreenControl.innerHTML = screenRoutes.map((item) => {
     const stage = stages.find((entry) => entry.id === item.stageId);
-    const isActive = active.id === item.stageId;
+    const isFlowCurrent = active.id === item.stageId;
+    const isOverride = screenOverrideStageId === item.stageId;
+    const badge = isOverride ? " · 已锁定" : (isFlowCurrent ? " · 流程当前" : "");
+    const stageStatus = isOverride ? "大屏当前画面" : (statusLabel[stage?.status] || stage?.status || "未配置");
     return `
       <article>
         <div>
-          <b>${escapeHtml(item.name)}${isActive ? " · 当前" : ""}</b>
-          <span>${escapeHtml(item.note)} · ${escapeHtml(statusLabel[stage?.status] || stage?.status || "未配置")}</span>
+          <b>${escapeHtml(item.name)}${escapeHtml(badge)}</b>
+          <span>${escapeHtml(item.note)} · ${escapeHtml(stageStatus)}</span>
         </div>
         <div class="admin-control-actions">
           <a href="${escapeHtml(item.route)}" target="_blank" rel="noreferrer">打开</a>
-          <button type="button" data-screen-stage-command="${escapeHtml(item.stageId)}" ${isActive ? "disabled" : ""}>设为当前</button>
+          <button
+            type="button"
+            class="${isOverride ? "is-cancel" : ""}"
+            data-screen-stage-command="${escapeHtml(item.stageId)}"
+            aria-pressed="${isOverride ? "true" : "false"}"
+          >${isOverride ? "取消锁定" : "设为当前"}</button>
         </div>
       </article>
     `;
@@ -1151,6 +1210,12 @@ function resetTraineeProfileForm() {
   setText(adminTraineeProfileStatus, `${traineeProfileState.trainees.length || 0} 份档案`);
 }
 
+function startCreateTraineeProfile() {
+  resetTraineeProfileForm();
+  setText(adminTraineeProfileStatus, "新增星锐档案：填写唯一档案 ID 和姓名后保存");
+  adminTraineeProfileId?.focus();
+}
+
 function fillTraineeProfileForm(trainee) {
   if (!adminTraineeProfileForm || !trainee) {
     return;
@@ -1185,19 +1250,22 @@ async function saveTraineeProfile(event) {
     return;
   }
 
+  const editingId = traineeProfileState.editingId || "";
+  const existingId = traineeProfileState.trainees.some((item) => item.id === payload.id) ? payload.id : "";
+  if (!editingId && existingId) {
+    setText(adminTraineeProfileStatus, "档案 ID 已存在，请点击列表中的编辑后再保存");
+    adminTraineeProfileId?.focus();
+    return;
+  }
+
   const submitButton = adminTraineeProfileForm?.querySelector('button[type="submit"]');
   if (submitButton) submitButton.disabled = true;
   setText(adminTraineeProfileStatus, "保存中");
 
-  const editingId = traineeProfileState.editingId || "";
-  const existingId = traineeProfileState.trainees.some((item) => item.id === payload.id) ? payload.id : "";
-
   try {
     const savedTrainee = editingId
       ? await window.AppData.updateTrainee(editingId, { ...payload, id: editingId })
-      : existingId
-        ? await window.AppData.updateTrainee(existingId, payload)
-        : await window.AppData.createTrainee(payload);
+      : await window.AppData.createTrainee(payload);
 
     traineeProfileState = {
       trainees: [
@@ -1213,6 +1281,7 @@ async function saveTraineeProfile(event) {
     }
     renderTraineeProfileManager();
     renderContentManager();
+    setText(adminTraineeProfileStatus, `${editingId ? "已更新" : "已新增"}：${savedTrainee.name || savedTrainee.id}`);
     addLog("admin", `保存星锐档案【${savedTrainee.name || savedTrainee.id}】`);
   } catch (error) {
     console.warn("Trainee profile save failed.", error);
@@ -1712,6 +1781,8 @@ function applyAdminState(state) {
     syncStageStatuses(state.currentStageId);
   }
 
+  screenOverrideStageId = String(state.screenOverrideStageId || "").trim();
+
   if (Array.isArray(state.logs)) {
     logs = state.logs.map(normalizeLogEntry);
   }
@@ -1741,6 +1812,19 @@ async function publishStage(stageId) {
   } catch (error) {
     console.warn("Admin stage sync failed.", error);
     addLog("system", "同步失败：阶段发布未生效，请检查后端连接");
+  }
+}
+
+async function toggleScreenOverride(stageId) {
+  const cleanStageId = String(stageId || "").trim();
+  const nextStageId = screenOverrideStageId === cleanStageId ? "" : cleanStageId;
+
+  try {
+    const state = await window.AppData.updateAdminScreenOverride(nextStageId);
+    applyAdminState(state);
+  } catch (error) {
+    console.warn("Admin screen override sync failed.", error);
+    addLog("system", "同步失败：大屏锁定状态未生效，请检查后端连接");
   }
 }
 
@@ -1959,7 +2043,7 @@ async function saveAdminTeamMember(event) {
   }
 }
 
-async function removeAdminTeamMember(teamId, userId, memberName = "") {
+async function removeAdminTeamMember(teamId, userId, memberName = "", roleKey = "") {
   const cleanTeamId = String(teamId || "").trim();
   const cleanUserId = String(userId || "").trim();
   if (!cleanTeamId || !cleanUserId) {
@@ -1977,6 +2061,7 @@ async function removeAdminTeamMember(teamId, userId, memberName = "") {
     const result = await window.AppData.removeAdminTeamMember({
       teamId: cleanTeamId,
       userId: cleanUserId,
+      roleKey,
       actor: getAdminUserDisplayName(),
     });
     renderBusinessData({ teams: Array.isArray(result.teams) ? result.teams : businessDataState.teams });
@@ -2381,7 +2466,12 @@ document.addEventListener("click", async (event) => {
 
   button.disabled = true;
   try {
-    await removeAdminTeamMember(button.dataset.removeTeamMember, button.dataset.memberId, button.dataset.memberName);
+    await removeAdminTeamMember(
+      button.dataset.removeTeamMember,
+      button.dataset.memberId,
+      button.dataset.memberName,
+      button.dataset.memberRoleKey,
+    );
   } finally {
     if (button.isConnected) {
       button.disabled = false;
@@ -2438,7 +2528,13 @@ document.addEventListener("click", async (event) => {
   }
 
   button.disabled = true;
-  await publishStage(button.dataset.screenStageCommand);
+  try {
+    await toggleScreenOverride(button.dataset.screenStageCommand);
+  } finally {
+    if (button.isConnected) {
+      button.disabled = false;
+    }
+  }
 });
 
 document.querySelector("#startNextStage").addEventListener("click", async () => {
@@ -2465,6 +2561,7 @@ refreshContentManagerButton?.addEventListener("click", () => {
 refreshAuditLogButton?.addEventListener("click", () => loadAuditTrail());
 adminUserRoleForm?.addEventListener("submit", upsertUserRole);
 adminTraineeProfileForm?.addEventListener("submit", saveTraineeProfile);
+createTraineeProfileButton?.addEventListener("click", startCreateTraineeProfile);
 resetTraineeProfileFormButton?.addEventListener("click", resetTraineeProfileForm);
 adminTeamMemberForm?.addEventListener("submit", saveAdminTeamMember);
 resetTeamMemberFormButton?.addEventListener("click", resetTeamMemberForm);
