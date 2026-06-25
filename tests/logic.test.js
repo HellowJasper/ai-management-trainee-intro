@@ -591,7 +591,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260624-nav-labels/);
+  assert.match(siteHtml, /site\.js\?v=20260625-team-panel/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -606,6 +606,26 @@ test("official site lets users leave teams and cancel their vote", () => {
   assert.match(siteCss, /\.team-join\.is-leave/);
   assert.match(siteCss, /\.gl2-vote\.is-cancel/);
   assert.match(siteCss, /\.btn-primary\.is-cancel/);
+});
+
+test("gallery page presents innovation showcase copy and non-redundant work card hierarchy", () => {
+  const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.match(siteHtml, /site\.css\?v=20260625-team-panel/);
+  assert.match(siteHtml, /site\.js\?v=20260625-team-panel/);
+  assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
+  assert.match(siteJs, /浏览五大战队作品，选出你最认可的解决方案，并投出关键一票。/);
+  assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
+  assert.match(siteJs, /class="gl2-cover-name">\$\{esc\(t\.name\)\}<\/h3>/);
+  assert.match(siteJs, /<b class="gl2-project-name">\$\{esc\(t\.project\)\}<\/b>/);
+  assert.doesNotMatch(siteJs, /class="gl2-track2"/);
+  assert.doesNotMatch(siteJs, /\$\{esc\(t\.trackCode\)\} PROJECT/);
+  assert.match(siteCss, /\.site-body\[data-view="gallery"\] \.page-hero\s*\{[\s\S]*padding:/);
+  assert.match(siteCss, /\.site-body\[data-view="gallery"\] \.ph-en\s*\{[\s\S]*font-size:\s*clamp\(38px,\s*4\.7vw,\s*78px\)/);
+  assert.match(siteCss, /\.site-body\[data-view="gallery"\] \.page-hero h1\s*\{[\s\S]*font-size:\s*clamp\(22px,\s*2vw,\s*34px\)/);
+  assert.match(siteCss, /\.gl2-h \.gl2-project-name\s*\{[\s\S]*font-size:\s*clamp\(24px,\s*2\.3vw,\s*36px\)/);
 });
 
 test("role permissions reserve team joining, voting, judging, and admin control for the right roles", () => {
@@ -703,6 +723,25 @@ test("team page treats tracks as fixed lanes and team names as editable", () => 
   assert.match(siteJs, /队长可编辑队名/);
   assert.match(siteJs, /team-name-draft/);
   assert.match(siteCss, /\.team-name-draft/);
+});
+
+test("team page hero uses a single formation panel with clear selection states", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.match(siteJs, /pageHead\("组队", "选择赛道队伍，查看技术顾问、成员与作品方向", "TEAM FORMATION"\)/);
+  assert.match(siteJs, /const teamStatusLabel = selectedTeam \? "已选择战队" : "尚未选择战队"/);
+  assert.match(siteJs, /const teamStatusHeadline = selectedTeam \? "你已完成组队，期待与你的伙伴共同完成挑战" : "请选择一个赛道方向"/);
+  assert.match(siteJs, /class="team-formation-panel glass"/);
+  assert.match(siteJs, /class="team-selection-summary"/);
+  assert.match(siteJs, /class="team-countdown-box"/);
+  assert.doesNotMatch(siteJs, /class="team-status glass"/);
+  assert.doesNotMatch(siteJs, /class="team-live-strip glass"/);
+  assert.doesNotMatch(siteJs, /class="team-selection-summary glass"/);
+  assert.match(siteCss, /\.team-formation-panel\s*\{[\s\S]*overflow:\s*hidden/);
+  assert.match(siteCss, /\.team-live-strip\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\) minmax\(260px,\s*360px\)/);
+  assert.match(siteCss, /\.team-countdown-box\s*\{[\s\S]*border:\s*2px solid rgba\(40,\s*255,\s*200,\s*0\.58\)/);
+  assert.match(siteCss, /\.team-selection-summary h2\s*\{[\s\S]*font-size:\s*clamp\(28px,\s*3vw,\s*48px\)/);
 });
 
 test("team cards route into a dedicated team workspace page", () => {
@@ -1057,16 +1096,21 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260624-detail-fit/);
-  assert.match(siteCss, /--site-detail-side-rail:\s*calc\(var\(--site-detail-edge\) \+ var\(--site-detail-card-width\) \+ var\(--site-detail-card-gap\)\)/);
+  assert.match(html, /src\/site\.css\?v=20260625-team-panel/);
+  assert.match(siteCss, /--site-detail-console-width:\s*min\(calc\(100dvw - var\(--site-detail-edge\) - var\(--site-detail-edge\)\), clamp\(980px, 60vw, 1240px\)\)/);
   assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*var\(--site-detail-edge\)/);
-  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*var\(--site-detail-side-rail\)/);
-  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?right:\s*var\(--site-detail-edge\)/);
-  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?width:\s*auto/);
+  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*50%/);
+  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?right:\s*auto/);
+  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?width:\s*var\(--site-detail-console-width\)/);
+  assert.match(siteCss, /\.site-detail-layer\.is-open \.profile-console\s*\{[\s\S]*?transform:\s*translate\(-50%, 0\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?100dvh/);
   assert.doesNotMatch(siteCss, /calc\(100vh - 210px\)/);
+  assert.doesNotMatch(siteCss, /left:\s*var\(--site-detail-side-rail\)/);
+  assert.match(siteCss, /@media \(max-width:\s*1679px\)[\s\S]*?\.site-detail-layer \.draw-card\s*\{[\s\S]*?display:\s*none/);
+  assert.match(siteCss, /@media \(max-width:\s*1679px\)[\s\S]*?--site-detail-console-width:\s*min\(calc\(100dvw - var\(--site-detail-edge\) - var\(--site-detail-edge\)\), 1180px\)/);
   assert.match(siteCss, /@media \(max-width:\s*1180px\)[\s\S]*?\.site-detail-layer \.draw-card\s*\{[\s\S]*?display:\s*none/);
   assert.match(siteCss, /@media \(max-width:\s*1180px\)[\s\S]*?grid-template-columns:\s*minmax\(480px,\s*1fr\) minmax\(240px,\s*min\(32vw,\s*320px\)\)/);
+  assert.match(siteCss, /@media \(max-width:\s*1180px\)[\s\S]*?\.site-detail-layer\.is-open \.profile-console\s*\{[\s\S]*?transform:\s*none/);
   assert.match(siteCss, /@media \(max-width:\s*980px\)[\s\S]*?\.site-detail-layer \.profile-media-panel\s*\{[\s\S]*?height:\s*clamp\(240px,\s*42dvh,\s*360px\)/);
 });
 
@@ -1192,9 +1236,9 @@ test("official site cache keys are bumped after navigation and detail layout pol
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
-  assert.match(html, /src\/site\.css\?v=20260624-detail-fit/);
+  assert.match(html, /src\/site\.css\?v=20260625-team-panel/);
   assert.match(html, /src\/logic\.js\?v=20260624-nav-labels/);
-  assert.match(html, /src\/site\.js\?v=20260624-nav-labels/);
+  assert.match(html, /src\/site\.js\?v=20260625-team-panel/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {

@@ -44,8 +44,10 @@ test("site profile detail drawer stays aligned with the big-screen detail layout
 
   assert.match(css, /\.site-body:has\(\.site-detail-layer\.is-open\)\s*\{[^}]*overflow:\s*hidden/s);
   assert.match(css, /\.site-detail-layer\s*\{[^}]*z-index:\s*220/s);
-  assert.match(css, /--site-detail-side-rail:\s*calc\(var\(--site-detail-edge\) \+ var\(--site-detail-card-width\) \+ var\(--site-detail-card-gap\)\)/);
-  assert.match(css, /\.site-detail-layer \.profile-console\s*\{[^}]*left:\s*var\(--site-detail-side-rail\);[^}]*right:\s*var\(--site-detail-edge\);[^}]*width:\s*auto;[^}]*max-width:\s*none;[^}]*border-right:\s*1px solid var\(--line-strong\);[^}]*border-radius:\s*var\(--radius\)/s);
+  assert.match(css, /--site-detail-console-width:\s*min\(calc\(100dvw - var\(--site-detail-edge\) - var\(--site-detail-edge\)\), clamp\(980px, 60vw, 1240px\)\)/);
+  assert.match(css, /\.site-detail-layer \.profile-console\s*\{[^}]*left:\s*50%;[^}]*right:\s*auto;[^}]*width:\s*var\(--site-detail-console-width\);[^}]*max-width:\s*none;[^}]*border-right:\s*1px solid var\(--line-strong\);[^}]*border-radius:\s*var\(--radius\)/s);
+  assert.match(css, /\.site-detail-layer\.is-open \.profile-console\s*\{[^}]*transform:\s*translate\(-50%, 0\)/s);
+  assert.doesNotMatch(css, /left:\s*var\(--site-detail-side-rail\)/);
   assert.doesNotMatch(css, /\.site-detail-layer \.profile-console\s*\{[^}]*right:\s*0;/s);
   assert.doesNotMatch(css, /\.site-detail-layer \.profile-console\s*\{[^}]*border-right:\s*0;/s);
 

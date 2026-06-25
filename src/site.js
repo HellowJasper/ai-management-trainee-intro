@@ -947,13 +947,12 @@
         <div class="team-foot"><span>${count} 名成员已就位 · ${t.submitted ? "作品已提交" : "Demo 制作中"}</span><div class="team-actions">${action}${openAction}</div></div>
       </article>`;
     }).join("");
-    const title = canJoin ? "报名与组队" : "组队进度";
-    const subtitle = canJoin ? "选择赛道队伍，查看技术顾问、成员与作品方向" : "各角色均可查看队伍形成情况；选手操作仅向参赛选手开放";
-    const statusTitle = canJoin
-      ? (selectedTeam ? esc(selectedTeamName) : "请选择一个队伍加入")
-      : rolePermissions(currentRole()).canAdmin ? "管理员可在后台调整组队" : "当前角色仅可查看组队进度";
+    const teamStatusLabel = selectedTeam ? "已选择战队" : "尚未选择战队";
+    const teamStatusHeadline = selectedTeam ? "你已完成组队，期待与你的伙伴共同完成挑战" : "请选择一个赛道方向";
     const statusSub = canJoin
-      ? (selectedTeam ? esc(selectedTeam.project) : "演示版会把选择保存在本地浏览器，用于“我的”页面同步状态。")
+      ? (selectedTeam
+        ? `${esc(selectedTeamName)} · ${esc(selectedTeam.project)}。点击队伍卡片进入专属工作台，维护队名与作品信息。`
+        : "选择你感兴趣的挑战方向，与伙伴组建战队，开启共创之旅。")
       : "赛道名额、成员与作品方向可浏览，但不会出现选手操作按钮。";
     const statusCta = canJoin && selectedTeam
       ? `<button class="btn-ghost is-cancel" type="button" data-leave-team="${selectedTeam.id}">退出当前队伍</button>`
@@ -961,13 +960,15 @@
       ? `<a class="btn-ghost" href="./admin.html">进入管理后台</a>`
       : `<a class="btn-ghost" data-nav="schedule">查看赛事指南</a>`;
 
-    return `${pageHead(title, subtitle, "TEAM")}
+    return `${pageHead("组队", "选择赛道队伍，查看技术顾问、成员与作品方向", "TEAM FORMATION")}
     <section class="container sec team-board">
-      <div class="team-live-strip glass">
-        <div><span class="status-chip on">TEAM FORMATION HUB</span><h2>固定赛道，队伍自定义命名</h2><p>参考大屏组队方案，五条赛道对称呈现；加入队伍后队长可编辑队名，技术顾问、业务洞察、AI 开发、产品设计、路演运营等职责在队伍内沉淀。</p></div>
-        <div class="team-countdown"><span>任务倒计时</span><b data-countdown data-remain="129600">${fmtHMS(129600)}</b><em>组队锁定后进入 36H Demo preparation</em></div>
+      <div class="team-formation-panel glass">
+        <div class="team-live-strip">
+          <div class="team-formation-copy"><span class="status-chip on">TEAM FORMATION HUB</span><h2>固定赛道，队伍自定义命名</h2><p>参考大屏组队方案，五条赛道对称呈现；加入队伍后队长可编辑队名、自定义队伍名称，技术顾问、业务洞察、AI 开发、产品设计、路演运营等职责在队伍内沉淀。</p></div>
+          <div class="team-countdown-box"><span>任务倒计时</span><b data-countdown data-remain="129600">${fmtHMS(129600)}</b><em>组队锁定后进入 36H Demo preparation</em></div>
+        </div>
+        <div class="team-selection-summary"><div><span class="status-chip ${selectedTeam ? "on" : ""}">${canJoin ? teamStatusLabel : "只读进度"}</span><h2>${canJoin ? teamStatusHeadline : "当前角色仅可查看组队进度"}</h2><p>${statusSub}</p></div>${statusCta}</div>
       </div>
-      <div class="team-status glass"><div><span class="status-chip ${selectedTeam ? "on" : ""}">${canJoin ? (selectedTeam ? "已选择队伍" : "待选择队伍") : "只读进度"}</span><h2>${statusTitle}</h2><p>${statusSub} 点击任意队伍卡片进入专属工作台，维护队名与作品信息。</p></div>${statusCta}</div>
       <div class="sec-cap"><span></span>队伍列表</div><div class="team-grid">${teams}</div>
     </section>`;
   }
@@ -1176,12 +1177,12 @@
           : `<button class="gl2-vote dim" disabled>已投票</button>`
         : `<button class="gl2-vote" data-vote="${t.id}">为TA加油</button>`;
       const stack = (t.stack || []).map((s) => `<span>${esc(s)}</span>`).join("");
-      return `<article class="gl2-card glass gl2-h ${isVoted ? "voted" : ""}" data-work="${t.id}" style="--accent:${t.accent};--rgb:${t.rgb}"><div class="gl2-shot"><span class="gl2-dots"></span><span class="gl2-cover-label">${esc(t.trackCode)} PROJECT</span><h3 class="gl2-cover-name">${esc(t.project)}</h3><em>${esc(t.name)}</em><span class="gl2-bars"></span><span class="gl2-hover">点击查看作品详情 ➔</span></div><div class="gl2-mid"><div class="gl2-id"><b>${esc(t.name)}</b><span class="gl2-track2">${esc(t.trackCode)} · ${esc(t.track)}</span></div><p class="gl2-pitch">${esc(t.pitch || "")}</p><div class="gl2-stack2">${stack}</div><div class="gl2-avas">${avas}</div></div><div class="gl2-right"><div class="gl2-vcount"><b>${t.votes.toLocaleString()}</b><span>实时票数</span></div><span class="gl2-detail" data-work="${t.id}">查看详情 ➔</span>${btn}</div></article>`;
+      return `<article class="gl2-card glass gl2-h ${isVoted ? "voted" : ""}" data-work="${t.id}" style="--accent:${t.accent};--rgb:${t.rgb}"><div class="gl2-shot"><span class="gl2-dots"></span><span class="gl2-cover-label"><span class="gl2-cover-index">${esc(t.trackCode)}</span><span class="gl2-cover-track">${esc(t.track)}</span></span><h3 class="gl2-cover-name">${esc(t.name)}</h3><span class="gl2-bars"></span><span class="gl2-hover">点击查看作品详情 ➔</span></div><div class="gl2-mid"><div class="gl2-id"><b class="gl2-project-name">${esc(t.project)}</b></div><p class="gl2-pitch">${esc(t.pitch || "")}</p><div class="gl2-stack2">${stack}</div><div class="gl2-avas">${avas}</div></div><div class="gl2-right"><div class="gl2-vcount"><b>${t.votes.toLocaleString()}</b><span>实时票数</span></div><span class="gl2-detail" data-work="${t.id}">查看详情 ➔</span>${btn}</div></article>`;
     }).join("");
     const banner = voted
       ? `<div class="vote-banner ok"><span class="live-dot"></span>你已为 <b>${esc((D.teams.find((t) => t.id === voted) || {}).name || "")}</b> 投出一票；可在已投队伍卡片中取消后重新选择。</div>`
-      : `<div class="vote-banner"><span class="live-dot"></span>投票进行中 · 一人一票 · 点卡片看团队与作品详情，点「为TA加油」支持团队。</div>`;
-    return `${pageHead("作品展示大厅", "五支队伍 · 五大赛道 · 真实可运行作品", "GALLERY")}${banner}<section class="container sec"><div class="gl2-grid horizontal">${cards}</div></section>`;
+      : `<div class="vote-banner"><span class="live-dot"></span>浏览五大战队作品，选出你最认可的解决方案，并投出关键一票。</div>`;
+    return `${pageHead("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE")}${banner}<section class="container sec"><div class="gl2-grid horizontal">${cards}</div></section>`;
   }
 
   /* ---- 作品详情 ------------------------------------------------------- */

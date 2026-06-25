@@ -140,3 +140,44 @@ test("mysql seed importer loads current JSON fixtures into relational tables", a
   assert.ok(executed.some((item) => item.params.includes("jasper")));
   assert.ok(executed.some((item) => item.params.includes("marketing")));
 });
+
+test("mysql seed importer closes a pool it creates internally", async () => {
+  const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-mysql-seed-"));
+  const executed = [];
+  let closed = false;
+  const pool = {
+    async execute(sql, params = []) {
+      executed.push({ sql, params });
+      return [{ affectedRows: 1 }, []];
+    },
+    async end() {
+      closed = true;
+    },
+  };
+
+  const result = await seedMysqlFromJson({
+    dataDir,
+    createPool: () => pool,
+  });
+
+  assert.equal(result.voteWindows, 1);
+  assert.ok(executed.some((item) => item.sql.includes("INSERT INTO vote_windows")));
+  assert.equal(closed, true);
+});
+
+test("mysql seed importer does not close a caller-owned pool", async () => {
+  const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-mysql-seed-"));
+  let closed = false;
+  const pool = {
+    async execute() {
+      return [{ affectedRows: 1 }, []];
+    },
+    async end() {
+      closed = true;
+    },
+  };
+
+  await seedMysqlFromJson({ dataDir, pool });
+
+  assert.equal(closed, false);
+});

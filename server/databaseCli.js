@@ -11,12 +11,20 @@ function splitSqlStatements(sql) {
     .filter(Boolean);
 }
 
-async function applySchema({ schemaPath = DEFAULT_SCHEMA_PATH, pool = createMysqlPool() } = {}) {
+async function applySchema({ schemaPath = DEFAULT_SCHEMA_PATH, pool, createPool = createMysqlPool } = {}) {
   const sql = await fs.readFile(schemaPath, "utf8");
   const statements = splitSqlStatements(sql);
+  const activePool = pool || createPool();
+  const ownsPool = !pool;
 
-  for (const statement of statements) {
-    await pool.execute(statement);
+  try {
+    for (const statement of statements) {
+      await activePool.execute(statement);
+    }
+  } finally {
+    if (ownsPool && activePool && typeof activePool.end === "function") {
+      await activePool.end();
+    }
   }
 
   return { applied: statements.length };

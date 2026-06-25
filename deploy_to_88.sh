@@ -42,14 +42,25 @@ echo "Cleaning up old container..."
 docker stop $CONTAINER_NAME 2>/dev/null || true
 docker rm $CONTAINER_NAME 2>/dev/null || true
 
-echo "Running new container..."
-docker run -d -p $PORT_MAPPING --restart=always --name $CONTAINER_NAME $IMAGE_NAME:latest
-
-# Connect to the unified network if it exists
-if docker network inspect $NETWORK_NAME >/dev/null 2>&1; then
-    echo "Connecting container to $NETWORK_NAME network..."
-    docker network connect $NETWORK_NAME $CONTAINER_NAME 2>/dev/null || true
+MYSQL_APP_PASSWORD=""
+if [ -f "/root/middleware-credentials.txt" ]; then
+    MYSQL_APP_PASSWORD=\$(awk '/^  otc[[:space:]]*\// {print \$3; exit}' /root/middleware-credentials.txt)
 fi
+
+NETWORK_ARGS=""
+if docker network inspect $NETWORK_NAME >/dev/null 2>&1; then
+    NETWORK_ARGS="--network $NETWORK_NAME"
+fi
+
+echo "Running new container..."
+docker run -d -p $PORT_MAPPING --restart=always --name $CONTAINER_NAME \$NETWORK_ARGS \\
+    -e DATA_BACKEND=mysql \\
+    -e MYSQL_HOST=mysql \\
+    -e MYSQL_PORT=3306 \\
+    -e MYSQL_DATABASE=ai_management_trainee_intro \\
+    -e MYSQL_USER=otc \\
+    -e MYSQL_PASSWORD="\$MYSQL_APP_PASSWORD" \\
+    $IMAGE_NAME:latest
 
 echo "Deployment complete!"
 EOF

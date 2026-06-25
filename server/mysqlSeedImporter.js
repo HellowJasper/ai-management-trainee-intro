@@ -391,7 +391,7 @@ async function seedWorks(pool, works) {
   return count;
 }
 
-async function seedMysqlFromJson({ dataDir = DEFAULT_DATA_DIR, pool = createMysqlPool() } = {}) {
+async function seedMysqlFromJson({ dataDir = DEFAULT_DATA_DIR, pool, createPool = createMysqlPool } = {}) {
   const [
     traineesPayload,
     teamsPayload,
@@ -411,26 +411,34 @@ async function seedMysqlFromJson({ dataDir = DEFAULT_DATA_DIR, pool = createMysq
     readJsonFile(dataDir, "vote-results.json", { results: [] }),
     readJsonFile(dataDir, "works.json", { works: [] }),
   ]);
+  const activePool = pool || createPool();
+  const ownsPool = !pool;
 
-  const trainees = await seedTrainees(pool, asArray(traineesPayload, "trainees"));
-  const teamResult = await seedTeams(pool, asArray(teamsPayload, "teams"));
-  const userResult = await seedUsers(pool, asArray(userRolesPayload, "users"));
-  const eventStages = await seedEventStages(pool, adminState);
-  const missionCountdowns = await seedMissionCountdown(pool, missionCountdown);
-  const roadshowSessions = await seedRoadshow(pool, roadshow);
-  const voteResult = await seedVotes(pool, voteResults);
-  const works = await seedWorks(pool, asArray(worksPayload, "works"));
+  try {
+    const trainees = await seedTrainees(activePool, asArray(traineesPayload, "trainees"));
+    const teamResult = await seedTeams(activePool, asArray(teamsPayload, "teams"));
+    const userResult = await seedUsers(activePool, asArray(userRolesPayload, "users"));
+    const eventStages = await seedEventStages(activePool, adminState);
+    const missionCountdowns = await seedMissionCountdown(activePool, missionCountdown);
+    const roadshowSessions = await seedRoadshow(activePool, roadshow);
+    const voteResult = await seedVotes(activePool, voteResults);
+    const works = await seedWorks(activePool, asArray(worksPayload, "works"));
 
-  return {
-    trainees,
-    ...teamResult,
-    ...userResult,
-    eventStages,
-    missionCountdowns,
-    roadshowSessions,
-    ...voteResult,
-    works,
-  };
+    return {
+      trainees,
+      ...teamResult,
+      ...userResult,
+      eventStages,
+      missionCountdowns,
+      roadshowSessions,
+      ...voteResult,
+      works,
+    };
+  } finally {
+    if (ownsPool && activePool && typeof activePool.end === "function") {
+      await activePool.end();
+    }
+  }
 }
 
 if (require.main === module) {
