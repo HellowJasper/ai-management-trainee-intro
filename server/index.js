@@ -7,6 +7,7 @@ const { createAuthSessionRepository } = require("./authSessionRepository");
 const { createAuthSessionRepositoryFromEnv } = require("./redisAuthSessionRepository");
 const { createRepositoryBundle } = require("./repositoryFactory");
 const { buildFinalResultSnapshot } = require("./resultSnapshotService");
+const { createSiteStateService } = require("./siteStateService");
 const { getRolePermissions } = require("../src/logic");
 
 const DEFAULT_PUBLIC_ROOT = path.join(__dirname, "..");
@@ -245,16 +246,21 @@ async function routeApi(
   feishuOAuthProvider,
   authSessionRepository,
   authEnforcement = null,
+  siteStateService,
   runtimeInfo = {},
 ) {
   const segments = url.pathname.split("/").filter(Boolean);
 
+  async function getOptionalSession(request) {
+    const sessionId = getSessionIdFromRequest(request);
+    return sessionId ? authSessionRepository.getSession(sessionId) : null;
+  }
+
   async function enforcePermission(request, response, permissionName) {
     if (authEnforcement !== "strict") {
-      return { user: {}, role: "", permissions: {} };
+      return (await getOptionalSession(request)) || { user: {}, role: "", permissions: {} };
     }
-    const sessionId = getSessionIdFromRequest(request);
-    const session = await authSessionRepository.getSession(sessionId);
+    const session = await getOptionalSession(request);
     if (!session) {
       sendJson(response, 401, { error: { message: "Authentication required.", statusCode: 401 } });
       return null;
@@ -284,6 +290,13 @@ async function routeApi(
         dataBackend: runtimeInfo.dataBackend || "json",
       },
     });
+    return true;
+  }
+
+  if (url.pathname === "/api/site/bootstrap" && request.method === "GET") {
+    sendJson(response, 200, await siteStateService.getBootstrapState({
+      sessionId: getSessionIdFromRequest(request),
+    }));
     return true;
   }
 
@@ -730,7 +743,7 @@ async function routeApi(
     const session = await enforcePermission(request, response, "canVote");
     if (!session) return true;
     const payload = await readJsonBody(request);
-    if (authEnforcement === "strict") {
+    if (session.user?.id) {
       payload.userId = session.user.id;
     }
     sendJson(response, 200, await voteResultsRepository.castVote(payload));
@@ -741,7 +754,7 @@ async function routeApi(
     const session = await enforcePermission(request, response, "canVote");
     if (!session) return true;
     const payload = await readJsonBody(request);
-    if (authEnforcement === "strict") {
+    if (session.user?.id) {
       payload.userId = session.user.id;
     }
     sendJson(response, 200, await voteResultsRepository.cancelVote(payload));
@@ -1154,6 +1167,14 @@ function createServer(options = {}) {
     authSessionRepository = repositoryBundle.authSessionRepository || createAuthSessionRepository(),
     authEnforcement = resolveAuthEnforcement(),
   } = options;
+  const siteStateService = options.siteStateService || createSiteStateService({
+    repository,
+    teamRepository,
+    voteResultsRepository,
+    worksRepository,
+    resultSnapshotRepository,
+    authSessionRepository,
+  });
   const resolvedPublicRoot = path.resolve(publicRoot);
   const runtimeInfo = {
     dataBackend: options.dataBackend || repositoryBundle.dataBackend || "custom",
@@ -1184,6 +1205,7 @@ function createServer(options = {}) {
           feishuOAuthProvider,
           authSessionRepository,
           authEnforcement,
+          siteStateService,
           runtimeInfo,
         );
         if (!handled) {

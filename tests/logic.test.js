@@ -337,6 +337,42 @@ test("data loader loads trainee records when admin pages do not include AppLogic
   assert.equal(calls[0].url, "http://localhost:63779/api/trainees");
 });
 
+test("data loader exposes the site bootstrap API without fake-data fallback", async () => {
+  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
+  const calls = [];
+  const context = {
+    JOINCARE_API_BASE_URL: "http://localhost:63779",
+    console: { warn() {} },
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          me: { role: "public" },
+          teams: [],
+          vote: { myVoteTeamId: null },
+        }),
+      };
+    },
+    localStorage: {
+      getItem: () => null,
+      setItem() {},
+      removeItem() {},
+    },
+  };
+  context.globalThis = context;
+
+  vm.runInNewContext(dataJs, context);
+
+  const bootstrap = await context.AppData.loadSiteBootstrap();
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, "http://localhost:63779/api/site/bootstrap");
+  assert.equal(calls[0].options.credentials, "include");
+  assert.deepEqual(bootstrap.vote, { myVoteTeamId: null });
+});
+
 test("admin console renders API health for separated frontend deployments", () => {
   const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
   const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
@@ -593,7 +629,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260625-session-sync/);
+  assert.match(siteHtml, /site\.js\?v=20260625-session-sync-vote-auth/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -604,10 +640,38 @@ test("official site lets users leave teams and cancel their vote", () => {
   assert.match(siteJs, /取消投票/);
   assert.match(siteJs, /function refreshCurrentView\(\{ preserveScroll = false \} = \{\}\)/);
   assert.match(siteJs, /refreshCurrentView\(\{ preserveScroll: true \}\)/);
-  assert.match(siteJs, /localVoteDeltaTeamId/);
+  assert.doesNotMatch(siteJs, /localVoteDeltaTeamId/);
   assert.match(siteCss, /\.team-join\.is-leave/);
   assert.match(siteCss, /\.gl2-vote\.is-cancel/);
   assert.match(siteCss, /\.btn-primary\.is-cancel/);
+});
+
+test("official site hydrates audience state from backend bootstrap without local vote mutation fallback", () => {
+  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(dataJs, /function loadSiteBootstrap/);
+  assert.match(dataJs, /\/api\/site\/bootstrap/);
+  assert.match(dataJs, /loadSiteBootstrap,/);
+  assert.match(siteJs, /SITE_STATE/);
+  assert.match(siteJs, /loadSiteBootstrap/);
+  assert.doesNotMatch(siteJs, /team\.votes\s*\+=\s*1/);
+  assert.doesNotMatch(siteJs, /localStorage\.setItem\(VOTE_KEY/);
+  assert.doesNotMatch(siteJs, /localStorage\.removeItem\(VOTE_KEY/);
+  assert.doesNotMatch(siteJs, /后端未接入时使用本地演示投票状态/);
+});
+
+test("official site requires a backend authenticated session before enabling vote actions", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /function hasBackendSession\(/);
+  assert.match(siteJs, /function canUseVoteAction\(/);
+  assert.match(siteJs, /function clearStoredRole\(/);
+  assert.match(siteJs, /currentRole\(\) && !hasBackendSession\(\)/);
+  assert.match(siteJs, /data-auth-vote/);
+  assert.match(siteJs, /const authVote = e\.target\.closest\("\[data-auth-vote\]"\)/);
+  assert.doesNotMatch(siteJs, /!currentRole\(\)\s*\?\s*`<button class="gl2-vote" data-vote=/);
+  assert.doesNotMatch(siteJs, /!currentRole\(\)\s*\?\s*`<button class="btn-primary" data-vote=/);
 });
 
 test("role permissions reserve team joining, voting, judging, and admin control for the right roles", () => {
@@ -1200,7 +1264,7 @@ test("official site cache keys are bumped after navigation and detail layout pol
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
   assert.match(html, /src\/site\.css\?v=20260625-feishu-login/);
   assert.match(html, /src\/logic\.js\?v=20260624-nav-labels/);
-  assert.match(html, /src\/site\.js\?v=20260625-session-sync/);
+  assert.match(html, /src\/site\.js\?v=20260625-session-sync-vote-auth/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
