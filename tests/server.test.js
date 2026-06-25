@@ -81,6 +81,71 @@ async function loginAs(baseUrl, role, overrides = {}) {
   return response.headers.get("set-cookie").split(";")[0];
 }
 
+function createSiteBootstrapTestRepositories(overrides = {}) {
+  return {
+    repository: {
+      async listTrainees() {
+        return [
+          {
+            id: "jasper",
+            name: "Jasper",
+            title: "AI 产品管培生",
+          },
+        ];
+      },
+    },
+    teamRepository: {
+      async listTeams() {
+        return [
+          {
+            id: "marketing",
+            index: "03",
+            name: "营销",
+            advisor: { name: "赛道顾问 C", role: "赛道顾问" },
+            members: [{ userId: "player-001", name: "测试选手" }],
+          },
+        ];
+      },
+    },
+    voteResultsRepository: {
+      async listVoteResults() {
+        return {
+          status: "voting",
+          windowLabel: "决赛投票",
+          pointScale: [100, 85, 70, 55, 40],
+          results: [{ id: "marketing", name: "营销", votes: 9 }],
+          voters: {},
+        };
+      },
+    },
+    judgeScoresRepository: {
+      async readState() {
+        return { scores: {} };
+      },
+    },
+    worksRepository: {
+      async listWorks() {
+        return {
+          works: [
+            {
+              id: "work-marketing",
+              teamId: "marketing",
+              project: "智能客户洞察平台",
+              status: "approved",
+            },
+          ],
+        };
+      },
+    },
+    resultSnapshotRepository: {
+      async getLatestSnapshot() {
+        return null;
+      },
+    },
+    ...overrides,
+  };
+}
+
 test("API lists trainees and persists host sentence updates", async (t) => {
   const { dataPath, publicRoot, repository } = await createTempRepository([
     {
@@ -149,6 +214,159 @@ test("health API exposes backend runtime metadata for the admin console", async 
   assert.equal(payload.status, "ok");
   assert.equal(payload.runtime.dataBackend, "json");
   assert.equal(payload.runtime.api, "server/index.js");
+});
+
+test("site bootstrap API composes public audience state from backend repositories", async (t) => {
+  const publicRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-site-bootstrap-"));
+  const server = createServer({
+    publicRoot,
+    ...createSiteBootstrapTestRepositories(),
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/site/bootstrap`);
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.me.role, "public");
+  assert.equal(payload.me.authenticated, false);
+  assert.equal(payload.stage.voteStatus, "voting");
+  assert.equal(payload.stage.voteWindowLabel, "决赛投票");
+  assert.deepEqual(payload.stage.pointScale, [100, 85, 70, 55, 40]);
+  assert.equal(payload.trainees.length, 1);
+  assert.equal(payload.teams.length, 1);
+  assert.equal(payload.works.length, 1);
+  assert.equal(payload.vote.results[0].id, "marketing");
+  assert.equal(payload.vote.myVoteTeamId, null);
+  assert.equal(payload.vote.votersCount, 0);
+  assert.equal(payload.result.published, false);
+
+  const teamsResponse = await fetch(`${baseUrl}/api/teams`);
+  const teams = await teamsResponse.json();
+
+  assert.equal(teamsResponse.status, 200);
+  assert.equal(teams[0].id, "marketing");
+});
+
+test("site bootstrap API resolves the logged-in audience vote from the session user", async (t) => {
+  const publicRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-site-bootstrap-session-"));
+  const server = createServer({
+    publicRoot,
+    ...createSiteBootstrapTestRepositories({
+      voteResultsRepository: {
+        async listVoteResults() {
+          return {
+            status: "voting",
+            windowLabel: "决赛投票",
+            pointScale: [100, 85, 70, 55, 40],
+            results: [{ id: "marketing", name: "营销", votes: 9 }],
+            voters: {
+              "public-001": "marketing",
+            },
+          };
+        },
+      },
+    }),
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const cookie = await loginAs(baseUrl, "public", { userId: "public-001", name: "观众用户" });
+  const response = await fetch(`${baseUrl}/api/site/bootstrap`, {
+    headers: { Cookie: cookie },
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.me.authenticated, true);
+  assert.equal(payload.me.user.id, "public-001");
+  assert.equal(payload.me.role, "public");
+  assert.equal(payload.vote.myVoteTeamId, "marketing");
+  assert.equal(payload.vote.votersCount, 1);
+});
+
+test("site bootstrap API keeps role-selection sessions from inheriting public vote permissions", async (t) => {
+  const publicRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-site-bootstrap-pending-role-"));
+  const server = createServer({
+    publicRoot,
+    ...createSiteBootstrapTestRepositories(),
+    authSessionRepository: {
+      async getSession() {
+        return {
+          id: "pending-role-session",
+          role: "",
+          roles: ["public", "judge"],
+          user: { id: "pending-001", name: "待选角色用户" },
+          permissions: {},
+          source: "test-session",
+        };
+      },
+    },
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/site/bootstrap`, {
+    headers: { Cookie: "joincare_session=pending-role-session" },
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.me.authenticated, true);
+  assert.equal(payload.me.role, null);
+  assert.deepEqual(payload.me.permissions, {});
+  assert.equal(payload.vote.myVoteTeamId, null);
+});
+
+test("non-strict vote APIs still attach an existing session user to audience votes", async (t) => {
+  const publicRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-site-vote-session-"));
+  const votesFile = await createTempJsonFile("ai-site-vote-session-", "vote-results.json", {
+    pointScale: [100, 85, 70, 55, 40],
+    status: "voting",
+    results: [
+      { id: "marketing", name: "营销", votes: 8 },
+      { id: "functions", name: "职能", votes: 3 },
+    ],
+    voters: {},
+  });
+  const sessionFile = await createTempJsonFile("ai-site-vote-session-auth-", "sessions.json", { sessions: {} });
+  const voteResultsRepository = createVoteResultsRepository(votesFile.dataPath);
+  const authSessionRepository = createAuthSessionRepository(sessionFile.dataPath);
+  const server = createServer({
+    publicRoot,
+    ...createSiteBootstrapTestRepositories({ voteResultsRepository }),
+    authSessionRepository,
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const cookie = await loginAs(baseUrl, "public", { userId: "public-123", name: "真实观众" });
+  const castResponse = await fetch(`${baseUrl}/api/vote/cast`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: cookie },
+    body: JSON.stringify({ teamId: "marketing" }),
+  });
+  const castPayload = await castResponse.json();
+
+  assert.equal(castResponse.status, 200);
+  assert.equal(castPayload.userId, "public-123");
+
+  const bootstrapResponse = await fetch(`${baseUrl}/api/site/bootstrap`, {
+    headers: { Cookie: cookie },
+  });
+  const bootstrapPayload = await bootstrapResponse.json();
+
+  assert.equal(bootstrapResponse.status, 200);
+  assert.equal(bootstrapPayload.vote.myVoteTeamId, "marketing");
+
+  const stored = JSON.parse(await fs.readFile(votesFile.dataPath, "utf8"));
+  assert.equal(stored.voters["public-123"], "marketing");
+  assert.equal(stored.voters["local-public"], undefined);
 });
 
 test("server enables strict auth enforcement from AUTH_ENFORCEMENT", async (t) => {
