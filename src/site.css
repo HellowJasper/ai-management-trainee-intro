@@ -3519,3 +3519,42 @@
   font-size: clamp(11.5px, 0.82vw, 13px);
   line-height: 1.35;
 }
+
+/* ---- 飞书登录：顶栏用户信息 ---- */
+.nav-login.is-user { display: inline-flex; align-items: center; gap: 10px; padding: 5px 14px 5px 5px; }
+.nav-ava { width: 30px; height: 30px; border-radius: 50%; background-size: cover; background-position: center; border: 1px solid var(--line-strong); flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; }
+.nav-ava-fallback { background: rgba(40, 255, 200, 0.16); color: var(--neon); font-weight: 800; font-size: 14px; }
+.nav-login-meta { display: inline-flex; flex-direction: column; align-items: flex-start; line-height: 1.18; }
+.nav-login-meta b { font-size: 13px; color: var(--text); font-weight: 700; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-login-meta i { font-size: 10px; font-style: normal; color: var(--neon); font-family: var(--nav-pixel); letter-spacing: 0.04em; }
+
+/* ---- 飞书登录：多角色选择弹窗 ---- */
+.role-picker-overlay { position: fixed; inset: 0; z-index: 300; display: flex; align-items: center; justify-content: center; padding: 24px; background: rgba(2, 8, 14, 0.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: rpFade 200ms ease; }
+@keyframes rpFade { from { opacity: 0; } to { opacity: 1; } }
+.role-picker { width: min(440px, 100%); padding: 28px; border-radius: 18px; text-align: left; }
+.role-picker-en { font-family: var(--nav-pixel); font-size: 10px; letter-spacing: 0.2em; color: var(--neon); }
+.role-picker h2 { margin: 10px 0 6px; font-size: 22px; color: var(--text); }
+.role-picker p { margin: 0 0 18px; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.role-picker-grid { display: grid; gap: 10px; }
+.role-picker-grid button { display: grid; gap: 4px; text-align: left; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); background: rgba(40, 255, 200, 0.05); color: var(--text); cursor: pointer; transition: transform 200ms ease, border-color 200ms ease, background 200ms ease; }
+.role-picker-grid button:hover { border-color: var(--line-strong); background: rgba(40, 255, 200, 0.14); transform: translateY(-1px); }
+.role-picker-grid button:disabled { opacity: 0.5; cursor: not-allowed; }
+.role-picker-grid b { font-size: 16px; font-weight: 800; }
+.role-picker-grid span { font-size: 12px; color: var(--muted); }
+
+/* ---- 右上角用户菜单：切换角色 + 退出 ---- */
+.nav-actions { position: relative; }
+.nav-user-menu { position: absolute; top: calc(100% + 10px); right: 0; z-index: 320; width: 248px; padding: 14px; border-radius: 14px; display: grid; gap: 12px; animation: rpFade 160ms ease; }
+.num-head { display: flex; align-items: center; gap: 10px; }
+.num-head .nav-ava { width: 40px; height: 40px; }
+.num-id { display: grid; line-height: 1.25; min-width: 0; }
+.num-id b { font-size: 14px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.num-id i { font-size: 11px; font-style: normal; color: var(--neon); font-family: var(--nav-pixel); letter-spacing: 0.04em; }
+.num-roles { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
+.num-label { font-family: var(--nav-pixel); font-size: 9px; letter-spacing: 0.1em; color: var(--muted); }
+.num-roles button { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border-radius: 9px; border: 1px solid var(--line); background: rgba(40, 255, 200, 0.04); color: var(--text); font-size: 13px; cursor: pointer; transition: border-color 180ms ease, background 180ms ease, color 180ms ease; }
+.num-roles button:hover { border-color: var(--line-strong); background: rgba(40, 255, 200, 0.12); }
+.num-roles button.on { border-color: rgba(40, 255, 200, 0.5); color: var(--neon); }
+.num-roles button i { font-style: normal; font-size: 10px; color: var(--neon); font-family: var(--nav-pixel); }
+.num-logout { padding: 10px; border-radius: 9px; border: 1px solid rgba(255, 90, 120, 0.35); background: rgba(255, 90, 120, 0.08); color: #ff8aa3; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 180ms ease; }
+.num-logout:hover { background: rgba(255, 90, 120, 0.16); }

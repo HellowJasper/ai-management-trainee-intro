@@ -186,6 +186,18 @@ function buildExternalUrl(request, pathname) {
   return `${protocol}://${host}${pathname}`;
 }
 
+// 仅取页面路径（去掉 query/hash），用于按当前请求 Host 动态拼出 redirect_uri。
+function sanitizePagePath(value, fallback = "/site.html") {
+  const raw = String(value || "").trim();
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) {
+    return fallback;
+  }
+  if (/^[a-z][a-z0-9+.-]*:/i.test(raw)) {
+    return fallback;
+  }
+  return raw.split("#")[0].split("?")[0] || fallback;
+}
+
 function isMobileRootRequest(request, url) {
   if (url.pathname !== "/" || url.searchParams.get("screen") === "big") {
     return false;
@@ -264,15 +276,18 @@ async function routeApi(
     sendJson(response, 200, session
       ? {
           user: session.user,
-          role: session.role,
-          roles: session.roles || [session.role],
-          permissions: session.permissions || getRolePermissions(session.role),
+          role: session.role || null,
+          roles: session.roles || (session.role ? [session.role] : []),
+          permissions: session.role ? (session.permissions || getRolePermissions(session.role)) : {},
+          needsRoleSelection: !session.role && (session.roles || []).length > 1,
           source: session.source || "session",
         }
       : {
           user: null,
           role: null,
+          roles: [],
           permissions: [],
+          needsRoleSelection: false,
           source: "backend-pending",
         });
     return true;
@@ -284,6 +299,34 @@ async function routeApi(
       role: role || null,
       permissions: role ? getRolePermissions(role) : {},
       source: "backend-pending",
+    });
+    return true;
+  }
+
+  // 前端回跳式：返回授权 URL（redirect_uri 指向前端页），前端自行 window.location 跳转。
+  if (url.pathname === "/api/auth/feishu/authorize" && request.method === "GET") {
+    if (!feishuOAuthProvider.configured) {
+      sendJson(response, 200, { configured: false, provider: "feishu", reason: "missing-oauth-config" });
+      return true;
+    }
+    const redirectPath = sanitizeRedirectPath(url.searchParams.get("redirect"));
+    // 动态计算 redirect_uri：按当前请求 Host + 前端传入的当前页面路径拼成，不依赖任何环境配置。
+    const redirectUri = buildExternalUrl(request, sanitizePagePath(url.searchParams.get("page")));
+    const stateRecord = await oauthStateRepository.createState({
+      provider: "feishu",
+      redirectPath,
+      redirectUri,
+    });
+    const authorizationUrl = feishuOAuthProvider.createAuthorizationUrl({
+      state: stateRecord.state,
+      redirectUri,
+    });
+    sendJson(response, 200, {
+      configured: true,
+      provider: "feishu",
+      url: authorizationUrl,
+      state: stateRecord.state,
+      redirectPath,
     });
     return true;
   }
@@ -374,8 +417,84 @@ async function routeApi(
     return true;
   }
 
+  // 登录端点：① 前端回跳式真实登录（带 code）；② 无 code 时保留本地/角色映射登录（开发与测试用）。
   if (url.pathname === "/api/auth/feishu/login" && request.method === "POST") {
     const payload = await readJsonBody(request);
+    const code = String(payload.code || "").trim();
+
+    // ① 真实飞书登录：前端解析 ?code&state 后 POST，后端换取 user_id、同步用户、定角色、建会话。
+    if (code) {
+      if (!feishuOAuthProvider.configured) {
+        sendJson(response, 200, { configured: false, provider: "feishu", reason: "missing-oauth-config" });
+        return true;
+      }
+      // state 用于 CSRF 防护并取回授权时动态生成的 redirect_uri（换 token 必须与授权时一致）。
+      let redirectUri = buildExternalUrl(request, "/site.html");
+      let redirectPath = "/site.html#me";
+      const state = String(payload.state || "").trim();
+      if (state) {
+        const stateRecord = await oauthStateRepository.consumeState(state);
+        if (!stateRecord) {
+          sendJson(response, 400, { error: { message: "Invalid or expired OAuth state.", statusCode: 400 }, provider: "feishu" });
+          return true;
+        }
+        redirectUri = stateRecord.redirectUri || redirectUri;
+        redirectPath = stateRecord.redirectPath || redirectPath;
+      }
+
+      const feishuUser = await feishuOAuthProvider.exchangeCodeForUser({ code, redirectUri });
+      if (!feishuUser || !feishuUser.id) {
+        sendJson(response, 502, {
+          error: { message: "未能从飞书获取 user_id，请确认应用已开通「获取用户 user ID」权限。", statusCode: 502 },
+          provider: "feishu",
+        });
+        return true;
+      }
+
+      // 同步飞书身份(user_id+姓名+头像)进 users 表；取该用户已派发的角色集。
+      const record = await userRoleRepository.upsertLoginUser({
+        userId: feishuUser.id,
+        name: feishuUser.name,
+        department: feishuUser.department,
+        avatar: feishuUser.avatar,
+      });
+      const roles = (record && record.roles) || [];
+      const userInfo = {
+        userId: feishuUser.id,
+        name: feishuUser.name,
+        department: feishuUser.department,
+        avatar: feishuUser.avatar,
+      };
+
+      // 0 角色→默认观众；1 角色→直接进入；多角色→建待选会话由前端弹窗选择。
+      let sessionPayload;
+      if (roles.length === 0) {
+        sessionPayload = { ...userInfo, role: "public", roles: ["public"], source: "feishu-oauth" };
+      } else if (roles.length === 1) {
+        sessionPayload = { ...userInfo, role: roles[0], roles, source: "feishu-oauth" };
+      } else {
+        sessionPayload = { ...userInfo, role: "", roles, source: "feishu-oauth" };
+      }
+      const session = await authSessionRepository.createSession(sessionPayload);
+
+      sendJson(response, 200, {
+        configured: true,
+        provider: "feishu",
+        authenticated: true,
+        user: session.user,
+        role: session.role || null,
+        roles: session.roles,
+        permissions: session.role ? session.permissions : {},
+        needsRoleSelection: !session.role && session.roles.length > 1,
+        redirectPath,
+        source: session.source,
+      }, {
+        "Set-Cookie": buildSessionCookie(session.id),
+      });
+      return true;
+    }
+
+    // ② 无 code：按已绑定角色解析登录（user_id 匹配）。
     if (!payload.role) {
       const mapped = await userRoleRepository.resolveLoginUser(payload);
       if (mapped) {
@@ -400,12 +519,13 @@ async function routeApi(
         return true;
       }
       sendJson(response, 200, {
-        configured: false,
+        configured: feishuOAuthProvider.configured,
         provider: "feishu",
       });
       return true;
     }
 
+    // ③ 本地开发：直接按提交的角色建会话。
     const session = await authSessionRepository.createSession({
       ...payload,
       source: "local-dev",
@@ -421,6 +541,32 @@ async function routeApi(
       source: session.source,
     }, {
       "Set-Cookie": buildSessionCookie(session.id),
+    });
+    return true;
+  }
+
+  // 多角色时由前端弹窗选定当前角色（必须属于本人已派发的角色集）。
+  if (url.pathname === "/api/auth/role" && request.method === "POST") {
+    const session = await authSessionRepository.getSession(getSessionIdFromRequest(request));
+    if (!session) {
+      sendJson(response, 401, { error: { message: "Authentication required.", statusCode: 401 } });
+      return true;
+    }
+    const payload = await readJsonBody(request);
+    const role = String(payload.role || "").trim();
+    if (!role || !(session.roles || []).includes(role)) {
+      sendJson(response, 400, { error: { message: "角色无效或不属于当前用户。", statusCode: 400 } });
+      return true;
+    }
+    const updated = await authSessionRepository.updateSession(session.id, { role });
+    sendJson(response, 200, {
+      authenticated: true,
+      user: updated.user,
+      role: updated.role,
+      roles: updated.roles,
+      permissions: updated.permissions,
+      needsRoleSelection: false,
+      source: updated.source,
     });
     return true;
   }
@@ -902,12 +1048,15 @@ function serveStatic(request, response, url, publicRoot) {
 
   const decodedPathname = decodePathname(url.pathname);
   let requestPath = decodedPathname;
+  // 无后缀页面路由统一：/ 按 UA 派发，其余 /admin、/site、/screen 各自映射到对应 .html。
+  const PAGE_ALIASES = { "/admin": "/admin.html", "/site": "/site.html", "/screen": "/screen.html" };
+  const aliasKey = decodedPathname.replace(/\/$/, "") || "/";
   if (isMobileRootRequest(request, url)) {
     requestPath = "/site.html";
   } else if (decodedPathname === "/") {
     requestPath = "/index.html";
-  } else if (decodedPathname === "/admin" || decodedPathname === "/admin/") {
-    requestPath = "/admin.html";
+  } else if (PAGE_ALIASES[aliasKey]) {
+    requestPath = PAGE_ALIASES[aliasKey];
   }
   const filePath = path.resolve(publicRoot, `.${requestPath}`);
 

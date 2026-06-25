@@ -153,7 +153,10 @@
   const SiteRoleApi = {
     getMe: () => apiRequest("/api/me"),
     getPermissions: () => apiRequest("/api/permissions"),
-    loginWithFeishu: () => apiRequest("/api/auth/feishu/login", { method: "POST", body: "{}" }),
+    getFeishuAuthorizeUrl: (redirect, page) => apiRequest(`/api/auth/feishu/authorize?redirect=${encodeURIComponent(redirect)}&page=${encodeURIComponent(page)}`),
+    exchangeFeishuCode: (code, state) => apiRequest("/api/auth/feishu/login", { method: "POST", body: JSON.stringify({ code, state }) }),
+    setCurrentRole: (role) => apiRequest("/api/auth/role", { method: "POST", body: JSON.stringify({ role }) }),
+    logout: () => apiRequest("/api/auth/logout", { method: "POST", body: "{}" }),
     joinTeam: (teamId) => apiRequest("/api/team/join", { method: "POST", body: JSON.stringify({ teamId }) }),
     leaveTeam: (teamId) => apiRequest("/api/team/leave", { method: "POST", body: JSON.stringify({ teamId }) }),
     castVote: (teamId) => apiRequest("/api/vote/cast", { method: "POST", body: JSON.stringify({ teamId }) }),
@@ -249,15 +252,9 @@
     }
     gate.innerHTML = `<div class="auth-gate-backdrop"></div><section class="auth-card glass">
       <span class="ph-en">ENTRY AUTH</span>
-      <h2>登录 / 角色</h2>
-      <p>正式环境将通过飞书账号识别角色；当前保留模拟入口，方便前端联调。</p>
+      <h2>飞书登录</h2>
+      <p>请使用飞书账号登录；登录后将按你被授予的角色进入，多个角色时可自行选择当前身份。</p>
       <button class="auth-feishu" type="button" data-auth-feishu>飞书账号登录</button>
-      <div class="auth-role-grid">
-        <button type="button" data-auth-role="player"><b>参赛选手</b><span>抢赛道 · 提交作品</span></button>
-        <button type="button" data-auth-role="judge"><b>专家评委</b><span>评分 · 评语</span></button>
-        <button type="button" data-auth-role="public"><b>大众评委 / 观众</b><span>浏览作品 · 投票</span></button>
-        <button type="button" data-auth-role="admin"><b>管理员</b><span>后台管理 · 大屏控制</span></button>
-      </div>
     </section>`;
     gate.classList.add("show");
     return false;
@@ -292,12 +289,6 @@
     return true;
   }
   function hydrateRole() {
-    const params = authParams();
-    const role = params.get("role");
-    if (VALID_ROLES.includes(role)) {
-      setRole(role, { role, source: "query" });
-      return;
-    }
     if (wantsAuthChooser()) {
       root.localStorage.removeItem(ROLE_KEY);
       return;
@@ -307,38 +298,205 @@
     }
   }
   async function syncRoleFromBackend() {
-    if (currentRole()) return;
+    if (currentRole()) {
+      // 已有本地角色时仍补一次用户信息（姓名/头像）用于顶栏展示。
+      try {
+        const me = await SiteRoleApi.getMe();
+        if (me && me.user) { storeSession(me); refreshRoleChrome(); }
+      } catch (e) { /* 忽略 */ }
+      return;
+    }
     try {
       const session = await SiteRoleApi.getMe();
-      if (session && setRole(session.role, session)) {
-        toast(`已同步「${roleName(session.role)}」身份`);
+      if (!session || !session.user) return;
+      storeSession(session);
+      refreshRoleChrome();
+      if (session.needsRoleSelection) {
+        showRolePicker(session.roles || []);
+        return;
+      }
+      if (session.role && setRole(session.role, session)) {
+        refreshRoleChrome();
+        toast(`已同步「${pickLabel(session.role)}」身份`);
       }
     } catch (e) {
       // 后端未接入时保持前端模拟身份入口可用。
     }
   }
-  async function startFeishuLogin() {
-    toast("正在登录飞书");
+  // 角色弹窗用的简洁标签（按用户口径：观众/选手/评委/管理员）。
+  const ROLE_PICK_LABELS = { public: "观众", player: "选手", judge: "评委", admin: "管理员" };
+  const ROLE_PICK_HINT = {
+    public: "浏览作品 · 投票",
+    player: "抢赛道 · 提交作品",
+    judge: "评分 · 评语 · 排位",
+    admin: "后台管理 · 大屏控制",
+  };
+  const pickLabel = (role) => ROLE_PICK_LABELS[role] || roleName(role);
+
+  function storeSession(res) {
     try {
-      const session = await SiteRoleApi.loginWithFeishu();
-      if (session && session.redirectUrl) {
-        root.location.href = session.redirectUrl;
-        return;
+      root.localStorage.setItem(SESSION_KEY, JSON.stringify({ user: res.user || null, role: res.role || "", roles: res.roles || [] }));
+    } catch (e) { /* 存储不可用时忽略 */ }
+  }
+
+  function finalizeLogin(role, session, redirectPath) {
+    storeSession({ ...session, role });
+    setRole(role, session);
+    renderNavLinks();
+    renderMobileTabbar();
+    refreshRoleChrome();
+    closeAuthGate();
+    closeRolePicker();
+    toast(`已进入「${pickLabel(role)}」视角`);
+    const target = (String(redirectPath || "").split("#")[1] || pendingAuthTarget || "me").trim() || "me";
+    pendingAuthTarget = null;
+    go(target);
+  }
+
+  // 发起飞书登录：拿授权 URL → 跳转飞书（前端回跳式，回到本页带 ?code&state）。
+  async function startFeishuLogin() {
+    toast("正在跳转飞书登录…");
+    const target = pendingAuthTarget || (location.hash.slice(1) || "me");
+    // 回调地址动态取当前页面（去 hash/query），跳转前生成，无需任何额外配置。
+    const page = root.location.pathname || "/site.html";
+    try {
+      const res = await SiteRoleApi.getFeishuAuthorizeUrl(`${page}#${target}`, page);
+      if (res && res.configured && res.url) { root.location.href = res.url; return; }
+      toast("飞书登录未配置（缺少应用凭证）");
+    } catch (e) {
+      toast("无法发起飞书登录，请稍后重试");
+    }
+  }
+
+  let feishuExchanged = false; // 防 code 重复消费 / 重复执行
+  async function consumeFeishuCallback() {
+    const params = authParams();
+    const code = params.get("code");
+    const state = params.get("state");
+    if (!code || feishuExchanged) return false;
+    feishuExchanged = true;
+    // 一次性：先把 code/state 从地址栏清掉，避免刷新重放。
+    try {
+      const u = new URL(root.location.href);
+      u.searchParams.delete("code");
+      u.searchParams.delete("state");
+      history.replaceState(null, "", u.pathname + (u.search || "") + (u.hash || ""));
+    } catch (e) { /* 忽略 */ }
+    try {
+      const res = await SiteRoleApi.exchangeFeishuCode(code, state);
+      if (!res || !res.authenticated) {
+        toast(res && res.reason === "missing-oauth-config" ? "飞书登录未配置" : "飞书登录失败，请重试");
+        return false;
       }
-      if (session && setRole(session.role, session)) {
+      storeSession(res);
+      if (res.needsRoleSelection) {
+        showRolePicker(res.roles || [], res.redirectPath);
+        return true;
+      }
+      finalizeLogin(res.role, res, res.redirectPath);
+      return true;
+    } catch (e) {
+      toast("飞书登录失败：" + (e && e.message ? e.message : "请重试"));
+      return false;
+    }
+  }
+
+  // 右上角用户菜单：切换角色 + 退出登录。
+  function closeUserMenu() {
+    const m = doc.getElementById("navUserMenu");
+    if (m) m.remove();
+  }
+  function toggleUserMenu() {
+    if (doc.getElementById("navUserMenu")) { closeUserMenu(); return; }
+    if (!navLogin) return;
+    const session = readJson(SESSION_KEY, {});
+    const user = session && session.user;
+    if (!user) return;
+    const roles = (session.roles || []).filter((r) => VALID_ROLES.includes(r));
+    const cur = currentRole();
+    const menu = doc.createElement("div");
+    menu.id = "navUserMenu";
+    menu.className = "nav-user-menu glass";
+    menu.innerHTML = `
+      <div class="num-head">
+        ${user.avatar
+          ? `<span class="nav-ava" style="background-image:url('${esc(user.avatar)}')"></span>`
+          : `<span class="nav-ava nav-ava-fallback">${esc(String(user.name).slice(0, 1))}</span>`}
+        <div class="num-id"><b>${esc(user.name)}</b><i>${cur ? esc(pickLabel(cur)) : "未选择角色"}</i></div>
+      </div>
+      ${roles.length > 1 ? `<div class="num-roles"><span class="num-label">切换角色</span>${roles.map((r) => `<button type="button" data-switch-role="${esc(r)}" class="${r === cur ? "on" : ""}">${esc(pickLabel(r))}${r === cur ? "<i>当前</i>" : ""}</button>`).join("")}</div>` : ""}
+      <button type="button" class="num-logout" data-logout>退出登录</button>`;
+    navLogin.parentElement.appendChild(menu);
+  }
+  async function switchCurrentRole(role) {
+    closeUserMenu();
+    if (!VALID_ROLES.includes(role) || role === currentRole()) return;
+    try {
+      const res = await SiteRoleApi.setCurrentRole(role);
+      if (res && res.role) {
+        storeSession(res);
+        setRole(res.role, res);
         renderNavLinks();
         renderMobileTabbar();
         refreshRoleChrome();
-        closeAuthGate();
-        toast(`已进入「${roleName(session.role)}」视角`);
-        go(pendingAuthTarget || "me");
-        pendingAuthTarget = null;
+        toast(`已切换到「${pickLabel(res.role)}」`);
+        go("me");
         return;
       }
-      toast("飞书登录接口已预留，等待后端返回角色");
+      toast("角色切换失败，请重试");
     } catch (e) {
-      toast("飞书登录接口未接入，可先使用模拟角色");
+      toast("角色切换失败：" + (e && e.message ? e.message : "请重试"));
     }
+  }
+  async function doLogout() {
+    closeUserMenu();
+    try { await SiteRoleApi.logout(); } catch (e) { /* 忽略网络错误，仍清本地 */ }
+    root.localStorage.removeItem(ROLE_KEY);
+    root.localStorage.removeItem(SESSION_KEY);
+    renderNavLinks();
+    renderMobileTabbar();
+    refreshRoleChrome();
+    toast("已退出登录");
+    go("home");
+  }
+
+  // 多角色弹窗：让用户选择当前角色。
+  function closeRolePicker() {
+    const el = doc.getElementById("siteRolePicker");
+    if (el) el.remove();
+  }
+  function showRolePicker(roles, redirectPath) {
+    closeRolePicker();
+    const list = (roles || []).filter((r) => VALID_ROLES.includes(r));
+    if (!list.length) { finalizeLogin("public", { roles: ["public"] }, redirectPath); return; }
+    const overlay = doc.createElement("div");
+    overlay.id = "siteRolePicker";
+    overlay.className = "role-picker-overlay";
+    overlay.innerHTML = `
+      <div class="role-picker glass" role="dialog" aria-modal="true" aria-label="选择当前角色">
+        <span class="role-picker-en">SELECT ROLE</span>
+        <h2>选择当前身份</h2>
+        <p>你拥有多个角色，请选择本次进入的身份（之后可重新登录切换）。</p>
+        <div class="role-picker-grid">
+          ${list.map((r) => `<button type="button" data-pick-role="${esc(r)}"><b>${esc(pickLabel(r))}</b><span>${esc(ROLE_PICK_HINT[r] || "")}</span></button>`).join("")}
+        </div>
+      </div>`;
+    overlay.addEventListener("click", async (e) => {
+      const btn = e.target.closest("[data-pick-role]");
+      if (!btn) return;
+      const role = btn.dataset.pickRole;
+      btn.disabled = true;
+      try {
+        const res = await SiteRoleApi.setCurrentRole(role);
+        if (res && res.role) { finalizeLogin(res.role, res, redirectPath); return; }
+        toast("角色选择失败，请重试");
+        btn.disabled = false;
+      } catch (err) {
+        toast("角色选择失败：" + (err && err.message ? err.message : "请重试"));
+        btn.disabled = false;
+      }
+    });
+    doc.body.appendChild(overlay);
   }
 
   function renderMobileHome(totalVotes) {
@@ -1397,7 +1555,19 @@
   }
   function refreshRoleChrome() {
     const role = currentRole();
-    if (navLogin) navLogin.textContent = role ? roleName(role) : "登录 / 角色";
+    const session = readJson(SESSION_KEY, {});
+    const user = session && session.user;
+    if (navLogin) {
+      if (user && user.name) {
+        navLogin.classList.add("is-user");
+        navLogin.innerHTML = `${user.avatar
+          ? `<span class="nav-ava" style="background-image:url('${esc(user.avatar)}')"></span>`
+          : `<span class="nav-ava nav-ava-fallback">${esc(String(user.name).slice(0, 1))}</span>`}<span class="nav-login-meta"><b>${esc(user.name)}</b><i>${role ? esc(pickLabel(role)) : "待选择角色"}</i></span>`;
+      } else {
+        navLogin.classList.remove("is-user");
+        navLogin.textContent = role ? roleName(role) : "登录 / 角色";
+      }
+    }
     if (navPhase) navPhase.textContent = role ? `ROLE:${role.toUpperCase()}` : "ROLE:UNBOUND";
   }
   function renderMobileTabbar() {
@@ -1775,7 +1945,6 @@
       const judgeSave = e.target.closest("[data-judge-save]");
       const mobileTrainee = e.target.closest("[data-mobile-trainee]");
       const mobileDetailClose = e.target.closest("[data-mobile-detail-close]");
-      const authRole = e.target.closest("[data-auth-role]");
       const authFeishu = e.target.closest("[data-auth-feishu]");
       const authReset = e.target.closest("[data-auth-reset]");
       const nav = e.target.closest("[data-nav]");
@@ -1793,23 +1962,12 @@
         showMobileTraineeDetail();
         return;
       }
-      if (authRole) {
-        setRole(authRole.dataset.authRole, { role: authRole.dataset.authRole, source: "mock" });
-        renderNavLinks();
-        renderMobileTabbar();
-        refreshRoleChrome();
-        closeAuthGate();
-        toast(`已进入「${roleName(authRole.dataset.authRole)}」视角`);
-        const target = pendingAuthTarget;
-        pendingAuthTarget = null;
-        if (target && VIEWS.some((v) => v.key === target)) go(target);
-        return;
-      }
       if (authFeishu) { e.preventDefault(); startFeishuLogin(); return; }
       if (authReset) {
         e.preventDefault();
         root.localStorage.removeItem(ROLE_KEY);
         root.localStorage.removeItem(SESSION_KEY);
+        SiteRoleApi.logout().catch(() => {});
         renderNavLinks();
         renderMobileTabbar();
         refreshRoleChrome();
@@ -1833,8 +1991,22 @@
       if (work) { showWork(work.dataset.work); return; }
       if (nav) { e.preventDefault(); go(nav.dataset.nav); return; }
       if (prev) { main.innerHTML = renderResult(true); setActive("result"); return; }
-      if (e.target.closest("#navLogin")) { go("me"); return; }
+      const switchRoleBtn = e.target.closest("[data-switch-role]");
+      if (switchRoleBtn) { e.preventDefault(); switchCurrentRole(switchRoleBtn.dataset.switchRole); return; }
+      if (e.target.closest("[data-logout]")) { e.preventDefault(); doLogout(); return; }
+      if (e.target.closest("#navLogin")) {
+        e.preventDefault();
+        const sess = readJson(SESSION_KEY, {});
+        if (sess && sess.user) toggleUserMenu(); else go("me");
+        return;
+      }
       if (e.target.closest("#navBurger")) { navLinks.classList.toggle("open"); return; }
+    });
+    // 点击菜单外区域关闭右上角用户菜单。
+    doc.addEventListener("click", (e) => {
+      if (!doc.getElementById("navUserMenu")) return;
+      if (e.target.closest("#navUserMenu") || e.target.closest("#navLogin")) return;
+      closeUserMenu();
     });
     doc.addEventListener("input", (e) => {
       const teamNameDraft = e.target.closest("[data-team-name-draft]");
@@ -1873,6 +2045,7 @@
     if (root.CodeRain) { rain = root.CodeRain.createCodeRain(doc.getElementById("siteRain"), { glyphs: "010101AIJOINCARE{}[]<>".split(""), fontSize: 16, fade: "rgba(2,8,14,0.06)" }); rain.start(); }
     await loadTrainees();
     hydrateRole();
+    await consumeFeishuCallback();
     await syncRoleFromBackend();
     await syncHomeState();
     bind();

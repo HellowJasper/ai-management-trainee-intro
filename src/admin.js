@@ -215,6 +215,10 @@ let userRoleState = {
   users: [],
   loading: false,
 };
+let userRoleFilter = "all"; // all | public | player | judge | admin
+
+// 用户管理用的角色筛选标签（与用户站口径一致：观众/选手/评委/管理员）。
+const USER_FILTER_LABELS = { public: "观众", player: "选手", judge: "评委", admin: "管理员" };
 
 let traineeProfileState = {
   trainees: [],
@@ -224,9 +228,9 @@ let traineeProfileState = {
 
 const adminRoleLabels = {
   admin: "管理员",
-  judge: "专家评委",
-  player: "参赛选手",
-  public: "大众评委",
+  judge: "评委",
+  player: "选手",
+  public: "观众",
 };
 
 const teamStatusLabels = {
@@ -1260,24 +1264,45 @@ function getAdminRoleLabel(role) {
   return adminRoleLabels[String(role || "").trim()] || String(role || "待鉴权");
 }
 
+function renderUserFilterBar() {
+  const bar = document.getElementById("adminUserFilterBar");
+  if (!bar) {
+    return;
+  }
+  bar.querySelectorAll("[data-user-role-filter]").forEach((button) => {
+    const isActive = button.dataset.userRoleFilter === userRoleFilter;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
+function filterUsersByRole(users) {
+  if (userRoleFilter === "all") {
+    return users;
+  }
+  return users.filter((user) => Array.isArray(user.roles) && user.roles.includes(userRoleFilter));
+}
+
 function renderUserRoleManager(users = userRoleState.users) {
   if (!adminUserRoleList) {
     return;
   }
+  renderUserFilterBar();
 
-  const cleanUsers = Array.isArray(users) ? users : [];
+  const allUsers = Array.isArray(users) ? users : [];
+  const cleanUsers = filterUsersByRole(allUsers);
   const status = userRoleState.loading
     ? "同步中"
-    : cleanUsers.length
-      ? `${cleanUsers.length} 个账号`
-      : "暂无账号";
+    : userRoleFilter === "all"
+      ? (allUsers.length ? `${allUsers.length} 个账号` : "暂无账号")
+      : `${USER_FILTER_LABELS[userRoleFilter] || userRoleFilter}：${cleanUsers.length} / ${allUsers.length}`;
   setText(adminUserRoleStatus, status);
 
   if (!cleanUsers.length) {
     adminUserRoleList.innerHTML = `
       <article class="admin-user-role-empty">
-        <b>还没有角色映射</b>
-        <span>填写左侧表单后，飞书登录会按用户 ID / Open ID / Union ID 匹配角色。</span>
+        <b>${userRoleFilter === "all" ? "还没有用户" : "该角色暂无用户"}</b>
+        <span>${userRoleFilter === "all" ? "飞书登录后用户会自动入库；在此为其分配角色。" : "切换上方筛选，或在左侧表单为用户分配该角色。"}</span>
       </article>
     `;
     return;
@@ -2091,6 +2116,9 @@ function switchAdminView(view) {
 
   if (targetView === "settings") {
     renderSystemSettings();
+  }
+
+  if (targetView === "users") {
     loadUserRoles().catch((error) => {
       console.warn("User role mappings refresh failed.", error);
     });
@@ -2145,6 +2173,20 @@ document.addEventListener("click", async (event) => {
   }
 
   switchAdminView(navButton.dataset.adminNav);
+});
+
+// 用户管理：角色筛选器。
+document.addEventListener("click", (event) => {
+  const filterButton = event.target.closest("[data-user-role-filter]");
+  if (!filterButton) {
+    return;
+  }
+  const next = filterButton.dataset.userRoleFilter || "all";
+  if (next === userRoleFilter) {
+    return;
+  }
+  userRoleFilter = next;
+  renderUserRoleManager();
 });
 
 screenQuickMenuButton?.addEventListener("click", () => toggleTopbarMenu(screenQuickMenuButton, screenQuickMenu));

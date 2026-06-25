@@ -591,7 +591,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260624-nav-labels/);
+  assert.match(siteHtml, /site\.js\?v=20260625-feishu-login/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -955,7 +955,10 @@ test("final result screen reserves enough vertical room for the champion showcas
 test("official site wires my page, team join and judge score interactions", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteJs, /if \(e\.target\.closest\("#navLogin"\)\) \{ go\("me"\); return; \}/);
+  assert.match(siteJs, /e\.target\.closest\("#navLogin"\)/);
+  assert.match(siteJs, /toggleUserMenu\(\)/);
+  assert.match(siteJs, /data-switch-role/);
+  assert.match(siteJs, /data-logout/);
   assert.match(siteJs, /data-join-team/);
   assert.match(siteJs, /function joinTeam\(/);
   assert.match(siteJs, /data-judge-save/);
@@ -1057,7 +1060,7 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260624-detail-fit/);
+  assert.match(html, /src\/site\.css\?v=20260625-feishu-login/);
   assert.match(siteCss, /--site-detail-side-rail:\s*calc\(var\(--site-detail-edge\) \+ var\(--site-detail-card-width\) \+ var\(--site-detail-card-gap\)\)/);
   assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*var\(--site-detail-edge\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*var\(--site-detail-side-rail\)/);
@@ -1181,7 +1184,8 @@ test("role authorization is completed at entry and protects sensitive actions", 
   assert.doesNotMatch(siteJs, /root\.localStorage\.setItem\(ROLE_KEY, "public"\)/);
   assert.match(siteJs, /\/api\/auth\/feishu\/login/);
   assert.match(siteJs, /\/api\/me/);
-  assert.match(siteJs, /data-auth-role/);
+  assert.match(siteJs, /data-auth-feishu/);
+  assert.doesNotMatch(siteJs, /data-auth-role/);
   assert.match(siteJs, /if \(!requireRole\("vote", \(p\) => p\.canVote/);
   assert.match(siteJs, /if \(!requireRole\("team", \(p\) => p\.canJoinTeam/);
   assert.match(siteJs, /if \(!requireRole\("judge", \(p\) => p\.canScore/);
@@ -1192,9 +1196,9 @@ test("official site cache keys are bumped after navigation and detail layout pol
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
-  assert.match(html, /src\/site\.css\?v=20260624-detail-fit/);
+  assert.match(html, /src\/site\.css\?v=20260625-feishu-login/);
   assert.match(html, /src\/logic\.js\?v=20260624-nav-labels/);
-  assert.match(html, /src\/site\.js\?v=20260624-nav-labels/);
+  assert.match(html, /src\/site\.js\?v=20260625-feishu-login/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {

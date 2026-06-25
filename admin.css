@@ -2559,3 +2559,33 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ---- 用户管理：角色筛选器 ---- */
+.admin-user-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.admin-user-filter-bar button {
+  min-height: 34px;
+  padding: 0 16px;
+  border: 1px solid rgba(103, 255, 213, 0.18);
+  border-radius: 999px;
+  background: rgba(40, 255, 200, 0.05);
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 180ms ease, background 180ms ease, color 180ms ease;
+}
+.admin-user-filter-bar button:hover {
+  border-color: rgba(40, 255, 200, 0.4);
+  color: var(--text);
+}
+.admin-user-filter-bar button.is-active {
+  border-color: rgba(40, 255, 200, 0.6);
+  background: rgba(40, 255, 200, 0.16);
+  color: var(--neon);
+  font-weight: 700;
+}

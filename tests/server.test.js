@@ -688,7 +688,7 @@ test("admin user role API maps Feishu login users to backend roles", async (t) =
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      openId: "ou_001",
+      userId: "feishu-user-001",
       name: "前端传入名称不应覆盖后端角色",
     }),
   });
@@ -1454,7 +1454,7 @@ test("/admin serves the management console shell", async (t) => {
   assert.match(response.headers.get("content-type"), /text\/html/);
   assert.match(html, /AI 星锐黑客松 管理后台/);
   assert.match(html, /id="stageRows"/);
-  assert.match(html, /src="\.\/src\/admin\.js\?v=20260624-admin-users"/);
+  assert.match(html, /src="\.\/src\/admin\.js\?v=20260625-user-mgmt"/);
 
   const slashResponse = await fetch(`${baseUrl}/admin/`);
   const slashHtml = await slashResponse.text();
