@@ -62,6 +62,13 @@ class MemoryMysqlTeamPool {
       return [{ affectedRows: 1 }];
     }
 
+    if (compactSql.startsWith("delete from team_members where team_id") && compactSql.includes("is_advisor = true") && params.length === 1) {
+      const teamId = params[0];
+      const before = this.members.length;
+      this.members = this.members.filter((member) => !(member.team_id === teamId && member.is_advisor));
+      return [{ affectedRows: before - this.members.length }];
+    }
+
     if (compactSql.startsWith("insert into team_members")) {
       const [teamId, userId, name, department, roleKey, duty, photo, role, isAdvisor] = params;
       this.members.push({
@@ -112,7 +119,7 @@ test("MySQL team repository keeps the grouping and role claiming contract", asyn
         hostDepartment: "健康品事业部",
         color: "rgb(100, 232, 214)",
         capacity: 5,
-        advisor: { name: "赛道顾问 C", department: "健康品事业部", role: "赛道顾问" },
+        advisor: { name: "队长 C", department: "健康品事业部", role: "队长" },
       },
       {
         id: "functions",
@@ -122,11 +129,11 @@ test("MySQL team repository keeps the grouping and role claiming contract", asyn
         hostDepartment: "董事长办公室",
         color: "var(--neon-2)",
         capacity: 5,
-        advisor: { name: "赛道顾问 D", department: "董事长办公室", role: "赛道顾问" },
+        advisor: { name: "队长 D", department: "董事长办公室", role: "队长" },
       },
     ],
     members: [
-      { teamId: "marketing", userId: "lead-marketing", name: "赛道顾问 C", department: "健康品事业部", roleKey: "advisor", duty: "赛道顾问", isAdvisor: true },
+      { teamId: "marketing", userId: "lead-marketing", name: "队长 C", department: "健康品事业部", roleKey: "advisor", duty: "队长", isAdvisor: true },
       { teamId: "marketing", userId: "player-a", name: "李蓓蓓", department: "健康品事业部", roleKey: "biz", duty: "业务洞察" },
       { teamId: "functions", userId: "player-b", name: "张瑞", department: "AI创新部", roleKey: "dev", duty: "AI开发" },
     ],
@@ -136,7 +143,8 @@ test("MySQL team repository keeps the grouping and role claiming contract", asyn
   const before = await repository.listTeams();
   assert.equal(before.length, 2);
   assert.equal(before[0].id, "marketing");
-  assert.equal(before[0].advisor.name, "赛道顾问 C");
+  assert.equal(before[0].advisor.name, "队长 C");
+  assert.equal(before[0].advisor.userId, "lead-marketing");
   assert.deepEqual(before[0].members.map((member) => member.userId), ["player-a"]);
 
   const joined = await repository.joinTeam({
@@ -165,6 +173,26 @@ test("MySQL team repository keeps the grouping and role claiming contract", asyn
   });
   assert.equal(left.accepted, true);
   assert.equal(left.teams.find((team) => team.id === "marketing").members.some((member) => member.userId === "player-b"), false);
+
+  const leader = await repository.joinTeam({
+    teamId: "marketing",
+    userId: "captain-new",
+    name: "新队长",
+    department: "AI创新部",
+    roleKey: "advisor",
+    duty: "队长",
+  });
+  assert.equal(leader.accepted, true);
+  assert.equal(leader.team.advisor.userId, "captain-new");
+  assert.equal(leader.team.members.some((member) => member.userId === "captain-new"), false);
+
+  const removedLeader = await repository.leaveTeam({
+    teamId: "marketing",
+    userId: "captain-new",
+    roleKey: "advisor",
+  });
+  assert.equal(removedLeader.accepted, true);
+  assert.equal(removedLeader.team.advisor, null);
 });
 
 test("repository factory wires the MySQL team repository", async () => {

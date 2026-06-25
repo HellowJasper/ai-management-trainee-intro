@@ -557,6 +557,16 @@
     });
   }
 
+  async function updateAdminScreenOverride(stageId) {
+    return fetchJson("/api/admin/screen-override", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ stageId: stageId || "" }),
+    });
+  }
+
   async function updateAdminDisplayTimes(payload = {}) {
     return fetchJson("/api/admin/display-times", {
       method: "PATCH",
@@ -703,6 +713,7 @@
     upsertAdminUser,
     updateAdminTeamStatus,
     updateAdminStage,
+    updateAdminScreenOverride,
     updateAdminDisplayTimes,
     updateAdminMissionCountdown,
     updateAdminRoadshow,

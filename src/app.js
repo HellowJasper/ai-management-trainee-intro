@@ -345,7 +345,7 @@ function getFallbackTeamState() {
       hostDepartment: "药学研发中心",
       color: "var(--neon)",
       colorRgb: "40, 255, 200",
-      advisor: { name: "赛道顾问 A", department: "药学研发中心", role: "赛道顾问" },
+      advisor: { name: "队长 A", department: "药学研发中心", role: "队长" },
       memberNames: ["黄钊强", "占美玲", "顾灵茜", "林艺新"],
     },
     {
@@ -356,7 +356,7 @@ function getFallbackTeamState() {
       hostDepartment: "临床研发中心",
       color: "rgb(205, 255, 92)",
       colorRgb: "205, 255, 92",
-      advisor: { name: "赛道顾问 B", department: "临床研发中心", role: "赛道顾问" },
+      advisor: { name: "队长 B", department: "临床研发中心", role: "队长" },
       memberNames: ["许镁胜", "陈徐林", "唐靖沛", "张瑞"],
     },
     {
@@ -367,7 +367,7 @@ function getFallbackTeamState() {
       hostDepartment: "健康品事业部",
       color: "rgb(100, 232, 214)",
       colorRgb: "100, 232, 214",
-      advisor: { name: "赛道顾问 C", department: "健康品事业部", role: "赛道顾问" },
+      advisor: { name: "队长 C", department: "健康品事业部", role: "队长" },
       memberNames: ["李蓓蓓", "李丰", "张恒睿", "贾博深"],
     },
     {
@@ -378,7 +378,7 @@ function getFallbackTeamState() {
       hostDepartment: "董事长办公室",
       color: "var(--neon-2)",
       colorRgb: "167, 255, 79",
-      advisor: { name: "赛道顾问 D", department: "董事长办公室", role: "赛道顾问" },
+      advisor: { name: "队长 D", department: "董事长办公室", role: "队长" },
       memberNames: ["张瑞", "唐靖沛", "李丰", "陈徐林"],
     },
     {
@@ -389,7 +389,7 @@ function getFallbackTeamState() {
       hostDepartment: "生产管理中心",
       color: "rgb(110, 235, 150)",
       colorRgb: "110, 235, 150",
-      advisor: { name: "赛道顾问 E", department: "生产管理中心", role: "赛道顾问" },
+      advisor: { name: "队长 E", department: "生产管理中心", role: "队长" },
       memberNames: ["顾灵茜", "许镁胜", "李蓓蓓", "黄钊强"],
     },
   ];
@@ -416,6 +416,10 @@ let introExitTimer = null;
 let isIntroExiting = false;
 let lastAdminStageSyncKey = "";
 let adminPollTimer = null;
+const TRAINEE_PROFILE_POLL_MS = 5000;
+let traineeProfilePollTimer = null;
+let traineeProfileSignature = "";
+let traineeProfileSyncing = false;
 let countdownTimer = null;
 let countdownStartedAt = null;
 let countdownDurationMs = 24 * 60 * 60 * 1000;
@@ -682,6 +686,31 @@ function selectedTrainee() {
   return traineeState.find((trainee) => trainee.id === selectedId) || traineeState[0];
 }
 
+function createTraineeProfileSignature(trainees = []) {
+  return JSON.stringify((Array.isArray(trainees) ? trainees : []).map((trainee) => [
+    trainee.id || "",
+    trainee.name || "",
+    trainee.romanName || "",
+    trainee.department || "",
+    trainee.departmentEn || "",
+    trainee.photo || "",
+    trainee.idPhoto || "",
+    trainee.memeImage || "",
+    trainee.sentence || "",
+    trainee.tools || "",
+    trainee.favoriteTool || "",
+    trainee.problem || "",
+    trainee.background || "",
+    trainee.aiPower || "",
+    trainee.funFact || "",
+  ]));
+}
+
+function normalizeTraineeList(trainees = fallbackTrainees) {
+  const list = Array.isArray(trainees) ? trainees : fallbackTrainees;
+  return window.AppLogic.positionJasperAtCenter(list.map(window.AppLogic.normalizeTrainee));
+}
+
 function setView(view) {
   appView = view;
   appShell.dataset.view = view;
@@ -728,6 +757,10 @@ function escapeHtml(value) {
 
 function escapeAttribute(value) {
   return escapeHtml(value).replaceAll("`", "&#96;");
+}
+
+function normalizeLeaderDisplay(value) {
+  return String(value || "").replace(/^赛道顾问/, "队长").replace(/^技术顾问/, "队长");
 }
 
 function setPortrait(element, trainee) {
@@ -870,6 +903,7 @@ function renderTeamFormation() {
   teamGrid.innerHTML = teamState
     .map((team) => {
       const advisor = team.advisor || {};
+      const advisorName = normalizeLeaderDisplay(advisor.name) || "待定选手";
       const members = Array.isArray(team.members) ? team.members.slice(0, 4) : [];
       const advisorFilledCount = advisor.name ? 1 : 0;
       const totalSeats = TEAM_ROLE_BLUEPRINT.length + 1;
@@ -897,18 +931,18 @@ function renderTeamFormation() {
           </header>
           <section class="team-role-slot team-advisor-slot${isClaimedAdvisor ? " is-claimed" : ""}">
             <div class="team-role-avatar" style="--avatar-image: ${cssUrl(advisor.photo || advisor.avatar || advisor.idPhoto || "")}">
-              <span>${escapeHtml(String(advisor.name || "?").slice(0, 1))}</span>
+              <span>${escapeHtml(String(advisorName || "?").slice(0, 1))}</span>
             </div>
             <div class="team-role-copy">
               <div class="team-role-main">
                 <span class="team-role-chip">LEAD</span>
-                <strong>赛道顾问</strong>
+                <strong>队长</strong>
               </div>
               <p>赛道牵头选手，协调业务方向</p>
-              <small>${escapeHtml(advisor.name || "待定选手")} · ${escapeHtml(advisor.department || team.hostDepartment || "待分配")}</small>
+              <small>${escapeHtml(advisorName)} · ${escapeHtml(advisor.department || team.hostDepartment || "待分配")}</small>
             </div>
-            <button class="team-role-action" type="button" data-team-action="claim-role" data-track-id="${escapeAttribute(team.id || "")}" data-role-key="advisor" aria-label="${escapeAttribute(`抢占${team.name || "赛道"}赛道顾问位`)}">
-              ${isClaimedAdvisor ? "我的顾问位" : "抢顾问位"}
+            <button class="team-role-action" type="button" data-team-action="claim-role" data-track-id="${escapeAttribute(team.id || "")}" data-role-key="advisor" aria-label="${escapeAttribute(`抢占${team.name || "赛道"}队长位`)}">
+              ${isClaimedAdvisor ? "我的队长位" : "抢队长位"}
             </button>
           </section>
           <div class="team-role-grid">
@@ -1114,7 +1148,10 @@ function resolveRoadshowTeam() {
     project: stateTeam.project || dataTeam.project || dataTeam.hostDepartment || "AI 创新解决方案路演中",
     color: stateTeam.color || dataTeam.color || "var(--neon)",
     colorRgb: stateTeam.colorRgb || dataTeam.colorRgb || dataTeam.rgb || "40, 255, 200",
-    advisor: dataTeam.advisor || {},
+    advisor: {
+      ...(dataTeam.advisor || {}),
+      name: normalizeLeaderDisplay(dataTeam.advisor?.name),
+    },
     members: Array.isArray(dataTeam.members) ? dataTeam.members : [],
   };
 }
@@ -1807,7 +1844,7 @@ async function pollAdminState() {
   try {
     const state = await window.AppData.loadAdminState();
     await syncVisibleTimerState();
-    const stageId = state?.currentStageId || "";
+    const stageId = state?.screenOverrideStageId || state?.currentStageId || "";
     if (!stageId) {
       return;
     }
@@ -1819,7 +1856,7 @@ async function pollAdminState() {
       return;
     }
 
-    const screenView = window.AppLogic.resolveStageScreenView(state.currentStageId);
+    const screenView = window.AppLogic.resolveStageScreenView(stageId);
     if (!screenView) {
       return;
     }
@@ -1840,6 +1877,43 @@ async function pollAdminState() {
 function startAdminStatePolling() {
   pollAdminState();
   adminPollTimer = window.setInterval(pollAdminState, 3000);
+}
+
+async function syncTraineeProfiles() {
+  if (traineeProfileSyncing) {
+    return;
+  }
+
+  traineeProfileSyncing = true;
+  try {
+    const nextTrainees = normalizeTraineeList(await window.AppData.loadTrainees(fallbackTrainees));
+    const nextSignature = createTraineeProfileSignature(nextTrainees);
+    if (nextSignature === traineeProfileSignature) {
+      return;
+    }
+
+    const previousSelectedId = selectedId;
+    traineeState = nextTrainees;
+    traineeProfileSignature = nextSignature;
+    if (!traineeState.some((trainee) => trainee.id === previousSelectedId)) {
+      selectedId = traineeState.find((trainee) => trainee.id === "jasper")?.id || traineeState[0]?.id || "";
+    }
+
+    renderPhotoWall();
+    if (detailLayer.classList.contains("is-open") && selectedTrainee()) {
+      renderDetail();
+    }
+    resetDock();
+  } catch (error) {
+    console.warn("Trainee profile polling failed.", error);
+  } finally {
+    traineeProfileSyncing = false;
+  }
+}
+
+function startTraineeProfilePolling() {
+  window.clearInterval(traineeProfilePollTimer);
+  traineeProfilePollTimer = window.setInterval(syncTraineeProfiles, TRAINEE_PROFILE_POLL_MS);
 }
 
 function setLandingAuthState(state) {
@@ -2034,6 +2108,7 @@ function bindEvents() {
 
   window.addEventListener("pagehide", () => {
     window.clearInterval(adminPollTimer);
+    window.clearInterval(traineeProfilePollTimer);
   });
 }
 
@@ -2054,7 +2129,8 @@ async function initApp() {
     }, INTRO_HOLD_MS);
   }
 
-  traineeState = window.AppLogic.positionJasperAtCenter(await window.AppData.loadTrainees(fallbackTrainees));
+  traineeState = normalizeTraineeList(await window.AppData.loadTrainees(fallbackTrainees));
+  traineeProfileSignature = createTraineeProfileSignature(traineeState);
   teamState = await window.AppData.loadTeams(getFallbackTeamState());
   applyRoadshowState(await window.AppData.loadRoadshow({
     storageKey: ROADSHOW_STORAGE_KEY,
@@ -2069,6 +2145,7 @@ async function initApp() {
   renderVoteResult();
   resetDock();
   startAdminStatePolling();
+  startTraineeProfilePolling();
 }
 
 initApp();

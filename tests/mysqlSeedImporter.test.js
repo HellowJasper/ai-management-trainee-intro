@@ -30,9 +30,9 @@ test("mysql seed importer loads current JSON fixtures into relational tables", a
       hostDepartment: "健康品事业部",
       project: "全域内容生成引擎",
       advisor: {
-        name: "赛道顾问 C",
+        name: "队长 C",
         department: "健康品事业部",
-        role: "赛道顾问",
+        role: "队长",
       },
       members: [
         {

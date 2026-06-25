@@ -1,4 +1,5 @@
 const { computeFinalResults } = require("../src/logic");
+const { effectiveRecordsForTeam } = require("./judgeScoreDomain");
 
 function averageNumericValues(values = []) {
   const numericValues = values
@@ -15,6 +16,18 @@ function getJudgeTeamAverage(teamScores = {}) {
 }
 
 function getExpertScoresForTeam(judgeState = {}, teamId) {
+  const records = judgeState && judgeState.records && typeof judgeState.records === "object"
+    ? effectiveRecordsForTeam(judgeState, teamId)
+    : [];
+  if (records.length) {
+    return records
+      .map((record) => Number(record.totalScore))
+      .filter(Number.isFinite);
+  }
+  if (judgeState && judgeState.records && typeof judgeState.records === "object") {
+    return [];
+  }
+
   const scores = judgeState && typeof judgeState.scores === "object" ? judgeState.scores : {};
   return Object.values(scores)
     .map((judgeScores) => getJudgeTeamAverage(judgeScores?.[teamId]))

@@ -1,7 +1,7 @@
 /**
  * 大屏赛事数据 —— AI创新黑客松 / AI Innovation Hackathon 2026
  * 演示用 mock，后续接管理后台 / API。文案、英文标签沿用主分支风格。
- * 规模真实：5 条赛道 = 5 支队伍、每队 1 名技术顾问 + ≤4 名组员、单一冠军奖。
+ * 规模真实：5 条赛道 = 5 支队伍、每队 1 名队长 + ≤4 名组员、单一冠军奖。
  */
 (function attachScreenData(root) {
   "use strict";
@@ -55,7 +55,7 @@
       doc: "https://joincare.feishu.cn/docx/track-functions" },
   ];
 
-  // ---- 五支队伍（每队 1 名技术顾问 + 组员，含真实头像）------------------
+  // ---- 五支队伍（每队 1 名队长 + 组员，含真实头像）------------------
   // name/project 在组队完成后由队伍自取；组队进度屏不展示队名。
   const TEAMS = [
     {

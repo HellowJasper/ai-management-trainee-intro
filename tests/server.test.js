@@ -101,7 +101,7 @@ function createSiteBootstrapTestRepositories(overrides = {}) {
             id: "marketing",
             index: "03",
             name: "营销",
-            advisor: { name: "赛道顾问 C", role: "赛道顾问" },
+            advisor: { name: "队长 C", role: "队长" },
             members: [{ userId: "player-001", name: "测试选手" }],
           },
         ];
@@ -322,6 +322,45 @@ test("site bootstrap API keeps role-selection sessions from inheriting public vo
   assert.equal(payload.vote.myVoteTeamId, null);
 });
 
+test("site bootstrap API resolves the logged-in leader team from the advisor slot", async (t) => {
+  const publicRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-site-bootstrap-leader-"));
+  const sessionFile = await createTempJsonFile("ai-site-bootstrap-leader-auth-", "sessions.json", { sessions: {} });
+  const authSessionRepository = createAuthSessionRepository(sessionFile.dataPath);
+  const server = createServer({
+    publicRoot,
+    ...createSiteBootstrapTestRepositories({
+      authSessionRepository,
+      teamRepository: {
+        async listTeams() {
+          return [
+            {
+              id: "marketing",
+              index: "03",
+              name: "营销",
+              advisor: { userId: "leader-001", name: "队长 C", role: "队长" },
+              members: [{ userId: "player-001", name: "测试选手" }],
+            },
+          ];
+        },
+      },
+    }),
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const cookie = await loginAs(baseUrl, "player", { userId: "leader-001", name: "队长 C" });
+  const response = await fetch(`${baseUrl}/api/site/bootstrap`, {
+    headers: { Cookie: cookie },
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.me.authenticated, true);
+  assert.equal(payload.me.role, "player");
+  assert.equal(payload.me.teamId, "marketing");
+});
+
 test("non-strict vote APIs still attach an existing session user to audience votes", async (t) => {
   const publicRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-site-vote-session-"));
   const votesFile = await createTempJsonFile("ai-site-vote-session-", "vote-results.json", {
@@ -367,6 +406,99 @@ test("non-strict vote APIs still attach an existing session user to audience vot
   const stored = JSON.parse(await fs.readFile(votesFile.dataPath, "utf8"));
   assert.equal(stored.voters["public-123"], "marketing");
   assert.equal(stored.voters["local-public"], undefined);
+});
+
+test("non-strict player write APIs still attach an existing session user", async (t) => {
+  const teamsFile = await createTempJsonFile("ai-site-player-session-teams-", "teams.json", [
+    {
+      id: "marketing",
+      name: "营销",
+      capacity: 3,
+      advisor: { userId: "leader-001", name: "队长 C", role: "队长" },
+      members: [],
+    },
+  ]);
+  const worksFile = await createTempJsonFile("ai-site-player-session-works-", "works.json", { works: [] });
+  const auditFile = await createTempJsonFile("ai-site-player-session-audit-", "audit-logs.json", { logs: [] });
+  const sessionFile = await createTempJsonFile("ai-site-player-session-auth-", "sessions.json", { sessions: {} });
+  const teamRepository = createTeamRepository(teamsFile.dataPath);
+  const worksRepository = createWorksRepository(worksFile.dataPath);
+  const authSessionRepository = createAuthSessionRepository(sessionFile.dataPath);
+  const server = createServer({
+    publicRoot: teamsFile.publicRoot,
+    ...createSiteBootstrapTestRepositories({
+      teamRepository,
+      worksRepository,
+      authSessionRepository,
+      auditLogRepository: createAuditLogRepository(auditFile.dataPath),
+    }),
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const cookie = await loginAs(baseUrl, "player", { userId: "player-session", name: "真实选手" });
+  const joinResponse = await fetch(`${baseUrl}/api/team/join`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: cookie },
+    body: JSON.stringify({
+      teamId: "marketing",
+      userId: "payload-spoof",
+      name: "Payload 冒名",
+    }),
+  });
+  const joinPayload = await joinResponse.json();
+
+  assert.equal(joinResponse.status, 200);
+  assert.equal(joinPayload.member.userId, "player-session");
+  assert.equal(joinPayload.member.name, "真实选手");
+
+  const claimResponse = await fetch(`${baseUrl}/api/team/claim-role`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: cookie },
+    body: JSON.stringify({
+      teamId: "marketing",
+      userId: "payload-spoof",
+      roleKey: "dev",
+      duty: "AI 开发",
+    }),
+  });
+  const claimPayload = await claimResponse.json();
+
+  assert.equal(claimResponse.status, 200);
+  assert.equal(claimPayload.member.userId, "player-session");
+  assert.equal(claimPayload.member.roleKey, "dev");
+
+  const workResponse = await fetch(`${baseUrl}/api/work/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: cookie },
+    body: JSON.stringify({
+      teamId: "marketing",
+      submittedBy: "payload-spoof",
+      userId: "payload-spoof",
+      project: "真实作品提交",
+    }),
+  });
+  const workPayload = await workResponse.json();
+
+  assert.equal(workResponse.status, 201);
+  assert.equal(workPayload.work.submittedBy, "player-session");
+
+  const leaveResponse = await fetch(`${baseUrl}/api/team/leave`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: cookie },
+    body: JSON.stringify({
+      teamId: "marketing",
+      userId: "payload-spoof",
+    }),
+  });
+  const leavePayload = await leaveResponse.json();
+
+  assert.equal(leaveResponse.status, 200);
+  assert.equal(leavePayload.userId, "player-session");
+
+  const storedTeams = JSON.parse(await fs.readFile(teamsFile.dataPath, "utf8"));
+  assert.equal(storedTeams[0].members.length, 0);
 });
 
 test("server enables strict auth enforcement from AUTH_ENFORCEMENT", async (t) => {
@@ -457,7 +589,7 @@ test("API lists team formation tracks for backend-controlled grouping", async (t
           id: "pharma",
           index: "01",
           name: "药学",
-          advisor: { name: "赛道顾问 A", role: "赛道顾问" },
+          advisor: { name: "队长 A", role: "队长" },
           members: [
             { name: "队友 01" },
             { name: "队友 02" },
@@ -469,7 +601,7 @@ test("API lists team formation tracks for backend-controlled grouping", async (t
           id: "medicine",
           index: "02",
           name: "医学",
-          advisor: { name: "赛道顾问 B", role: "赛道顾问" },
+          advisor: { name: "队长 B", role: "队长" },
           members: [
             { name: "队友 01" },
             { name: "队友 02" },
@@ -481,7 +613,7 @@ test("API lists team formation tracks for backend-controlled grouping", async (t
           id: "marketing",
           index: "03",
           name: "营销",
-          advisor: { name: "赛道顾问 C", role: "赛道顾问" },
+          advisor: { name: "队长 C", role: "队长" },
           members: [
             { name: "队友 01" },
             { name: "队友 02" },
@@ -493,7 +625,7 @@ test("API lists team formation tracks for backend-controlled grouping", async (t
           id: "functions",
           index: "04",
           name: "职能",
-          advisor: { name: "赛道顾问 D", role: "赛道顾问" },
+          advisor: { name: "队长 D", role: "队长" },
           members: [
             { name: "队友 01" },
             { name: "队友 02" },
@@ -505,7 +637,7 @@ test("API lists team formation tracks for backend-controlled grouping", async (t
           id: "production",
           index: "05",
           name: "生产",
-          advisor: { name: "赛道顾问 E", role: "赛道顾问" },
+          advisor: { name: "队长 E", role: "队长" },
           members: [
             { name: "队友 01" },
             { name: "队友 02" },
@@ -531,7 +663,7 @@ test("API lists team formation tracks for backend-controlled grouping", async (t
     ["药学", "医学", "营销", "职能", "生产"],
   );
   teams.forEach((team) => {
-    assert.equal(team.advisor.role, "赛道顾问");
+    assert.equal(team.advisor.role, "队长");
     assert.equal(team.members.length, 4);
   });
 });
@@ -939,7 +1071,7 @@ test("strict auth enforcement rejects missing and wrong-role team writes", async
       id: "marketing",
       name: "营销",
       capacity: 3,
-      advisor: { name: "赛道顾问 C", role: "赛道顾问" },
+      advisor: { name: "队长 C", role: "队长" },
       members: [],
     },
   ]);
@@ -1108,14 +1240,14 @@ test("team action APIs persist joins, role claims, and leaves", async (t) => {
       id: "marketing",
       name: "营销",
       capacity: 3,
-      advisor: { name: "赛道顾问 C", role: "赛道顾问" },
+      advisor: { name: "队长 C", role: "队长" },
       members: [],
     },
     {
       id: "functions",
       name: "职能",
       capacity: 3,
-      advisor: { name: "赛道顾问 D", role: "赛道顾问" },
+      advisor: { name: "队长 D", role: "队长" },
       members: [],
     },
   ]);
@@ -1163,6 +1295,30 @@ test("team action APIs persist joins, role claims, and leaves", async (t) => {
   assert.equal(storedAfterClaim[0].members[0].userId, "player-001");
   assert.equal(storedAfterClaim[0].members[0].roleKey, "dev");
 
+  await fetch(`${baseUrl}/api/team/join`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      teamId: "marketing",
+      userId: "player-002",
+      name: "第二位选手",
+    }),
+  });
+  const duplicateClaimResponse = await fetch(`${baseUrl}/api/team/claim-role`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      teamId: "marketing",
+      userId: "player-002",
+      roleKey: "dev",
+      duty: "AI 开发",
+    }),
+  });
+  const duplicateClaim = await duplicateClaimResponse.json();
+
+  assert.equal(duplicateClaimResponse.status, 409);
+  assert.match(duplicateClaim.error.message, /already claimed/);
+
   const leaveResponse = await fetch(`${baseUrl}/api/team/leave`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1178,7 +1334,8 @@ test("team action APIs persist joins, role claims, and leaves", async (t) => {
   assert.equal(leave.team.id, "marketing");
 
   const storedAfterLeave = JSON.parse(await fs.readFile(dataPath, "utf8"));
-  assert.equal(storedAfterLeave[0].members.length, 0);
+  assert.equal(storedAfterLeave[0].members.some((member) => member.userId === "player-001"), false);
+  assert.equal(storedAfterLeave[0].members.some((member) => member.userId === "player-002"), true);
 });
 
 test("admin team member API lets admins add and remove roster members", async (t) => {
@@ -1190,7 +1347,7 @@ test("admin team member API lets admins add and remove roster members", async (t
       id: "marketing",
       name: "营销",
       capacity: 3,
-      advisor: { name: "赛道顾问 C", role: "赛道顾问" },
+      advisor: { name: "队长 C", role: "队长" },
       members: [],
     },
   ], null, 2)}\n`);
@@ -1252,6 +1409,78 @@ test("admin team member API lets admins add and remove roster members", async (t
   );
 });
 
+test("admin team member API lets admins add and remove the team leader", async (t) => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-admin-team-leader-"));
+  const dataPath = path.join(tempDir, "teams.json");
+  const auditLogPath = path.join(tempDir, "audit-logs.json");
+  await fs.writeFile(dataPath, `${JSON.stringify([
+    {
+      id: "marketing",
+      name: "营销",
+      capacity: 5,
+      advisor: { name: "旧队长", role: "队长" },
+      members: [
+        { userId: "member-001", name: "队员一", roleKey: "dev", duty: "AI 开发" },
+      ],
+    },
+  ], null, 2)}\n`);
+  await fs.writeFile(auditLogPath, `${JSON.stringify({ logs: [] }, null, 2)}\n`);
+
+  const teamRepository = createTeamRepository(dataPath);
+  const auditLogRepository = createAuditLogRepository(auditLogPath);
+  const server = createServer({ publicRoot: tempDir, teamRepository, auditLogRepository });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const addLeaderResponse = await fetch(`${baseUrl}/api/admin/team-members`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      teamId: "marketing",
+      userId: "captain-001",
+      name: "新队长",
+      department: "AI创新部",
+      roleKey: "advisor",
+      duty: "队长",
+      actor: "admin-ui",
+    }),
+  });
+  const addLeaderPayload = await addLeaderResponse.json();
+
+  assert.equal(addLeaderResponse.status, 200);
+  assert.equal(addLeaderPayload.accepted, true);
+  assert.equal(addLeaderPayload.member.roleKey, "advisor");
+  assert.equal(addLeaderPayload.team.advisor.userId, "captain-001");
+  assert.equal(addLeaderPayload.team.advisor.name, "新队长");
+  assert.equal(addLeaderPayload.team.members.some((member) => member.userId === "captain-001"), false);
+
+  const storedAfterLeaderAdd = JSON.parse(await fs.readFile(dataPath, "utf8"));
+  assert.equal(storedAfterLeaderAdd[0].advisor.userId, "captain-001");
+  assert.equal(storedAfterLeaderAdd[0].advisor.roleKey, "advisor");
+
+  const removeLeaderResponse = await fetch(`${baseUrl}/api/admin/team-members`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      teamId: "marketing",
+      userId: "captain-001",
+      roleKey: "advisor",
+      actor: "admin-ui",
+    }),
+  });
+  const removeLeaderPayload = await removeLeaderResponse.json();
+
+  assert.equal(removeLeaderResponse.status, 200);
+  assert.equal(removeLeaderPayload.accepted, true);
+  assert.equal(removeLeaderPayload.team.advisor, null);
+  assert.equal(removeLeaderPayload.team.members.length, 1);
+
+  const storedAfterLeaderRemove = JSON.parse(await fs.readFile(dataPath, "utf8"));
+  assert.equal(storedAfterLeaderRemove[0].advisor, null);
+  assert.equal(storedAfterLeaderRemove[0].members[0].userId, "member-001");
+});
+
 test("admin team status API locks a track and blocks later joins", async (t) => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-admin-team-status-"));
   const dataPath = path.join(tempDir, "teams.json");
@@ -1262,7 +1491,7 @@ test("admin team status API locks a track and blocks later joins", async (t) => 
       name: "营销",
       status: "open",
       capacity: 3,
-      advisor: { name: "赛道顾问 C", role: "赛道顾问" },
+      advisor: { name: "队长 C", role: "队长" },
       members: [],
     },
   ], null, 2)}\n`);
@@ -1418,8 +1647,15 @@ test("judge score API persists draft scores and reports received team ids", asyn
   const { dataPath, publicRoot } = await createTempJsonFile("ai-scores-", "judge-scores.json", {
     scores: {},
   });
+  const auditFile = await createTempJsonFile("ai-scores-audit-", "audit-logs.json", {
+    logs: [],
+  });
   const judgeScoresRepository = createJudgeScoresRepository(dataPath);
-  const server = createServer({ publicRoot, judgeScoresRepository });
+  const server = createServer({
+    publicRoot,
+    judgeScoresRepository,
+    auditLogRepository: createAuditLogRepository(auditFile.dataPath),
+  });
   const baseUrl = await listen(server);
 
   t.after(() => new Promise((resolve) => server.close(resolve)));
@@ -1445,6 +1681,95 @@ test("judge score API persists draft scores and reports received team ids", asyn
   const stored = JSON.parse(await fs.readFile(dataPath, "utf8"));
   assert.equal(stored.scores["judge-001"].marketing.innovation, 92);
   assert.equal(stored.scores["judge-001"].functions.innovation, 86);
+});
+
+test("judge score API supports draft, submit, progress, and admin lock workflow", async (t) => {
+  const scoresFile = await createTempJsonFile("ai-score-sop-", "judge-scores.json", { scores: {} });
+  const teamsFile = await createTempJsonFile("ai-score-sop-teams-", "teams.json", [
+    { id: "marketing", name: "营销", members: [] },
+  ]);
+  const usersFile = await createTempJsonFile("ai-score-sop-users-", "user-roles.json", {
+    users: [
+      { id: "judge-001", name: "评委 001", roles: ["judge"], status: "active" },
+      { id: "admin-001", name: "管理员 001", roles: ["admin"], status: "active" },
+    ],
+  });
+  const sessionFile = await createTempJsonFile("ai-score-sop-sessions-", "sessions.json", { sessions: {} });
+  const auditFile = await createTempJsonFile("ai-score-sop-audit-", "audit-logs.json", { logs: [] });
+  const server = createServer({
+    publicRoot: scoresFile.publicRoot,
+    judgeScoresRepository: createJudgeScoresRepository(scoresFile.dataPath),
+    teamRepository: createTeamRepository(teamsFile.dataPath),
+    userRoleRepository: createUserRoleRepository(usersFile.dataPath),
+    authSessionRepository: createAuthSessionRepository(sessionFile.dataPath),
+    auditLogRepository: createAuditLogRepository(auditFile.dataPath),
+    authEnforcement: "strict",
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const judgeCookie = await loginAs(baseUrl, "judge", { userId: "judge-001" });
+  const adminCookie = await loginAs(baseUrl, "admin", { userId: "admin-001" });
+  const completeScores = {
+    innovation: 100,
+    engineering: 80,
+    business: 60,
+    feasibility: 40,
+    presentation: 20,
+  };
+
+  const draftResponse = await fetch(`${baseUrl}/api/judge/scores/draft`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: judgeCookie },
+    body: JSON.stringify({ scores: { marketing: completeScores } }),
+  });
+  const draft = await draftResponse.json();
+  assert.equal(draftResponse.status, 200);
+  assert.equal(draft.judgeId, "judge-001");
+  assert.deepEqual(draft.scores.marketing, completeScores);
+
+  const mineBeforeResponse = await fetch(`${baseUrl}/api/judge/my-scores`, {
+    headers: { Cookie: judgeCookie },
+  });
+  const mineBefore = await mineBeforeResponse.json();
+  assert.equal(mineBefore.teams.marketing.status, "draft");
+
+  const submitResponse = await fetch(`${baseUrl}/api/judge/scores/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: judgeCookie },
+    body: JSON.stringify({ scores: { marketing: completeScores } }),
+  });
+  const submitted = await submitResponse.json();
+  assert.equal(submitResponse.status, 200);
+  assert.equal(submitted.status, "submitted");
+  assert.equal(submitted.teams.marketing.totalScore, 68);
+
+  const progressResponse = await fetch(`${baseUrl}/api/admin/judge/progress`, {
+    headers: { Cookie: adminCookie },
+  });
+  const progress = await progressResponse.json();
+  assert.equal(progressResponse.status, 200);
+  assert.equal(progress.judgeCount, 1);
+  assert.equal(progress.teamCount, 1);
+  assert.equal(progress.judges[0].submittedCount, 1);
+  assert.equal(progress.teams[0].averageScore, 68);
+
+  const lockResponse = await fetch(`${baseUrl}/api/admin/judge/lock`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: adminCookie },
+    body: "{}",
+  });
+  const locked = await lockResponse.json();
+  assert.equal(lockResponse.status, 200);
+  assert.equal(locked.status, "locked");
+  assert.equal(locked.progress.locked, true);
+
+  const mineAfterResponse = await fetch(`${baseUrl}/api/judge/my-scores`, {
+    headers: { Cookie: judgeCookie },
+  });
+  const mineAfter = await mineAfterResponse.json();
+  assert.equal(mineAfter.teams.marketing.status, "locked");
 });
 
 test("work APIs persist submissions and admin review status", async (t) => {
@@ -1667,7 +1992,7 @@ test("admin / screen / big-screen pages require an admin session", async (t) => 
   t.after(() => new Promise((resolve) => server.close(resolve)));
 
   // 非管理员访问受限页 → 302 跳回用户站并带 denied 标记。
-  for (const target of ["/admin", "/screen", "/index.html", "/?screen=big"]) {
+  for (const target of ["/admin", "/screen", "/index", "/index.html"]) {
     const denied = await fetch(`${baseUrl}${target}`, { redirect: "manual" });
     assert.equal(denied.status, 302, `${target} should redirect non-admins`);
     assert.match(denied.headers.get("location"), /\/site\.html\?denied=1/);
@@ -1687,7 +2012,7 @@ test("admin / screen / big-screen pages require an admin session", async (t) => 
   assert.match(response.headers.get("content-type"), /text\/html/);
   assert.match(html, /AI 星锐黑客松 管理后台/);
   assert.match(html, /id="stageRows"/);
-  assert.match(html, /src="\.\/src\/admin\.js\?v=20260625-admin-user"/);
+  assert.match(html, /src="\.\/src\/admin\.js\?v=20260625-index-nav"/);
 });
 
 test("root serves the user site for everyone; big screen stays admin-only", async (t) => {
@@ -1709,14 +2034,14 @@ test("root serves the user site for everyone; big screen stays admin-only", asyn
     assert.match(html, /src\/site\.js/);
   }
 
-  // 管理员登录后通过 /?screen=big 进入大屏。
+  // 管理员登录后通过 /index 进入大屏。
   const login = await fetch(`${baseUrl}/api/auth/feishu/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ role: "admin", userId: "admin-root-1", name: "管理员" }),
   });
   const cookie = login.headers.get("set-cookie").split(";")[0];
-  const big = await fetch(`${baseUrl}/?screen=big`, { headers: { Cookie: cookie } });
+  const big = await fetch(`${baseUrl}/index`, { headers: { Cookie: cookie } });
   const bigHtml = await big.text();
 
   assert.equal(big.status, 200);
@@ -1822,6 +2147,54 @@ test("admin stage API updates current stage and persists a log", async (t) => {
   const storedState = JSON.parse(await fs.readFile(dataPath, "utf8"));
   assert.equal(storedState.currentStageId, "vote");
   assert.equal(storedState.logs[0].stageId, "vote");
+});
+
+test("admin screen override API toggles the forced big screen stage without changing the flow stage", async (t) => {
+  const { dataPath, publicRoot, adminStateRepository, auditLogRepository } = await createTempAdminStateRepository({
+    currentStageId: "team",
+    updatedAt: "2026-05-22T06:00:00.000Z",
+    stages: [
+      { id: "team", name: "组队开启" },
+      { id: "vote", name: "投票开启" },
+    ],
+    logs: [],
+  });
+  const server = createServer({ publicRoot, adminStateRepository, auditLogRepository });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const lockResponse = await fetch(`${baseUrl}/api/admin/screen-override`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ stageId: "vote" }),
+  });
+  const lockedState = await lockResponse.json();
+
+  assert.equal(lockResponse.status, 200);
+  assert.equal(lockedState.currentStageId, "team");
+  assert.equal(lockedState.screenOverrideStageId, "vote");
+  assert.match(lockedState.logs[0].message, /锁定大屏/);
+
+  const clearResponse = await fetch(`${baseUrl}/api/admin/screen-override`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ stageId: "" }),
+  });
+  const clearedState = await clearResponse.json();
+
+  assert.equal(clearResponse.status, 200);
+  assert.equal(clearedState.currentStageId, "team");
+  assert.equal(clearedState.screenOverrideStageId, "");
+  assert.match(clearedState.logs[0].message, /取消大屏锁定/);
+
+  const storedState = JSON.parse(await fs.readFile(dataPath, "utf8"));
+  assert.equal(storedState.currentStageId, "team");
+  assert.equal(storedState.screenOverrideStageId, "");
 });
 
 test("admin display time API updates stage display times", async (t) => {

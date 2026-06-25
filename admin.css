@@ -32,6 +32,7 @@
 html,
 body {
   min-height: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -180,6 +181,7 @@ button {
   grid-template-rows: auto minmax(0, 1fr);
   gap: 16px;
   min-width: 0;
+  overflow-x: hidden;
   height: 100vh;
   padding: 24px;
 }
@@ -623,6 +625,12 @@ button {
 
 .admin-control-actions button {
   cursor: pointer;
+}
+
+.admin-control-actions button.is-cancel {
+  border-color: rgba(255, 181, 71, 0.46);
+  background: rgba(255, 181, 71, 0.12);
+  color: #ffd47a;
 }
 
 .admin-control-actions button:disabled {
@@ -1536,7 +1544,7 @@ button {
 
 .admin-result-snapshot-card {
   display: grid;
-  grid-template-columns: minmax(150px, 0.7fr) minmax(0, 0.85fr) minmax(160px, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
   gap: 10px;
   align-items: stretch;
   min-width: 0;
@@ -1996,7 +2004,7 @@ button {
 
 .admin-team-roster {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
   gap: 18px;
   min-height: 0;
   overflow: auto;
@@ -2128,7 +2136,7 @@ button {
 
 .admin-team-members {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
 }
 
@@ -2141,6 +2149,13 @@ button {
   border-radius: 8px;
   padding: 8px;
   background: rgba(255, 255, 255, 0.035);
+}
+
+.admin-team-member.is-leader {
+  border: 1px solid rgba(40, 255, 200, 0.28);
+  background:
+    linear-gradient(90deg, rgba(40, 255, 200, 0.1), rgba(255, 255, 255, 0.035)),
+    rgba(255, 255, 255, 0.035);
 }
 
 .admin-team-member img,
@@ -2165,6 +2180,30 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.admin-team-member strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.admin-team-member-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.admin-team-member-badge {
+  flex: 0 0 auto;
+  border: 1px solid rgba(40, 255, 200, 0.28);
+  padding: 2px 6px;
+  color: var(--neon);
+  font-style: normal;
+  font-size: 10px;
 }
 
 .admin-team-member-remove {
@@ -2644,3 +2683,158 @@ button {
 .topbar-menu-roles button:hover { border-color: rgba(40, 255, 200, 0.4); background: rgba(40, 255, 200, 0.12); }
 .topbar-menu-roles button.on { border-color: rgba(40, 255, 200, 0.5); color: var(--neon); }
 .topbar-menu-roles button i { font-style: normal; font-size: 10px; color: var(--neon); font-family: var(--pixel, monospace); }
+
+.admin-user-page,
+.admin-user-toolbar,
+.admin-user-toolbar-right,
+.admin-user-table-panel,
+.admin-user-table-wrap {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.admin-user-table-wrap {
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.admin-user-table {
+  min-width: 680px;
+  table-layout: fixed;
+}
+
+.admin-user-table th,
+.admin-user-table td {
+  min-width: 0;
+}
+
+.admin-user-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-user-col-op {
+  width: 96px;
+  min-width: 96px;
+}
+
+@media (max-width: 640px) {
+  html,
+  body {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  .admin-workspace {
+    max-width: 100vw;
+    padding: 16px;
+    overflow-x: hidden;
+  }
+
+  .admin-topbar,
+  .admin-topbar > div:first-child,
+  .admin-topbar-actions,
+  .topbar-menu-wrap,
+  .connection-chip,
+  .admin-sync-status,
+  .screen-select,
+  .admin-user {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .admin-topbar h1 {
+    font-size: clamp(22px, 7vw, 28px);
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+  }
+
+  .connection-chip,
+  .admin-sync-status,
+  .screen-select,
+  .admin-user {
+    justify-content: center;
+  }
+
+  .management-heading,
+  .wide-panel-heading,
+  .panel-heading {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .management-heading {
+    padding: 14px;
+  }
+
+  .management-heading button,
+  .management-heading > span,
+  .management-link {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .admin-user-toolbar,
+  .admin-user-toolbar-right {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-user-filter-bar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .admin-user-filter-bar button,
+  .admin-user-search,
+  .admin-user-toolbar-right button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-user-search {
+    min-width: 0;
+  }
+
+  .admin-user-pagination {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .admin-result-snapshot-card,
+  .admin-data-columns,
+  .timer-control-grid,
+  .timer-team-selectors,
+  .timer-control-actions,
+  .admin-team-capacity > div,
+  .admin-team-role-coverage {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-team-status-card span,
+  .admin-team-capacity span,
+  .admin-team-role-coverage span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .admin-team-card {
+    padding: 14px;
+  }
+
+  .admin-team-member {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .admin-team-member-remove {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}

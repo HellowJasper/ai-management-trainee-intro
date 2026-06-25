@@ -519,6 +519,20 @@ test("admin settings manage backend user role mappings", () => {
   assert.match(adminJs, /loadUserRoles\(\)/);
 });
 
+test("admin console keeps dense management views inside narrow screens", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+
+  assert.match(css, /html,\nbody\s*{[\s\S]*overflow-x:\s*hidden/);
+  assert.match(css, /\.admin-workspace\s*{[\s\S]*overflow-x:\s*hidden/);
+  assert.match(css, /\.admin-result-snapshot-card\s*{[\s\S]*repeat\(auto-fit,\s*minmax\(min\(150px,\s*100%\),\s*1fr\)\)/);
+  assert.match(css, /\.admin-user-table-wrap\s*{[\s\S]*overflow-x:\s*auto/);
+  assert.match(css, /\.admin-user-table\s*{[\s\S]*min-width:\s*680px/);
+  assert.match(css, /\.admin-user-col-op\s*{[\s\S]*min-width:\s*96px/);
+  assert.match(css, /@media \(max-width:\s*640px\)[\s\S]*\.management-heading\s*{[\s\S]*flex-direction:\s*column/);
+  assert.match(css, /@media \(max-width:\s*640px\)[\s\S]*\.admin-user-toolbar-right\s*{[\s\S]*flex-direction:\s*column/);
+  assert.match(css, /@media \(max-width:\s*640px\)[\s\S]*\.admin-user-search\s*{[\s\S]*min-width:\s*0/);
+});
+
 test("admin content manager edits trainee profiles through backend data APIs", () => {
   const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
   const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
@@ -529,6 +543,8 @@ test("admin content manager edits trainee profiles through backend data APIs", (
   assert.match(html, /id="adminTraineeProfileForm"/);
   assert.match(html, /id="adminTraineeProfileList"/);
   assert.match(html, /id="adminTraineeProfileSentence"/);
+  assert.match(html, /id="createTraineeProfileButton"/);
+  assert.match(html, /data-create-trainee-profile/);
   assert.match(css, /\.admin-trainee-profile-manager/);
   assert.match(css, /\.admin-trainee-profile-list/);
   assert.match(dataJs, /function normalizeTraineeRecord/);
@@ -538,12 +554,37 @@ test("admin content manager edits trainee profiles through backend data APIs", (
   assert.match(adminJs, /const adminTraineeProfileForm/);
   assert.match(adminJs, /function renderTraineeProfileManager/);
   assert.match(adminJs, /function loadTraineeProfiles/);
+  assert.match(adminJs, /function startCreateTraineeProfile/);
   assert.match(adminJs, /window\.AppData\.loadTrainees/);
   assert.match(adminJs, /window\.AppData\.createTrainee/);
   assert.match(adminJs, /window\.AppData\.updateTrainee/);
   assert.match(adminJs, /window\.AppData\.deleteTrainee/);
   assert.match(adminJs, /data-edit-trainee-profile/);
   assert.match(adminJs, /data-delete-trainee-profile/);
+  assert.match(adminJs, /档案 ID 已存在/);
+});
+
+test("main screen refreshes trainee profiles after admin content changes", () => {
+  const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+
+  assert.match(appJs, /const TRAINEE_PROFILE_POLL_MS/);
+  assert.match(appJs, /let traineeProfilePollTimer/);
+  assert.match(appJs, /function syncTraineeProfiles/);
+  assert.match(appJs, /window\.setInterval\(syncTraineeProfiles,\s*TRAINEE_PROFILE_POLL_MS\)/);
+  assert.match(appJs, /window\.clearInterval\(traineeProfilePollTimer\)/);
+  assert.match(appJs, /renderPhotoWall\(\)/);
+  assert.match(appJs, /renderDetail\(\)/);
+});
+
+test("official site refreshes bootstrap data so newly added trainees appear", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /const SITE_STATE_POLL_MS/);
+  assert.match(siteJs, /let siteStatePollTimer/);
+  assert.match(siteJs, /function syncSiteState/);
+  assert.match(siteJs, /root\.setInterval\(syncSiteState,\s*SITE_STATE_POLL_MS\)/);
+  assert.match(siteJs, /root\.clearInterval\(siteStatePollTimer\)/);
+  assert.match(siteJs, /refreshCurrentView\(\{ preserveScroll: true \}\)/);
 });
 
 test("admin topbar quick menus expose real links and session actions", () => {
@@ -606,7 +647,6 @@ test("hackathon overview day badges do not wrap", () => {
 test("official site exposes all requested PC pages in the SPA router", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteJs, /const TEAM_KEY = "joincare_hackathon_team"/);
   assert.match(siteJs, /const JUDGE_KEY = "joincare_hackathon_judge_scores"/);
   assert.match(siteJs, /function renderMe\(/);
   assert.match(siteJs, /function renderTeam\(/);
@@ -629,7 +669,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260625-auth-sync-team-panel/);
+  assert.match(siteHtml, /site\.js\?v=20260625-gitlab-latest-sync/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -652,7 +692,7 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
   assert.match(siteHtml, /site\.css\?v=20260625-auth-sync-team-panel/);
-  assert.match(siteHtml, /site\.js\?v=20260625-auth-sync-team-panel/);
+  assert.match(siteHtml, /site\.js\?v=20260625-gitlab-latest-sync/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /浏览五大战队作品，选出你最认可的解决方案，并投出关键一票。/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -795,7 +835,7 @@ test("team page hero uses a single formation panel with clear selection states",
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteJs, /pageHead\("组队", "选择赛道队伍，查看技术顾问、成员与作品方向", "TEAM FORMATION"\)/);
+  assert.match(siteJs, /pageHead\("组队", "选择赛道队伍，查看队长、成员与作品方向", "TEAM FORMATION"\)/);
   assert.match(siteJs, /const teamStatusLabel = selectedTeam \? "已选择战队" : "尚未选择战队"/);
   assert.match(siteJs, /const teamStatusHeadline = selectedTeam \? "你已完成组队，期待与你的伙伴共同完成挑战" : "请选择一个赛道方向"/);
   assert.match(siteJs, /class="team-formation-panel glass"/);
@@ -845,29 +885,81 @@ test("team workspace is private to the joined player team", () => {
   assert.match(siteJs, /function canOpenTeamWorkspace\(teamId\)/);
   assert.match(siteJs, /permissions\.canSubmitWork && joinedTeam\(\) === teamId/);
   assert.match(siteJs, /if \(!canOpenTeamWorkspace\(team\.id\)\) return renderWork\(team\.id\)/);
-  assert.match(siteJs, /只有已加入该队伍的参赛选手可以保存作品草稿/);
+  assert.match(siteJs, /只有当前队长可以提交作品/);
   assert.match(siteJs, /进入工作台/);
   assert.match(siteJs, /查看公开作品/);
 });
 
-test("team workspace supports leader handoff and leader-only submission editing", () => {
+test("player workflow uses backend state instead of local team fallback", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /const joinedTeam = \(\) => \(SITE_STATE && SITE_STATE\.me && SITE_STATE\.me\.teamId\) \|\| ""/);
+  assert.match(siteJs, /await SiteRoleApi\.joinTeam\(id\);\s*await loadSiteState\(\);/s);
+  assert.match(siteJs, /await SiteRoleApi\.leaveTeam\(team\.id\);\s*await loadSiteState\(\);/s);
+  assert.match(siteJs, /await SiteRoleApi\.submitWork\(\{[\s\S]*?teamId: team\.id,[\s\S]*?\}\);\s*await loadSiteState\(\);/);
+  assert.doesNotMatch(siteJs, /joincare_hackathon_team"/);
+  assert.doesNotMatch(siteJs, /localStorage\.setItem\(TEAM_KEY/);
+  assert.doesNotMatch(siteJs, /localStorage\.removeItem\(TEAM_KEY/);
+  assert.doesNotMatch(siteJs, /local-player/);
+  assert.doesNotMatch(siteJs, /作品草稿已保存在本地/);
+});
+
+test("player workspace uses submitted backend work instead of local draft metadata", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.doesNotMatch(siteJs, /WORK_DRAFT_KEY|TEAM_NAME_KEY|WORKSPACE_META_KEY/);
+  assert.doesNotMatch(siteJs, /joincare_hackathon_work_drafts|joincare_hackathon_team_names|joincare_hackathon_workspace_meta/);
+  assert.doesNotMatch(siteJs, /保存草稿|作品草稿/);
+  assert.doesNotMatch(siteJs, /return meta\.leaderId/);
+  assert.match(siteJs, /提交作品/);
+  assert.match(siteJs, /await SiteRoleApi\.submitWork\(\{[\s\S]*?teamId: team\.id,[\s\S]*?\}\);\s*await loadSiteState\(\);/);
+});
+
+test("team workspace uses backend leader identity for submission editing", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteJs, /const WORKSPACE_META_KEY = "joincare_hackathon_workspace_meta"/);
-  assert.match(siteJs, /function getTeamWorkspaceMeta\(team\)/);
+  assert.match(siteJs, /function getTeamLeaderId\(team\)/);
   assert.match(siteJs, /function currentWorkspaceMemberId\(team\)/);
   assert.match(siteJs, /function canEditTeamWorkspace\(teamId\)/);
-  assert.match(siteJs, /currentWorkspaceMemberId\(team\) === meta\.leaderId/);
+  assert.match(siteJs, /realUserId/);
+  assert.match(siteJs, /memberId && leaderId && memberId === leaderId/);
   assert.match(siteJs, /队长与职责/);
   assert.match(siteJs, /当前队长/);
-  assert.match(siteJs, /仅队长可保存/);
-  assert.match(siteJs, /data-team-leader/);
-  assert.match(siteJs, /data-team-duty/);
-  assert.match(siteJs, /只有当前队长可以调整队长与职责/);
+  assert.match(siteJs, /仅队长可提交/);
+  assert.match(siteJs, /data-submit-work/);
+  assert.match(siteJs, /点击认领会写入后端队伍数据/);
+  assert.doesNotMatch(siteJs, /data-team-leader/);
+  assert.doesNotMatch(siteJs, /data-team-duty/);
   assert.match(siteJs, /readonly aria-readonly="true"/);
   assert.match(siteCss, /\.workspace-roles/);
   assert.match(siteCss, /\.workspace-person-role/);
+});
+
+test("player workspace lets joined players claim backend team roles", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /TEAM_ROLE_SLOTS/);
+  assert.match(siteJs, /claimRole:\s*\(teamId,\s*roleKey,\s*duty\)/);
+  assert.match(siteJs, /\/api\/team\/claim-role/);
+  assert.match(siteJs, /data-role-claim/);
+  assert.match(siteJs, /async function claimTeamRole\(teamId,\s*roleKey\)/);
+  assert.match(siteJs, /await SiteRoleApi\.claimRole\(teamId,\s*roleKey,\s*slot\.duty\);\s*await loadSiteState\(\);/s);
+  assert.doesNotMatch(siteJs, /joincare_hackathon_workspace_meta|WORKSPACE_META_KEY/);
+});
+
+test("team surfaces present the advisor slot as team leader copy", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const screenJs = fs.readFileSync(path.join(__dirname, "../src/screen.js"), "utf8");
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.match(siteJs, /队长/);
+  assert.match(screenJs, /队长/);
+  assert.match(adminJs, /admin-team-member-badge">队长/);
+  assert.match(siteJs, /function normalizeLeader/);
+  assert.doesNotMatch(siteJs, /role:\s*"技术顾问"|查看技术顾问|技术顾问、业务洞察/);
+  assert.doesNotMatch(screenJs, /技术顾问|赛道顾问|ADVISOR|MENTORS/);
+  assert.doesNotMatch(adminJs, /顾问：/);
 });
 
 test("stage screen routing opens the vote progress and result screens", () => {
@@ -1308,7 +1400,7 @@ test("official site cache keys are bumped after navigation and detail layout pol
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
   assert.match(html, /src\/site\.css\?v=20260625-auth-sync-team-panel/);
   assert.match(html, /src\/logic\.js\?v=20260624-nav-labels/);
-  assert.match(html, /src\/site\.js\?v=20260625-auth-sync-team-panel/);
+  assert.match(html, /src\/site\.js\?v=20260625-gitlab-latest-sync/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
@@ -1410,6 +1502,26 @@ test("admin team roster surfaces capacity and role coverage for grouping decisio
   assert.match(css, /\.admin-team-capacity/);
   assert.match(css, /\.admin-team-capacity-meter/);
   assert.match(css, /\.admin-team-role-coverage/);
+});
+
+test("admin team roster shows the leader inside the five-person team lineup", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.match(adminJs, /function getTeamRosterPeople\(team = \{\}, members = \[\]\)/);
+  assert.match(adminJs, /const teamPeople = getTeamRosterPeople\(team, members\)/);
+  assert.match(adminJs, /const teamCapacity = getTeamCapacity\(team\)/);
+  assert.match(adminJs, /队伍人数/);
+  assert.match(adminJs, /teamPeople\.length\}\/\$\{teamCapacity/);
+  assert.match(adminJs, /admin-team-member \$\{person\.isLeader \? "is-leader" : ""\}/);
+  assert.match(adminJs, /admin-team-member-badge/);
+  assert.match(adminJs, /data-member-role-key/);
+  assert.doesNotMatch(adminJs, /<p class="admin-team-advisor">/);
+  assert.doesNotMatch(adminJs, /admin-team-member-lock/);
+  assert.match(css, /\.admin-team-member\.is-leader/);
+  assert.match(css, /\.admin-team-member-badge/);
+  assert.doesNotMatch(css, /\.admin-team-member-lock/);
+  assert.match(css, /repeat\(auto-fit,\s*minmax\(180px,\s*1fr\)\)/);
 });
 
 test("admin team roster manages members through backend admin APIs", () => {
@@ -1588,6 +1700,8 @@ test("admin state API helpers are exposed without swallowing failures", () => {
   assert.match(dataJs, /async function updateAdminStage\(stageId\)/);
   assert.match(dataJs, /fetchJson\("\/api\/admin\/stage",\s*{[\s\S]*method:\s*"PATCH"/);
   assert.match(dataJs, /body:\s*JSON\.stringify\(\{\s*stageId\s*\}\)/);
+  assert.match(dataJs, /async function updateAdminScreenOverride\(stageId\)/);
+  assert.match(dataJs, /fetchJson\("\/api\/admin\/screen-override",\s*{[\s\S]*method:\s*"PATCH"/);
   assert.match(dataJs, /async function updateAdminDisplayTimes\(payload/);
   assert.match(dataJs, /fetchJson\("\/api\/admin\/display-times"/);
   assert.match(dataJs, /async function updateAdminMissionCountdown\(payload/);
@@ -1596,6 +1710,7 @@ test("admin state API helpers are exposed without swallowing failures", () => {
   assert.match(dataJs, /fetchJson\("\/api\/admin\/roadshow"/);
   assert.match(dataJs, /loadAdminState,/);
   assert.match(dataJs, /updateAdminStage,/);
+  assert.match(dataJs, /updateAdminScreenOverride,/);
   assert.match(dataJs, /updateAdminDisplayTimes,/);
   assert.match(dataJs, /updateAdminMissionCountdown,/);
   assert.match(dataJs, /updateAdminRoadshow,/);
@@ -1616,16 +1731,22 @@ test("admin console publishes phase changes through the admin state API", () => 
   assert.match(js, /catch\s*\(error\)[\s\S]*同步失败/);
 });
 
-test("admin screen control publishes a stage from the dedicated screen view", () => {
+test("admin screen control toggles a dedicated big screen override", () => {
   const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
   const js = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
 
   assert.match(js, /admin-control-actions/);
+  assert.match(js, /let screenOverrideStageId\s*=/);
   assert.match(js, /data-screen-stage-command/);
   assert.match(js, /event\.target\.closest\("\[data-screen-stage-command\]"\)/);
-  assert.match(js, /await publishStage\(button\.dataset\.screenStageCommand\)/);
+  assert.match(js, /function toggleScreenOverride\(stageId\)/);
+  assert.match(js, /screenOverrideStageId === cleanStageId \? "" : cleanStageId/);
+  assert.match(js, /window\.AppData\.updateAdminScreenOverride\(nextStageId\)/);
+  assert.match(js, /await toggleScreenOverride\(button\.dataset\.screenStageCommand\)/);
+  assert.match(js, /取消锁定/);
   assert.match(css, /\.admin-control-actions/);
   assert.match(css, /\.admin-control-actions button/);
+  assert.match(css, /\.admin-control-actions button\.is-cancel/);
 });
 
 test("admin roadshow timer selects current and next teams through the backend API", () => {
@@ -1651,10 +1772,11 @@ test("main screen polls admin state and switches views only on stage changes", (
   const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
 
   assert.match(appJs, /window\.AppData\.loadAdminState\(\)/);
+  assert.match(appJs, /const stageId = state\?\.screenOverrideStageId \|\| state\?\.currentStageId \|\| ""/);
   assert.match(appJs, /window\.AppLogic\.createAdminStageSyncKey\(stageId,\s*state\.updatedAt\)/);
   assert.match(appJs, /window\.AppLogic\.shouldApplyAdminStageChange\(lastAdminStageSyncKey,\s*stageSyncKey\)/);
   assert.match(appJs, /if\s*\(!shouldSwitchStage\)\s*{[\s\S]*?return;/);
-  assert.match(appJs, /window\.AppLogic\.resolveStageScreenView\(state\.currentStageId\)/);
+  assert.match(appJs, /window\.AppLogic\.resolveStageScreenView\(stageId\)/);
   assert.match(appJs, /lastAdminStageSyncKey/);
   assert.match(appJs, /window\.setInterval\(pollAdminState/);
 });
@@ -1886,8 +2008,8 @@ test("team formation screen uses a squad-card role claiming layout", () => {
   assert.match(appJs, /LEAD/);
   assert.match(appJs, /isClaimedAdvisor/);
   assert.match(appJs, /data-role-key="advisor"/);
-  assert.match(appJs, /抢顾问位/);
-  assert.match(appJs, /我的顾问位/);
+  assert.match(appJs, /抢队长位/);
+  assert.match(appJs, /我的队长位/);
   assert.doesNotMatch(appJs, /已报名/);
   assert.match(advisorSlotBlock, /margin:\s*clamp\(7px,\s*0\.85vh,\s*10px\)\s+0/);
   assert.match(advisorSlotBlock, /border-color:\s*rgba\(var\(--team-color-rgb\),\s*0\.28\)/);

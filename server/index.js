@@ -198,8 +198,7 @@ function resolveProtectedPageKey(request, url) {
   const key = pathname.replace(/\/$/, "") || "/";
   if (key === "/admin" || key === "/admin.html") return "admin";
   if (key === "/screen" || key === "/screen.html") return "screen";
-  if (key === "/index.html") return "index";
-  if (key === "/" && url.searchParams.get("screen") === "big") return "index";
+  if (key === "/index" || key === "/index.html") return "index";
   return "";
 }
 
@@ -213,18 +212,6 @@ function sanitizePagePath(value, fallback = "/site.html") {
     return fallback;
   }
   return raw.split("#")[0].split("?")[0] || fallback;
-}
-
-function isMobileRootRequest(request, url) {
-  if (url.pathname !== "/" || url.searchParams.get("screen") === "big") {
-    return false;
-  }
-
-  const userAgent = String(request.headers["user-agent"] || "");
-  const mobileClientHint = String(request.headers["sec-ch-ua-mobile"] || "");
-
-  return mobileClientHint.includes("?1")
-    || /\b(Android|iPhone|iPad|iPod|Mobile|MicroMessenger|Lark|Feishu)\b/i.test(userAgent);
 }
 
 async function routeApi(
@@ -271,6 +258,43 @@ async function routeApi(
       return null;
     }
     return session;
+  }
+
+  function attachSessionUser(payload, session, { includeName = false, includeSubmitter = false } = {}) {
+    if (!session?.user?.id) {
+      return payload;
+    }
+    payload.userId = session.user.id;
+    if (includeName) {
+      payload.name = session.user.name;
+      payload.department = session.user.department || payload.department;
+      payload.photo = session.user.photo || session.user.avatar || payload.photo;
+    }
+    if (includeSubmitter) {
+      payload.submittedBy = session.user.id;
+      payload.name = session.user.name;
+    }
+    return payload;
+  }
+
+  async function listJudgeUsers() {
+    if (!userRoleRepository || typeof userRoleRepository.listUsers !== "function") {
+      return [];
+    }
+    const state = await userRoleRepository.listUsers();
+    return (state.users || []).filter((user) => Array.isArray(user.roles) && user.roles.includes("judge"));
+  }
+
+  async function listScoredTeamIds() {
+    const teams = await teamRepository.listTeams();
+    return teams.map((team) => String(team.id || "").trim()).filter(Boolean);
+  }
+
+  async function recordAuditSafe(entry) {
+    if (!auditLogRepository || typeof auditLogRepository.record !== "function") {
+      return;
+    }
+    await auditLogRepository.record(entry);
   }
 
   if (request.method === "OPTIONS") {
@@ -709,10 +733,7 @@ async function routeApi(
     const session = await enforcePermission(request, response, "canJoinTeam");
     if (!session) return true;
     const payload = await readJsonBody(request);
-    if (authEnforcement === "strict") {
-      payload.userId = session.user.id;
-      payload.name = session.user.name;
-    }
+    attachSessionUser(payload, session, { includeName: true });
     sendJson(response, 200, await teamRepository.joinTeam(payload));
     return true;
   }
@@ -721,9 +742,7 @@ async function routeApi(
     const session = await enforcePermission(request, response, "canJoinTeam");
     if (!session) return true;
     const payload = await readJsonBody(request);
-    if (authEnforcement === "strict") {
-      payload.userId = session.user.id;
-    }
+    attachSessionUser(payload, session);
     sendJson(response, 200, await teamRepository.leaveTeam(payload));
     return true;
   }
@@ -732,9 +751,7 @@ async function routeApi(
     const session = await enforcePermission(request, response, "canJoinTeam");
     if (!session) return true;
     const payload = await readJsonBody(request);
-    if (authEnforcement === "strict") {
-      payload.userId = session.user.id;
-    }
+    attachSessionUser(payload, session);
     sendJson(response, 200, await teamRepository.claimRole(payload));
     return true;
   }
@@ -761,19 +778,90 @@ async function routeApi(
     return true;
   }
 
-  if (url.pathname === "/api/judge/scores" && request.method === "POST") {
+  if (url.pathname === "/api/judge/my-scores" && request.method === "GET") {
+    const session = await enforcePermission(request, response, "canScore");
+    if (!session) return true;
+    const judgeId = authEnforcement === "strict"
+      ? session.user.id
+      : (session.user?.id || url.searchParams.get("judgeId") || "local-judge");
+    sendJson(response, 200, await judgeScoresRepository.readMyScores({ judgeId }));
+    return true;
+  }
+
+  if ((url.pathname === "/api/judge/scores" || url.pathname === "/api/judge/scores/draft") && request.method === "POST") {
     const session = await enforcePermission(request, response, "canScore");
     if (!session) return true;
     const payload = await readJsonBody(request);
-    if (authEnforcement === "strict") {
+    if (authEnforcement === "strict" || session.user?.id) {
       payload.judgeId = session.user.id;
     }
-    sendJson(response, 200, await judgeScoresRepository.saveScores(payload));
+    const result = await judgeScoresRepository.saveDraft(payload);
+    await recordAuditSafe({
+      actor: payload.judgeId || "judge",
+      action: "judge.score.draft.saved",
+      targetType: "judge_score",
+      targetId: result.receivedTeamIds.join(","),
+      message: `评委保存 ${result.receivedTeamIds.length} 个队伍评分草稿`,
+      after: { judgeId: result.judgeId, teamIds: result.receivedTeamIds },
+    });
+    sendJson(response, 200, result);
+    return true;
+  }
+
+  if (url.pathname === "/api/judge/scores/submit" && request.method === "POST") {
+    const session = await enforcePermission(request, response, "canScore");
+    if (!session) return true;
+    const payload = await readJsonBody(request);
+    if (authEnforcement === "strict" || session.user?.id) {
+      payload.judgeId = session.user.id;
+    }
+    if (!Array.isArray(payload.teamIds) || !payload.teamIds.length) {
+      payload.teamIds = await listScoredTeamIds();
+    }
+    const result = await judgeScoresRepository.submitScores(payload);
+    await recordAuditSafe({
+      actor: payload.judgeId || "judge",
+      action: "judge.score.submitted",
+      targetType: "judge_score",
+      targetId: result.submittedTeamIds.join(","),
+      message: `评委提交 ${result.submittedTeamIds.length} 个队伍评分`,
+      after: { judgeId: result.judgeId, teamIds: result.submittedTeamIds, status: result.status },
+    });
+    sendJson(response, 200, result);
     return true;
   }
 
   if (url.pathname === "/api/judge/scores" && request.method === "GET") {
     sendJson(response, 200, await judgeScoresRepository.readState());
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/judge/progress" && request.method === "GET") {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
+    sendJson(response, 200, await judgeScoresRepository.getProgress({
+      teamIds: await listScoredTeamIds(),
+      judges: await listJudgeUsers(),
+    }));
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/judge/lock" && request.method === "POST") {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
+    const result = await judgeScoresRepository.lockScores({
+      teamIds: await listScoredTeamIds(),
+      judges: await listJudgeUsers(),
+    });
+    await recordAuditSafe({
+      actor: session.user?.id || "admin",
+      action: "judge.score.locked",
+      targetType: "judge_score",
+      targetId: "all",
+      message: "管理员锁定专家评分",
+      after: { status: result.status, progress: result.progress },
+    });
+    sendJson(response, 200, result);
     return true;
   }
 
@@ -786,11 +874,7 @@ async function routeApi(
     const session = await enforcePermission(request, response, "canSubmitWork");
     if (!session) return true;
     const payload = await readJsonBody(request);
-    if (authEnforcement === "strict") {
-      payload.userId = session.user.id;
-      payload.submittedBy = session.user.id;
-      payload.name = session.user.name;
-    }
+    attachSessionUser(payload, session, { includeName: true, includeSubmitter: true });
     const result = await worksRepository.submitWork(payload);
     await auditLogRepository.record({
       actor: payload.userId || payload.submittedBy || "system",
@@ -926,6 +1010,33 @@ async function routeApi(
       targetType: "stage",
       targetId: state.currentStageId,
       message: `开启阶段【${state.stages.find((stage) => stage.id === state.currentStageId)?.name || state.currentStageId}】`,
+    });
+    sendJson(response, 200, state);
+    return true;
+  }
+
+  if (url.pathname === "/api/admin/screen-override" && ["POST", "PATCH"].includes(request.method)) {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
+    const payload = await readJsonBody(request);
+    if (authEnforcement === "strict") {
+      payload.actor = session.user.id;
+    }
+    const state = await adminStateRepository.setScreenOverride(payload.stageId, payload.actor || "admin");
+    const stage = state.stages.find((item) => item.id === state.screenOverrideStageId);
+    const locked = Boolean(state.screenOverrideStageId);
+
+    await auditLogRepository.record({
+      actor: payload.actor || "admin",
+      action: locked ? "screen.override.updated" : "screen.override.cleared",
+      targetType: "screen",
+      targetId: locked ? state.screenOverrideStageId : "follow-current-stage",
+      message: locked
+        ? `锁定大屏【${stage?.name || state.screenOverrideStageId}】`
+        : "取消大屏锁定，恢复跟随流程阶段",
+      after: {
+        screenOverrideStageId: state.screenOverrideStageId,
+      },
     });
     sendJson(response, 200, state);
     return true;
@@ -1077,11 +1188,11 @@ function serveStatic(request, response, url, publicRoot) {
 
   const decodedPathname = decodePathname(url.pathname);
   let requestPath = decodedPathname;
-  // 默认路由：根直接进用户站；/?screen=big 才是大屏；其余 /admin、/site、/screen 映射到对应 .html。
-  const PAGE_ALIASES = { "/admin": "/admin.html", "/site": "/site.html", "/screen": "/screen.html" };
+  // 默认路由：根直接进用户站；其余 /admin、/site、/screen、/index 映射到对应 .html。
+  const PAGE_ALIASES = { "/admin": "/admin.html", "/site": "/site.html", "/screen": "/screen.html", "/index": "/index.html" };
   const aliasKey = decodedPathname.replace(/\/$/, "") || "/";
   if (decodedPathname === "/") {
-    requestPath = url.searchParams.get("screen") === "big" ? "/index.html" : "/site.html";
+    requestPath = "/site.html";
   } else if (PAGE_ALIASES[aliasKey]) {
     requestPath = PAGE_ALIASES[aliasKey];
   }

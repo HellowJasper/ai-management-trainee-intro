@@ -71,6 +71,22 @@ function memberMatchesUser(member, userId) {
   return String(member?.userId || member?.id || member?.name || "").trim() === userId;
 }
 
+function roleMatches(member = {}, roleKey = "") {
+  const cleanRoleKey = String(roleKey || "").trim();
+  const memberRoleKey = String(member.roleKey || "").trim();
+  if (memberRoleKey === cleanRoleKey) {
+    return true;
+  }
+  if (cleanRoleKey === "advisor") {
+    return /队长|leader|captain|advisor/i.test(`${member.role || ""} ${member.duty || ""}`);
+  }
+  return false;
+}
+
+function isAdvisorMember(member = {}) {
+  return roleMatches(member, "advisor");
+}
+
 function rowToTeam(row = {}) {
   const meta = parseJsonValue(row.meta_json || row.metaJson || row.meta);
   return {
@@ -116,11 +132,13 @@ function createMysqlTeamRepository(pool) {
     );
 
     const membersByTeam = new Map();
+    const advisorByTeam = new Map();
     memberRows.forEach((row) => {
+      const teamId = normalizeId(row.team_id || row.teamId);
       if (row.is_advisor) {
+        advisorByTeam.set(teamId, rowToMember(row));
         return;
       }
-      const teamId = normalizeId(row.team_id || row.teamId);
       if (!membersByTeam.has(teamId)) {
         membersByTeam.set(teamId, []);
       }
@@ -131,6 +149,7 @@ function createMysqlTeamRepository(pool) {
       const team = rowToTeam(row);
       return {
         ...team,
+        advisor: advisorByTeam.get(team.id) || null,
         members: membersByTeam.get(team.id) || [],
       };
     });
@@ -168,6 +187,42 @@ function createMysqlTeamRepository(pool) {
 
     if (!options.bypassStatus && LOCKED_TEAM_STATUSES.has(String(target.status || "open").trim().toLowerCase())) {
       throw createHttpError(409, `Team ${teamId} is locked.`);
+    }
+
+    if (isAdvisorMember(member)) {
+      await pool.execute(
+        "DELETE FROM team_members WHERE user_id = ? AND is_advisor = FALSE",
+        [member.userId],
+      );
+      await pool.execute(
+        "DELETE FROM team_members WHERE team_id = ? AND is_advisor = TRUE",
+        [teamId],
+      );
+      await pool.execute(
+        `INSERT INTO team_members
+          (team_id, user_id, name, department, role_key, duty, photo_url, role, is_advisor)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
+        [
+          teamId,
+          member.userId,
+          member.name,
+          member.department,
+          "advisor",
+          member.duty || "队长",
+          member.photo,
+          member.role || member.duty || "队长",
+          true,
+        ],
+      );
+
+      const nextTeams = await listTeams();
+      const nextTeam = nextTeams.find((team) => team.id === teamId);
+      return {
+        accepted: true,
+        team: nextTeam,
+        member: nextTeam?.advisor || member,
+        teams: nextTeams,
+      };
     }
 
     if (targetMembersAfterMove.length >= teamCapacity(target) - 1) {
@@ -213,8 +268,11 @@ function createMysqlTeamRepository(pool) {
     }
 
     await ensureTeamExists(teamId);
+    const wantsAdvisor = isAdvisorMember(payload);
     const [result] = await pool.execute(
-      "DELETE FROM team_members WHERE team_id = ? AND user_id = ? AND is_advisor = FALSE",
+      wantsAdvisor
+        ? "DELETE FROM team_members WHERE team_id = ? AND user_id = ? AND is_advisor = TRUE"
+        : "DELETE FROM team_members WHERE team_id = ? AND user_id = ? AND is_advisor = FALSE",
       [teamId, userId],
     );
 
