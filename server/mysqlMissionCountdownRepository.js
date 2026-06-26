@@ -1,7 +1,7 @@
 const { createHttpError } = require("./traineeRepository");
 
 const DEFAULT_ID = "main";
-const DEFAULT_DURATION_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_DURATION_MS = 36 * 60 * 60 * 1000;
 const DEFAULT_STATE = {
   startedAt: null,
   durationMs: DEFAULT_DURATION_MS,

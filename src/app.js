@@ -466,7 +466,7 @@ let traineeProfileSignature = "";
 let traineeProfileSyncing = false;
 let countdownTimer = null;
 let countdownStartedAt = null;
-let countdownDurationMs = 24 * 60 * 60 * 1000;
+let countdownDurationMs = 36 * 60 * 60 * 1000;
 let countdownLoadRequestId = 0;
 let roadshowTimer = null;
 let roadshowState = {
@@ -492,7 +492,7 @@ const introTiming = window.AppLogic.getIntroTiming();
 const INTRO_HOLD_MS = introTiming.holdMs;
 const INTRO_EXIT_MS = introTiming.exitMs;
 const COUNTDOWN_STORAGE_KEY = "joincare_mission_countdown_started_at_manual_v2";
-const COUNTDOWN_DURATION_MS = 24 * 60 * 60 * 1000;
+const COUNTDOWN_DURATION_MS = 36 * 60 * 60 * 1000;
 const ROADSHOW_STORAGE_KEY = "joincare_roadshow_timer_started_at_manual_v1";
 const ROADSHOW_DURATION_MS = 15 * 60 * 1000;
 

@@ -4,7 +4,7 @@
   root.AppData = api;
 })(typeof globalThis !== "undefined" ? globalThis : window, function createDataLoader(root) {
   const FEISHU_LOGIN_REDIRECT = "./site.html#home";
-  const DEFAULT_COUNTDOWN_DURATION_MS = 24 * 60 * 60 * 1000;
+  const DEFAULT_COUNTDOWN_DURATION_MS = 36 * 60 * 60 * 1000;
   const DEFAULT_COUNTDOWN_STORAGE_KEY = "joincare_mission_countdown_started_at_manual_v2";
   const DEFAULT_ROADSHOW_DURATION_MS = 15 * 60 * 1000;
   const DEFAULT_ROADSHOW_STORAGE_KEY = "joincare_roadshow_timer_started_at_manual_v1";

@@ -195,6 +195,36 @@ test("MySQL team repository keeps the grouping and role claiming contract", asyn
   assert.equal(removedLeader.team.advisor, null);
 });
 
+test("MySQL team repository blocks player roster changes after a team is locked", async () => {
+  const pool = new MemoryMysqlTeamPool({
+    teams: [
+      {
+        id: "marketing",
+        index: "03",
+        name: "营销",
+        status: "locked",
+        capacity: 5,
+      },
+    ],
+    members: [
+      { teamId: "marketing", userId: "player-a", name: "李蓓蓓", roleKey: "dev", duty: "AI 开发" },
+    ],
+  });
+  const repository = createMysqlTeamRepository(pool);
+
+  await assert.rejects(
+    () => repository.leaveTeam({ teamId: "marketing", userId: "player-a" }),
+    /Team marketing is locked/,
+  );
+  await assert.rejects(
+    () => repository.claimRole({ teamId: "marketing", userId: "player-a", roleKey: "pitch", duty: "路演运营" }),
+    /Team marketing is locked/,
+  );
+
+  assert.equal(pool.members.length, 1);
+  assert.equal(pool.members[0].role_key, "dev");
+});
+
 test("repository factory wires the MySQL team repository", async () => {
   const pool = new MemoryMysqlTeamPool({
     teams: [{ id: "marketing", name: "营销", index: "03" }],

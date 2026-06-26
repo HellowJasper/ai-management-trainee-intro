@@ -14,6 +14,7 @@
   const ROLE_KEY = "joincare_hackathon_role";
   const SESSION_KEY = "joincare_hackathon_session";
   const VALID_ROLES = ["public", "player", "judge", "admin"];
+  const MISSION_COUNTDOWN_STAGE_IDS = new Set(["opening", "icebreaker", "speech", "tracks", "team"]);
   const TEAM_ROLE_SLOTS = [
     { roleKey: "advisor", label: "队长", duty: "队长" },
     { roleKey: "biz", label: "业务洞察", duty: "业务洞察" },
@@ -68,18 +69,35 @@
   function timerRemainingSeconds(timerState, fallbackSeconds) {
     const startedAt = parseSiteTimestamp(timerState?.startedAt);
     const durationMs = Number(timerState?.durationMs);
-    if (!startedAt || !Number.isFinite(durationMs) || durationMs <= 0) {
+    if (!Number.isFinite(durationMs) || durationMs <= 0) {
       return fallbackSeconds;
     }
+    if (!startedAt) {
+      return Math.max(0, Math.floor(durationMs / 1000));
+    }
+
     const serverNow = parseSiteTimestamp(timerState?.serverNow) || Date.now();
     return Math.max(0, Math.floor((startedAt + durationMs - serverNow) / 1000));
+  }
+  function isCountdownPaused() {
+    const timers = SITE_STATE?.timers || {};
+    if (MISSION_COUNTDOWN_STAGE_IDS.has(CURRENT_STAGE_ID)) {
+      return !parseSiteTimestamp(timers.missionCountdown?.startedAt);
+    }
+    if (["vote", "result", "final"].includes(CURRENT_STAGE_ID)) {
+      return !parseSiteTimestamp(timers.roadshow?.startedAt);
+    }
+    return false;
+  }
+  function countdownAttrs() {
+    return `data-countdown data-remain="${COUNTDOWN_REMAIN}" data-paused="${isCountdownPaused() ? "true" : "false"}"`;
   }
   function applySiteStageState(state = SITE_STATE) {
     const stageId = String(state?.stage?.currentStageId || CURRENT_STAGE_ID || "").trim();
     if (stageId) CURRENT_STAGE_ID = stageId;
     const phaseInfo = resolveHomePhase(CURRENT_STAGE_ID);
     const timers = state?.timers || {};
-    if (CURRENT_STAGE_ID === "team") {
+    if (MISSION_COUNTDOWN_STAGE_IDS.has(CURRENT_STAGE_ID)) {
       COUNTDOWN_REMAIN = timerRemainingSeconds(timers.missionCountdown, phaseInfo.remain);
     } else if (["vote", "result", "final"].includes(CURRENT_STAGE_ID)) {
       COUNTDOWN_REMAIN = timerRemainingSeconds(timers.roadshow, phaseInfo.remain);
@@ -87,36 +105,6 @@
       COUNTDOWN_REMAIN = phaseInfo.remain;
     }
   }
-  async function syncHomeState() {
-    try {
-      const state = await apiRequest("/api/admin/state");
-      if (state && state.currentStageId) {
-        CURRENT_STAGE_ID = state.currentStageId;
-        const phaseInfo = resolveHomePhase(CURRENT_STAGE_ID);
-        COUNTDOWN_REMAIN = phaseInfo.remain;
-        if (CURRENT_STAGE_ID === "team") {
-          try {
-            const mc = await apiRequest("/api/mission-countdown");
-            if (mc && mc.startedAt) {
-              const ms = new Date(mc.startedAt).getTime() + mc.durationMs - Date.now();
-              if (ms > 0) COUNTDOWN_REMAIN = Math.floor(ms / 1000);
-            }
-          } catch (e) {}
-        } else if (["vote", "result", "final"].includes(CURRENT_STAGE_ID)) {
-          try {
-            const rs = await apiRequest("/api/roadshow");
-            if (rs && rs.startedAt) {
-              const ms = new Date(rs.startedAt).getTime() + rs.durationMs - Date.now();
-              if (ms > 0) COUNTDOWN_REMAIN = Math.floor(ms / 1000);
-            }
-          } catch (e) {}
-        }
-      }
-    } catch (e) {
-      console.warn("Failed to sync home state", e);
-    }
-  }
-
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const pad = (n) => String(n).padStart(2, "0");
   const fmtHMS = (s) => `${pad((s / 3600) | 0)}<i>:</i>${pad(((s % 3600) / 60) | 0)}<i>:</i>${pad(s % 60)}`;
@@ -173,6 +161,9 @@
   }
   function isPublishedWorkTeam(team) {
     return String(team?.work?.status || "").trim() === "published";
+  }
+  function isTeamLocked(team = {}) {
+    return String(team.status || "open").trim().toLowerCase() === "locked";
   }
   function canViewWorkTeam(team) {
     if (isPublishedWorkTeam(team)) {
@@ -235,6 +226,7 @@
       submitted: Boolean(work && !["draft", "rejected"].includes(work.status)) || Boolean(team.submitted),
       advisor: normalizeLeader(team.advisor || base.advisor || { name: "队长", avatar: "" }),
       members: normalizeList(team.members).map(normalizeMember),
+      status: String(team.status || base.status || "open").trim().toLowerCase(),
       votes: toNumber(vote?.votes, 0),
       expert: toNumber(vote?.expert ?? team.expert, 0),
       work: work || null,
@@ -556,6 +548,16 @@
     const apiBaseUrl = getRuntimeApiBaseUrl();
     return apiBaseUrl ? `${apiBaseUrl}${value}` : value;
   }
+
+  function resolveUploadedAssetUrl(value) {
+    const original = String(value || "").trim();
+    const match = original.match(/^(?:\.\/|\/)?(assets\/uploads\/.+)$/i);
+    if (!match) return original;
+    const assetPath = `/${match[1].replace(/^\/+/, "")}`;
+    const apiBaseUrl = getRuntimeApiBaseUrl();
+    return apiBaseUrl ? `${apiBaseUrl}${assetPath}` : original;
+  }
+
   function teamPeople(team) {
     const leader = team.advisor || {};
     const leaderUserId = leader.userId || leader.id || "";
@@ -657,6 +659,13 @@
     if (/already joined/i.test(message)) return "你已经加入队伍，请按最新状态操作";
     if (/not joined/i.test(message)) return "当前没有可退出的队伍，我已刷新页面，请按最新状态操作";
     if (/team is full/i.test(message)) return "这支队伍已满员，请选择其他队伍";
+    if (/team .* is locked|is locked/i.test(message)) {
+      return actionLabel === "退出队伍"
+        ? "队伍已锁定，不能退出队伍"
+        : actionLabel === "加入队伍"
+          ? "队伍已锁定，不能加入队伍"
+          : "队伍已锁定，不能再进行组队变更";
+    }
     if (/teamId is required/i.test(message)) return "缺少队伍信息，请刷新页面后重试";
     return formatBackendActionError(error, `${actionLabel}失败`);
   }
@@ -1056,7 +1065,7 @@
         <p>36小时，用 AI 把创意照进现实</p>
         <div class="mh-live glass">
           <div><span>${esc(phaseInfo.phase)}</span><b>${esc(phaseInfo.label)}</b></div>
-          <strong data-countdown data-remain="${COUNTDOWN_REMAIN}">${fmtHMS(COUNTDOWN_REMAIN)}</strong>
+          <strong ${countdownAttrs()}>${fmtHMS(COUNTDOWN_REMAIN)}</strong>
         </div>
       </div>
       <div class="mh-grid">
@@ -1111,7 +1120,7 @@
         <div class="hp-row"><span class="live-dot"></span><span class="hp-label">当前阶段</span></div>
         <div class="hp-phase">${esc(phaseInfo.phase)}</div>
         <div class="hp-row hp-sub-row"><span class="live-dot"></span><span class="hp-label">${esc(phaseInfo.label)}</span></div>
-        <div class="hp-cd" data-countdown data-remain="${COUNTDOWN_REMAIN}">${fmtHMS(COUNTDOWN_REMAIN)}</div>
+        <div class="hp-cd" ${countdownAttrs()}>${fmtHMS(COUNTDOWN_REMAIN)}</div>
         <div class="hp-stats">
           <div><b>${D.stats.tracks}</b><span>赛道</span></div>
           <div><b>${D.stats.teams}</b><span>队伍</span></div>
@@ -1609,7 +1618,7 @@
         </div>
         <div class="schedule-count">
           <span class="status-chip on">${esc(phaseInfo.label)}</span>
-          <b data-countdown data-remain="${COUNTDOWN_REMAIN}">${fmtHMS(COUNTDOWN_REMAIN)}</b>
+          <b ${countdownAttrs()}>${fmtHMS(COUNTDOWN_REMAIN)}</b>
         </div>
       </div>
       <div class="sec-cap"><span></span>赛事旅程 · EVENT JOURNEY</div><div class="entry-grid four">${actionCards}</div>
@@ -1627,7 +1636,9 @@
     const teams = D.teams.map((t) => {
       const count = 1 + t.members.length;
       const mine = selectedTeam && selectedTeam.id === t.id;
+      const isLocked = String(t.status || "open").trim().toLowerCase() === "locked";
       const disabled = selectedTeam && !mine ? "disabled" : "";
+      const lockedDisabled = isLocked ? "disabled" : "";
       const displayName = t.name;
       const openTarget = mine ? `data-team-workspace="${t.id}"` : `data-work="${t.id}"`;
       const roster = [{ ...t.advisor, role: "队长" }, ...t.members.map((m) => ({ ...m, role: "组员" }))]
@@ -1638,9 +1649,11 @@
           return `<span class="team-avatar">${avatar(p, 34)}<i>${esc(label)}</i></span>`;
         }).join("");
       const action = canJoin
-        ? mine
+        ? isLocked
+          ? `<button class="team-join is-locked" type="button" disabled>组队已锁定</button>`
+          : mine
           ? `<button class="team-join is-joined is-leave" data-leave-team="${t.id}">退出队伍</button>`
-          : `<button class="team-join" data-join-team="${t.id}" ${disabled}>选择队伍</button>`
+          : `<button class="team-join" data-join-team="${t.id}" ${disabled || lockedDisabled}>选择队伍</button>`
         : "";
       const openAction = mine
         ? `<button class="team-workspace-link" type="button" data-team-workspace="${t.id}">进入工作台</button>`
@@ -1809,7 +1822,7 @@
   function renderShotThumb(value, index, teamId, editable) {
     const label = `截图 ${index + 1}`;
     const visual = isImageSource(value)
-      ? `<img src="${esc(value)}" alt="${label}" loading="lazy" />`
+      ? `<img src="${esc(resolveUploadedAssetUrl(value))}" alt="${label}" loading="lazy" />`
       : `<span>${pad(index + 1)} ${esc(value)}</span>`;
     const remove = editable
       ? `<button type="button" data-work-screenshot-remove="${esc(teamId)}:${index}" aria-label="移除${label}">×</button>`
@@ -1829,7 +1842,7 @@
     return screenshots.length
       ? screenshots.map((shot, index) => {
         if (isImageSource(shot)) {
-          return `<span class="workspace-preview-shot"><img src="${esc(shot)}" alt="展示截图 ${index + 1}" loading="lazy" decoding="async" /></span>`;
+          return `<span class="workspace-preview-shot"><img src="${esc(resolveUploadedAssetUrl(shot))}" alt="展示截图 ${index + 1}" loading="lazy" decoding="async" /></span>`;
         }
         return `<span>${pad(index + 1)} ${esc(shot)}</span>`;
       }).join("")
@@ -1870,16 +1883,17 @@
 
   function renderWorkspaceRoles(team, canClaim) {
     const currentMemberId = currentWorkspaceMemberId(team);
+    const isLocked = isTeamLocked(team);
     const rows = TEAM_ROLE_SLOTS.map((slot) => {
       const occupant = findTeamRoleOccupant(team, slot.roleKey);
       const occupantId = occupant?.realUserId || "";
       const isCurrent = occupantId && occupantId === currentMemberId;
       const isOpen = !occupantId;
-      const canTake = canClaim && currentMemberId && (isOpen || isCurrent);
+      const canTake = !isLocked && canClaim && currentMemberId && (isOpen || isCurrent);
       const button = isCurrent
         ? `<button class="workspace-role-claim is-mine" type="button" disabled>我的职责</button>`
         : isOpen
-          ? `<button class="workspace-role-claim" type="button" data-role-claim="${team.id}:${slot.roleKey}" ${canTake ? "" : "disabled"}>认领</button>`
+          ? `<button class="workspace-role-claim${isLocked ? " is-locked" : ""}" type="button" data-role-claim="${team.id}:${slot.roleKey}" ${canTake ? "" : "disabled"}>${isLocked ? "已锁定" : "认领"}</button>`
           : `<button class="workspace-role-claim is-locked" type="button" disabled>已占用</button>`;
       return `<div class="workspace-person-role ${slot.roleKey === "advisor" ? "is-leader" : ""} ${isCurrent ? "is-current" : ""} ${isOpen ? "is-open" : ""}">
         ${avatar(occupant || { name: slot.label }, 42)}
@@ -2135,7 +2149,7 @@
           : `<button class="btn-primary dim" disabled>当前身份不可投票</button>`;
     const screenshots = normalizeScreenshotList(t.work?.screenshots);
     const slides = screenshots.length
-      ? screenshots.slice(0, WORK_SCREENSHOT_LIMIT).map((src, index) => ({ src, title: `展示截图 ${index + 1}`, caption: "作品真实界面" }))
+      ? screenshots.slice(0, WORK_SCREENSHOT_LIMIT).map((src, index) => ({ src: resolveUploadedAssetUrl(src), title: `展示截图 ${index + 1}`, caption: "作品真实界面" }))
       : [["主界面", "产品核心流程"], ["数据看板", "关键指标可视化"], ["AI 能力", "模型推理与结果"]].map((item) => ({ title: item[0], caption: item[1] }));
     const slideEls = slides.map((slide, i) => {
       const shot = slide.src && isImageSource(slide.src)
@@ -2623,6 +2637,10 @@
   async function joinTeam(id, confirmed = false) {
     if (!requireRole("team", (p) => p.canJoinTeam, "只有参赛选手可以加入队伍")) return;
     const team = getTeam(id); if (!team) return;
+    if (isTeamLocked(team)) {
+      toast("队伍已锁定，不能加入队伍");
+      return;
+    }
     if (!confirmed) {
       showConfirmDialog({
         title: "加入队伍",
@@ -2661,6 +2679,10 @@
     }
     const team = getTeam(id || currentTeamId);
     if (!team || team.id !== currentTeamId) return;
+    if (String(team.status || "open").trim().toLowerCase() === "locked") {
+      toast("队伍已锁定，不能退出队伍");
+      return;
+    }
     if (!confirmed) {
       showConfirmDialog({
         title: "退出队伍",
@@ -2681,6 +2703,12 @@
       }
       if (team.id !== latestTeamId) {
         toast("队伍状态已更新，我已刷新页面，请按最新状态重新操作");
+        await refreshActionState({ render: true });
+        return;
+      }
+      const latestTeam = getTeam(team.id) || team;
+      if (String(latestTeam.status || "open").trim().toLowerCase() === "locked") {
+        toast("队伍已锁定，不能退出队伍");
         await refreshActionState({ render: true });
         return;
       }
@@ -3028,6 +3056,10 @@
       toast("只有已加入该队伍的参赛选手可以认领职责");
       return;
     }
+    if (String(team.status || "open").trim().toLowerCase() === "locked") {
+      toast("队伍已锁定，不能再调整职责");
+      return;
+    }
     try {
       await SiteRoleApi.claimRole(teamId, roleKey, slot.duty);
       await loadSiteState();
@@ -3035,7 +3067,12 @@
       refreshCurrentView({ preserveScroll: true });
     } catch (error) {
       console.warn("Claim team role failed.", error);
-      toast(error.status === 409 ? "该职责已被其他成员认领" : "职责认领失败，请稍后重试");
+      const message = getApiErrorMessage(error);
+      toast(/team .* is locked|is locked/i.test(message)
+        ? "队伍已锁定，不能再调整职责"
+        : error.status === 409
+          ? "该职责已被其他成员认领"
+          : "职责认领失败，请稍后重试");
     }
   }
   async function submitTeamWork(teamId) {
@@ -3272,7 +3309,7 @@
     });
   }
 
-  function tick() { doc.querySelectorAll("[data-countdown]").forEach((el) => { let r = Math.max(0, (+el.dataset.remain || 0) - 1); el.dataset.remain = r; el.innerHTML = fmtHMS(r); }); }
+  function tick() { doc.querySelectorAll("[data-countdown]").forEach((el) => { if (el.dataset.paused === "true") return; let r = Math.max(0, (+el.dataset.remain || 0) - 1); el.dataset.remain = r; el.innerHTML = fmtHMS(r); }); }
 
   // 从受限页面(大屏/后台/演示)被拦回时的提示弹窗。
   function showDeniedNotice() {
@@ -3303,7 +3340,6 @@
     if (!handledLogin) await syncRoleFromBackend();
     const initialSiteState = await loadSiteState();
     siteStateSignature = createVisibleSiteStateSignature(initialSiteState || SITE_STATE);
-    await syncHomeState();
     bind();
     route(false);
     if (wantsAuthChooser()) showAuthGate("entry");

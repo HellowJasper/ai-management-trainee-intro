@@ -1804,6 +1804,82 @@ test("admin team status API locks a track and blocks later joins", async (t) => 
   assert.equal(auditState.logs[0].targetId, "marketing");
 });
 
+test("locked teams reject player leave and role-claim changes while admins can still maintain roster", async (t) => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-locked-team-actions-"));
+  const dataPath = path.join(tempDir, "teams.json");
+  const auditLogPath = path.join(tempDir, "audit-logs.json");
+  const sessionPath = path.join(tempDir, "sessions.json");
+  await fs.writeFile(dataPath, `${JSON.stringify([
+    {
+      id: "marketing",
+      name: "营销",
+      status: "locked",
+      capacity: 3,
+      advisor: { userId: "leader-001", name: "队长 C", role: "队长" },
+      members: [
+        { userId: "player-locked", name: "锁定队员", roleKey: "dev", duty: "AI 开发" },
+      ],
+    },
+  ], null, 2)}\n`);
+  await fs.writeFile(auditLogPath, `${JSON.stringify({ logs: [] }, null, 2)}\n`);
+  await fs.writeFile(sessionPath, `${JSON.stringify({ sessions: {} }, null, 2)}\n`);
+
+  const teamRepository = createTeamRepository(dataPath);
+  const auditLogRepository = createAuditLogRepository(auditLogPath);
+  const authSessionRepository = createAuthSessionRepository(sessionPath);
+  const server = createServer({
+    publicRoot: tempDir,
+    teamRepository,
+    auditLogRepository,
+    authSessionRepository,
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const playerCookie = await loginAs(baseUrl, "player", { userId: "player-locked", name: "锁定队员" });
+
+  const leaveResponse = await fetch(`${baseUrl}/api/team/leave`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: playerCookie },
+    body: JSON.stringify({ teamId: "marketing" }),
+  });
+  const leavePayload = await leaveResponse.json();
+
+  assert.equal(leaveResponse.status, 409);
+  assert.match(leavePayload.error.message, /locked/);
+
+  const claimResponse = await fetch(`${baseUrl}/api/team/claim-role`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: playerCookie },
+    body: JSON.stringify({ teamId: "marketing", roleKey: "pitch", duty: "路演运营" }),
+  });
+  const claimPayload = await claimResponse.json();
+
+  assert.equal(claimResponse.status, 409);
+  assert.match(claimPayload.error.message, /locked/);
+
+  const adminCookie = await loginAs(baseUrl, "admin", { userId: "admin-locked", name: "管理员" });
+  const adminRemoveResponse = await fetch(`${baseUrl}/api/admin/team-members`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", Cookie: adminCookie },
+    body: JSON.stringify({
+      teamId: "marketing",
+      userId: "player-locked",
+      actor: "admin-ui",
+    }),
+  });
+  const adminRemovePayload = await adminRemoveResponse.json();
+
+  assert.equal(adminRemoveResponse.status, 200);
+  assert.equal(adminRemovePayload.accepted, true);
+  assert.equal(adminRemovePayload.team.members.length, 0);
+
+  const stored = JSON.parse(await fs.readFile(dataPath, "utf8"));
+  assert.equal(stored[0].status, "locked");
+  assert.equal(stored[0].members.length, 0);
+});
+
 test("admin team scenario API updates editable big-screen content and document link", async (t) => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-admin-team-scenario-"));
   const dataPath = path.join(tempDir, "teams.json");

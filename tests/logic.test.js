@@ -766,14 +766,36 @@ test("official site result ranking reads published snapshot score field names", 
 test("official site schedule status reads the synchronized backend stage timer", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const renderScheduleBody = siteJs.match(/function renderSchedule\(\) \{([\s\S]*?)\n  \}/);
+  const applySiteStageStateBody = siteJs.match(/function applySiteStageState\(state = SITE_STATE\) \{([\s\S]*?)\n  \}/);
+  const timerRemainingSecondsBody = siteJs.match(/function timerRemainingSeconds\(timerState, fallbackSeconds\) \{([\s\S]*?)\n  \}/);
 
   assert.ok(renderScheduleBody, "renderSchedule should exist");
+  assert.ok(applySiteStageStateBody, "applySiteStageState should exist");
+  assert.ok(timerRemainingSecondsBody, "timerRemainingSeconds should exist");
   assert.match(renderScheduleBody[1], /const phaseInfo = resolveHomePhase\(CURRENT_STAGE_ID\)/);
   assert.match(renderScheduleBody[1], /\$\{esc\(phaseInfo\.phase\)\}/);
   assert.match(renderScheduleBody[1], /\$\{esc\(phaseInfo\.label\)\}/);
-  assert.match(renderScheduleBody[1], /data-remain="\$\{COUNTDOWN_REMAIN\}"/);
+  assert.match(renderScheduleBody[1], /\$\{countdownAttrs\(\)\}/);
+  assert.match(siteJs, /const MISSION_COUNTDOWN_STAGE_IDS = new Set\(\["opening", "icebreaker", "speech", "tracks", "team"\]\)/);
+  assert.match(applySiteStageStateBody[1], /MISSION_COUNTDOWN_STAGE_IDS\.has\(CURRENT_STAGE_ID\)/);
+  assert.match(timerRemainingSecondsBody[1], /return Math\.max\(0,\s*Math\.floor\(durationMs \/ 1000\)\)/);
+  assert.doesNotMatch(siteJs, /apiRequest\("\/api\/admin\/state"\)/);
+  assert.doesNotMatch(siteJs, /await syncHomeState\(\)/);
   assert.doesNotMatch(renderScheduleBody[1], />大众投票进行中</);
   assert.doesNotMatch(renderScheduleBody[1], /data-remain="6353"/);
+});
+
+test("official site countdown stays paused until the backend timer starts", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const tickBody = siteJs.match(/function tick\(\) \{([\s\S]*?)\n  \}/)?.[1] || "";
+  const countdownAttrsBody = siteJs.match(/function countdownAttrs\(\) \{([\s\S]*?)\n  \}/)?.[1] || "";
+  const countdownAttrUses = siteJs.match(/\$\{countdownAttrs\(\)\}/g) || [];
+
+  assert.match(siteJs, /function isCountdownPaused\(\)/);
+  assert.match(siteJs, /MISSION_COUNTDOWN_STAGE_IDS\.has\(CURRENT_STAGE_ID\)[\s\S]*?timers\.missionCountdown\?\.startedAt/);
+  assert.match(countdownAttrsBody, /data-paused="\$\{isCountdownPaused\(\) \? "true" : "false"\}"/);
+  assert.match(tickBody, /if \(el\.dataset\.paused === "true"\) return;/);
+  assert.ok(countdownAttrUses.length >= 3, "home, mobile home, and schedule countdowns should share paused countdown attributes");
 });
 
 test("admin topbar quick menus expose real links and session actions", () => {
@@ -1219,6 +1241,18 @@ test("team workspace screenshot upload accepts image files without browser MIME 
   assert.match(siteJs, /图片过大，请压缩到 8MB 以内后再上传/);
   assert.match(siteJs, /file\.size > WORK_SCREENSHOT_MAX_BYTES/);
   assert.match(siteJs, /toast\(getWorkScreenshotUploadErrorMessage\(error\)\)/);
+});
+
+test("team workspace resolves uploaded screenshot URLs against the API origin", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /function resolveUploadedAssetUrl\(value\)/);
+  assert.match(siteJs, /getRuntimeApiBaseUrl\(\)/);
+  assert.match(siteJs, /assets\\\/uploads/);
+  assert.match(siteJs, /return apiBaseUrl \? `\$\{apiBaseUrl\}\$\{assetPath\}` : original;/);
+  assert.match(siteJs, /<img src="\$\{esc\(resolveUploadedAssetUrl\(value\)\)\}" alt="\$\{label\}"/);
+  assert.match(siteJs, /<img src="\$\{esc\(resolveUploadedAssetUrl\(shot\)\)\}" alt="展示截图 \$\{index \+ 1\}"/);
+  assert.match(siteJs, /src:\s*resolveUploadedAssetUrl\(src\)/);
 });
 
 test("team workspace is private to the joined player team", () => {
@@ -2227,6 +2261,18 @@ test("admin team roster controls backend track lock state", () => {
   assert.match(adminJs, /锁定组队/);
 });
 
+test("player team UI treats locked teams as read-only roster state", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /const isLocked = String\(t\.status \|\| "open"\)\.trim\(\)\.toLowerCase\(\) === "locked"/);
+  assert.match(siteJs, /const lockedDisabled = isLocked \? "disabled" : ""/);
+  assert.match(siteJs, /isLocked\s*\?\s*`<button class="team-join is-locked"[^`]*已锁定/);
+  assert.match(siteJs, /if \(String\(team\.status \|\| "open"\)\.trim\(\)\.toLowerCase\(\) === "locked"\) \{[\s\S]*?toast\("队伍已锁定，不能再调整职责"\)/);
+  assert.match(siteJs, /if \(String\(team\.status \|\| "open"\)\.trim\(\)\.toLowerCase\(\) === "locked"\) \{[\s\S]*?toast\("队伍已锁定，不能退出队伍"\)/);
+  assert.match(siteJs, /if \(\/team \.\* is locked\|is locked\/i\.test\(message\)\) \{[\s\S]*?队伍已锁定，不能再进行组队变更/);
+  assert.match(siteJs, /\/team \.\* is locked\|is locked\/i\.test\(message\)[\s\S]*?队伍已锁定，不能再调整职责/);
+});
+
 test("admin console exports key operation datasets", () => {
   const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
   const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
@@ -2389,6 +2435,7 @@ test("landing hero uses the merged two-line cinematic hierarchy", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
   const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
   const logoBlock = css.match(/\.landing-logo-container\s*{[\s\S]*?\n}/)?.[0] || "";
+  const actionBlock = css.match(/\.landing-actions\s*{[\s\S]*?\n}/)?.[0] || "";
   const enterButtonBlock = css.match(/\.enter-button,\n\.discover-button,\n\.feishu-login-button\s*{[\s\S]*?\n}/)?.[0] || "";
 
   assert.doesNotMatch(html, /landing-title-main/);
@@ -2399,15 +2446,16 @@ test("landing hero uses the merged two-line cinematic hierarchy", () => {
   assert.match(html, /<span class="landing-title-sub">36小时，用 AI 把创意照进现实<\/span>/);
   assert.match(html, /<button class="enter-button" type="button" id="enterButton"[^>]*>解锁任务<\/button>/);
   assert.match(logoBlock, /top:\s*23%/);
-  assert.match(logoBlock, /width:\s*min\(32vw,\s*500px\)/);
+  assert.match(logoBlock, /width:\s*min\(28vw,\s*440px\)/);
   assert.match(css, /\.landing-stage::before\s*{[\s\S]*?centered light field/);
   assert.match(css, /\.landing-content::before\s*{[\s\S]*?content:\s*none/);
   assert.match(css, /\.landing-content::after\s*{[\s\S]*?content:\s*none/);
-  assert.match(css, /\.landing-title\s*{[\s\S]*?top:\s*50%/);
+  assert.match(css, /\.landing-title\s*{[\s\S]*?top:\s*calc\(50% - 36px\)/);
+  assert.match(actionBlock, /top:\s*calc\(74% - 96px\)/);
   assert.match(css, /\.landing-title\s*{[\s\S]*?gap:\s*clamp\(16px,\s*2vh,\s*24px\)/);
-  assert.match(css, /\.landing-title-cn\s*{[\s\S]*?font-size:\s*clamp\(48px,\s*5\.8vw,\s*92px\)/);
+  assert.match(css, /\.landing-title-cn\s*{[\s\S]*?font-size:\s*clamp\(58px,\s*6\.8vw,\s*112px\)/);
   assert.match(css, /\.landing-title-sub\s*{[\s\S]*?color:\s*var\(--neon-2\)/);
-  assert.match(css, /\.landing-title-sub\s*{[\s\S]*?font-size:\s*clamp\(20px,\s*2\.25vw,\s*34px\)/);
+  assert.match(css, /\.landing-title-sub\s*{[\s\S]*?font-size:\s*clamp\(22px,\s*2\.45vw,\s*38px\)/);
   assert.match(css, /\.app-shell\.view-home \.landing-title\s*{[\s\S]*?animation:\s*none/);
   assert.match(css, /\.app-shell\.view-home \.landing-title\s*{[\s\S]*?opacity:\s*1/);
   assert.match(enterButtonBlock, /width:\s*clamp\(220px,\s*18vw,\s*292px\)/);
@@ -2516,7 +2564,7 @@ test("admin timer controls edit durations as hours and minutes while preserving 
 
   assert.doesNotMatch(html, /展示时长（分钟）/);
   assert.match(html, /展示时长/);
-  assert.match(html, /id="missionCountdownHours"[^>]*value="24"/);
+  assert.match(html, /id="missionCountdownHours"[^>]*value="36"/);
   assert.match(html, /id="missionCountdownMinutes"[^>]*value="0"/);
   assert.match(html, /id="roadshowHours"[^>]*value="0"/);
   assert.match(html, /id="roadshowMinutes"[^>]*value="15"/);
@@ -2531,6 +2579,20 @@ test("admin timer controls edit durations as hours and minutes while preserving 
   assert.match(js, /durationMs:\s*durationInputsToDurationMs\(missionCountdownHours,\s*missionCountdownMinutes,\s*1440\)/);
   assert.match(js, /durationMs:\s*durationInputsToDurationMs\(roadshowHours,\s*roadshowMinutes,\s*15\)/);
   assert.doesNotMatch(js, /minutesInputToDurationMs/);
+});
+
+test("mission countdown defaults to the 36 hour hackathon window across clients and repositories", () => {
+  const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
+  const logicJs = fs.readFileSync(path.join(__dirname, "../src/logic.js"), "utf8");
+  const jsonRepository = fs.readFileSync(path.join(__dirname, "../server/missionCountdownRepository.js"), "utf8");
+  const mysqlRepository = fs.readFileSync(path.join(__dirname, "../server/mysqlMissionCountdownRepository.js"), "utf8");
+
+  assert.match(appJs, /COUNTDOWN_DURATION_MS = 36 \* 60 \* 60 \* 1000/);
+  assert.match(dataJs, /DEFAULT_COUNTDOWN_DURATION_MS = 36 \* 60 \* 60 \* 1000/);
+  assert.match(logicJs, /missionCountdownDurationMs = 36 \* 60 \* 60 \* 1000/);
+  assert.match(jsonRepository, /DEFAULT_DURATION_MS = 36 \* 60 \* 60 \* 1000/);
+  assert.match(mysqlRepository, /DEFAULT_DURATION_MS = 36 \* 60 \* 60 \* 1000/);
 });
 
 test("admin time save synchronizes stage labels and timer durations without starting timers", () => {
@@ -2762,24 +2824,24 @@ test("countdown header opens a current roadshow team timer stage", () => {
   assert.doesNotMatch(css, /\.app-shell\.view-roadshow\s+\.roadshow-stage\s*>\s*\.stage-header[\s\S]*?display:\s*none/);
 });
 
-test("mission countdown state formats a 24 hour window", () => {
+test("mission countdown state formats a 36 hour window", () => {
   const countdown = getMissionCountdownState({
     startedAt: Date.parse("2026-01-01T00:00:00.000Z"),
     now: Date.parse("2026-01-01T06:15:09.000Z"),
   });
 
   assert.deepEqual(countdown, {
-    hours: "17",
+    hours: "29",
     minutes: "44",
     seconds: "51",
-    progress: 0.2605,
-    remainingMs: 63891000,
+    progress: 0.1737,
+    remainingMs: 107091000,
     isComplete: false,
   });
 
   assert.deepEqual(getMissionCountdownState({
     startedAt: Date.parse("2026-01-01T00:00:00.000Z"),
-    now: Date.parse("2026-01-02T00:00:01.000Z"),
+    now: Date.parse("2026-01-02T12:00:01.000Z"),
   }), {
     hours: "00",
     minutes: "00",

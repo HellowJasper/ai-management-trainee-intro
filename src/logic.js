@@ -12,7 +12,7 @@
     exitMs: 1200,
   });
   const feishuLoginSessionKey = "joincare_feishu_login";
-  const missionCountdownDurationMs = 24 * 60 * 60 * 1000;
+  const missionCountdownDurationMs = 36 * 60 * 60 * 1000;
   const roleDefinitions = Object.freeze({
     player: Object.freeze({
       label: "参赛选手",

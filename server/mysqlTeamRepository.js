@@ -68,6 +68,16 @@ function normalizeTeamStatus(value) {
   return status;
 }
 
+function isTeamLocked(team = {}) {
+  return LOCKED_TEAM_STATUSES.has(String(team.status || "open").trim().toLowerCase());
+}
+
+function assertTeamWritable(team = {}, teamId = "", options = {}) {
+  if (!options.bypassStatus && isTeamLocked(team)) {
+    throw createHttpError(409, `Team ${teamId} is locked.`);
+  }
+}
+
 function memberMatchesUser(member, userId) {
   return String(member?.userId || member?.id || member?.name || "").trim() === userId;
 }
@@ -186,9 +196,7 @@ function createMysqlTeamRepository(pool) {
     const { target } = await findTeamFromList(teamId, teams);
     const targetMembersAfterMove = target.members.filter((item) => !memberMatchesUser(item, member.userId));
 
-    if (!options.bypassStatus && LOCKED_TEAM_STATUSES.has(String(target.status || "open").trim().toLowerCase())) {
-      throw createHttpError(409, `Team ${teamId} is locked.`);
-    }
+    assertTeamWritable(target, teamId, options);
 
     if (isAdvisorMember(member)) {
       await pool.execute(
@@ -261,14 +269,16 @@ function createMysqlTeamRepository(pool) {
     };
   }
 
-  async function leaveTeam(payload = {}) {
+  async function leaveTeam(payload = {}, options = {}) {
     const teamId = normalizeId(payload.teamId);
     const userId = normalizeUserId(payload);
     if (!teamId) {
       throw createHttpError(400, "teamId is required.");
     }
 
-    await ensureTeamExists(teamId);
+    const { target } = await findTeamFromList(teamId);
+    assertTeamWritable(target, teamId, options);
+
     const wantsAdvisor = isAdvisorMember(payload);
     const [result] = await pool.execute(
       wantsAdvisor
@@ -290,7 +300,7 @@ function createMysqlTeamRepository(pool) {
     };
   }
 
-  async function claimRole(payload = {}) {
+  async function claimRole(payload = {}, options = {}) {
     const teamId = normalizeId(payload.teamId);
     const roleKey = normalizeId(payload.roleKey);
     const duty = String(payload.duty || payload.role || "").trim();
@@ -305,6 +315,8 @@ function createMysqlTeamRepository(pool) {
 
     const teams = await listTeams();
     const { target } = await findTeamFromList(teamId, teams);
+    assertTeamWritable(target, teamId, options);
+
     const member = target.members.find((item) => memberMatchesUser(item, userId));
     if (!member) {
       throw createHttpError(404, `User ${userId} is not in team ${teamId}.`);

@@ -48,6 +48,16 @@ function normalizeTeamStatus(value) {
   return status;
 }
 
+function isTeamLocked(team = {}) {
+  return LOCKED_TEAM_STATUSES.has(String(team.status || "open").trim().toLowerCase());
+}
+
+function assertTeamWritable(team = {}, teamId = "", options = {}) {
+  if (!options.bypassStatus && isTeamLocked(team)) {
+    throw createHttpError(409, `Team ${teamId} is locked.`);
+  }
+}
+
 function normalizeScenarioList(value) {
   if (Array.isArray(value)) {
     return value.map((item) => String(item || "").trim()).filter(Boolean);
@@ -175,9 +185,7 @@ function createTeamRepository(dataPath = DEFAULT_DATA_PATH) {
       members: [...nextTeams[targetIndex].members],
     };
 
-    if (!options.bypassStatus && LOCKED_TEAM_STATUSES.has(String(target.status || "open").trim().toLowerCase())) {
-      throw createHttpError(409, `Team ${teamId} is locked.`);
-    }
+    assertTeamWritable(target, teamId, options);
 
     if (isAdvisorMember(member)) {
       if (!target.advisor && target.members.length >= teamCapacity(target)) {
@@ -211,7 +219,7 @@ function createTeamRepository(dataPath = DEFAULT_DATA_PATH) {
     };
   }
 
-  async function leaveTeam(payload = {}) {
+  async function leaveTeam(payload = {}, options = {}) {
     const teamId = String(payload.teamId || "").trim();
     const userId = normalizeUserId(payload);
     if (!teamId) {
@@ -226,6 +234,8 @@ function createTeamRepository(dataPath = DEFAULT_DATA_PATH) {
     }
 
     const target = teams[targetIndex];
+    assertTeamWritable(target, teamId, options);
+
     const members = Array.isArray(target.members) ? target.members : [];
     const wantsAdvisor = isAdvisorMember(payload);
     const advisorMatched = target.advisor && (wantsAdvisor || advisorMatchesUser(target.advisor, userId))
@@ -254,7 +264,7 @@ function createTeamRepository(dataPath = DEFAULT_DATA_PATH) {
     };
   }
 
-  async function claimRole(payload = {}) {
+  async function claimRole(payload = {}, options = {}) {
     const teamId = String(payload.teamId || "").trim();
     const roleKey = String(payload.roleKey || "").trim();
     const duty = String(payload.duty || payload.role || "").trim();
@@ -274,6 +284,8 @@ function createTeamRepository(dataPath = DEFAULT_DATA_PATH) {
     }
 
     const target = teams[targetIndex];
+    assertTeamWritable(target, teamId, options);
+
     const members = Array.isArray(target.members) ? [...target.members] : [];
     const memberIndex = members.findIndex((member) => memberMatchesUser(member, userId));
 

@@ -3,7 +3,7 @@ const path = require("node:path");
 const { createHttpError } = require("./traineeRepository");
 
 const DEFAULT_DATA_PATH = path.join(__dirname, "../data/mission-countdown.json");
-const DEFAULT_DURATION_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_DURATION_MS = 36 * 60 * 60 * 1000;
 
 const DEFAULT_STATE = {
   startedAt: null,

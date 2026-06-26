@@ -256,7 +256,7 @@ async function seedMissionCountdown(pool, countdown) {
     [
       DEFAULT_WINDOW_ID,
       toMysqlDate(countdown.startedAt),
-      Number(countdown.durationMs || 86400000),
+      Number(countdown.durationMs || 129600000),
     ],
   );
   return 1;

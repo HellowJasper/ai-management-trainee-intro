@@ -886,7 +886,7 @@ async function routeApi(
     if (!session) return true;
     const payload = await readJsonBody(request);
     const actor = authEnforcement === "strict" ? session.user.id : payload.actor || "admin";
-    const result = await teamRepository.leaveTeam(payload);
+    const result = await teamRepository.leaveTeam(payload, { bypassStatus: true });
     await auditLogRepository.record({
       actor,
       action: "team.member.removed",

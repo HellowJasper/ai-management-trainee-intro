@@ -82,7 +82,7 @@ test("MySQL mission countdown repository preserves start and admin update behavi
 
   const initial = await repository.getState();
   assert.equal(initial.startedAt, null);
-  assert.equal(initial.durationMs, 86400000);
+  assert.equal(initial.durationMs, 129600000);
   assert.ok(initial.serverNow);
 
   const started = await repository.startCountdown({
@@ -101,10 +101,10 @@ test("MySQL mission countdown repository preserves start and admin update behavi
 
   const reset = await repository.updateState({
     startedAt: null,
-    durationMs: 86400000,
+    durationMs: 129600000,
   });
   assert.equal(reset.startedAt, null);
-  assert.equal(reset.durationMs, 86400000);
+  assert.equal(reset.durationMs, 129600000);
 });
 
 test("MySQL roadshow repository hydrates teams and preserves timer behavior", async () => {
