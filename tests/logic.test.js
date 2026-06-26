@@ -1557,19 +1557,29 @@ test("index big-screen mobile layout converts fixed stage compositions to scroll
 
 test("final result screen reserves enough vertical room for the champion showcase", () => {
   const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+  const stageBlock = css.match(/\.final-result-stage\s*\{[\s\S]*?\n}/)?.[0] || "";
+  const hubBlock = css.match(/\.final-result-hub-wrap\s*\{[\s\S]*?\n}/)?.[0] || "";
+  const detailLayerBlock = css.match(/\.detail-layer,\n\.challenge-layer\s*\{[\s\S]*?\n}/)?.[0] || "";
+  const openLayerBlock = css.match(/\.detail-layer\.is-open,\n\.challenge-layer\.is-open\s*\{[\s\S]*?\n}/)?.[0] || "";
 
-  assert.match(css, /\.final-result-stage\s*\{[^}]*--final-result-footer-safe:\s*clamp\(92px,\s*9vh,\s*116px\)/s);
+  assert.match(stageBlock, /overflow:\s*hidden/);
+  assert.match(css, /\.final-result-stage\s*\{[^}]*--final-result-footer-safe:\s*clamp\(72px,\s*8vh,\s*98px\)/s);
   assert.match(css, /\.final-result-stage\s*\{[^}]*--final-result-chrome-space:\s*clamp\(150px,\s*15vh,\s*196px\)/s);
-  assert.match(css, /\.final-result-hub-wrap\s*\{[^}]*position:\s*relative[^}]*min-height:\s*100dvh[^}]*align-items:\s*center[^}]*justify-items:\s*center/s);
-  assert.doesNotMatch(css, /\.final-result-hub-wrap\s*\{[^}]*position:\s*absolute/s);
-  assert.match(css, /\.final-result-cockpit\s*\{[^}]*max-width:\s*1740px[^}]*grid-template-columns:\s*minmax\(480px,\s*0\.96fr\) minmax\(620px,\s*1\.04fr\)[^}]*gap:\s*clamp\(28px,\s*2\.6vw,\s*46px\)[^}]*padding:\s*clamp\(26px,\s*2\.6vw,\s*42px\)/s);
-  assert.match(css, /\.final-result-cockpit\s*\{[^}]*height:\s*auto[^}]*max-height:\s*calc\(100dvh - var\(--final-result-chrome-space\)\)[^}]*min-height:\s*min\(640px,\s*calc\(100dvh - var\(--final-result-chrome-space\)\)\)[^}]*overflow:\s*auto/s);
+  assert.match(detailLayerBlock, /overflow:\s*hidden/);
+  assert.match(detailLayerBlock, /visibility:\s*hidden/);
+  assert.match(openLayerBlock, /visibility:\s*visible/);
+  assert.match(hubBlock, /position:\s*absolute/);
+  assert.match(hubBlock, /inset:\s*0/);
+  assert.match(hubBlock, /min-height:\s*0/);
+  assert.match(hubBlock, /overflow:\s*hidden/);
+  assert.match(css, /\.final-result-cockpit\s*\{[^}]*width:\s*min\(1680px,\s*calc\(100vw - clamp\(64px,\s*8vw,\s*152px\)\)\)[^}]*max-width:\s*1680px[^}]*grid-template-columns:\s*minmax\(420px,\s*0\.94fr\) minmax\(520px,\s*1\.06fr\)[^}]*gap:\s*clamp\(18px,\s*2vw,\s*34px\)[^}]*padding:\s*clamp\(20px,\s*2vw,\s*34px\)/s);
+  assert.match(css, /\.final-result-cockpit\s*\{[^}]*height:\s*min\(660px,\s*calc\(100dvh - var\(--final-result-chrome-space\)\)\)[^}]*max-height:\s*calc\(100dvh - var\(--final-result-chrome-space\)\)[^}]*min-height:\s*0[^}]*overflow:\s*hidden/s);
   assert.doesNotMatch(css, /\.final-result-cockpit\s*\{[^}]*height:\s*var\(--final-result-cockpit-height\)/s);
-  assert.match(css, /\.final-result-champion\s*\{[^}]*min-height:\s*clamp\(540px,\s*58vh,\s*700px\)[^}]*gap:\s*clamp\(12px,\s*1\.7vh,\s*22px\)[^}]*padding:\s*clamp\(30px,\s*3vw,\s*52px\)/s);
-  assert.match(css, /\.final-result-score strong\s*\{[^}]*font-size:\s*clamp\(58px,\s*5\.2vw,\s*98px\)/s);
-  assert.match(css, /\.final-result-sideboard\s*\{[^}]*gap:\s*clamp\(18px,\s*1\.6vw,\s*28px\)[^}]*padding:\s*clamp\(22px,\s*2\.2vw,\s*36px\)/s);
-  assert.match(css, /\.final-result-leaderboard\s*\{[^}]*gap:\s*clamp\(14px,\s*1\.4vh,\s*18px\)/s);
-  assert.match(css, /\.final-result-row\s*\{[^}]*grid-template-columns:\s*74px minmax\(0,\s*1fr\) 154px[^}]*gap:\s*clamp\(18px,\s*1\.5vw,\s*26px\)[^}]*min-height:\s*clamp\(104px,\s*10vh,\s*132px\)[^}]*padding:\s*clamp\(18px,\s*1\.55vw,\s*24px\)/s);
+  assert.match(css, /\.final-result-champion\s*\{[^}]*height:\s*100%[^}]*min-height:\s*0[^}]*gap:\s*clamp\(8px,\s*1\.25vh,\s*18px\)[^}]*padding:\s*clamp\(22px,\s*2\.4vw,\s*42px\)/s);
+  assert.match(css, /\.final-result-score strong\s*\{[^}]*font-size:\s*clamp\(50px,\s*4\.4vw,\s*84px\)/s);
+  assert.match(css, /\.final-result-sideboard\s*\{[^}]*gap:\s*clamp\(12px,\s*1\.2vw,\s*22px\)[^}]*padding:\s*clamp\(16px,\s*1\.7vw,\s*28px\)/s);
+  assert.match(css, /\.final-result-leaderboard\s*\{[^}]*gap:\s*clamp\(10px,\s*1\.1vh,\s*14px\)/s);
+  assert.match(css, /\.final-result-row\s*\{[^}]*grid-template-columns:\s*64px minmax\(0,\s*1fr\) 136px[^}]*gap:\s*clamp\(14px,\s*1\.25vw,\s*22px\)[^}]*min-height:\s*clamp\(86px,\s*8\.5vh,\s*112px\)[^}]*padding:\s*clamp\(14px,\s*1\.2vw,\s*20px\)/s);
 });
 
 test("final result screen adds a cyber award ceremony motion layer", () => {
@@ -1580,6 +1590,7 @@ test("final result screen adds a cyber award ceremony motion layer", () => {
   assert.match(css, /@keyframes\s+awardChampionPulse/);
   assert.match(css, /@keyframes\s+awardScorePop/);
   assert.match(css, /@keyframes\s+awardGoldScan/);
+  assert.doesNotMatch(css, /awardEnergyDrift/);
   assert.match(css, /\.app-shell\[data-view="final-result"\]\s+\.final-result-stage::before\s*\{[^}]*animation:\s*awardSpotlightSweep/s);
   assert.match(css, /\.app-shell\[data-view="final-result"\]\s+\.final-result-cockpit\s*\{[^}]*animation:\s*awardPanelReveal/s);
   assert.match(css, /\.app-shell\[data-view="final-result"\]\s+\.final-result-emblem\s*\{[^}]*animation:\s*awardChampionPulse/s);
