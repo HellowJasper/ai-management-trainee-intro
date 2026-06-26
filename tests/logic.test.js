@@ -1494,8 +1494,11 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?bottom:\s*clamp\(18px,\s*3dvh,\s*34px\)/);
   assert.doesNotMatch(siteCss, /calc\(100vh - 210px\)/);
   assert.doesNotMatch(siteCss, /left:\s*var\(--site-detail-side-rail\)/);
-  assert.doesNotMatch(siteCss, /@media \(max-width:\s*1679px\)[\s\S]*?\.site-detail-layer \.draw-card\s*\{[\s\S]*?display:\s*none/);
-  assert.match(siteCss, /@media \(max-width:\s*1679px\)[\s\S]*?--site-detail-console-width:\s*calc\(min\(78vw,\s*1180px\) - 24px\)/);
+  const wideDesktopStart = siteCss.indexOf("@media (max-width: 1679px)");
+  const compactStart = siteCss.indexOf("@media (max-width: 1180px)", wideDesktopStart);
+  const wideDesktopBlock = siteCss.slice(wideDesktopStart, compactStart);
+  assert.match(wideDesktopBlock, /--site-detail-console-width:\s*calc\(min\(78vw,\s*1180px\) - 24px\)/);
+  assert.doesNotMatch(wideDesktopBlock, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?display:\s*none/);
   assert.match(siteCss, /@media \(max-width:\s*1180px\)[\s\S]*?\.site-detail-layer > \.draw-card\s*\{[\s\S]*?display:\s*none/);
   assert.match(siteCss, /@media \(max-width:\s*1180px\)[\s\S]*?grid-template-columns:\s*minmax\(480px,\s*1fr\) minmax\(240px,\s*min\(32vw,\s*320px\)\)/);
   assert.match(siteCss, /@media \(max-width:\s*1180px\)[\s\S]*?\.site-detail-layer\.is-open \.profile-console\s*\{[\s\S]*?transform:\s*none/);
