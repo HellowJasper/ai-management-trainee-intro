@@ -79,6 +79,38 @@ function findJoinedTeamId(teams = [], userId = "") {
   return team ? team.id : null;
 }
 
+function isAdminSession(me = {}) {
+  return Boolean(me?.permissions?.canAdmin) || me.role === "admin" || (me.roles || []).includes("admin");
+}
+
+function isPlayerSession(me = {}) {
+  return Boolean(me?.permissions?.canSubmitWork) || me.role === "player" || (me.roles || []).includes("player");
+}
+
+function isPublishedWork(work = {}) {
+  return String(work.status || "").trim() === "published";
+}
+
+function isOwnTeamWork(work = {}, teamId = "") {
+  const cleanTeamId = String(teamId || "").trim();
+  if (!cleanTeamId) {
+    return false;
+  }
+  return [work.teamId, work.id].some((value) => String(value || "").trim() === cleanTeamId);
+}
+
+function filterVisibleWorks(works = [], me = {}) {
+  if (isAdminSession(me)) {
+    return works;
+  }
+
+  if (isPlayerSession(me) && me.teamId) {
+    return works.filter((work) => isPublishedWork(work) || isOwnTeamWork(work, me.teamId));
+  }
+
+  return works.filter(isPublishedWork);
+}
+
 function normalizeStageState(adminState = {}) {
   const stages = normalizeArrayPayload(adminState?.stages, "stages");
   const currentStageId = String(adminState?.currentStageId || "").trim();
@@ -150,6 +182,7 @@ function createSiteStateService({
     const normalizedTeams = normalizeArrayPayload(teams, "teams");
     const me = normalizeSession(session);
     me.teamId = findJoinedTeamId(normalizedTeams, me.user?.id);
+    const works = normalizeArrayPayload(worksPayload, "works");
     const vote = normalizeVoteState(voteState, me.user?.id);
     const stage = normalizeStageState(adminState);
 
@@ -168,7 +201,7 @@ function createSiteStateService({
       },
       trainees: normalizeArrayPayload(trainees, "trainees"),
       teams: normalizedTeams,
-      works: normalizeArrayPayload(worksPayload, "works"),
+      works: filterVisibleWorks(works, me),
       vote,
       result: {
         published: Boolean(snapshot),
@@ -184,4 +217,6 @@ function createSiteStateService({
 
 module.exports = {
   createSiteStateService,
+  findJoinedTeamId,
+  filterVisibleWorks,
 };

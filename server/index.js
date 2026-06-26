@@ -7,7 +7,7 @@ const { createAuthSessionRepository } = require("./authSessionRepository");
 const { createAuthSessionRepositoryFromEnv } = require("./redisAuthSessionRepository");
 const { createRepositoryBundle } = require("./repositoryFactory");
 const { buildFinalResultSnapshot } = require("./resultSnapshotService");
-const { createSiteStateService } = require("./siteStateService");
+const { createSiteStateService, filterVisibleWorks, findJoinedTeamId } = require("./siteStateService");
 const { getRolePermissions } = require("../src/logic");
 
 const DEFAULT_PUBLIC_ROOT = path.join(__dirname, "..");
@@ -202,6 +202,53 @@ async function saveTraineeAssetUpload(payload, publicRoot) {
   };
 }
 
+async function saveWorkAssetUpload(payload, publicRoot) {
+  const teamId = slugifyAssetPart(payload.teamId, "");
+  if (!teamId) {
+    throw createStatusError(400, "Team id is required.");
+  }
+
+  const dataUrl = String(payload.dataUrl || "");
+  const match = dataUrl.match(/^data:(image\/[a-z0-9.+-]+);base64,([a-z0-9+/=\s]+)$/i);
+  if (!match) {
+    throw createStatusError(400, "Image data must be a base64 data URL.");
+  }
+
+  const mimeType = match[1].toLowerCase();
+  const extension = IMAGE_MIME_EXTENSIONS[mimeType];
+  if (!extension) {
+    throw createStatusError(400, "Only PNG, JPG, WEBP, and GIF images are supported.");
+  }
+
+  const bytes = Buffer.from(match[2].replace(/\s+/g, ""), "base64");
+  if (!bytes.length) {
+    throw createStatusError(400, "Image data is empty.");
+  }
+  if (bytes.length > 8 * 1024 * 1024) {
+    throw createStatusError(413, "Image file is too large.");
+  }
+
+  const originalBase = path.basename(String(payload.filename || ""), path.extname(String(payload.filename || "")));
+  const fileBase = slugifyAssetPart(originalBase, "image");
+  const relativeDir = path.join("assets", "uploads", "works", teamId);
+  const publicDir = path.resolve(publicRoot, relativeDir);
+  if (!publicDir.startsWith(`${publicRoot}${path.sep}`)) {
+    throw createStatusError(400, "Invalid asset path.");
+  }
+
+  await fs.promises.mkdir(publicDir, { recursive: true });
+  const filename = `screenshot-${Date.now()}-${fileBase}.${extension}`;
+  const absolutePath = path.join(publicDir, filename);
+  await fs.promises.writeFile(absolutePath, bytes);
+
+  return {
+    teamId,
+    mimeType,
+    path: `./${path.join(relativeDir, filename).replace(/\\/g, "/")}`,
+    size: bytes.length,
+  };
+}
+
 function decodePathname(pathname) {
   try {
     return decodeURIComponent(pathname);
@@ -320,6 +367,40 @@ async function routeApi(
     return sessionId ? authSessionRepository.getSession(sessionId) : null;
   }
 
+  function normalizeRouteArrayPayload(payload, key) {
+    if (Array.isArray(payload)) {
+      return payload;
+    }
+    if (payload && Array.isArray(payload[key])) {
+      return payload[key];
+    }
+    return [];
+  }
+
+  async function listVisibleWorksForRequest(request, status) {
+    const [session, teamsPayload, worksPayload] = await Promise.all([
+      getOptionalSession(request),
+      teamRepository.listTeams(),
+      worksRepository.listWorks({ status }),
+    ]);
+    const role = session?.role || "";
+    const me = session
+      ? {
+          role: role || null,
+          roles: Array.isArray(session.roles) && session.roles.length ? session.roles : (role ? [role] : []),
+          permissions: role ? (session.permissions || getRolePermissions(role)) : {},
+          user: session.user || null,
+        }
+      : {
+          role: "public",
+          roles: ["public"],
+          permissions: getRolePermissions("public"),
+          user: null,
+        };
+    me.teamId = findJoinedTeamId(normalizeRouteArrayPayload(teamsPayload, "teams"), me.user?.id);
+    return filterVisibleWorks(normalizeRouteArrayPayload(worksPayload, "works"), me);
+  }
+
   async function enforcePermission(request, response, permissionName) {
     if (authEnforcement !== "strict") {
       return (await getOptionalSession(request)) || { user: {}, role: "", permissions: {} };
@@ -402,6 +483,22 @@ async function routeApi(
       targetType: "trainee",
       targetId: payload.traineeId || "",
       message: `上传星锐图片：${result.path}`,
+    });
+    sendJson(response, 201, result);
+    return true;
+  }
+
+  if (url.pathname === "/api/work-assets" && request.method === "POST") {
+    const session = await enforcePermission(request, response, "canSubmitWork");
+    if (!session) return true;
+    const payload = await readJsonBody(request, 12 * 1024 * 1024);
+    const result = await saveWorkAssetUpload(payload, publicRoot);
+    await recordAuditSafe({
+      actor: session.user?.id || "player",
+      action: "work.asset.uploaded",
+      targetType: "work",
+      targetId: payload.teamId || "",
+      message: `上传作品截图：${result.path}`,
     });
     sendJson(response, 201, result);
     return true;
@@ -994,7 +1091,7 @@ async function routeApi(
   }
 
   if (url.pathname === "/api/works" && request.method === "GET") {
-    sendJson(response, 200, await worksRepository.listWorks({ status: url.searchParams.get("status") }));
+    sendJson(response, 200, await listVisibleWorksForRequest(request, url.searchParams.get("status")));
     return true;
   }
 
@@ -1013,6 +1110,24 @@ async function routeApi(
       after: result.work,
     });
     sendJson(response, 201, result);
+    return true;
+  }
+
+  if (url.pathname === "/api/work/withdraw" && request.method === "POST") {
+    const session = await enforcePermission(request, response, "canSubmitWork");
+    if (!session) return true;
+    const payload = await readJsonBody(request);
+    attachSessionUser(payload, session, { includeName: true, includeSubmitter: true });
+    const result = await worksRepository.withdrawWork(payload);
+    await auditLogRepository.record({
+      actor: payload.userId || payload.submittedBy || "system",
+      action: "work.withdrawn",
+      targetType: "work",
+      targetId: result.work.id,
+      message: `撤销作品提交【${result.work.project || result.work.id}】`,
+      after: result.work,
+    });
+    sendJson(response, 200, result);
     return true;
   }
 

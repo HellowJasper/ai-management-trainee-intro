@@ -83,6 +83,19 @@ class MemoryMysqlWorksPool {
       return [{ affectedRows: 1 }];
     }
 
+    if (compactSql.startsWith("update works set status = 'draft'")) {
+      const [teamId, sameTeamId] = params;
+      const row = this.rows.find((item) => item.id === teamId || item.team_id === sameTeamId);
+      if (!row) return [{ affectedRows: 0 }];
+      row.status = "draft";
+      row.submitted_at = null;
+      row.reviewed_by = "";
+      row.reviewed_at = null;
+      row.review_note = "";
+      row.updated_at = "2026-01-01T00:00:20.000Z";
+      return [{ affectedRows: 1 }];
+    }
+
     if (compactSql.startsWith("update works set status")) {
       const [status, reviewedBy, reviewedAt, reviewNote, teamId, sameTeamId] = params;
       const row = this.rows.find((item) => item.id === teamId || item.team_id === sameTeamId);
@@ -124,10 +137,14 @@ test("MySQL works repository preserves submit, list, detail, and review status c
     stack: "LLM / Workflow",
     screenshots: ["screen-a.png"],
     submittedBy: "u2",
+    submittedAt: "2026-06-26T02:03:58.147Z",
   });
   assert.equal(submitted.accepted, true);
   assert.equal(submitted.work.status, "submitted");
   assert.deepEqual(submitted.work.stack, ["LLM", "Workflow"]);
+  const insertCall = pool.calls.find((call) => call.sql.includes("INSERT INTO works"));
+  assert.equal(insertCall.params[12], "2026-06-26 02:03:58");
+  assert.doesNotMatch(insertCall.params[12], /[TZ]/);
 
   const detail = await repository.getWork("marketing");
   assert.equal(detail.project, "全域内容生成引擎");
@@ -142,6 +159,22 @@ test("MySQL works repository preserves submit, list, detail, and review status c
   assert.equal(reviewed.work.status, "published");
   assert.equal(reviewed.work.reviewedBy, "admin-a");
   assert.equal(reviewed.work.reviewNote, "可以展示");
+  const updateCall = pool.calls.find((call) => call.sql.includes("UPDATE works SET"));
+  assert.match(updateCall.params[2], /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+  assert.doesNotMatch(updateCall.params[2], /[TZ]/);
+
+  const withdrawn = await repository.withdrawWork({ teamId: "marketing" });
+  assert.equal(withdrawn.accepted, true);
+  assert.equal(withdrawn.work.status, "draft");
+  assert.equal(withdrawn.work.project, "全域内容生成引擎");
+  assert.equal(withdrawn.work.submittedAt, null);
+  assert.equal(withdrawn.work.reviewedBy, "");
+
+  const withdrawCall = pool.calls.find((call) => call.sql.includes("status = 'draft'"));
+  assert.deepEqual(withdrawCall.params, ["marketing", "marketing"]);
+  const publishedAfterWithdraw = await repository.listWorks({ status: "published" });
+  assert.equal(publishedAfterWithdraw.length, 1);
+  assert.equal(publishedAfterWithdraw[0].teamId, "pharma");
 });
 
 test("repository factory wires the MySQL works repository", async () => {
@@ -153,4 +186,5 @@ test("repository factory wires the MySQL works repository", async () => {
 
   assert.equal(bundle.dataBackend, "mysql");
   assert.equal(typeof bundle.worksRepository.submitWork, "function");
+  assert.equal(typeof bundle.worksRepository.withdrawWork, "function");
 });

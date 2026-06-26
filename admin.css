@@ -654,13 +654,15 @@ button {
 
 .admin-data-management-layout {
   width: 100%;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
   align-items: start;
   gap: 20px;
 }
 
 .admin-data-management-layout > .admin-wide-panel,
 .admin-data-management-layout .admin-vote-management-stack,
+.admin-data-management-layout .admin-work-management-stack,
+.admin-data-management-layout .admin-work-management-stack > .admin-wide-panel,
 .admin-data-management-layout .admin-vote-management-stack > .admin-wide-panel {
   min-width: 0;
 }
@@ -673,6 +675,17 @@ button {
   grid-column: 1;
   gap: 18px;
   align-content: start;
+}
+
+.admin-data-management-layout .admin-work-management-stack {
+  grid-column: 2;
+  gap: 18px;
+  align-content: start;
+}
+
+.admin-data-management-layout .admin-result-snapshot-panel {
+  justify-self: stretch;
+  width: 100%;
 }
 
 .admin-data-management-layout .admin-vote-window-manager {
@@ -694,7 +707,6 @@ button {
 }
 
 .admin-data-management-layout .admin-work-review-panel {
-  grid-column: 2;
   min-height: clamp(420px, calc(100vh - 330px), 620px);
 }
 
@@ -1122,14 +1134,15 @@ button {
 .admin-business-scenario-form {
   display: grid;
   flex: 1;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-auto-rows: minmax(58px, auto);
-  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 12px;
   min-height: 0;
   overflow: auto;
+  scrollbar-gutter: stable;
   border: 1px solid rgba(103, 255, 213, 0.14);
   border-radius: var(--radius);
-  padding: 16px;
+  padding: 14px;
   background: rgba(2, 13, 20, 0.5);
 }
 
@@ -1140,6 +1153,7 @@ button {
   min-width: 0;
   color: var(--text-soft);
   font-size: 12px;
+  line-height: 1.35;
 }
 
 .admin-business-scenario-form input,
@@ -1160,13 +1174,13 @@ button {
 }
 
 .admin-business-scenario-form textarea {
-  min-height: 66px;
+  height: 104px;
+  min-height: 88px;
+  max-height: 104px;
+  line-height: 1.45;
   padding: 10px;
-  resize: vertical;
-}
-
-.admin-business-scenario-form label:nth-child(2) {
-  grid-column: span 3;
+  overflow: auto;
+  resize: none;
 }
 
 .admin-business-scenario-form input:focus,
@@ -1178,11 +1192,12 @@ button {
 }
 
 .admin-business-scenario-field-wide {
-  grid-column: 1 / -1;
+  grid-column: auto;
 }
 
 .admin-business-scenario-actions {
   display: flex;
+  grid-column: 1 / -1;
   justify-content: flex-end;
   gap: 10px;
 }
@@ -2070,7 +2085,8 @@ button {
   overflow: hidden;
 }
 
-.admin-vote-management-stack {
+.admin-vote-management-stack,
+.admin-work-management-stack {
   display: grid;
   align-content: start;
   gap: 12px;
@@ -3341,6 +3357,7 @@ button {
   }
 
   .admin-data-management-layout .admin-vote-management-stack,
+  .admin-data-management-layout .admin-work-management-stack,
   .admin-data-management-layout .admin-work-review-panel {
     grid-column: 1;
   }
@@ -3370,6 +3387,7 @@ button {
   }
 
   .admin-data-management-layout .admin-vote-window-manager,
+  .admin-data-management-layout .admin-work-management-stack,
   .admin-data-management-layout .admin-work-review-panel {
     min-height: 0;
   }
@@ -3463,6 +3481,10 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .admin-business-scenario-field-wide {
+    grid-column: 1 / -1;
+  }
+
   .admin-dashboard-card.is-wide {
     grid-column: auto;
   }
@@ -3521,6 +3543,12 @@ button {
 
   .admin-ops-panel .admin-result-snapshot-panel {
     max-height: 164px;
+  }
+}
+
+@media (min-width: 1101px) and (max-width: 1280px) {
+  .admin-data-management-layout {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
   }
 }
 

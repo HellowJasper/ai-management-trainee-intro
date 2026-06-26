@@ -131,7 +131,7 @@ function createSiteBootstrapTestRepositories(overrides = {}) {
               id: "work-marketing",
               teamId: "marketing",
               project: "智能客户洞察平台",
-              status: "approved",
+              status: "published",
             },
           ],
         };
@@ -244,6 +244,34 @@ test("admin trainee asset upload saves local images under the public assets fold
   assert.deepEqual(savedFile, Buffer.from("iVBORw0KGgo=", "base64"));
 });
 
+test("work screenshot upload saves local images under the public work assets folder", async (t) => {
+  const publicRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-work-upload-assets-"));
+  const server = createServer({ publicRoot });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/work-assets`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      teamId: "pharmaceuticals",
+      filename: "展示截图.png",
+      dataUrl: "data:image/png;base64,iVBORw0KGgo=",
+    }),
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 201);
+  assert.match(payload.path, /^\.\/assets\/uploads\/works\/pharmaceuticals\/screenshot-\d+-image\.png$/);
+
+  const savedPath = path.join(publicRoot, payload.path.replace(/^\.\//, ""));
+  const savedFile = await fs.readFile(savedPath);
+  assert.deepEqual(savedFile, Buffer.from("iVBORw0KGgo=", "base64"));
+});
+
 test("API responses allow the separated frontend origin with credentials", async (t) => {
   const server = createServer({ publicRoot: await fs.mkdtemp(path.join(os.tmpdir(), "ai-cors-")) });
   const baseUrl = await listen(server);
@@ -312,6 +340,159 @@ test("site bootstrap API composes public audience state from backend repositorie
 
   assert.equal(teamsResponse.status, 200);
   assert.equal(teams[0].id, "marketing");
+});
+
+test("site bootstrap API hides unpublished work from non-admin and non-owning player sessions", async (t) => {
+  const publicRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-site-work-visibility-"));
+  const sessionFile = await createTempJsonFile("ai-site-work-visibility-auth-", "sessions.json", { sessions: {} });
+  const authSessionRepository = createAuthSessionRepository(sessionFile.dataPath);
+  const server = createServer({
+    publicRoot,
+    ...createSiteBootstrapTestRepositories({
+      authSessionRepository,
+      teamRepository: {
+        async listTeams() {
+          return [
+            {
+              id: "marketing",
+              index: "03",
+              name: "营销",
+              members: [{ userId: "player-001", name: "营销选手" }],
+            },
+            {
+              id: "clinical",
+              index: "02",
+              name: "临床研发",
+              members: [{ userId: "player-002", name: "临床选手" }],
+            },
+            {
+              id: "production",
+              index: "05",
+              name: "生产",
+              members: [],
+            },
+          ];
+        },
+      },
+      worksRepository: {
+        async listWorks() {
+          return {
+            works: [
+              {
+                id: "work-marketing",
+                teamId: "marketing",
+                project: "待审核营销智能体",
+                status: "submitted",
+              },
+              {
+                id: "work-clinical",
+                teamId: "clinical",
+                project: "审核中临床数据助手",
+                status: "reviewing",
+              },
+              {
+                id: "work-production",
+                teamId: "production",
+                project: "已发布生产质检平台",
+                status: "published",
+              },
+            ],
+          };
+        },
+      },
+    }),
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  async function loadWorkProjects(cookie = "") {
+    const response = await fetch(`${baseUrl}/api/site/bootstrap`, cookie ? { headers: { Cookie: cookie } } : {});
+    const payload = await response.json();
+    assert.equal(response.status, 200);
+    return payload.works.map((work) => work.project).sort();
+  }
+
+  assert.deepEqual(await loadWorkProjects(), ["已发布生产质检平台"]);
+
+  const judgeCookie = await loginAs(baseUrl, "judge", { userId: "judge-001", name: "专家评委" });
+  assert.deepEqual(await loadWorkProjects(judgeCookie), ["已发布生产质检平台"]);
+
+  const marketingPlayerCookie = await loginAs(baseUrl, "player", { userId: "player-001", name: "营销选手" });
+  assert.deepEqual(await loadWorkProjects(marketingPlayerCookie), [
+    "已发布生产质检平台",
+    "待审核营销智能体",
+  ]);
+
+  const clinicalPlayerCookie = await loginAs(baseUrl, "player", { userId: "player-002", name: "临床选手" });
+  assert.deepEqual(await loadWorkProjects(clinicalPlayerCookie), [
+    "审核中临床数据助手",
+    "已发布生产质检平台",
+  ]);
+
+  const adminCookie = await loginAs(baseUrl, "admin", { userId: "admin-001", name: "管理员" });
+  assert.deepEqual(await loadWorkProjects(adminCookie), [
+    "审核中临床数据助手",
+    "已发布生产质检平台",
+    "待审核营销智能体",
+  ]);
+});
+
+test("works API applies the same unpublished work visibility boundary", async (t) => {
+  const publicRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-works-visibility-"));
+  const sessionFile = await createTempJsonFile("ai-works-visibility-auth-", "sessions.json", { sessions: {} });
+  const authSessionRepository = createAuthSessionRepository(sessionFile.dataPath);
+  const server = createServer({
+    publicRoot,
+    ...createSiteBootstrapTestRepositories({
+      authSessionRepository,
+      teamRepository: {
+        async listTeams() {
+          return [
+            { id: "marketing", name: "营销", members: [{ userId: "player-001", name: "营销选手" }] },
+            { id: "clinical", name: "临床研发", members: [{ userId: "player-002", name: "临床选手" }] },
+            { id: "production", name: "生产", members: [] },
+          ];
+        },
+      },
+      worksRepository: {
+        async listWorks({ status } = {}) {
+          const works = [
+            { id: "work-marketing", teamId: "marketing", project: "待审核营销智能体", status: "submitted" },
+            { id: "work-clinical", teamId: "clinical", project: "审核中临床数据助手", status: "reviewing" },
+            { id: "work-production", teamId: "production", project: "已发布生产质检平台", status: "published" },
+          ];
+          return status ? works.filter((work) => work.status === status) : works;
+        },
+      },
+    }),
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  async function loadWorkProjects(cookie = "", query = "") {
+    const response = await fetch(`${baseUrl}/api/works${query}`, cookie ? { headers: { Cookie: cookie } } : {});
+    const payload = await response.json();
+    assert.equal(response.status, 200);
+    return payload.map((work) => work.project).sort();
+  }
+
+  assert.deepEqual(await loadWorkProjects(), ["已发布生产质检平台"]);
+  assert.deepEqual(await loadWorkProjects("", "?status=submitted"), []);
+
+  const judgeCookie = await loginAs(baseUrl, "judge", { userId: "judge-001", name: "专家评委" });
+  assert.deepEqual(await loadWorkProjects(judgeCookie), ["已发布生产质检平台"]);
+
+  const marketingPlayerCookie = await loginAs(baseUrl, "player", { userId: "player-001", name: "营销选手" });
+  assert.deepEqual(await loadWorkProjects(marketingPlayerCookie, "?status=submitted"), ["待审核营销智能体"]);
+
+  const adminCookie = await loginAs(baseUrl, "admin", { userId: "admin-001", name: "管理员" });
+  assert.deepEqual(await loadWorkProjects(adminCookie), [
+    "审核中临床数据助手",
+    "已发布生产质检平台",
+    "待审核营销智能体",
+  ]);
 });
 
 test("site bootstrap API resolves the logged-in audience vote from the session user", async (t) => {
@@ -1972,6 +2153,107 @@ test("work APIs persist submissions and admin review status", async (t) => {
   assert.equal(stored.works[0].status, "published");
 });
 
+test("work submissions can be updated and withdrawn before publication", async (t) => {
+  const { dataPath, publicRoot } = await createTempJsonFile("ai-works-withdraw-", "works.json", {
+    works: [],
+  });
+  const auditFile = await createTempJsonFile("ai-work-withdraw-audit-", "audit-logs.json", {
+    logs: [],
+  });
+  const worksRepository = createWorksRepository(dataPath);
+  const auditLogRepository = createAuditLogRepository(auditFile.dataPath);
+  const server = createServer({ publicRoot, worksRepository, auditLogRepository });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const submitFirstResponse = await fetch(`${baseUrl}/api/work/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      teamId: "marketing",
+      teamName: "营销",
+      project: "初版作品",
+      pitch: "第一版介绍",
+    }),
+  });
+  assert.equal(submitFirstResponse.status, 201);
+
+  const submitSecondResponse = await fetch(`${baseUrl}/api/work/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      teamId: "marketing",
+      teamName: "营销",
+      project: "更新后的作品",
+      pitch: "第二版介绍",
+    }),
+  });
+  const updated = await submitSecondResponse.json();
+  assert.equal(submitSecondResponse.status, 201);
+  assert.equal(updated.work.status, "submitted");
+  assert.equal(updated.work.project, "更新后的作品");
+
+  const publishedBeforeReviewResponse = await fetch(`${baseUrl}/api/works?status=published`);
+  const publishedBeforeReview = await publishedBeforeReviewResponse.json();
+  assert.deepEqual(publishedBeforeReview, []);
+
+  const withdrawResponse = await fetch(`${baseUrl}/api/work/withdraw`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ teamId: "marketing" }),
+  });
+  const withdrawn = await withdrawResponse.json();
+  assert.equal(withdrawResponse.status, 200);
+  assert.equal(withdrawn.work.status, "draft");
+  assert.equal(withdrawn.work.project, "更新后的作品");
+  assert.equal(withdrawn.work.submittedAt, null);
+
+  const submittedAfterWithdrawResponse = await fetch(`${baseUrl}/api/works?status=submitted`);
+  const submittedAfterWithdraw = await submittedAfterWithdrawResponse.json();
+  assert.deepEqual(submittedAfterWithdraw, []);
+
+  const resubmitResponse = await fetch(`${baseUrl}/api/work/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      teamId: "marketing",
+      teamName: "营销",
+      project: "最终提交作品",
+      pitch: "最终版介绍",
+    }),
+  });
+  assert.equal(resubmitResponse.status, 201);
+
+  const reviewResponse = await fetch(`${baseUrl}/api/admin/works/marketing/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      status: "published",
+      reviewerId: "admin-001",
+    }),
+  });
+  assert.equal(reviewResponse.status, 200);
+
+  const publishedAfterReviewResponse = await fetch(`${baseUrl}/api/works?status=published`);
+  const publishedAfterReview = await publishedAfterReviewResponse.json();
+  assert.equal(publishedAfterReview.length, 1);
+  assert.equal(publishedAfterReview[0].project, "最终提交作品");
+
+  const withdrawPublishedResponse = await fetch(`${baseUrl}/api/work/withdraw`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ teamId: "marketing" }),
+  });
+  const withdrawPublished = await withdrawPublishedResponse.json();
+  assert.equal(withdrawPublishedResponse.status, 200);
+  assert.equal(withdrawPublished.work.status, "draft");
+
+  const publishedAfterWithdrawResponse = await fetch(`${baseUrl}/api/works?status=published`);
+  const publishedAfterWithdraw = await publishedAfterWithdrawResponse.json();
+  assert.deepEqual(publishedAfterWithdraw, []);
+});
+
 test("audit log API records backend write events", async (t) => {
   const { dataPath, publicRoot } = await createTempJsonFile("ai-audit-", "audit-logs.json", {
     logs: [],
@@ -2181,7 +2463,7 @@ test("admin / screen / big-screen pages require an admin session", async (t) => 
   assert.match(response.headers.get("content-type"), /text\/html/);
   assert.match(html, /AI 星锐黑客松 管理后台/);
   assert.match(html, /id="stageRows"/);
-  assert.match(html, /src="\.\/src\/admin\.js\?v=20260625-time-sync"/);
+  assert.match(html, /src="\.\/src\/admin\.js\?v=20260626-work-review-actions"/);
 });
 
 test("root serves the user site for everyone; big screen stays admin-only", async (t) => {

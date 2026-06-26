@@ -518,11 +518,19 @@ test("admin data workspace keeps vote and work panels in a dedicated responsive 
 
   assert.match(html, /class="management-split admin-data-management-layout"/);
   assert.match(html, /class="panel admin-wide-panel admin-work-review-panel"/);
+  assert.match(html, /class="admin-work-management-stack"/);
+  assert.match(html, /class="admin-work-management-stack"[\s\S]*class="panel admin-wide-panel admin-work-review-panel"[\s\S]*id="adminResultSnapshotPanel"/);
+  const voteStackMatch = html.match(/<div class="admin-vote-management-stack">([\s\S]*?)<\/div>\s*<div class="admin-work-management-stack">/);
+  assert.ok(voteStackMatch);
+  assert.doesNotMatch(voteStackMatch[1], /adminResultSnapshotPanel/);
   assert.match(css, /\.admin-management-view\[data-admin-view-panel="data"\]\s*{[\s\S]*grid-template-rows:\s*auto auto;[\s\S]*height:\s*auto;/);
-  assert.match(css, /\.admin-data-management-layout\s*{[\s\S]*grid-template-columns:\s*minmax\(0,\s*0\.95fr\) minmax\(0,\s*1\.05fr\);[\s\S]*width:\s*100%;[\s\S]*align-items:\s*start;/);
+  assert.match(css, /\.admin-data-management-layout\s*{[\s\S]*grid-template-columns:\s*minmax\(0,\s*0\.8fr\) minmax\(0,\s*1\.2fr\);[\s\S]*width:\s*100%;[\s\S]*align-items:\s*start;/);
   assert.match(css, /\.admin-data-management-layout \.admin-vote-management-stack\s*{[\s\S]*grid-column:\s*1;[\s\S]*gap:\s*18px;/);
-  assert.match(css, /\.admin-data-management-layout \.admin-work-review-panel\s*{[\s\S]*grid-column:\s*2;/);
+  assert.match(css, /\.admin-data-management-layout \.admin-work-management-stack\s*{[\s\S]*grid-column:\s*2;[\s\S]*gap:\s*18px;/);
+  assert.match(css, /\.admin-data-management-layout \.admin-result-snapshot-panel\s*{[\s\S]*justify-self:\s*stretch;[\s\S]*width:\s*100%;/);
+  assert.match(css, /\.admin-result-snapshot-card\s*{[\s\S]*repeat\(auto-fit,\s*minmax\(min\(150px,\s*100%\),\s*1fr\)\)/);
   assert.match(css, /\.admin-data-management-layout \.admin-vote-window-body\s*{[\s\S]*min-height:\s*156px;/);
+  assert.match(css, /@media \(min-width:\s*1101px\) and \(max-width:\s*1280px\)[\s\S]*\.admin-data-management-layout\s*{[\s\S]*grid-template-columns:\s*minmax\(0,\s*0\.8fr\) minmax\(0,\s*1\.2fr\);/);
   assert.match(css, /@media \(max-width:\s*1100px\)[\s\S]*\.admin-data-management-layout\s*{[\s\S]*grid-template-columns:\s*1fr;/);
   assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*\.admin-data-management-layout \.admin-vote-window-body\s*{[\s\S]*grid-template-columns:\s*1fr;/);
 });
@@ -683,6 +691,19 @@ test("official site refreshes bootstrap data so newly added trainees appear", ()
   assert.match(siteJs, /refreshCurrentView\(\{ preserveScroll: true \}\)/);
 });
 
+test("official site polling preserves active work submission edits", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /const WORK_DRAFT_KEY = "joincare_hackathon_work_field_drafts_v1"/);
+  assert.match(siteJs, /function isEditingWorkSubmission\(\)/);
+  assert.match(siteJs, /function persistWorkFieldDraft\(input\)/);
+  assert.match(siteJs, /function clearWorkDraft\(teamId\)/);
+  assert.match(siteJs, /if \(isEditingWorkSubmission\(\)\) \{[\s\S]*?return;[\s\S]*?\}/);
+  assert.match(siteJs, /if \(workField\) \{[\s\S]*?persistWorkFieldDraft\(workField\);[\s\S]*?updateWorkPreview\(workField\);[\s\S]*?\}/);
+  assert.match(siteJs, /const draft = getWorkDraft\(team\.id\);[\s\S]*?\.\.\.getWorkSubmission\(team\),[\s\S]*?\.\.\.draft,/);
+  assert.match(siteJs, /clearWorkDraft\(team\.id\);[\s\S]*?await loadSiteState\(\);/);
+});
+
 test("official site bootstrap signature tracks all backend-owned mobile data", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const signatureStart = siteJs.indexOf("function createSiteStateSignature(state = SITE_STATE)");
@@ -720,8 +741,25 @@ test("official site result page polling only rerenders for visible leaderboard c
   assert.match(visibleSignatureBody, /currentViewKey === "result"/);
   assert.match(visibleSignatureBody, /createResultViewSignature\(state\)/);
   assert.match(resultSignatureBody, /normalizeList\(snapshot\?\.results\)\.map/);
+  assert.match(resultSignatureBody, /item\.totalScore\s*\?\?\s*item\.total\s*\?\?\s*item\.score/);
+  assert.match(resultSignatureBody, /item\.expertScore\s*\?\?\s*item\.expert\s*\?\?\s*item\.expertAverage/);
+  assert.match(resultSignatureBody, /item\.votePoints\s*\?\?\s*item\.votePoint\s*\?\?\s*item\.voteScore/);
   assert.doesNotMatch(resultSignatureBody, /snapshot:\s*result\.snapshot/);
   assert.match(siteJs, /const nextSignature = createVisibleSiteStateSignature\(state \|\| SITE_STATE\)/);
+});
+
+test("official site result ranking reads published snapshot score field names", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const rankingStart = siteJs.indexOf("function computeSiteRanking()");
+  const rankingEnd = siteJs.indexOf("\n  function applySiteState", rankingStart);
+
+  assert.notEqual(rankingStart, -1, "computeSiteRanking should exist");
+  assert.ok(rankingEnd > rankingStart, "computeSiteRanking should end before applySiteState");
+
+  const rankingBody = siteJs.slice(rankingStart, rankingEnd);
+  assert.match(rankingBody, /total:\s*toNumber\(result\.totalScore\s*\?\?\s*result\.total\s*\?\?\s*result\.score,\s*0\)/);
+  assert.match(rankingBody, /expert:\s*toNumber\(result\.expertScore\s*\?\?\s*result\.expert\s*\?\?\s*result\.expertAverage,\s*team\.expert\s*\|\|\s*0\)/);
+  assert.match(rankingBody, /votePoint:\s*toNumber\(result\.votePoints\s*\?\?\s*result\.votePoint\s*\?\?\s*result\.voteScore,\s*0\)/);
 });
 
 test("official site schedule status reads the synchronized backend stage timer", () => {
@@ -819,7 +857,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260625-team-subcopy-restore/);
+  assert.match(siteHtml, /site\.js\?v=20260626-work-preview-fit/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -836,15 +874,53 @@ test("official site lets users leave teams and cancel their vote", () => {
   assert.match(siteCss, /\.btn-primary\.is-cancel/);
 });
 
+test("official site write actions surface backend errors and refresh action state", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /async function refreshActionState\(\{ render = false \} = \{\}\)/);
+  assert.match(siteJs, /await loadSiteState\(\);[\s\S]*?refreshRoleChrome\(\);/);
+  assert.match(siteJs, /if \(render\) refreshCurrentView\(\{ preserveScroll: true \}\)/);
+  assert.match(siteJs, /function getVoteActionErrorMessage\(error, actionLabel\)/);
+  assert.match(siteJs, /Required permission: canVote/);
+  assert.match(siteJs, /voted for/);
+  assert.match(siteJs, /function getTeamActionErrorMessage\(error, actionLabel\)/);
+  assert.match(siteJs, /Required permission: canJoinTeam/);
+  assert.match(siteJs, /toast\(getVoteActionErrorMessage\(e, "投票"\)\)/);
+  assert.match(siteJs, /toast\(getVoteActionErrorMessage\(e, "取消投票"\)\)/);
+  assert.match(siteJs, /toast\(getTeamActionErrorMessage\(e, "加入队伍"\)\)/);
+  assert.match(siteJs, /toast\(getTeamActionErrorMessage\(e, "退出队伍"\)\)/);
+  assert.match(siteJs, /await refreshActionState\(\);[\s\S]*?await SiteRoleApi\.castVote\(id\);[\s\S]*?await refreshActionState\(\{ render: true \}\);/);
+  assert.match(siteJs, /await refreshActionState\(\);[\s\S]*?await SiteRoleApi\.cancelVote\(team\.id\);[\s\S]*?await refreshActionState\(\{ render: true \}\);/);
+  assert.match(siteJs, /await refreshActionState\(\);[\s\S]*?await SiteRoleApi\.joinTeam\(id\);[\s\S]*?await refreshActionState\(\{ render: true \}\);/);
+  assert.match(siteJs, /await refreshActionState\(\);[\s\S]*?await SiteRoleApi\.leaveTeam\(team\.id\);[\s\S]*?await refreshActionState\(\{ render: true \}\);/);
+});
+
+test("official site disables vote actions while the vote window is closed", () => {
+  const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteHtml, /site\.js\?v=20260626-work-preview-fit/);
+  assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
+  assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
+  assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
+  assert.match(siteJs, /投票窗口当前未开启，请等待管理员开启投票/);
+  assert.match(siteJs, /Vote window is not open/);
+  assert.match(siteJs, /\/vote window\|voting window\/i/);
+  assert.match(siteJs, /if \(!isVoteWindowOpen\(\)\) \{[\s\S]*?toast\("投票窗口当前未开启，无法完成投票操作"\);[\s\S]*?return;[\s\S]*?\}[\s\S]*?await SiteRoleApi\.castVote\(id\);/);
+  assert.match(siteJs, /if \(!isVoteWindowOpen\(\)\) \{[\s\S]*?toast\("投票窗口当前未开启，无法完成投票操作"\);[\s\S]*?return;[\s\S]*?\}[\s\S]*?await SiteRoleApi\.cancelVote\(team\.id\);/);
+  assert.match(siteJs, /voteWindowOpen\s*\?\s*`<button class="gl2-vote is-voted is-cancel"/);
+  assert.match(siteJs, /voteWindowOpen\s*\?\s*`<button class="btn-primary is-cancel"/);
+});
+
 test("gallery page presents innovation showcase copy and non-redundant work card hierarchy", () => {
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.css\?v=20260625-gallery-heading-unify/);
-  assert.match(siteHtml, /site\.js\?v=20260625-team-subcopy-restore/);
+  assert.match(siteHtml, /site\.css\?v=20260626-work-preview-fit/);
+  assert.match(siteHtml, /site\.js\?v=20260626-work-preview-fit/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
-  assert.match(siteJs, /浏览五大战队作品，选出你最认可的解决方案，并投出关键一票。/);
+  assert.match(siteJs, /浏览已审核发布的队伍作品，选出你最认可的解决方案，并投出关键一票。/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
   assert.match(siteJs, /class="gl2-cover-name">\$\{esc\(t\.name\)\}<\/h3>/);
   assert.match(siteJs, /<b class="gl2-project-name">\$\{esc\(t\.project\)\}<\/b>/);
@@ -854,6 +930,15 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   assert.doesNotMatch(siteCss, /font-size:\s*clamp\(38px,\s*4\.7vw,\s*78px\)/);
   assert.doesNotMatch(siteCss, /font-size:\s*clamp\(22px,\s*2vw,\s*34px\)/);
   assert.match(siteCss, /\.gl2-h \.gl2-project-name\s*\{[\s\S]*font-size:\s*clamp\(24px,\s*2\.3vw,\s*36px\)/);
+});
+
+test("gallery only exposes admin published works", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /function isPublishedWorkTeam\(team\)/);
+  assert.match(siteJs, /const publishedTeams = D\.teams\.filter\(isPublishedWorkTeam\)/);
+  assert.match(siteJs, /const cards = publishedTeams\.map\(\(t\) =>/);
+  assert.match(siteJs, /if \(!isPublishedWorkTeam\(t\)\) return renderGallery\(\);/);
 });
 
 test("official site regular page headers match the talent profile title scale", () => {
@@ -1054,6 +1139,7 @@ test("team cards route into a dedicated team workspace page", () => {
 test("team workspace fields align with the public gallery work details", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
 
   assert.match(siteJs, /作品展厅只展示/);
   assert.match(siteJs, /作品标题/);
@@ -1061,10 +1147,49 @@ test("team workspace fields align with the public gallery work details", () => {
   assert.match(siteJs, /Demo 链接/);
   assert.match(siteJs, /代码地址/);
   assert.match(siteJs, /展示截图/);
+  assert.match(siteJs, /data-work-screenshot-picker/);
+  assert.match(siteJs, /data-work-screenshot-input/);
+  assert.match(siteJs, /type="file"[^>]*accept="image\/\*"/);
+  assert.match(siteJs, /class="workspace-shot-add"/);
+  assert.match(siteJs, /class="workspace-preview-empty"/);
+  assert.match(siteJs, /上传截图后将在这里预览/);
+  assert.match(siteJs, /window\.AppData\.uploadWorkAsset/);
   assert.match(siteJs, /发布预览/);
   assert.match(siteJs, /data-work-field/);
+  assert.match(dataJs, /async function uploadWorkAsset/);
+  assert.match(dataJs, /\/api\/work-assets/);
+  assert.match(dataJs, /uploadWorkAsset,/);
   assert.match(siteCss, /\.workspace-form/);
   assert.match(siteCss, /\.workspace-preview/);
+  assert.match(siteCss, /\.workspace-shot-picker/);
+  assert.match(siteCss, /\.workspace-shot-add/);
+  assert.match(siteCss, /\.workspace-shot-thumb/);
+  assert.match(siteCss, /\.workspace-preview-shots \.workspace-preview-shot/);
+  assert.match(siteCss, /aspect-ratio: 16 \/ 9/);
+  assert.match(siteCss, /grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*150px\),\s*1fr\)\)/);
+  assert.match(siteCss, /min-height:\s*clamp\(96px,\s*14vw,\s*172px\)/);
+  assert.match(siteCss, /object-fit:\s*contain/);
+  assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.workspace-preview-shots \.workspace-preview-shot\s*{[\s\S]*min-height:\s*clamp\(160px,\s*54vw,\s*260px\)/);
+  assert.match(siteCss, /\.workspace-preview-shots \.workspace-preview-empty/);
+});
+
+test("team workspace screenshot upload accepts image files without browser MIME metadata", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /const WORK_SCREENSHOT_MAX_BYTES = 8 \* 1024 \* 1024/);
+  assert.match(siteJs, /function isImageFile\(file\)/);
+  assert.match(siteJs, /file\?\.type/);
+  assert.match(siteJs, /file\?\.name/);
+  assert.match(siteJs, /png\|jpe\?g\|webp\|gif/);
+  assert.match(siteJs, /filter\(isImageFile\)/);
+  assert.match(siteJs, /function normalizeImageDataUrl\(dataUrl, file\)/);
+  assert.match(siteJs, /normalizeImageDataUrl\(await readFileAsDataUrl\(file\), file\)/);
+  assert.match(siteJs, /function getWorkScreenshotUploadErrorMessage\(error\)/);
+  assert.match(siteJs, /Image file is too large\./);
+  assert.match(siteJs, /Request body is too large\./);
+  assert.match(siteJs, /图片过大，请压缩到 8MB 以内后再上传/);
+  assert.match(siteJs, /file\.size > WORK_SCREENSHOT_MAX_BYTES/);
+  assert.match(siteJs, /toast\(getWorkScreenshotUploadErrorMessage\(error\)\)/);
 });
 
 test("team workspace is private to the joined player team", () => {
@@ -1082,9 +1207,9 @@ test("player workflow uses backend state instead of local team fallback", () => 
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
   assert.match(siteJs, /const joinedTeam = \(\) => \(SITE_STATE && SITE_STATE\.me && SITE_STATE\.me\.teamId\) \|\| ""/);
-  assert.match(siteJs, /await SiteRoleApi\.joinTeam\(id\);\s*await loadSiteState\(\);/s);
-  assert.match(siteJs, /await SiteRoleApi\.leaveTeam\(team\.id\);\s*await loadSiteState\(\);/s);
-  assert.match(siteJs, /await SiteRoleApi\.submitWork\(\{[\s\S]*?teamId: team\.id,[\s\S]*?\}\);\s*await loadSiteState\(\);/);
+  assert.match(siteJs, /await SiteRoleApi\.joinTeam\(id\);\s*await refreshActionState\(\{ render: true \}\);/s);
+  assert.match(siteJs, /await SiteRoleApi\.leaveTeam\(team\.id\);\s*await refreshActionState\(\{ render: true \}\);/s);
+  assert.match(siteJs, /await SiteRoleApi\.submitWork\(\{[\s\S]*?teamId: team\.id,[\s\S]*?\}\);\s*clearWorkDraft\(team\.id\);\s*await refreshActionState\(\{ render: true \}\);/);
   assert.doesNotMatch(siteJs, /joincare_hackathon_team"/);
   assert.doesNotMatch(siteJs, /localStorage\.setItem\(TEAM_KEY/);
   assert.doesNotMatch(siteJs, /localStorage\.removeItem\(TEAM_KEY/);
@@ -1095,12 +1220,39 @@ test("player workflow uses backend state instead of local team fallback", () => 
 test("player workspace uses submitted backend work instead of local draft metadata", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.doesNotMatch(siteJs, /WORK_DRAFT_KEY|TEAM_NAME_KEY|WORKSPACE_META_KEY/);
+  assert.doesNotMatch(siteJs, /TEAM_NAME_KEY|WORKSPACE_META_KEY/);
   assert.doesNotMatch(siteJs, /joincare_hackathon_work_drafts|joincare_hackathon_team_names|joincare_hackathon_workspace_meta/);
   assert.doesNotMatch(siteJs, /保存草稿|作品草稿/);
   assert.doesNotMatch(siteJs, /return meta\.leaderId/);
   assert.match(siteJs, /提交作品/);
-  assert.match(siteJs, /await SiteRoleApi\.submitWork\(\{[\s\S]*?teamId: team\.id,[\s\S]*?\}\);\s*await loadSiteState\(\);/);
+  assert.match(siteJs, /await SiteRoleApi\.submitWork\(\{[\s\S]*?teamId: team\.id,[\s\S]*?\}\);\s*clearWorkDraft\(team\.id\);\s*await refreshActionState\(\{ render: true \}\);/);
+});
+
+test("team workspace validates required title and surfaces submit API errors", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /function validateWorkSubmission\(submission\)/);
+  assert.match(siteJs, /请填写作品标题后再提交/);
+  assert.match(siteJs, /const validation = validateWorkSubmission\(submission\);[\s\S]*?if \(!validation\.valid\) \{[\s\S]*?toast\(validation\.message\);[\s\S]*?return;[\s\S]*?\}/);
+  assert.match(siteJs, /function getWorkSubmitErrorMessage\(error\)/);
+  assert.match(siteJs, /project is required\./);
+  assert.match(siteJs, /Required permission: canSubmitWork/);
+  assert.match(siteJs, /toast\(getWorkSubmitErrorMessage\(error\)\)/);
+});
+
+test("team workspace supports updating and withdrawing work submissions", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
+
+  assert.match(dataJs, /async function withdrawWork\(payload = \{\}\)/);
+  assert.match(dataJs, /withdrawWork,/);
+  assert.match(siteJs, /withdrawWork: \(payload\) => apiRequest\("\/api\/work\/withdraw"/);
+  assert.match(siteJs, /data-withdraw-work="\$\{team\.id\}"/);
+  assert.match(siteJs, /function getWorkSubmitActionLabel\(status\)/);
+  assert.match(siteJs, /if \(status === "submitted"\) return "更新提交";/);
+  assert.match(siteJs, /if \(status === "published"\) return "提交更新";/);
+  assert.match(siteJs, /async function withdrawTeamWork\(teamId\)/);
+  assert.match(siteJs, /toast\(`「\$\{submission\.teamName \|\| team\.name\}」作品已撤销提交`\)/);
 });
 
 test("team workspace uses backend leader identity for submission editing", () => {
@@ -1484,7 +1636,7 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260625-gallery-heading-unify/);
+  assert.match(html, /src\/site\.css\?v=20260626-work-preview-fit/);
   assert.match(siteCss, /--site-detail-console-width:\s*calc\(min\(80vw,\s*1260px\) - 24px\)/);
   assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*max\(3vw,\s*calc\(100dvw - var\(--site-detail-console-width\) - var\(--site-detail-card-width\) - 40px\)\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*auto/);
@@ -1678,9 +1830,9 @@ test("official site cache keys are bumped after navigation and detail layout pol
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
-  assert.match(html, /src\/site\.css\?v=20260625-gallery-heading-unify/);
+  assert.match(html, /src\/site\.css\?v=20260626-work-preview-fit/);
   assert.match(html, /src\/logic\.js\?v=20260624-nav-labels/);
-  assert.match(html, /src\/site\.js\?v=20260625-team-subcopy-restore/);
+  assert.match(html, /src\/site\.js\?v=20260626-work-preview-fit/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
@@ -1755,6 +1907,10 @@ test("admin console exposes backend data operations for teams, votes, works, and
   assert.match(adminJs, /function updateWorkReviewStatus/);
   assert.match(adminJs, /data-work-status/);
   assert.match(adminJs, /window\.AppData\.updateAdminWorkStatus/);
+  assert.match(adminJs, /async function updateWorkReviewStatus\(teamId, status, button\)/);
+  assert.match(adminJs, /setText\(adminWorkWorkspaceStatus, `正在\$\{actionText\}作品/);
+  assert.match(adminJs, /formatErrorStatus\("作品审核失败", error\)/);
+  assert.match(adminJs, /finally\s*\{[\s\S]*button\.disabled = false/);
   assert.match(css, /\.admin-work-actions/);
 });
 
@@ -1815,9 +1971,23 @@ test("admin content manager switches editing panels through an embedded subnav",
   assert.match(css, /\.admin-content-section\s*{[\s\S]*grid-row:\s*1 \/ -1/);
   assert.match(css, /\.admin-content-section\s*{[\s\S]*width:\s*100%/);
   assert.match(css, /\.admin-content-section\.is-active\s*{[\s\S]*display:\s*flex/);
-  assert.match(css, /\.admin-business-scenario-form\s*{[\s\S]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(css, /\.admin-business-scenario-form\s*{[\s\S]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(css, /\.admin-business-scenario-form\s*{[\s\S]*align-content:\s*start/);
+  assert.match(css, /\.admin-business-scenario-form\s*{[\s\S]*gap:\s*12px/);
+  assert.match(css, /\.admin-business-scenario-form\s*{[\s\S]*padding:\s*14px/);
+  assert.match(css, /\.admin-business-scenario-form\s*{[\s\S]*scrollbar-gutter:\s*stable/);
   assert.match(css, /\.admin-business-scenario-form\s*{[\s\S]*overflow:\s*auto/);
-  assert.match(css, /\.admin-business-scenario-form label:nth-child\(2\)\s*{[\s\S]*grid-column:\s*span 3/);
+  assert.doesNotMatch(css, /\.admin-business-scenario-form label:nth-child\(2\)\s*{[\s\S]*grid-column:\s*span 3/);
+  assert.match(css, /\.admin-business-scenario-form label\s*{[\s\S]*line-height:\s*1\.35/);
+  assert.match(css, /\.admin-business-scenario-field-wide\s*{[\s\S]*grid-column:\s*auto/);
+  assert.match(css, /\.admin-business-scenario-form textarea\s*{[\s\S]*min-height:\s*88px/);
+  assert.match(css, /\.admin-business-scenario-form textarea\s*{[\s\S]*line-height:\s*1\.45/);
+  assert.match(css, /\.admin-business-scenario-form textarea\s*{[\s\S]*height:\s*104px/);
+  assert.match(css, /\.admin-business-scenario-form textarea\s*{[\s\S]*max-height:\s*104px/);
+  assert.match(css, /\.admin-business-scenario-form textarea\s*{[\s\S]*resize:\s*none/);
+  assert.match(css, /\.admin-business-scenario-form textarea\s*{[\s\S]*overflow:\s*auto/);
+  assert.match(css, /\.admin-business-scenario-actions\s*{[\s\S]*grid-column:\s*1 \/ -1/);
+  assert.match(css, /@media \(max-width:\s*1280px\)[\s\S]*\.admin-business-scenario-field-wide\s*{[\s\S]*grid-column:\s*1 \/ -1/);
   assert.match(css, /\.admin-trainee-profile-form,\n\.admin-trainee-profile-list\s*{[\s\S]*height:\s*100%/);
   assert.match(css, /\.admin-content-route-grid\s*{[\s\S]*overflow:\s*auto/);
   assert.match(css, /@media \(max-width:\s*720px\)[\s\S]*\.admin-content-subnav\s*{[\s\S]*overflow-x:\s*auto/);
@@ -1958,6 +2128,7 @@ test("admin team roster controls backend track lock state", () => {
   assert.match(adminJs, /function updateAdminTeamStatus/);
   assert.match(adminJs, /window\.AppData\.updateAdminTeamStatus/);
   assert.match(adminJs, /data-team-status-command/);
+  assert.match(adminJs, /document\.addEventListener\("click", async \(event\) => \{[\s\S]*?data-team-status-command[\s\S]*?const \[teamId, status\] = String\(button\.dataset\.teamStatusCommand \|\| ""\)\.split\(":"\);[\s\S]*?await updateAdminTeamStatus\(teamId, status, button\);[\s\S]*?\}\);/);
   assert.match(adminJs, /开放组队/);
   assert.match(adminJs, /锁定组队/);
 });
@@ -2094,9 +2265,9 @@ test("admin and big screen cache keys stay current", () => {
   const adminHtml = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
   const indexHtml = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
 
-  assert.match(adminHtml, /admin\.css\?v=20260625-admin-scale-restore/);
+  assert.match(adminHtml, /admin\.css\?v=20260626-admin-scenario-profile-style/);
   assert.match(adminHtml, /src\/data\.js\?v=20260625-time-sync/);
-  assert.match(adminHtml, /src\/admin\.js\?v=20260625-time-sync/);
+  assert.match(adminHtml, /src\/admin\.js\?v=20260626-work-review-actions/);
   assert.match(indexHtml, /src\/data\.js\?v=20260625-time-sync/);
   assert.match(indexHtml, /src\/app\.js\?v=20260625-time-sync/);
 });

@@ -9,6 +9,7 @@
   const AppData = root.AppData || {};
   const Logic = root.AppLogic || {};
   const JUDGE_KEY = "joincare_hackathon_judge_scores";
+  const WORK_DRAFT_KEY = "joincare_hackathon_work_field_drafts_v1";
   const SCORE_DIMENSION_KEYS = ["innovation", "engineering", "business", "feasibility", "presentation"];
   const ROLE_KEY = "joincare_hackathon_role";
   const SESSION_KEY = "joincare_hackathon_session";
@@ -20,6 +21,8 @@
     { roleKey: "design", label: "产品设计", duty: "产品设计" },
     { roleKey: "roadshow", label: "路演运营", duty: "路演运营" },
   ];
+  const WORK_SCREENSHOT_LIMIT = 3;
+  const WORK_SCREENSHOT_MAX_BYTES = 8 * 1024 * 1024;
   const SITE_STATE_POLL_MS = 5000;
   let TRAINEES = [];
   let MOBILE_TRAINEE_INDEX = 0;
@@ -118,6 +121,7 @@
   const pad = (n) => String(n).padStart(2, "0");
   const fmtHMS = (s) => `${pad((s / 3600) | 0)}<i>:</i>${pad(((s % 3600) / 60) | 0)}<i>:</i>${pad(s % 60)}`;
   const votedTeam = () => (SITE_STATE && SITE_STATE.vote && SITE_STATE.vote.myVoteTeamId) || "";
+  const isVoteWindowOpen = () => ((SITE_STATE && SITE_STATE.vote && SITE_STATE.vote.status) || "") === "voting";
   const joinedTeam = () => (SITE_STATE && SITE_STATE.me && SITE_STATE.me.teamId) || "";
   function currentRole() { return root.localStorage.getItem(ROLE_KEY); }
   const roleName = (role) => Logic.getRoleLabel ? Logic.getRoleLabel(role) : ({ player: "参赛选手", judge: "专家评委", public: "大众评委", admin: "管理员" }[role] || "待鉴权");
@@ -166,6 +170,9 @@
   }
   function workForTeam(works, teamId) {
     return works.find((work) => String(work.teamId || work.id || "") === String(teamId || ""));
+  }
+  function isPublishedWorkTeam(team) {
+    return String(team?.work?.status || "").trim() === "published";
   }
   function voteForTeam(results, teamId) {
     return results.find((result) => String(result.id || result.teamId || "") === String(teamId || ""));
@@ -241,9 +248,9 @@
           ...result,
           id: result.id || result.teamId || team.id,
           rank: toNumber(result.rank, index + 1),
-          total: toNumber(result.total ?? result.score, 0),
-          expert: toNumber(result.expert ?? result.expertAverage, team.expert || 0),
-          votePoint: toNumber(result.votePoint ?? result.voteScore, 0),
+          total: toNumber(result.totalScore ?? result.total ?? result.score, 0),
+          expert: toNumber(result.expertScore ?? result.expert ?? result.expertAverage, team.expert || 0),
+          votePoint: toNumber(result.votePoints ?? result.votePoint ?? result.voteScore, 0),
         };
       });
     }
@@ -469,9 +476,9 @@
           item.track || item.trackName || "",
           item.project || "",
           item.rank || index + 1,
-          item.total ?? item.score ?? "",
-          item.expert ?? item.expertAverage ?? "",
-          item.votePoint ?? item.voteScore ?? "",
+          item.totalScore ?? item.total ?? item.score ?? "",
+          item.expertScore ?? item.expert ?? item.expertAverage ?? "",
+          item.votePoints ?? item.votePoint ?? item.voteScore ?? "",
           item.votes || 0,
           Boolean(item.isChampion),
         ]),
@@ -511,6 +518,9 @@
       }
 
       siteStateSignature = nextSignature;
+      if (isEditingWorkSubmission()) {
+        return;
+      }
       refreshCurrentView({ preserveScroll: true });
     } catch (error) {
       console.warn("Site state polling failed.", error);
@@ -605,6 +615,41 @@
     return response.status === 204 ? null : response.json();
   }
 
+  async function refreshActionState({ render = false } = {}) {
+    await loadSiteState();
+    refreshRoleChrome();
+    if (render) refreshCurrentView({ preserveScroll: true });
+  }
+
+  function getApiErrorMessage(error) {
+    return String((error && error.payload && error.payload.error && error.payload.error.message) || (error && error.message) || "").trim();
+  }
+
+  function formatBackendActionError(error, fallback) {
+    const message = getApiErrorMessage(error);
+    return message ? `${fallback}：${message}` : `${fallback}，请稍后重试`;
+  }
+
+  function getVoteActionErrorMessage(error, actionLabel) {
+    const message = getApiErrorMessage(error);
+    if (message.includes("Required permission: canVote")) return `当前账号没有投票权限，请切换为大众评委后再${actionLabel}`;
+    if (/already voted/i.test(message)) return "你已经投过票，请先取消当前投票后再重新选择";
+    if (message === "Vote window is not open." || /vote window|voting window/i.test(message)) return "投票窗口当前未开启，无法完成投票操作";
+    if (message.includes("voted for")) return "投票状态已更新，我已刷新页面，请按最新状态重新操作";
+    if (/teamId is required/i.test(message)) return "缺少队伍信息，请刷新页面后重试";
+    return formatBackendActionError(error, `${actionLabel}失败`);
+  }
+
+  function getTeamActionErrorMessage(error, actionLabel) {
+    const message = getApiErrorMessage(error);
+    if (message.includes("Required permission: canJoinTeam")) return `当前账号没有组队权限，请切换为参赛选手后再${actionLabel}`;
+    if (/already joined/i.test(message)) return "你已经加入队伍，请按最新状态操作";
+    if (/not joined/i.test(message)) return "当前没有可退出的队伍，我已刷新页面，请按最新状态操作";
+    if (/team is full/i.test(message)) return "这支队伍已满员，请选择其他队伍";
+    if (/teamId is required/i.test(message)) return "缺少队伍信息，请刷新页面后重试";
+    return formatBackendActionError(error, `${actionLabel}失败`);
+  }
+
   const SiteRoleApi = {
     getMe: () => apiRequest("/api/me"),
     getPermissions: () => apiRequest("/api/permissions"),
@@ -621,7 +666,13 @@
     saveJudgeDraft: (payload) => apiRequest("/api/judge/scores/draft", { method: "POST", body: JSON.stringify(payload || {}) }),
     saveJudgeScores: (scores) => apiRequest("/api/judge/scores/draft", { method: "POST", body: JSON.stringify({ scores }) }),
     submitJudgeScores: (payload) => apiRequest("/api/judge/scores/submit", { method: "POST", body: JSON.stringify(payload || {}) }),
+    uploadWorkAsset: (payload) => {
+      const upload = (typeof window !== "undefined" && window.AppData && window.AppData.uploadWorkAsset) || AppData.uploadWorkAsset;
+      if (typeof upload !== "function") throw new Error("Work asset upload API is unavailable.");
+      return upload(payload || {});
+    },
     submitWork: (payload) => apiRequest("/api/work/submit", { method: "POST", body: JSON.stringify(payload || {}) }),
+    withdrawWork: (payload) => apiRequest("/api/work/withdraw", { method: "POST", body: JSON.stringify(payload || {}) }),
   };
   root.JoincareRoleApi = SiteRoleApi;
 
@@ -1608,12 +1659,88 @@
       demoUrl: work.demoUrl || "",
       codeUrl: work.codeUrl || "",
       docUrl: work.docUrl || "",
-      screenshots: Array.isArray(work.screenshots) ? work.screenshots.join(" / ") : "",
+      screenshots: Array.isArray(work.screenshots) ? work.screenshots : normalizeScreenshotList(work.screenshots),
       status: work.status || "",
       submittedAt: work.submittedAt || "",
       reviewedAt: work.reviewedAt || "",
       reviewNote: work.reviewNote || "",
     };
+  }
+
+  function getWorkDraft(teamId) {
+    const drafts = readJson(WORK_DRAFT_KEY, {});
+    return drafts && typeof drafts === "object" && drafts[teamId] && typeof drafts[teamId] === "object"
+      ? drafts[teamId]
+      : {};
+  }
+
+  function isEditingWorkSubmission() {
+    const active = doc.activeElement;
+    return Boolean(active && active.closest && active.closest(".team-workspace") && active.closest("[data-work-field]"));
+  }
+
+  function persistWorkFieldDraft(input) {
+    const [teamId, field] = String(input?.dataset?.workField || "").split(":");
+    if (!teamId || !field || !canEditTeamWorkspace(teamId)) return;
+    const drafts = readJson(WORK_DRAFT_KEY, {});
+    const next = { ...(drafts && typeof drafts === "object" ? drafts : {}) };
+    next[teamId] = { ...(next[teamId] || {}) };
+    next[teamId][field] = field === "screenshots" ? normalizeScreenshotList(input.value) : input.value;
+    root.localStorage.setItem(WORK_DRAFT_KEY, JSON.stringify(next));
+  }
+
+  function clearWorkDraft(teamId) {
+    const drafts = readJson(WORK_DRAFT_KEY, {});
+    if (!drafts || typeof drafts !== "object" || !drafts[teamId]) return;
+    delete drafts[teamId];
+    if (Object.keys(drafts).length) {
+      root.localStorage.setItem(WORK_DRAFT_KEY, JSON.stringify(drafts));
+    } else {
+      root.localStorage.removeItem(WORK_DRAFT_KEY);
+    }
+  }
+
+  function validateWorkSubmission(submission) {
+    if (!String(submission?.project || "").trim()) {
+      return { valid: false, message: "请填写作品标题后再提交" };
+    }
+    return { valid: true, message: "" };
+  }
+
+  function getWorkSubmitErrorMessage(error) {
+    const message = String(error?.message || "").trim();
+    if (message === "project is required.") return "请填写作品标题后再提交";
+    if (message === "teamId is required.") return "缺少队伍信息，请重新进入队伍工作台";
+    if (message === "Authentication required.") return "登录已失效，请重新登录后再提交作品";
+    if (message.includes("Required permission: canSubmitWork")) return "当前账号没有作品提交权限，请切换为参赛选手后再提交";
+    return message ? `作品提交失败：${message}` : "作品提交失败，请稍后重试";
+  }
+
+  function getWorkSubmitActionLabel(status) {
+    if (status === "submitted") return "更新提交";
+    if (status === "reviewing") return "更新提交";
+    if (status === "published") return "提交更新";
+    if (status === "rejected") return "重新提交";
+    return "提交作品";
+  }
+
+  function getWorkWithdrawErrorMessage(error) {
+    const message = String(error?.message || "").trim();
+    if (message === "teamId is required.") return "缺少队伍信息，请重新进入队伍工作台";
+    if (message.includes("was not found")) return "当前作品还没有提交，无需撤销";
+    if (message === "Authentication required.") return "登录已失效，请重新登录后再撤销提交";
+    if (message.includes("Required permission: canSubmitWork")) return "当前账号没有撤销权限，请切换为参赛选手后再操作";
+    return message ? `作品撤销失败：${message}` : "作品撤销失败，请稍后重试";
+  }
+
+  function getWorkScreenshotUploadErrorMessage(error) {
+    const message = String(error?.message || "").trim();
+    if (message === "Image file is too large." || message === "Request body is too large.") return "图片过大，请压缩到 8MB 以内后再上传";
+    if (message === "Only PNG, JPG, WEBP, and GIF images are supported.") return "请选择 PNG/JPG/WEBP/GIF 图片";
+    if (message === "Image data must be a base64 data URL." || message === "Image data is empty.") return "图片数据读取失败，请重新选择图片";
+    if (message === "Authentication required.") return "登录已失效，请重新登录后再上传截图";
+    if (message.includes("Required permission: canSubmitWork")) return "当前账号没有上传作品截图权限，请切换为参赛选手后再上传";
+    return message ? `展示截图上传失败：${message}` : "展示截图上传失败，请换一张图片重试";
   }
 
   function renderWorkStatusLabel(status) {
@@ -1627,7 +1754,100 @@
     })[status] || "未提交";
   }
 
+  function normalizeScreenshotList(value) {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item || "").trim()).filter(Boolean);
+    }
+    const text = String(value || "").trim();
+    if (!text) return [];
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) return normalizeScreenshotList(parsed);
+    } catch (error) {}
+    return splitTags(text);
+  }
+
+  function isImageSource(value) {
+    return /^(data:image\/|blob:|\.?\/?assets\/|https?:\/\/|\/)/i.test(String(value || ""));
+  }
+
+  function imageMimeFromFile(file) {
+    const type = String(file?.type || "").toLowerCase();
+    if (["image/gif", "image/jpeg", "image/png", "image/webp"].includes(type)) return type;
+
+    const match = String(file?.name || "").toLowerCase().match(/\.(png|jpe?g|webp|gif)$/i);
+    if (!match) return "";
+    return ({
+      gif: "image/gif",
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      png: "image/png",
+      webp: "image/webp",
+    })[match[1]] || "";
+  }
+
+  function isImageFile(file) {
+    return Boolean(imageMimeFromFile(file));
+  }
+
+  function normalizeImageDataUrl(dataUrl, file) {
+    const value = String(dataUrl || "");
+    if (/^data:image\/(gif|jpeg|png|webp);base64,/i.test(value)) return value;
+    const mime = imageMimeFromFile(file);
+    return mime ? value.replace(/^data:[^;]*;base64,/i, `data:${mime};base64,`) : value;
+  }
+
+  function renderShotThumb(value, index, teamId, editable) {
+    const label = `截图 ${index + 1}`;
+    const visual = isImageSource(value)
+      ? `<img src="${esc(value)}" alt="${label}" loading="lazy" />`
+      : `<span>${pad(index + 1)} ${esc(value)}</span>`;
+    const remove = editable
+      ? `<button type="button" data-work-screenshot-remove="${esc(teamId)}:${index}" aria-label="移除${label}">×</button>`
+      : "";
+    return `<figure class="workspace-shot-thumb">${visual}${remove}</figure>`;
+  }
+
+  function renderShotThumbs(value, teamId, editable) {
+    const screenshots = normalizeScreenshotList(value).slice(0, WORK_SCREENSHOT_LIMIT);
+    return screenshots.length
+      ? screenshots.map((shot, index) => renderShotThumb(shot, index, teamId, editable)).join("")
+      : `<span class="workspace-shot-empty">尚未选择图片</span>`;
+  }
+
+  function renderPreviewShots(value) {
+    const screenshots = normalizeScreenshotList(value).slice(0, WORK_SCREENSHOT_LIMIT);
+    return screenshots.length
+      ? screenshots.map((shot, index) => {
+        if (isImageSource(shot)) {
+          return `<span class="workspace-preview-shot"><img src="${esc(shot)}" alt="展示截图 ${index + 1}" loading="lazy" decoding="async" /></span>`;
+        }
+        return `<span>${pad(index + 1)} ${esc(shot)}</span>`;
+      }).join("")
+      : `<span class="workspace-preview-empty">上传截图后将在这里预览</span>`;
+  }
+
+  function renderWorkspaceScreenshotField({ teamId, value, hint, editable = true }) {
+    const screenshots = normalizeScreenshotList(value).slice(0, WORK_SCREENSHOT_LIMIT);
+    const disabled = editable ? "" : "disabled";
+    return `<div class="workspace-field workspace-shot-field" data-work-screenshot-dropzone="${esc(teamId)}">
+      <span>展示截图</span>
+      <input type="hidden" data-work-field="${esc(teamId)}:screenshots" value="${esc(JSON.stringify(screenshots))}" />
+      <button class="workspace-shot-picker" type="button" data-work-screenshot-picker="${esc(teamId)}" ${disabled}>
+        <span class="workspace-shot-add">+</span>
+        <strong>点击选择图片</strong>
+        <small>PNG/JPG/WEBP/GIF，单张 ≤ 8MB</small>
+      </button>
+      <input type="file" accept="image/*" class="workspace-shot-input" data-work-screenshot-input="${esc(teamId)}" multiple ${disabled} />
+      <div class="workspace-shot-strip" data-work-screenshot-list="${esc(teamId)}">${renderShotThumbs(screenshots, teamId, editable)}</div>
+      <em>${esc(hint || "")}</em>
+    </div>`;
+  }
+
   function renderWorkspaceField({ teamId, field, label, value, hint, multiline = false, editable = true }) {
+    if (field === "screenshots") {
+      return renderWorkspaceScreenshotField({ teamId, value, hint, editable });
+    }
     const readOnly = editable ? "" : 'readonly aria-readonly="true"';
     const body = multiline
       ? `<textarea data-work-field="${teamId}:${field}" rows="4" ${readOnly}>${esc(value)}</textarea>`
@@ -1678,7 +1898,11 @@
     const selectedTeam = getTeam(joinedTeam());
     const isMine = selectedTeam && selectedTeam.id === team.id;
     const canEdit = canEditTeamWorkspace(team.id);
-    const submission = getWorkSubmission(team);
+    const draft = getWorkDraft(team.id);
+    const submission = {
+      ...getWorkSubmission(team),
+      ...draft,
+    };
     const submissionStatus = submission.status || "not_submitted";
     const stackTags = splitTags(submission.stack).map((s) => `<span>${esc(s)}</span>`).join("");
     const leaderId = getTeamLeaderId(team);
@@ -1691,8 +1915,10 @@
     const editHint = canEdit
       ? "你是当前队长，可提交作品信息；提交后会写入后端作品表，并等待管理员审核。"
       : leaderId ? "当前身份为队友，可查看职责与作品预览；作品提交内容仅队长可编辑。" : "当前队伍尚未绑定真实队长账号，请联系管理员在后台维护后再提交作品。";
+    const canWithdrawSubmission = canEdit && ["submitted", "reviewing", "published"].includes(submissionStatus);
+    const submitActionLabel = getWorkSubmitActionLabel(submissionStatus);
     const joinAction = canEdit
-      ? `<button class="btn-primary" type="button" data-submit-work="${team.id}">提交作品</button>`
+      ? `<button class="btn-primary" type="button" data-submit-work="${team.id}">${submitActionLabel}</button>${canWithdrawSubmission ? `<button class="btn-ghost" type="button" data-withdraw-work="${team.id}">撤销提交</button>` : ""}`
       : `<button class="btn-primary" type="button" disabled>仅队长可提交</button>`;
 
     return `${pageHead("队伍工作台 / 作品提交", "维护队伍名称、作品资料与发布预览；作品展厅只展示审核发布后的内容", "WORKSPACE")}
@@ -1736,7 +1962,7 @@
               <p data-work-preview="pitch">${esc(submission.pitch || "提交后展示真实作品介绍")}</p>
               <div class="workspace-preview-stack" data-work-preview="stack">${stackTags}</div>
               <div class="workspace-preview-shots" data-work-preview="screenshots">
-                ${splitTags(submission.screenshots).slice(0, 3).map((shot, index) => `<span>${pad(index + 1)} ${esc(shot)}</span>`).join("")}
+                ${renderPreviewShots(submission.screenshots)}
               </div>
             </div>
             <div class="workspace-map glass">
@@ -1830,7 +2056,9 @@
     const permissions = rolePermissions(currentRole());
     const canVote = canUseVoteAction();
     const voted = canVote ? votedTeam() : "";
-    const cards = D.teams.map((t) => {
+    const voteWindowOpen = isVoteWindowOpen();
+    const publishedTeams = D.teams.filter(isPublishedWorkTeam);
+    const cards = publishedTeams.map((t) => {
       const avas = [t.advisor, ...t.members].slice(0, 5).map((p) => avatar(p, 34)).join("");
       const isVoted = voted === t.id;
       const btn = !hasBackendSession()
@@ -1839,30 +2067,41 @@
           ? `<button class="gl2-vote dim" disabled>无投票权限</button>`
           : voted
         ? isVoted
-          ? `<button class="gl2-vote is-voted is-cancel" data-cancel-vote="${t.id}">取消投票</button>`
+          ? voteWindowOpen
+            ? `<button class="gl2-vote is-voted is-cancel" data-cancel-vote="${t.id}">取消投票</button>`
+            : `<button class="gl2-vote dim" disabled>投票已关闭</button>`
           : `<button class="gl2-vote dim" disabled>已投票</button>`
-        : canVote
+        : canVote && voteWindowOpen
           ? `<button class="gl2-vote" data-vote="${t.id}">为TA加油</button>`
-          : `<button class="gl2-vote dim" disabled>无投票权限</button>`;
+          : canVote
+            ? `<button class="gl2-vote dim" disabled>投票未开启</button>`
+            : `<button class="gl2-vote dim" disabled>无投票权限</button>`;
       const stack = (t.stack || []).map((s) => `<span>${esc(s)}</span>`).join("");
       return `<article class="gl2-card glass gl2-h ${isVoted ? "voted" : ""}" data-work="${t.id}" style="--accent:${t.accent};--rgb:${t.rgb}"><div class="gl2-shot"><span class="gl2-dots"></span><span class="gl2-cover-label"><span class="gl2-cover-index">${esc(t.trackCode)}</span><span class="gl2-cover-track">${esc(t.track)}</span></span><h3 class="gl2-cover-name">${esc(t.name)}</h3><span class="gl2-bars"></span><span class="gl2-hover">点击查看作品详情 ➔</span></div><div class="gl2-mid"><div class="gl2-id"><b class="gl2-project-name">${esc(t.project)}</b></div><p class="gl2-pitch">${esc(t.pitch || "")}</p><div class="gl2-stack2">${stack}</div><div class="gl2-avas">${avas}</div></div><div class="gl2-right"><div class="gl2-vcount"><b>${t.votes.toLocaleString()}</b><span>实时票数</span></div><span class="gl2-detail" data-work="${t.id}">查看详情 ➔</span>${btn}</div></article>`;
     }).join("");
+    const empty = publishedTeams.length ? "" : `<div class="gl2-empty glass"><b>暂无已发布作品</b><span>队伍提交后需管理员审核发布，作品才会进入展厅。</span></div>`;
     const dataNotice = SITE_STATE_ERROR
       ? `<div class="vote-banner"><span class="live-dot"></span>${esc(SITE_STATE_ERROR)}</div>`
       : "";
     const banner = voted
-      ? `<div class="vote-banner ok"><span class="live-dot"></span>你已为 <b>${esc((D.teams.find((t) => t.id === voted) || {}).name || "")}</b> 投出一票；可在已投队伍卡片中取消后重新选择。</div>`
-      : `<div class="vote-banner"><span class="live-dot"></span>浏览五大战队作品，选出你最认可的解决方案，并投出关键一票。</div>`;
-    return `${pageHead("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE")}${dataNotice}${banner}<section class="container sec"><div class="gl2-grid horizontal">${cards}</div></section>`;
+      ? voteWindowOpen
+        ? `<div class="vote-banner ok"><span class="live-dot"></span>你已为 <b>${esc((D.teams.find((t) => t.id === voted) || {}).name || "")}</b> 投出一票；可在已投队伍卡片中取消后重新选择。</div>`
+        : `<div class="vote-banner ok"><span class="live-dot"></span>你已为 <b>${esc((D.teams.find((t) => t.id === voted) || {}).name || "")}</b> 投出一票；投票窗口当前未开启，暂不能取消或重新选择。</div>`
+      : voteWindowOpen
+        ? `<div class="vote-banner"><span class="live-dot"></span>浏览已审核发布的队伍作品，选出你最认可的解决方案，并投出关键一票。</div>`
+        : `<div class="vote-banner"><span class="live-dot"></span>投票窗口当前未开启，请等待管理员开启投票。</div>`;
+    return `${pageHead("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE")}${dataNotice}${banner}<section class="container sec"><div class="gl2-grid horizontal">${cards || empty}</div></section>`;
   }
 
   /* ---- 作品详情 ------------------------------------------------------- */
   function renderWork(id) {
     const t = D.teams.find((x) => x.id === id);
     if (!t) return renderGallery();
+    if (!isPublishedWorkTeam(t)) return renderGallery();
     const permissions = rolePermissions(currentRole());
     const canVote = canUseVoteAction();
     const voted = canVote ? votedTeam() : "";
+    const voteWindowOpen = isVoteWindowOpen();
     const isVoted = voted === t.id;
     const L = teamLinks(t);
     const people = [{ ...t.advisor, role: "队长" }, ...t.members.map((m) => ({ ...m, role: "组员" }))]
@@ -1874,13 +2113,25 @@
         ? `<button class="btn-primary dim" disabled>当前身份不可投票</button>`
         : voted
       ? isVoted
-        ? `<button class="btn-primary is-cancel" data-cancel-vote="${t.id}">取消投票</button>`
+        ? voteWindowOpen
+          ? `<button class="btn-primary is-cancel" data-cancel-vote="${t.id}">取消投票</button>`
+          : `<button class="btn-primary dim" disabled>投票已关闭</button>`
         : `<button class="btn-primary dim" disabled>投票已用</button>`
-      : canVote
+      : canVote && voteWindowOpen
         ? `<button class="btn-primary" data-vote="${t.id}">为这支队伍加油</button>`
-        : `<button class="btn-primary dim" disabled>当前身份不可投票</button>`;
-    const slides = [["主界面", "产品核心流程"], ["数据看板", "关键指标可视化"], ["AI 能力", "模型推理与结果"]];
-    const slideEls = slides.map((s, i) => `<div class="wkc-slide ${i === 0 ? "on" : ""}"><span class="gl2-dots"></span><h3>${esc(t.project)}</h3><span class="wkc-cap">${esc(s[0])} · ${esc(s[1])}</span><span class="gl2-bars"></span></div>`).join("");
+        : canVote
+          ? `<button class="btn-primary dim" disabled>投票未开启</button>`
+          : `<button class="btn-primary dim" disabled>当前身份不可投票</button>`;
+    const screenshots = normalizeScreenshotList(t.work?.screenshots);
+    const slides = screenshots.length
+      ? screenshots.slice(0, WORK_SCREENSHOT_LIMIT).map((src, index) => ({ src, title: `展示截图 ${index + 1}`, caption: "作品真实界面" }))
+      : [["主界面", "产品核心流程"], ["数据看板", "关键指标可视化"], ["AI 能力", "模型推理与结果"]].map((item) => ({ title: item[0], caption: item[1] }));
+    const slideEls = slides.map((slide, i) => {
+      const shot = slide.src && isImageSource(slide.src)
+        ? `<img src="${esc(slide.src)}" alt="${esc(slide.title)}" loading="lazy" />`
+        : `<h3>${esc(t.project)}</h3>`;
+      return `<div class="wkc-slide ${i === 0 ? "on" : ""}"><span class="gl2-dots"></span>${shot}<span class="wkc-cap">${esc(slide.title)} · ${esc(slide.caption)}</span><span class="gl2-bars"></span></div>`;
+    }).join("");
     const dotEls = slides.map((_, i) => `<button class="wkc-dot ${i === 0 ? "on" : ""}" data-cgoto="${i}" aria-label="第 ${i + 1} 张"></button>`).join("");
     return `<section class="page-hero wk-hero" style="--accent:${t.accent};--rgb:${t.rgb}"><div class="container">
       <a class="wk-back" data-nav="gallery">‹ 返回作品展厅</a>
@@ -1933,10 +2184,11 @@
     const permissions = rolePermissions(currentRole());
     const canVote = canUseVoteAction();
     const voted = canVote ? getTeam(votedTeam()) : null;
+    const voteWindowOpen = isVoteWindowOpen();
 
-    const chipText = !hasBackendSession() ? "登录后投票" : !canVote ? "无投票权限" : voted ? "已投票" : "待投票";
+    const chipText = !hasBackendSession() ? "登录后投票" : !canVote ? "无投票权限" : voted ? "已投票" : voteWindowOpen ? "待投票" : "投票未开启";
     const chipClass = voted ? "on" : "";
-    const titleText = !hasBackendSession() ? "请先登录" : !canVote ? "当前身份不参与大众投票" : voted ? "已投票" : "尚未投票";
+    const titleText = !hasBackendSession() ? "请先登录" : !canVote ? "当前身份不参与大众投票" : voted ? "已投票" : voteWindowOpen ? "尚未投票" : "投票窗口未开启";
 
     let descText = "";
     if (!hasBackendSession()) {
@@ -1944,7 +2196,11 @@
     } else if (!canVote) {
       descText = "参赛选手、专家评委与管理员默认不参与大众投票，仅大众评委可在投票窗口内投一次。";
     } else if (voted) {
-      descText = `你已支持「${esc(voted.name)}」${voted.project ? ` · ${esc(voted.project)}` : ""}`;
+      descText = voteWindowOpen
+        ? `你已支持「${esc(voted.name)}」${voted.project ? ` · ${esc(voted.project)}` : ""}`
+        : `你已支持「${esc(voted.name)}」，投票窗口当前未开启，暂不能取消或重新选择。`;
+    } else if (!voteWindowOpen) {
+      descText = "投票窗口当前未开启，请等待管理员开启投票。";
     }
 
     const cta = !hasBackendSession()
@@ -1952,7 +2208,9 @@
       : !canVote
       ? `<a class="btn-primary" data-nav="gallery">查看作品展厅</a>`
       : voted
-      ? `<button class="btn-ghost is-cancel" type="button" data-cancel-vote="${voted.id}">取消投票</button>`
+      ? voteWindowOpen
+        ? `<button class="btn-ghost is-cancel" type="button" data-cancel-vote="${voted.id}">取消投票</button>`
+        : `<button class="btn-ghost dim" type="button" disabled>投票已关闭</button>`
       : `<a class="btn-primary" data-nav="gallery">去作品展厅</a>`;
 
     return `<div class="vote-overview glass">
@@ -2254,8 +2512,17 @@
 
   async function castVote(id, confirmed = false) {
     if (!requireRole("vote", (p) => p.canVote, "当前身份不参与大众投票")) return;
-    if (votedTeam()) return;
     const team = D.teams.find((t) => t.id === id); if (!team) return;
+    if (!confirmed) await refreshActionState();
+    if (!confirmed && !isVoteWindowOpen()) {
+      toast("投票窗口当前未开启，无法完成投票操作");
+      refreshCurrentView({ preserveScroll: true });
+      return;
+    }
+    if (!confirmed && votedTeam()) {
+      toast("你已经投过票，请先取消当前投票后再重新选择");
+      return;
+    }
     if (!confirmed) {
       showConfirmDialog({
         title: "为TA加油",
@@ -2267,17 +2534,35 @@
       return;
     }
     try {
+      await refreshActionState();
+      if (!isVoteWindowOpen()) {
+        toast("投票窗口当前未开启，无法完成投票操作");
+        await refreshActionState({ render: true });
+        return;
+      }
+      if (votedTeam()) {
+        toast("你已经投过票，请先取消当前投票后再重新选择");
+        await refreshActionState({ render: true });
+        return;
+      }
       await SiteRoleApi.castVote(id);
-      await loadSiteState();
+      await refreshActionState({ render: true });
       toast(`已为「${team.name}」投票成功`);
-      refreshCurrentView({ preserveScroll: true });
     } catch (e) {
-      toast("投票失败，请稍后重试");
+      console.warn("Vote cast failed.", e);
+      await refreshActionState({ render: true });
+      toast(getVoteActionErrorMessage(e, "投票"));
     }
   }
 
   async function cancelVote(id, confirmed = false) {
     if (!requireRole("vote", (p) => p.canVote, "当前身份不参与大众投票")) return;
+    if (!confirmed) await refreshActionState();
+    if (!confirmed && !isVoteWindowOpen()) {
+      toast("投票窗口当前未开启，无法完成投票操作");
+      refreshCurrentView({ preserveScroll: true });
+      return;
+    }
     const currentVoteId = votedTeam();
     if (!currentVoteId) {
       toast("当前没有已投票记录");
@@ -2296,12 +2581,30 @@
       return;
     }
     try {
+      await refreshActionState();
+      if (!isVoteWindowOpen()) {
+        toast("投票窗口当前未开启，无法完成投票操作");
+        await refreshActionState({ render: true });
+        return;
+      }
+      const latestVoteId = votedTeam();
+      if (!latestVoteId) {
+        toast("当前没有已投票记录");
+        await refreshActionState({ render: true });
+        return;
+      }
+      if (team.id !== latestVoteId) {
+        toast("投票状态已更新，我已刷新页面，请按最新状态重新操作");
+        await refreshActionState({ render: true });
+        return;
+      }
       await SiteRoleApi.cancelVote(team.id);
-      await loadSiteState();
+      await refreshActionState({ render: true });
       toast(`已取消对「${team.name}」的投票`);
-      refreshCurrentView({ preserveScroll: true });
     } catch (e) {
-      toast("取消投票失败，请稍后重试");
+      console.warn("Vote cancel failed.", e);
+      await refreshActionState({ render: true });
+      toast(getVoteActionErrorMessage(e, "取消投票"));
     }
   }
 
@@ -2319,18 +2622,26 @@
       return;
     }
     try {
+      await refreshActionState();
+      if (joinedTeam()) {
+        toast("你已经加入队伍，请按最新状态操作");
+        await refreshActionState({ render: true });
+        return;
+      }
       await SiteRoleApi.joinTeam(id);
-      await loadSiteState();
+      await refreshActionState({ render: true });
     } catch (e) {
-      toast("加入队伍失败，请稍后重试");
+      console.warn("Join team failed.", e);
+      await refreshActionState({ render: true });
+      toast(getTeamActionErrorMessage(e, "加入队伍"));
       return;
     }
     toast(`已加入「${team.name}」`);
-    refreshCurrentView({ preserveScroll: true });
   }
 
   async function leaveTeam(id, confirmed = false) {
     if (!requireRole("team", (p) => p.canJoinTeam, "只有参赛选手可以加入队伍")) return;
+    if (!confirmed) await refreshActionState();
     const currentTeamId = joinedTeam();
     if (!currentTeamId) {
       toast("当前没有已加入的队伍");
@@ -2349,14 +2660,27 @@
       return;
     }
     try {
+      await refreshActionState();
+      const latestTeamId = joinedTeam();
+      if (!latestTeamId) {
+        toast("当前没有已加入的队伍");
+        await refreshActionState({ render: true });
+        return;
+      }
+      if (team.id !== latestTeamId) {
+        toast("队伍状态已更新，我已刷新页面，请按最新状态重新操作");
+        await refreshActionState({ render: true });
+        return;
+      }
       await SiteRoleApi.leaveTeam(team.id);
-      await loadSiteState();
+      await refreshActionState({ render: true });
     } catch (e) {
-      toast("退出队伍失败，请稍后重试");
+      console.warn("Leave team failed.", e);
+      await refreshActionState({ render: true });
+      toast(getTeamActionErrorMessage(e, "退出队伍"));
       return;
     }
     toast(`已退出「${team.name}」`);
-    refreshCurrentView({ preserveScroll: true });
   }
 
   const judgeStatusText = (status) => ({
@@ -2602,9 +2926,87 @@
     if (!preview) return;
     if (field === "stack") preview.innerHTML = renderPreviewTags(input.value);
     else if (field === "screenshots") {
-      preview.innerHTML = splitTags(input.value).slice(0, 3).map((shot, index) => `<span>${pad(index + 1)} ${esc(shot)}</span>`).join("");
+      preview.innerHTML = renderPreviewShots(input.value);
     }
     else preview.textContent = input.value;
+  }
+
+  function findWorkField(teamId, field) {
+    return Array.from(doc.querySelectorAll("[data-work-field]"))
+      .find((input) => input.dataset.workField === `${teamId}:${field}`);
+  }
+
+  function setWorkspaceScreenshots(teamId, screenshots) {
+    const field = findWorkField(teamId, "screenshots");
+    if (!field) return;
+    const next = normalizeScreenshotList(screenshots).slice(0, WORK_SCREENSHOT_LIMIT);
+    field.value = JSON.stringify(next);
+    const list = doc.querySelector(`[data-work-screenshot-list="${teamId}"]`);
+    if (list) list.innerHTML = renderShotThumbs(next, teamId, canEditTeamWorkspace(teamId));
+    persistWorkFieldDraft(field);
+    updateWorkPreview(field);
+  }
+
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(reader.error || new Error("Image read failed."));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function uploadWorkspaceScreenshotFile(teamId, file) {
+    const dataUrl = normalizeImageDataUrl(await readFileAsDataUrl(file), file);
+    const result = await SiteRoleApi.uploadWorkAsset({
+      teamId,
+      filename: file.name || "screenshot.png",
+      dataUrl,
+    });
+    return result?.path || dataUrl;
+  }
+
+  async function addWorkspaceScreenshotFiles(teamId, fileList) {
+    if (!teamId || !canEditTeamWorkspace(teamId)) return;
+    const files = Array.from(fileList || []).filter(isImageFile);
+    if (!files.length) {
+      toast("请选择 PNG/JPG/WEBP/GIF 图片");
+      return;
+    }
+    const oversized = files.find((file) => file.size > WORK_SCREENSHOT_MAX_BYTES);
+    if (oversized) {
+      toast("图片过大，请压缩到 8MB 以内后再上传");
+      return;
+    }
+    const field = findWorkField(teamId, "screenshots");
+    const current = normalizeScreenshotList(field?.value);
+    const slots = Math.max(0, WORK_SCREENSHOT_LIMIT - current.length);
+    if (!slots) {
+      toast(`最多上传 ${WORK_SCREENSHOT_LIMIT} 张展示截图`);
+      return;
+    }
+
+    try {
+      toast("正在上传展示截图…");
+      const uploaded = [];
+      for (const file of files.slice(0, slots)) {
+        uploaded.push(await uploadWorkspaceScreenshotFile(teamId, file));
+      }
+      setWorkspaceScreenshots(teamId, current.concat(uploaded));
+      toast("展示截图已添加");
+    } catch (error) {
+      console.warn("Work screenshot upload failed.", error);
+      toast(getWorkScreenshotUploadErrorMessage(error));
+    }
+  }
+
+  function removeWorkspaceScreenshot(token) {
+    const [teamId, rawIndex] = String(token || "").split(":");
+    const index = Number(rawIndex);
+    if (!teamId || !Number.isInteger(index) || !canEditTeamWorkspace(teamId)) return;
+    const field = findWorkField(teamId, "screenshots");
+    const next = normalizeScreenshotList(field?.value).filter((_, itemIndex) => itemIndex !== index);
+    setWorkspaceScreenshots(teamId, next);
   }
   async function claimTeamRole(teamId, roleKey) {
     const team = getTeam(teamId);
@@ -2625,28 +3027,72 @@
     }
   }
   async function submitTeamWork(teamId) {
-    const team = getTeam(teamId);
+    let team = getTeam(teamId);
     if (!team) return;
+    await refreshActionState();
+    team = getTeam(teamId) || team;
     if (!canEditTeamWorkspace(teamId)) {
       toast("只有当前队长可以提交作品");
       return;
     }
 
-    const submission = getWorkSubmission(team);
+    const draft = getWorkDraft(team.id);
+    const submission = {
+      ...getWorkSubmission(team),
+      ...draft,
+    };
     doc.querySelectorAll(`[data-work-field^="${team.id}:"]`).forEach((input) => {
       const field = String(input.dataset.workField || "").split(":")[1];
-      if (field) submission[field] = input.value.trim();
+      if (field === "screenshots") submission[field] = normalizeScreenshotList(input.value);
+      else if (field) submission[field] = input.value.trim();
     });
+    const validation = validateWorkSubmission(submission);
+    if (!validation.valid) {
+      toast(validation.message);
+      const projectField = findWorkField(team.id, "project");
+      if (projectField && typeof projectField.focus === "function") projectField.focus();
+      return;
+    }
     try {
       await SiteRoleApi.submitWork({
         ...submission,
         teamId: team.id,
       });
-      await loadSiteState();
+      clearWorkDraft(team.id);
+      await refreshActionState({ render: true });
       toast(`「${submission.teamName || team.name}」作品已提交`);
     } catch (error) {
       console.warn("Work submit API failed.", error);
-      toast(`「${team.name}」作品提交失败，请稍后重试`);
+      await refreshActionState({ render: true });
+      toast(getWorkSubmitErrorMessage(error));
+    }
+  }
+
+  async function withdrawTeamWork(teamId) {
+    let team = getTeam(teamId);
+    if (!team) return;
+    await refreshActionState();
+    team = getTeam(teamId) || team;
+    if (!canEditTeamWorkspace(teamId)) {
+      toast("只有当前队长可以撤销作品提交");
+      return;
+    }
+
+    const submission = getWorkSubmission(team);
+    const status = submission.status || "not_submitted";
+    if (!["submitted", "reviewing", "published"].includes(status)) {
+      toast("当前作品还没有提交，无需撤销");
+      return;
+    }
+
+    try {
+      await SiteRoleApi.withdrawWork({ teamId: team.id });
+      await refreshActionState({ render: true });
+      toast(`「${submission.teamName || team.name}」作品已撤销提交`);
+    } catch (error) {
+      console.warn("Work withdraw API failed.", error);
+      await refreshActionState({ render: true });
+      toast(getWorkWithdrawErrorMessage(error));
     }
   }
 
@@ -2663,6 +3109,7 @@
       const leaveTeamButton = e.target.closest("[data-leave-team]");
       const teamWorkspace = e.target.closest("[data-team-workspace]");
       const submitWork = e.target.closest("[data-submit-work]");
+      const withdrawWork = e.target.closest("[data-withdraw-work]");
       const roleClaim = e.target.closest("[data-role-claim]");
       const judgeSave = e.target.closest("[data-judge-save]");
       const judgeSubmit = e.target.closest("[data-judge-submit]");
@@ -2714,6 +3161,17 @@
       if (leaveTeamButton) { leaveTeam(leaveTeamButton.dataset.leaveTeam); return; }
       if (team) { joinTeam(team.dataset.joinTeam); return; }
       if (submitWork) { submitTeamWork(submitWork.dataset.submitWork); return; }
+      if (withdrawWork) { withdrawTeamWork(withdrawWork.dataset.withdrawWork); return; }
+      const shotRemove = e.target.closest("[data-work-screenshot-remove]");
+      if (shotRemove) { e.preventDefault(); removeWorkspaceScreenshot(shotRemove.dataset.workScreenshotRemove); return; }
+      const shotPicker = e.target.closest("[data-work-screenshot-picker]");
+      if (shotPicker) {
+        e.preventDefault();
+        const teamId = shotPicker.dataset.workScreenshotPicker;
+        const input = doc.querySelector(`[data-work-screenshot-input="${teamId}"]`);
+        if (input && !input.disabled) input.click();
+        return;
+      }
       if (roleClaim) {
         const [teamId, roleKey] = String(roleClaim.dataset.roleClaim || "").split(":");
         claimTeamRole(teamId, roleKey);
@@ -2744,11 +3202,44 @@
     });
     doc.addEventListener("input", (e) => {
       const workField = e.target.closest("[data-work-field]");
-      if (workField) updateWorkPreview(workField);
+      if (workField) {
+        persistWorkFieldDraft(workField);
+        updateWorkPreview(workField);
+      }
       const score = e.target.closest("[data-score]");
       if (score) updateJudgeScoreInput(score, true);
     });
     doc.addEventListener("change", (e) => {
+      const shotInput = e.target.closest("[data-work-screenshot-input]");
+      if (shotInput) {
+        addWorkspaceScreenshotFiles(shotInput.dataset.workScreenshotInput, shotInput.files);
+        shotInput.value = "";
+      }
+    });
+    doc.addEventListener("paste", (e) => {
+      const zone = e.target.closest("[data-work-screenshot-dropzone]");
+      if (!zone || !e.clipboardData) return;
+      const files = Array.from(e.clipboardData.files || []).filter(isImageFile);
+      if (!files.length) return;
+      e.preventDefault();
+      addWorkspaceScreenshotFiles(zone.dataset.workScreenshotDropzone, files);
+    });
+    doc.addEventListener("dragover", (e) => {
+      const zone = e.target.closest("[data-work-screenshot-dropzone]");
+      if (!zone) return;
+      e.preventDefault();
+      zone.classList.add("is-dragging");
+    });
+    doc.addEventListener("dragleave", (e) => {
+      const zone = e.target.closest("[data-work-screenshot-dropzone]");
+      if (zone) zone.classList.remove("is-dragging");
+    });
+    doc.addEventListener("drop", (e) => {
+      const zone = e.target.closest("[data-work-screenshot-dropzone]");
+      if (!zone || !e.dataTransfer) return;
+      e.preventDefault();
+      zone.classList.remove("is-dragging");
+      addWorkspaceScreenshotFiles(zone.dataset.workScreenshotDropzone, e.dataTransfer.files);
     });
     root.addEventListener("hashchange", () => route(false));
     root.addEventListener("scroll", () => doc.getElementById("siteNav").classList.toggle("scrolled", root.scrollY > 20));

@@ -129,6 +129,39 @@ function createWorksRepository(dataPath = DEFAULT_DATA_PATH) {
     };
   }
 
+  async function withdrawWork(payload = {}) {
+    const teamId = normalizeId(payload.teamId || payload.id);
+    if (!teamId) {
+      throw createHttpError(400, "teamId is required.");
+    }
+
+    const state = await readState();
+    const index = state.works.findIndex((work) => work.id === teamId || work.teamId === teamId);
+    if (index === -1) {
+      throw createHttpError(404, `Work ${teamId} was not found.`);
+    }
+
+    const withdrawnAt = new Date().toISOString();
+    const work = normalizeWork({
+      ...state.works[index],
+      status: "draft",
+      submittedAt: null,
+      reviewedAt: null,
+      reviewedBy: "",
+      reviewNote: "",
+      updatedAt: withdrawnAt,
+    });
+    const nextWorks = [...state.works];
+    nextWorks[index] = work;
+
+    await writeState({ works: nextWorks });
+
+    return {
+      accepted: true,
+      work,
+    };
+  }
+
   async function updateStatus(teamId, payload = {}) {
     const cleanTeamId = normalizeId(teamId);
     const status = normalizeId(payload.status);
@@ -170,6 +203,7 @@ function createWorksRepository(dataPath = DEFAULT_DATA_PATH) {
     getWork,
     listWorks,
     submitWork,
+    withdrawWork,
     updateStatus,
   };
 }

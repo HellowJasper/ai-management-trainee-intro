@@ -631,6 +631,16 @@
     });
   }
 
+  async function withdrawWork(payload = {}) {
+    return fetchJson("/api/work/withdraw", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload || {}),
+    });
+  }
+
   async function updateAdminWorkStatus(teamId, payload = {}) {
     return fetchJson(`/api/admin/works/${encodeURIComponent(teamId)}/status`, {
       method: "PATCH",
@@ -852,6 +862,16 @@
     });
   }
 
+  async function uploadWorkAsset(payload) {
+    return fetchJson("/api/work-assets", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload || {}),
+    });
+  }
+
   return {
     addAdminTeamMember,
     createTrainee,
@@ -878,6 +898,7 @@
     publishAdminResults,
     saveSentence,
     submitWork,
+    withdrawWork,
     removeAdminTeamMember,
     upsertAdminUser,
     updateAdminTeamStatus,
@@ -890,6 +911,7 @@
     updateAdminWorkStatus,
     updateTeamScenario,
     uploadTraineeAsset,
+    uploadWorkAsset,
     resolveApiUrl,
     startMissionCountdown,
     startRoadshowTimer,

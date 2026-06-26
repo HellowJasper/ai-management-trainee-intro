@@ -3071,22 +3071,32 @@ async function updateAdminTeamStatus(teamId, status, button = null) {
   }
 }
 
-async function updateWorkReviewStatus(teamId, status) {
+async function updateWorkReviewStatus(teamId, status, button) {
   if (!teamId || !status) {
+    setText(adminWorkWorkspaceStatus, "作品审核参数缺失");
+    if (button && button.isConnected) button.disabled = false;
     return;
   }
 
+  const actionText = status === "published" ? "发布" : "退回";
+  setText(adminWorkWorkspaceStatus, `正在${actionText}作品…`);
+
   try {
-    await window.AppData.updateAdminWorkStatus(teamId, {
+    const result = await window.AppData.updateAdminWorkStatus(teamId, {
       status,
       reviewerId: "admin",
       reviewNote: status === "published" ? "后台发布作品" : "后台退回作品",
     });
+    const workName = result?.work?.project || result?.work?.teamName || teamId;
+    setText(adminWorkWorkspaceStatus, `已${actionText}：${workName}`);
     addLog("admin", status === "published" ? `发布作品【${teamId}】` : `退回作品【${teamId}】`);
     await Promise.allSettled([loadBusinessData(), loadAuditTrail()]);
   } catch (error) {
     console.warn("Work review sync failed.", error);
+    setText(adminWorkWorkspaceStatus, formatErrorStatus("作品审核失败", error));
     addLog("system", "同步失败：作品审核状态未更新");
+  } finally {
+    if (button && button.isConnected) button.disabled = false;
   }
 }
 
@@ -3440,7 +3450,19 @@ document.addEventListener("click", async (event) => {
 
   const [teamId, status] = String(button.dataset.workStatus || "").split(":");
   button.disabled = true;
-  await updateWorkReviewStatus(teamId, status);
+  await updateWorkReviewStatus(teamId, status, button);
+});
+
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-team-status-command]");
+  if (!button) {
+    return;
+  }
+
+  event.preventDefault();
+  const [teamId, status] = String(button.dataset.teamStatusCommand || "").split(":");
+  button.disabled = true;
+  await updateAdminTeamStatus(teamId, status, button);
 });
 
 document.addEventListener("click", async (event) => {

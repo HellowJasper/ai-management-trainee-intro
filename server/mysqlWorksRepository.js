@@ -29,6 +29,17 @@ function normalizeDate(value) {
   return String(value);
 }
 
+function toMysqlDateTime(value) {
+  if (!value) {
+    return null;
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date.toISOString().slice(0, 19).replace("T", " ");
+}
+
 function splitTags(value) {
   if (Array.isArray(value)) {
     return value.map((item) => String(item).trim()).filter(Boolean);
@@ -189,13 +200,43 @@ function createMysqlWorksRepository(pool) {
         JSON.stringify(work.screenshots),
         work.status,
         work.submittedBy,
-        work.submittedAt,
+        toMysqlDateTime(work.submittedAt),
       ],
     );
 
     return {
       accepted: true,
       work: await getWork(teamId),
+    };
+  }
+
+  async function withdrawWork(payload = {}) {
+    const cleanTeamId = normalizeId(payload.teamId || payload.id);
+    if (!cleanTeamId) {
+      throw createHttpError(400, "teamId is required.");
+    }
+
+    await getWork(cleanTeamId);
+
+    const [result] = await pool.execute(
+      `UPDATE works SET
+        status = 'draft',
+        submitted_at = NULL,
+        reviewed_by = '',
+        reviewed_at = NULL,
+        review_note = '',
+        updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? OR team_id = ?`,
+      [cleanTeamId, cleanTeamId],
+    );
+
+    if (result.affectedRows === 0) {
+      throw createHttpError(404, `Work ${cleanTeamId} was not found.`);
+    }
+
+    return {
+      accepted: true,
+      work: await getWork(cleanTeamId),
     };
   }
 
@@ -223,7 +264,7 @@ function createMysqlWorksRepository(pool) {
         review_note = ?,
         updated_at = CURRENT_TIMESTAMP
        WHERE id = ? OR team_id = ?`,
-      [status, reviewedBy, reviewedAt, reviewNote, cleanTeamId, cleanTeamId],
+      [status, reviewedBy, toMysqlDateTime(reviewedAt), reviewNote, cleanTeamId, cleanTeamId],
     );
 
     if (result.affectedRows === 0) {
@@ -240,6 +281,7 @@ function createMysqlWorksRepository(pool) {
     getWork,
     listWorks,
     submitWork,
+    withdrawWork,
     updateStatus,
   };
 }
