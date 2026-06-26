@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Target Server Info
 SERVER_IP="192.168.1.88"
@@ -23,24 +24,25 @@ fi
 
 # Commands to run on the server
 REMOTE_COMMANDS=$(cat <<EOF
-if [ ! -d "ai-management-trainee-intro" ]; then
-    echo "Cloning repository..."
-    git clone $REPO_URL
-else
-    echo "Repository already exists. Pulling latest changes..."
-    cd ai-management-trainee-intro
-    git pull
-    cd ..
-fi
+set -euo pipefail
 
-cd ai-management-trainee-intro
+REPO_URL="$REPO_URL"
+CONTAINER_NAME="$CONTAINER_NAME"
+IMAGE_NAME="$IMAGE_NAME"
+PORT_MAPPING="$PORT_MAPPING"
+NETWORK_NAME="$NETWORK_NAME"
+
+RELEASE_DIR=\$(mktemp -d /tmp/ai-intro-release-XXXXXX)
+
+echo "Cloning repository into \$RELEASE_DIR..."
+git clone --depth 1 --branch main "\$REPO_URL" "\$RELEASE_DIR"
 
 echo "Building Docker image..."
-docker build -t $IMAGE_NAME:latest .
+docker build -t "\$IMAGE_NAME:latest" "\$RELEASE_DIR"
 
 echo "Cleaning up old container..."
-docker stop $CONTAINER_NAME 2>/dev/null || true
-docker rm $CONTAINER_NAME 2>/dev/null || true
+docker stop "\$CONTAINER_NAME" 2>/dev/null || true
+docker rm "\$CONTAINER_NAME" 2>/dev/null || true
 
 MYSQL_APP_PASSWORD=""
 if [ -f "/root/middleware-credentials.txt" ]; then
@@ -48,19 +50,19 @@ if [ -f "/root/middleware-credentials.txt" ]; then
 fi
 
 NETWORK_ARGS=""
-if docker network inspect $NETWORK_NAME >/dev/null 2>&1; then
-    NETWORK_ARGS="--network $NETWORK_NAME"
+if docker network inspect "\$NETWORK_NAME" >/dev/null 2>&1; then
+    NETWORK_ARGS="--network \$NETWORK_NAME"
 fi
 
 echo "Running new container..."
-docker run -d -p $PORT_MAPPING --restart=always --name $CONTAINER_NAME \$NETWORK_ARGS \\
+docker run -d -p "\$PORT_MAPPING" --restart=always --name "\$CONTAINER_NAME" \$NETWORK_ARGS \\
     -e DATA_BACKEND=mysql \\
     -e MYSQL_HOST=mysql \\
     -e MYSQL_PORT=3306 \\
     -e MYSQL_DATABASE=ai_management_trainee_intro \\
     -e MYSQL_USER=otc \\
     -e MYSQL_PASSWORD="\$MYSQL_APP_PASSWORD" \\
-    $IMAGE_NAME:latest
+    "\$IMAGE_NAME:latest"
 
 echo "Deployment complete!"
 EOF
