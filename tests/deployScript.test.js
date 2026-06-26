@@ -22,3 +22,11 @@ test("deploy script builds from a clean checkout and stops on remote failures", 
   assert.match(script, /docker build -t "\\\$IMAGE_NAME:latest" "\\\$RELEASE_DIR"/);
   assert.doesNotMatch(script, /cd ai-management-trainee-intro\s*\n\s*git pull/);
 });
+
+test("deploy script passes server runtime secrets into the container", () => {
+  const script = fs.readFileSync(path.join(__dirname, "../deploy_to_88.sh"), "utf8");
+
+  assert.match(script, /RUNTIME_ENV_FILE="\/root\/ai-intro-runtime\.env"/);
+  assert.match(script, /ENV_FILE_ARGS="--env-file \\\$RUNTIME_ENV_FILE"/);
+  assert.match(script, /docker run[\s\S]*\\\$ENV_FILE_ARGS[\s\S]*-e DATA_BACKEND=mysql/);
+});

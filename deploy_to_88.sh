@@ -9,6 +9,7 @@ CONTAINER_NAME="ai-intro-app"
 IMAGE_NAME="ai-intro"
 PORT_MAPPING="8083:5173"
 NETWORK_NAME="infra-net"
+RUNTIME_ENV_FILE="/root/ai-intro-runtime.env"
 
 echo "==========================================="
 echo "Starting deployment to $SERVER_IP..."
@@ -31,6 +32,7 @@ CONTAINER_NAME="$CONTAINER_NAME"
 IMAGE_NAME="$IMAGE_NAME"
 PORT_MAPPING="$PORT_MAPPING"
 NETWORK_NAME="$NETWORK_NAME"
+RUNTIME_ENV_FILE="$RUNTIME_ENV_FILE"
 
 RELEASE_DIR=\$(mktemp -d /tmp/ai-intro-release-XXXXXX)
 
@@ -54,8 +56,16 @@ if docker network inspect "\$NETWORK_NAME" >/dev/null 2>&1; then
     NETWORK_ARGS="--network \$NETWORK_NAME"
 fi
 
+ENV_FILE_ARGS=""
+if [ -f "\$RUNTIME_ENV_FILE" ]; then
+    ENV_FILE_ARGS="--env-file \$RUNTIME_ENV_FILE"
+    echo "Using runtime env file: \$RUNTIME_ENV_FILE"
+else
+    echo "Runtime env file not found: \$RUNTIME_ENV_FILE"
+fi
+
 echo "Running new container..."
-docker run -d -p "\$PORT_MAPPING" --restart=always --name "\$CONTAINER_NAME" \$NETWORK_ARGS \\
+docker run -d -p "\$PORT_MAPPING" --restart=always --name "\$CONTAINER_NAME" \$NETWORK_ARGS \$ENV_FILE_ARGS \\
     -e DATA_BACKEND=mysql \\
     -e MYSQL_HOST=mysql \\
     -e MYSQL_PORT=3306 \\
