@@ -174,6 +174,17 @@
   function isPublishedWorkTeam(team) {
     return String(team?.work?.status || "").trim() === "published";
   }
+  function canViewWorkTeam(team) {
+    if (isPublishedWorkTeam(team)) {
+      return true;
+    }
+
+    const permissions = rolePermissions(currentRole());
+    return hasBackendSession() && (
+      permissions.canAdmin
+      || (permissions.canSubmitWork && joinedTeam() === team?.id && Boolean(team?.work))
+    );
+  }
   function voteForTeam(results, teamId) {
     return results.find((result) => String(result.id || result.teamId || "") === String(teamId || ""));
   }
@@ -2095,13 +2106,15 @@
   function renderWork(id) {
     const t = D.teams.find((x) => x.id === id);
     if (!t) return renderGallery();
-    if (!isPublishedWorkTeam(t)) return renderGallery();
+    if (!canViewWorkTeam(t)) return renderGallery();
     const permissions = rolePermissions(currentRole());
     const canVote = canUseVoteAction();
     const voted = canVote ? votedTeam() : "";
     const voteWindowOpen = isVoteWindowOpen();
     const isVoted = voted === t.id;
     const L = teamLinks(t);
+    const workDocUrl = String(t.work?.docUrl || "").trim();
+    const docHref = workDocUrl || L.page;
     const people = [{ ...t.advisor, role: "队长" }, ...t.members.map((m) => ({ ...m, role: "组员" }))]
       .map((p) => `<div class="wk-person">${avatar(p, 64, "ring")}<b>${esc(p.name)}</b><span>${esc(p.role)}</span></div>`).join("");
     const stack = (t.stack || []).map((s) => `<span>${esc(s)}</span>`).join("");
@@ -2152,7 +2165,7 @@
       <aside class="wk-side">
         <div class="wk-card glass">
           <div class="wk-cap">作品交付 · DELIVERY</div>
-          <a class="wk-doc" href="${L.page}" target="_blank" rel="noopener"><span class="wk-li">${ICON("doc", "var(--void)")}</span><span class="wk-doc-tx"><b>飞书作品页文档</b><span>项目介绍 · 功能 · 使用说明</span></span><i>➔</i></a>
+          <a class="wk-doc" href="${esc(docHref)}" target="_blank" rel="noopener"><span class="wk-li">${ICON("doc", "var(--void)")}</span><span class="wk-doc-tx"><b>飞书作品页文档</b><span>项目介绍 · 功能 · 使用说明</span></span><i>➔</i></a>
           <div class="wk-status-list">
             <div><span>提交状态</span><b>${t.submitted ? "已提交" : "待补交"}</b></div>
             <div><span>当前票数</span><b>${t.votes.toLocaleString()}</b></div>

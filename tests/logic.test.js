@@ -221,19 +221,20 @@ test("nextIntroState moves from intro to home", () => {
   assert.equal(nextIntroState({ skipped: true }), "home");
 });
 
-test("landing CTA is wired for seamless Feishu auth", () => {
+test("landing CTA opens the terminal boot welcome stage", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
   const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
-  const dataJs = fs.readFileSync(path.join(__dirname, "../src/data.js"), "utf8");
 
   assert.doesNotMatch(html, /landing-title-main/);
   assert.doesNotMatch(html, /AI黑客松/);
   assert.doesNotMatch(html, /feishuLoginButton/);
   assert.doesNotMatch(html, /landingAuthStatus/);
-  assert.match(html, /<button class="enter-button" type="button" id="enterButton"[^>]*>解锁任务<\/button>/);
-  assert.match(appJs, /loginWithFeishu/);
-  assert.match(dataJs, /JoincareFeishuAuth/);
-  assert.match(appJs, /site\.html#home/);
+  assert.doesNotMatch(html, /data-auth-target="feishu"/);
+  assert.match(html, /<button class="enter-button" type="button" id="enterButton">解锁任务<\/button>/);
+  assert.match(appJs, /function handleLandingEntry\(\)\s*{\s*setView\(window\.AppLogic\.resolveLandingCtaTarget\(\)\);\s*}/);
+  assert.doesNotMatch(appJs, /loginWithFeishu/);
+  assert.doesNotMatch(appJs, /site\.html#home/);
+  assert.equal(resolveLandingCtaTarget(), "welcome");
   assert.equal(resolveWelcomeEntryTarget(), "wall");
 });
 
@@ -857,7 +858,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260626-auth-mobile/);
+  assert.match(siteHtml, /site\.js\?v=20260626-work-doc-url/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -899,7 +900,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260626-auth-mobile/);
+  assert.match(siteHtml, /site\.js\?v=20260626-work-doc-url/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -918,7 +919,7 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
   assert.match(siteHtml, /site\.css\?v=20260626-auth-mobile/);
-  assert.match(siteHtml, /site\.js\?v=20260626-auth-mobile/);
+  assert.match(siteHtml, /site\.js\?v=20260626-work-doc-url/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /浏览已审核发布的队伍作品，选出你最认可的解决方案，并投出关键一票。/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -932,13 +933,21 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   assert.match(siteCss, /\.gl2-h \.gl2-project-name\s*\{[\s\S]*font-size:\s*clamp\(24px,\s*2\.3vw,\s*36px\)/);
 });
 
-test("gallery only exposes admin published works", () => {
+test("gallery only lists published works while admins and owning players can open unpublished work details", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const canViewStart = siteJs.indexOf("function canViewWorkTeam(team)");
+  const canViewEnd = siteJs.indexOf("\n  function voteForTeam", canViewStart);
+  const canViewBody = siteJs.slice(canViewStart, canViewEnd);
 
   assert.match(siteJs, /function isPublishedWorkTeam\(team\)/);
+  assert.match(siteJs, /function canViewWorkTeam\(team\)/);
   assert.match(siteJs, /const publishedTeams = D\.teams\.filter\(isPublishedWorkTeam\)/);
   assert.match(siteJs, /const cards = publishedTeams\.map\(\(t\) =>/);
-  assert.match(siteJs, /if \(!isPublishedWorkTeam\(t\)\) return renderGallery\(\);/);
+  assert.match(siteJs, /if \(!canViewWorkTeam\(t\)\) return renderGallery\(\);/);
+  assert.match(canViewBody, /permissions\.canAdmin/);
+  assert.match(canViewBody, /permissions\.canSubmitWork && joinedTeam\(\) === team\?\.id && Boolean\(team\?\.work\)/);
+  assert.doesNotMatch(canViewBody, /permissions\.canVote/);
+  assert.doesNotMatch(canViewBody, /permissions\.canScore/);
 });
 
 test("official site regular page headers match the talent profile title scale", () => {
@@ -1005,6 +1014,18 @@ test("official site scopes displayed vote state to audience voting permission", 
   assert.match(siteJs, /function renderOverviewBanner\(\) \{[\s\S]*?const canVote = canUseVoteAction\(\);\s*const voted = canVote \? getTeam\(votedTeam\(\)\) : null;/);
 });
 
+test("official site work detail opens the submitted Feishu document URL", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const renderWorkStart = siteJs.indexOf("function renderWork(id)");
+  const renderWorkEnd = siteJs.indexOf("\n  function setupCarousel", renderWorkStart);
+  const renderWorkBody = siteJs.slice(renderWorkStart, renderWorkEnd);
+
+  assert.match(renderWorkBody, /const workDocUrl = String\(t\.work\?\.docUrl \|\| ""\)\.trim\(\);/);
+  assert.match(renderWorkBody, /const docHref = workDocUrl \|\| L\.page;/);
+  assert.match(renderWorkBody, /<a class="wk-doc" href="\$\{esc\(docHref\)\}" target="_blank" rel="noopener">/);
+  assert.doesNotMatch(renderWorkBody, /<a class="wk-doc" href="\$\{L\.page\}"/);
+});
+
 test("role permissions reserve team joining, voting, judging, and admin control for the right roles", () => {
   assert.deepEqual(getRolePermissions("player"), {
     canJoinTeam: true,
@@ -1017,10 +1038,15 @@ test("role permissions reserve team joining, voting, judging, and admin control 
   });
 
   assert.equal(getRolePermissions("judge").canJoinTeam, false);
+  assert.equal(getRolePermissions("judge").canSubmitWork, false);
   assert.equal(getRolePermissions("judge").canScore, true);
   assert.equal(getRolePermissions("judge").canVote, false);
+  assert.equal(getRolePermissions("judge").canAdmin, false);
   assert.equal(getRolePermissions("public").canJoinTeam, false);
+  assert.equal(getRolePermissions("public").canSubmitWork, false);
   assert.equal(getRolePermissions("public").canVote, true);
+  assert.equal(getRolePermissions("public").canScore, false);
+  assert.equal(getRolePermissions("public").canAdmin, false);
   assert.equal(getRolePermissions("admin").canJoinTeam, false);
   assert.equal(getRolePermissions("admin").canAdmin, true);
   assert.equal(getRolePermissions("admin").canControlBigscreen, true);
@@ -1133,6 +1159,9 @@ test("team cards route into a dedicated team workspace page", () => {
   assert.match(siteJs, /data-team-workspace/);
   assert.match(siteJs, /队伍工作台 \/ 作品提交/);
   assert.match(siteJs, /进入工作台/);
+  assert.match(siteJs, /预览作品展示/);
+  assert.match(siteJs, /<button class="btn-ghost" type="button" data-work="\$\{team\.id\}">预览作品展示<\/button>/);
+  assert.match(siteJs, /if \(work\) \{ showWork\(work\.dataset\.work\); return; \}/);
   assert.match(siteCss, /\.team-workspace/);
 });
 
@@ -1499,10 +1528,30 @@ test("final result screen reserves enough vertical room for the champion showcas
   assert.match(css, /\.final-result-stage\s*\{[^}]*--final-result-chrome-space:\s*clamp\(150px,\s*15vh,\s*196px\)/s);
   assert.match(css, /\.final-result-hub-wrap\s*\{[^}]*position:\s*relative[^}]*min-height:\s*100dvh[^}]*align-items:\s*center[^}]*justify-items:\s*center/s);
   assert.doesNotMatch(css, /\.final-result-hub-wrap\s*\{[^}]*position:\s*absolute/s);
-  assert.match(css, /\.final-result-cockpit\s*\{[^}]*height:\s*auto[^}]*max-height:\s*calc\(100dvh - var\(--final-result-chrome-space\)\)[^}]*overflow:\s*auto/s);
+  assert.match(css, /\.final-result-cockpit\s*\{[^}]*max-width:\s*1740px[^}]*grid-template-columns:\s*minmax\(480px,\s*0\.96fr\) minmax\(620px,\s*1\.04fr\)[^}]*gap:\s*clamp\(28px,\s*2\.6vw,\s*46px\)[^}]*padding:\s*clamp\(26px,\s*2\.6vw,\s*42px\)/s);
+  assert.match(css, /\.final-result-cockpit\s*\{[^}]*height:\s*auto[^}]*max-height:\s*calc\(100dvh - var\(--final-result-chrome-space\)\)[^}]*min-height:\s*min\(640px,\s*calc\(100dvh - var\(--final-result-chrome-space\)\)\)[^}]*overflow:\s*auto/s);
   assert.doesNotMatch(css, /\.final-result-cockpit\s*\{[^}]*height:\s*var\(--final-result-cockpit-height\)/s);
-  assert.match(css, /\.final-result-champion\s*\{[^}]*min-height:\s*clamp\(460px,\s*55vh,\s*620px\)[^}]*gap:\s*clamp\(8px,\s*1vh,\s*13px\)[^}]*padding:\s*clamp\(20px,\s*2\.1vw,\s*32px\)/s);
+  assert.match(css, /\.final-result-champion\s*\{[^}]*min-height:\s*clamp\(540px,\s*58vh,\s*700px\)[^}]*gap:\s*clamp\(12px,\s*1\.7vh,\s*22px\)[^}]*padding:\s*clamp\(30px,\s*3vw,\s*52px\)/s);
   assert.match(css, /\.final-result-score strong\s*\{[^}]*font-size:\s*clamp\(58px,\s*5\.2vw,\s*98px\)/s);
+  assert.match(css, /\.final-result-sideboard\s*\{[^}]*gap:\s*clamp\(18px,\s*1\.6vw,\s*28px\)[^}]*padding:\s*clamp\(22px,\s*2\.2vw,\s*36px\)/s);
+  assert.match(css, /\.final-result-leaderboard\s*\{[^}]*gap:\s*clamp\(14px,\s*1\.4vh,\s*18px\)/s);
+  assert.match(css, /\.final-result-row\s*\{[^}]*grid-template-columns:\s*74px minmax\(0,\s*1fr\) 154px[^}]*gap:\s*clamp\(18px,\s*1\.5vw,\s*26px\)[^}]*min-height:\s*clamp\(104px,\s*10vh,\s*132px\)[^}]*padding:\s*clamp\(18px,\s*1\.55vw,\s*24px\)/s);
+});
+
+test("final result screen adds a cyber award ceremony motion layer", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+
+  assert.match(css, /@keyframes\s+awardSpotlightSweep/);
+  assert.match(css, /@keyframes\s+awardPanelReveal/);
+  assert.match(css, /@keyframes\s+awardChampionPulse/);
+  assert.match(css, /@keyframes\s+awardScorePop/);
+  assert.match(css, /@keyframes\s+awardGoldScan/);
+  assert.match(css, /\.app-shell\[data-view="final-result"\]\s+\.final-result-stage::before\s*\{[^}]*animation:\s*awardSpotlightSweep/s);
+  assert.match(css, /\.app-shell\[data-view="final-result"\]\s+\.final-result-cockpit\s*\{[^}]*animation:\s*awardPanelReveal/s);
+  assert.match(css, /\.app-shell\[data-view="final-result"\]\s+\.final-result-emblem\s*\{[^}]*animation:\s*awardChampionPulse/s);
+  assert.match(css, /\.app-shell\[data-view="final-result"\]\s+\.final-result-score strong\s*\{[^}]*animation:\s*awardScorePop/s);
+  assert.match(css, /\.final-result-champion::after\s*\{[^}]*animation:\s*awardGoldScan/s);
+  assert.match(css, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.app-shell\[data-view="final-result"\]\s+\.final-result-stage::before,[\s\S]*animation:\s*none/s);
 });
 
 test("official site wires my page, team join and judge score interactions", () => {
@@ -1853,7 +1902,7 @@ test("official site cache keys are bumped after navigation and detail layout pol
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
   assert.match(html, /src\/site\.css\?v=20260626-auth-mobile/);
   assert.match(html, /src\/logic\.js\?v=20260624-nav-labels/);
-  assert.match(html, /src\/site\.js\?v=20260626-auth-mobile/);
+  assert.match(html, /src\/site\.js\?v=20260626-work-doc-url/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
@@ -2683,6 +2732,10 @@ test("countdown header opens a current roadshow team timer stage", () => {
   assert.match(appJs, /has-photo/);
   assert.match(appJs, /roadshow-member-copy/);
   assert.match(appJs, /roadshow-member-status/);
+  assert.match(appJs, /createRoadshowRosterSeat/);
+  assert.match(appJs, /Array\.from\(\{ length: 5 \}, \(_, index\) => createRoadshowRosterSeat\(roster\[index\], index\)\)/);
+  assert.match(appJs, /name:\s*"无名成员"/);
+  assert.match(appJs, /roadshow-member is-empty/);
   assert.match(appJs, /resolveNextRoadshowTeam/);
   assert.match(appJs, /syncRoadshowTimer/);
   assert.doesNotMatch(appJs, /handleRoadshowStart/);
@@ -2697,6 +2750,9 @@ test("countdown header opens a current roadshow team timer stage", () => {
   assert.match(css, /\.roadshow-command-grid/);
   assert.match(css, /\.roadshow-control-stack/);
   assert.match(css, /\.roadshow-current-team/);
+  assert.match(css, /grid-template-rows:\s*auto auto auto auto auto minmax\(0, 1fr\)/);
+  assert.match(css, /\.roadshow-roster\s*{[\s\S]*?grid-template-rows:\s*repeat\(5, minmax\(0, 1fr\)\)/);
+  assert.match(css, /\.roadshow-member\.is-empty/);
   assert.match(css, /\.roadshow-member-seat/);
   assert.match(css, /\.roadshow-member-avatar/);
   assert.match(css, /\.roadshow-member-avatar\.is-placeholder/);

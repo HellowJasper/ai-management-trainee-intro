@@ -556,7 +556,6 @@ const discoverButton = document.getElementById("discoverButton");
 const discoverMenu = document.getElementById("discoverMenu");
 const discoverPanel = document.getElementById("discoverPanel");
 const departmentGrid = document.getElementById("departmentGrid");
-const landingActions = document.getElementById("landingActions");
 const enterButton = document.getElementById("enterButton");
 
 const rainRenderers = {
@@ -1395,14 +1394,35 @@ function formatRoadshowDuration(durationMs = ROADSHOW_DURATION_MS) {
   };
 }
 
+function createRoadshowRosterSeat(member, index) {
+  const isLeadSeat = index === 0;
+
+  if (member && member.name) {
+    return {
+      ...member,
+      isEmpty: false,
+      roadshowSeatStatus: isLeadSeat ? "ON" : "READY",
+    };
+  }
+
+  return {
+    name: "无名成员",
+    department: isLeadSeat ? "队长待确认" : "成员待确认",
+    role: isLeadSeat ? "队长" : "队员",
+    isEmpty: true,
+    roadshowSeatStatus: "WAIT",
+  };
+}
+
 function renderRoadshowStage() {
   if (!roadshowTeamName) return;
 
   const team = resolveRoadshowTeam();
   const nextTeam = resolveNextRoadshowTeam();
-  const roster = [team.advisor, ...team.members]
-    .filter((member) => member && member.name)
+  const roster = [team.advisor, ...(Array.isArray(team.members) ? team.members : [])]
+    .filter(Boolean)
     .slice(0, 5);
+  const rosterSeats = Array.from({ length: 5 }, (_, index) => createRoadshowRosterSeat(roster[index], index));
 
   roadshowStage?.style.setProperty("--roadshow-color", team.color || "var(--neon)");
   roadshowStage?.style.setProperty("--roadshow-color-rgb", team.colorRgb || "40, 255, 200");
@@ -1418,21 +1438,23 @@ function renderRoadshowStage() {
   if (roadshowTimerPhase) roadshowTimerPhase.textContent = roadshowState.phase || "DEMO";
   if (roadshowTimerNext) roadshowTimerNext.textContent = nextTeam.name || "待定队伍";
   if (roadshowRoster) {
-    roadshowRoster.innerHTML = roster.map((member, index) => {
+    roadshowRoster.innerHTML = rosterSeats.map((member, index) => {
       const seatLabel = index === 0 ? "LEAD" : `S${String(index + 1).padStart(2, "0")}`;
       const avatarUrl = member.photo || member.avatar || member.idPhoto || "";
       const avatarState = avatarUrl ? "has-photo" : "is-placeholder";
-      const avatarMark = index === 0 ? "赛" : String(member.name || "?").slice(0, 1);
+      const isEmpty = Boolean(member.isEmpty);
+      const cardClass = isEmpty ? "roadshow-member is-empty" : "roadshow-member";
+      const avatarMark = isEmpty ? "?" : (index === 0 ? "赛" : String(member.name || "?").slice(0, 1));
 
       return `
-      <div class="roadshow-member" data-member-seat="${escapeAttribute(seatLabel)}">
+      <div class="${escapeAttribute(cardClass)}" data-member-seat="${escapeAttribute(seatLabel)}">
         <span class="roadshow-member-seat">${escapeHtml(seatLabel)}</span>
         <span class="roadshow-member-avatar ${avatarState}" data-avatar-mark="${escapeAttribute(avatarMark)}" style="--avatar-image: ${cssUrl(avatarUrl)}" aria-hidden="true"></span>
         <span class="roadshow-member-copy">
           <b>${escapeHtml(member.name || `队员 ${index + 1}`)}</b>
-          <em>${escapeHtml(member.department || member.role || "路演成员")}</em>
+          <em>${escapeHtml(member.department || member.role || (isEmpty ? "席位待确认" : "路演成员"))}</em>
         </span>
-        <span class="roadshow-member-status">${escapeHtml(index === 0 ? "ON" : "READY")}</span>
+        <span class="roadshow-member-status">${escapeHtml(member.roadshowSeatStatus || (index === 0 ? "ON" : "READY"))}</span>
       </div>
     `;
     }).join("");
@@ -2130,35 +2152,8 @@ function startTraineeProfilePolling() {
   traineeProfilePollTimer = window.setInterval(syncTraineeProfiles, TRAINEE_PROFILE_POLL_MS);
 }
 
-function setLandingAuthState(state) {
-  const authState = window.AppLogic.getFeishuLoginUiState(state);
-  landingActions?.classList.toggle("is-authing", state === "authenticating");
-  landingActions?.setAttribute("data-auth-state", state);
-
-  if (enterButton) {
-    enterButton.disabled = state === "authenticating";
-    enterButton.textContent = authState.buttonLabel;
-  }
-
-}
-
-async function handleLandingEntry() {
-  const authState = window.AppLogic.getFeishuLoginUiState("authenticating");
-  setLandingAuthState("authenticating");
-
-  try {
-    const result = await window.AppData.loginWithFeishu({
-      redirectUrl: "./site.html#home",
-      sessionKey: authState.sessionKey,
-    });
-    const redirectUrl = result?.redirectUrl || "./site.html#home";
-    window.setTimeout(() => {
-      window.location.href = redirectUrl;
-    }, 520);
-  } catch (error) {
-    console.warn("Feishu login failed.", error);
-    setLandingAuthState("idle");
-  }
+function handleLandingEntry() {
+  setView(window.AppLogic.resolveLandingCtaTarget());
 }
 
 function bindEvents() {
