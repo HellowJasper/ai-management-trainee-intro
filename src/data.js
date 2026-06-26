@@ -570,6 +570,16 @@
     }
   }
 
+  async function loadAdminWorks(fallback = []) {
+    try {
+      const payload = await fetchJson("/api/admin/works");
+      return Array.isArray(payload) ? payload : fallback;
+    } catch (error) {
+      console.warn(error);
+      return fallback;
+    }
+  }
+
   async function loadJudgeScores(fallback = { scores: {} }) {
     try {
       const payload = await fetchJson("/api/judge/scores");
@@ -879,6 +889,7 @@
     fetchJson,
     loadAdminState,
     loadAuditLogs,
+    loadAdminWorks,
     loadHealth,
     loadAdminUsers,
     loadSiteBootstrap,

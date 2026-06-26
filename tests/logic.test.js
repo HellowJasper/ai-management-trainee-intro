@@ -857,7 +857,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260626-work-preview-fit/);
+  assert.match(siteHtml, /site\.js\?v=20260626-auth-mobile/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -899,7 +899,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260626-work-preview-fit/);
+  assert.match(siteHtml, /site\.js\?v=20260626-auth-mobile/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -917,8 +917,8 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.css\?v=20260626-work-preview-fit/);
-  assert.match(siteHtml, /site\.js\?v=20260626-work-preview-fit/);
+  assert.match(siteHtml, /site\.css\?v=20260626-auth-mobile/);
+  assert.match(siteHtml, /site\.js\?v=20260626-auth-mobile/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /浏览已审核发布的队伍作品，选出你最认可的解决方案，并投出关键一票。/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -1636,7 +1636,7 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260626-work-preview-fit/);
+  assert.match(html, /src\/site\.css\?v=20260626-auth-mobile/);
   assert.match(siteCss, /--site-detail-console-width:\s*calc\(min\(80vw,\s*1260px\) - 24px\)/);
   assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*max\(3vw,\s*calc\(100dvw - var\(--site-detail-console-width\) - var\(--site-detail-card-width\) - 40px\)\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*auto/);
@@ -1826,13 +1826,34 @@ test("role authorization is completed at entry and protects sensitive actions", 
   assert.doesNotMatch(siteJs, /if \(!currentRole\(\)\) showAuthGate\("entry"\)/);
 });
 
+test("mobile auth gate can be dismissed without completing login", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.match(siteJs, /data-auth-close/);
+  assert.match(siteJs, /const authClose = e\.target\.closest\("\[data-auth-close\]"\)/);
+  assert.match(siteJs, /if \(authClose\) \{ e\.preventDefault\(\); closeAuthGate\(\); return; \}/);
+  assert.match(siteJs, /closeAuthGate\(\);\s*main\.innerHTML = v\.render\(\);/);
+  assert.match(siteCss, /\.auth-close/);
+});
+
+test("mobile result route does not fall back to the gallery tab highlight", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const setActiveStart = siteJs.indexOf("function setActive(key)");
+  const setActiveEnd = siteJs.indexOf("\n  function go(key, push)", setActiveStart);
+  const setActiveBody = siteJs.slice(setActiveStart, setActiveEnd);
+
+  assert.match(setActiveBody, /key === "vote" \? "gallery" : ""/);
+  assert.doesNotMatch(setActiveBody, /key === "vote" \|\| key === "result" \? "gallery"/);
+});
+
 test("official site cache keys are bumped after navigation and detail layout polish", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
-  assert.match(html, /src\/site\.css\?v=20260626-work-preview-fit/);
+  assert.match(html, /src\/site\.css\?v=20260626-auth-mobile/);
   assert.match(html, /src\/logic\.js\?v=20260624-nav-labels/);
-  assert.match(html, /src\/site\.js\?v=20260626-work-preview-fit/);
+  assert.match(html, /src\/site\.js\?v=20260626-auth-mobile/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
@@ -1898,11 +1919,12 @@ test("admin console exposes backend data operations for teams, votes, works, and
   assert.match(css, /\.data-panel/);
   assert.match(css, /\.admin-metric-grid/);
   assert.match(dataJs, /function loadWorks/);
+  assert.match(dataJs, /function loadAdminWorks/);
   assert.match(dataJs, /function loadJudgeScores/);
   assert.match(dataJs, /function loadAuditLogs/);
   assert.match(adminJs, /function loadBusinessData/);
   assert.match(adminJs, /window\.AppData\.loadVoteResults/);
-  assert.match(adminJs, /window\.AppData\.loadWorks/);
+  assert.match(adminJs, /window\.AppData\.loadAdminWorks/);
   assert.match(adminJs, /window\.AppData\.loadJudgeScores/);
   assert.match(adminJs, /function updateWorkReviewStatus/);
   assert.match(adminJs, /data-work-status/);
@@ -1914,12 +1936,30 @@ test("admin console exposes backend data operations for teams, votes, works, and
   assert.match(css, /\.admin-work-actions/);
 });
 
+test("admin work review cards expose full submitted work content", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.match(adminJs, /function renderWorkSubmissionLinks/);
+  assert.match(adminJs, /function renderWorkScreenshots/);
+  assert.match(adminJs, /work\.demoUrl/);
+  assert.match(adminJs, /work\.codeUrl/);
+  assert.match(adminJs, /work\.docUrl/);
+  assert.match(adminJs, /work\.screenshots/);
+  assert.match(adminJs, /class="admin-work-review-media"/);
+  assert.match(adminJs, /class="admin-work-review-links"/);
+  assert.match(adminJs, /class="admin-work-review-meta"/);
+  assert.match(css, /\.admin-work-review-media/);
+  assert.match(css, /\.admin-work-review-links/);
+  assert.match(css, /\.admin-work-review-meta/);
+});
+
 test("admin content manager links to runtime backend data APIs", () => {
   const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
 
   assert.match(adminJs, /apiRoute:\s*"\/api\/teams"/);
   assert.match(adminJs, /apiRoute:\s*"\/api\/vote-results"/);
-  assert.match(adminJs, /apiRoute:\s*"\/api\/works"/);
+  assert.match(adminJs, /apiRoute:\s*"\/api\/admin\/works"/);
   assert.match(adminJs, /apiRoute:\s*"\/api\/judge\/scores"/);
   assert.match(adminJs, /apiRoute:\s*"\/api\/admin\/audit-logs"/);
   assert.match(adminJs, /const href = resolveAdminRouteHref\(item\.apiRoute \|\| item\.route\)/);
@@ -2041,16 +2081,21 @@ test("admin team roster shows the leader inside the five-person team lineup", ()
   const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
 
   assert.match(adminJs, /function getTeamRosterPeople\(team = \{\}, members = \[\]\)/);
+  assert.match(adminJs, /function hasConfiguredTeamAdvisor\(advisor = \{\}\)/);
+  assert.match(adminJs, /function isConfiguredTeamRosterPerson\(person = \{\}\)/);
   assert.match(adminJs, /const teamPeople = getTeamRosterPeople\(team, members\)/);
+  assert.match(adminJs, /const configuredPeople = teamPeople\.filter\(isConfiguredTeamRosterPerson\)/);
   assert.match(adminJs, /const teamCapacity = getTeamCapacity\(team\)/);
   assert.match(adminJs, /队伍人数/);
-  assert.match(adminJs, /teamPeople\.length\}\/\$\{teamCapacity/);
-  assert.match(adminJs, /admin-team-member \$\{person\.isLeader \? "is-leader" : ""\}/);
+  assert.match(adminJs, /configuredPeople\.length\}\/\$\{teamCapacity/);
+  assert.match(adminJs, /admin-team-member \$\{person\.isLeader \? "is-leader" : ""\}\$\{person\.isPlaceholder \? " is-placeholder" : ""\}/);
   assert.match(adminJs, /admin-team-member-badge/);
+  assert.match(adminJs, /person\.isPlaceholder\s*\?\s*""\s*:\s*`<button class="admin-team-member-remove"/);
   assert.match(adminJs, /data-member-role-key/);
   assert.doesNotMatch(adminJs, /<p class="admin-team-advisor">/);
   assert.doesNotMatch(adminJs, /admin-team-member-lock/);
   assert.match(css, /\.admin-team-member\.is-leader/);
+  assert.match(css, /\.admin-team-member\.is-placeholder/);
   assert.match(css, /\.admin-team-member-badge/);
   assert.doesNotMatch(css, /\.admin-team-member-lock/);
   assert.match(css, /repeat\(auto-fit,\s*minmax\(180px,\s*1fr\)\)/);
@@ -2265,9 +2310,9 @@ test("admin and big screen cache keys stay current", () => {
   const adminHtml = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
   const indexHtml = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
 
-  assert.match(adminHtml, /admin\.css\?v=20260626-admin-scenario-profile-style/);
+  assert.match(adminHtml, /admin\.css\?v=20260626-work-review-detail/);
   assert.match(adminHtml, /src\/data\.js\?v=20260625-time-sync/);
-  assert.match(adminHtml, /src\/admin\.js\?v=20260626-work-review-actions/);
+  assert.match(adminHtml, /src\/admin\.js\?v=20260626-work-review-detail/);
   assert.match(indexHtml, /src\/data\.js\?v=20260625-time-sync/);
   assert.match(indexHtml, /src\/app\.js\?v=20260625-time-sync/);
 });

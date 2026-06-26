@@ -1095,6 +1095,13 @@ async function routeApi(
     return true;
   }
 
+  if (url.pathname === "/api/admin/works" && request.method === "GET") {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
+    sendJson(response, 200, await worksRepository.listWorks({ status: url.searchParams.get("status") }));
+    return true;
+  }
+
   if (url.pathname === "/api/work/submit" && request.method === "POST") {
     const session = await enforcePermission(request, response, "canSubmitWork");
     if (!session) return true;

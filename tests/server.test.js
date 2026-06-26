@@ -481,6 +481,15 @@ test("works API applies the same unpublished work visibility boundary", async (t
   assert.deepEqual(await loadWorkProjects(), ["已发布生产质检平台"]);
   assert.deepEqual(await loadWorkProjects("", "?status=submitted"), []);
 
+  const adminConsoleResponse = await fetch(`${baseUrl}/api/admin/works`);
+  const adminConsoleWorks = await adminConsoleResponse.json();
+  assert.equal(adminConsoleResponse.status, 200);
+  assert.deepEqual(adminConsoleWorks.map((work) => work.project).sort(), [
+    "审核中临床数据助手",
+    "已发布生产质检平台",
+    "待审核营销智能体",
+  ]);
+
   const judgeCookie = await loginAs(baseUrl, "judge", { userId: "judge-001", name: "专家评委" });
   assert.deepEqual(await loadWorkProjects(judgeCookie), ["已发布生产质检平台"]);
 
@@ -2463,7 +2472,7 @@ test("admin / screen / big-screen pages require an admin session", async (t) => 
   assert.match(response.headers.get("content-type"), /text\/html/);
   assert.match(html, /AI 星锐黑客松 管理后台/);
   assert.match(html, /id="stageRows"/);
-  assert.match(html, /src="\.\/src\/admin\.js\?v=20260626-work-review-actions"/);
+  assert.match(html, /src="\.\/src\/admin\.js\?v=20260626-work-review-detail"/);
 });
 
 test("root serves the user site for everyone; big screen stays admin-only", async (t) => {

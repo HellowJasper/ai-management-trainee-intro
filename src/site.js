@@ -761,9 +761,10 @@
       gate.className = "auth-gate";
       doc.body.appendChild(gate);
     }
-    gate.innerHTML = `<div class="auth-gate-backdrop"></div><section class="auth-card glass">
+    gate.innerHTML = `<div class="auth-gate-backdrop" data-auth-close></div><section class="auth-card glass" role="dialog" aria-modal="true" aria-labelledby="authGateTitle">
+      <button class="auth-close" type="button" aria-label="关闭登录弹窗" data-auth-close>×</button>
       <span class="ph-en">ENTRY AUTH</span>
-      <h2>飞书登录</h2>
+      <h2 id="authGateTitle">飞书登录</h2>
       <p>请使用飞书账号登录；登录后将按你被授予的角色进入，多个角色时可自行选择当前身份。</p>
       <button class="auth-feishu" type="button" data-auth-feishu>飞书账号登录</button>
     </section>`;
@@ -1434,9 +1435,6 @@
 
         <footer class="profile-console-footer">
           <span>AI INNOVATION HACKATHON &gt; JOINCARE</span>
-          <div class="challenge-slot" id="siteChallengeSlot">
-            <button class="blind-box-button" type="button" aria-label="我的数字盲盒">MY DIGITAL BLIND BOX</button>
-          </div>
         </footer>
       </article>
     `;
@@ -2362,7 +2360,7 @@
     navLinks.querySelectorAll("a").forEach((a) => a.classList.toggle("on", a.dataset.nav === key));
     if (mobileTabbar) {
       const availableTabs = mobileTabs().map((item) => item.key);
-      const tabKey = availableTabs.includes(key) ? key : (key === "vote" || key === "result" ? "gallery" : key);
+      const tabKey = availableTabs.includes(key) ? key : (key === "vote" ? "gallery" : "");
       mobileTabbar.querySelectorAll("a").forEach((a) => a.classList.toggle("on", a.dataset.nav === tabKey));
     }
     doc.body.dataset.view = key;
@@ -2384,6 +2382,7 @@
       if (push !== false && location.hash.slice(1) !== "me") history.pushState(null, "", "#me");
       return;
     }
+    closeAuthGate();
     main.innerHTML = v.render();
     setActive(v.key);
     if (v.key === "people") {
@@ -3116,6 +3115,7 @@
       const mobileTrainee = e.target.closest("[data-mobile-trainee]");
       const mobileDetailClose = e.target.closest("[data-mobile-detail-close]");
       const authFeishu = e.target.closest("[data-auth-feishu]");
+      const authClose = e.target.closest("[data-auth-close]");
       const authReset = e.target.closest("[data-auth-reset]");
       const nav = e.target.closest("[data-nav]");
       const prev = e.target.closest("[data-preview]");
@@ -3133,6 +3133,7 @@
         return;
       }
       if (authFeishu) { e.preventDefault(); startFeishuLogin(); return; }
+      if (authClose) { e.preventDefault(); closeAuthGate(); return; }
       if (authReset) {
         e.preventDefault();
         root.localStorage.removeItem(ROLE_KEY);

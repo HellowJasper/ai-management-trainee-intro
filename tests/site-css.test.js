@@ -77,12 +77,15 @@ test("site profile detail text is compact enough for the shorter photo panel", (
   assert.match(css, /\.site-detail-layer \.profile-fact-list p\s*\{[^}]*font-size:\s*clamp\(11\.5px,\s*0\.82vw,\s*13px\);[^}]*line-height:\s*1\.35/s);
 });
 
-test("site trainee detail includes the digital blind box footer module", () => {
+test("site trainee detail removes the digital blind box footer module", () => {
   const siteJs = fs.readFileSync(siteJsPath, "utf8");
+  const css = fs.readFileSync(cssPath, "utf8");
 
-  assert.match(siteJs, /challenge-slot/);
-  assert.match(siteJs, /MY DIGITAL BLIND BOX/);
-  assert.match(siteJs, /blind-box-button/);
+  assert.doesNotMatch(siteJs, /challenge-slot/);
+  assert.doesNotMatch(siteJs, /MY DIGITAL BLIND BOX/);
+  assert.doesNotMatch(siteJs, /blind-box-button/);
+  assert.match(css, /\.site-detail-layer \.profile-console-footer\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*center;[^}]*min-height:\s*clamp\(26px,\s*3dvh,\s*38px\);[^}]*border-top:\s*1px solid rgba\(103,\s*255,\s*213,\s*0\.12\)/s);
+  assert.match(css, /\.site-detail-layer \.profile-console-footer > span\s*\{[^}]*width:\s*100%;[^}]*text-align:\s*center/s);
 });
 
 test("schedule journey cards keep consistent desktop height", () => {

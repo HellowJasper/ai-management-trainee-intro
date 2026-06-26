@@ -1997,6 +1997,8 @@
 .auth-gate.show { display: grid; }
 .auth-gate-backdrop { position: absolute; inset: 0; background: rgba(2, 8, 14, 0.76); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 .auth-card { position: relative; z-index: 1; width: min(420px, 100%); padding: 24px; border-radius: 20px; }
+.auth-close { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; border: 1px solid rgba(103, 255, 213, 0.24); background: rgba(4, 14, 18, 0.76); color: var(--text); font-size: 22px; line-height: 1; cursor: pointer; }
+.auth-close:hover { border-color: rgba(40, 255, 200, 0.54); color: var(--neon); background: rgba(40, 255, 200, 0.1); }
 .auth-card h2 { margin: 10px 0 8px; font-family: var(--display); font-size: 34px; color: #fff; }
 .auth-card p { margin: 0 0 18px; color: var(--text-soft); line-height: 1.6; }
 .auth-feishu { width: 100%; min-height: 52px; margin: 0 0 14px; border: 0; border-radius: 14px; color: var(--void); background: linear-gradient(180deg, var(--neon), #1fe0b0); font-size: 16px; font-weight: 900; cursor: pointer; box-shadow: 0 12px 28px rgba(40, 255, 200, 0.24); }
@@ -3453,6 +3455,21 @@
   background-size: cover, cover, cover !important;
   background-repeat: no-repeat, no-repeat, no-repeat !important;
   background-position: center, center, center !important;
+}
+
+.site-detail-layer .profile-console-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: clamp(26px, 3dvh, 38px);
+  border-top: 1px solid rgba(103, 255, 213, 0.12);
+  padding-top: clamp(6px, 1dvh, 10px);
+}
+
+.site-detail-layer .profile-console-footer > span {
+  grid-column: auto;
+  width: 100%;
+  text-align: center;
 }
 
 @media (max-width: 1679px) {

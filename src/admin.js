@@ -531,7 +531,7 @@ function stringifyAuditMeta(value) {
 function countTeamMembers(teams) {
   return teams.reduce((total, team) => {
     const members = Array.isArray(team.members) ? team.members : [];
-    return total + getTeamRosterPeople(team, members).length;
+    return total + getTeamRosterPeople(team, members).filter(isConfiguredTeamRosterPerson).length;
   }, 0);
 }
 
@@ -589,6 +589,144 @@ function getWorkReviewId(work) {
   return work?.id || work?.teamId || "";
 }
 
+function getFirstWorkText(...values) {
+  const value = values.find((item) => String(item || "").trim());
+  return String(value || "").trim();
+}
+
+function normalizeWorkStack(stack) {
+  if (Array.isArray(stack)) {
+    return stack.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+
+  return String(stack || "")
+    .split(/[、,，/|]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function isSafeWorkHref(url) {
+  const value = String(url || "").trim();
+  return /^(https?:\/\/|\/|\.\/|\.\.\/|#)/i.test(value);
+}
+
+function resolveWorkAssetHref(path) {
+  const value = String(path || "").trim();
+  if (!value || !isSafeWorkHref(value)) {
+    return "";
+  }
+
+  return value;
+}
+
+function renderWorkSubmissionLinks(work) {
+  const links = [
+    ["Demo", work.demoUrl],
+    ["代码", work.codeUrl],
+    ["文档", work.docUrl],
+  ];
+
+  return `
+    <div class="admin-work-review-links" aria-label="作品链接">
+      ${links.map(([label, url]) => {
+        const href = resolveWorkAssetHref(url);
+        return href
+          ? `<a href="${escapeHtml(href)}" target="_blank" rel="noreferrer">${escapeHtml(label)}</a>`
+          : `<span>${escapeHtml(label)}未设置</span>`;
+      }).join("")}
+    </div>
+  `;
+}
+
+function renderWorkScreenshots(work) {
+  const screenshots = Array.isArray(work.screenshots)
+    ? work.screenshots.map(resolveWorkAssetHref).filter(Boolean)
+    : [];
+
+  if (!screenshots.length) {
+    return '<div class="admin-work-review-media is-empty">未上传作品截图</div>';
+  }
+
+  return `
+    <div class="admin-work-review-media" aria-label="作品截图">
+      ${screenshots.slice(0, 4).map((src, index) => `
+        <a href="${escapeHtml(src)}" target="_blank" rel="noreferrer" aria-label="打开作品截图 ${index + 1}">
+          <img src="${escapeHtml(src)}" alt="作品截图 ${index + 1}" loading="lazy" />
+        </a>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderWorkReviewMeta(work) {
+  const stack = normalizeWorkStack(work.stack);
+  const submittedAt = getFirstWorkText(work.submittedAt);
+  const reviewedAt = getFirstWorkText(work.reviewedAt);
+  const submittedBy = getFirstWorkText(work.submittedBy);
+  const reviewedBy = getFirstWorkText(work.reviewedBy);
+  const items = [
+    ["队伍", getFirstWorkText(work.teamName, work.teamId, "未绑定队伍")],
+    ["技术栈", stack.length ? stack.join(" / ") : "未填写"],
+    ["提交人", submittedBy || "未记录"],
+    ["提交时间", submittedAt ? formatSnapshotTime(submittedAt) : "未记录"],
+    ["审核人", reviewedBy || "未审核"],
+    ["审核时间", reviewedAt ? formatSnapshotTime(reviewedAt) : "未审核"],
+  ];
+
+  return `
+    <dl class="admin-work-review-meta">
+      ${items.map(([label, value]) => `
+        <div>
+          <dt>${escapeHtml(label)}</dt>
+          <dd>${escapeHtml(value)}</dd>
+        </div>
+      `).join("")}
+    </dl>
+  `;
+}
+
+function renderWorkReviewCard(work) {
+  const reviewId = getWorkReviewId(work);
+  const title = getFirstWorkText(work.project, work.title, work.teamName, work.id, "未命名作品");
+  const track = getFirstWorkText(work.track, work.category, work.teamName, "赛道待补全");
+  const summary = getFirstWorkText(work.pitch, work.summary, work.description, work.problem, "提交说明待补全");
+  const statusText = workStatusText[work.status] || work.status || "未知";
+  const note = getFirstWorkText(work.reviewNote);
+
+  return `
+    <article class="admin-work-review-card">
+      <header class="admin-work-review-head">
+        <div>
+          <h3>${escapeHtml(title)}</h3>
+          <p>${escapeHtml(track)}</p>
+        </div>
+        <em>${escapeHtml(statusText)}</em>
+      </header>
+      <p class="admin-work-review-summary">${escapeHtml(summary)}</p>
+      ${renderWorkReviewMeta(work)}
+      ${renderWorkScreenshots(work)}
+      ${renderWorkSubmissionLinks(work)}
+      ${note ? `<p class="admin-work-review-note">审核备注：${escapeHtml(note)}</p>` : ""}
+      <div class="admin-work-actions">
+        <button type="button" data-work-status="${escapeHtml(reviewId)}:published" ${work.status === "published" ? "disabled" : ""}>发布作品</button>
+        <button type="button" data-work-status="${escapeHtml(reviewId)}:rejected" ${work.status === "rejected" ? "disabled" : ""}>退回修改</button>
+      </div>
+    </article>
+  `;
+}
+
+function formatWorkReviewStatusSummary(works) {
+  const normalizedWorks = normalizeWorks(works);
+  if (!normalizedWorks.length) {
+    return "等待提交";
+  }
+
+  const pendingCount = normalizedWorks.filter((work) => ["submitted", "reviewing"].includes(work.status)).length;
+  const publishedCount = normalizedWorks.filter((work) => work.status === "published").length;
+  const rejectedCount = normalizedWorks.filter((work) => work.status === "rejected").length;
+  return `待审 ${pendingCount} / 已发布 ${publishedCount} / 退回 ${rejectedCount}`;
+}
+
 function getTeamCapacity(team = {}) {
   const capacity = Number(team.capacity);
   return Number.isFinite(capacity) && capacity > 0 ? capacity : DEFAULT_TEAM_CAPACITY;
@@ -603,24 +741,33 @@ function isTeamLeaderPerson(person = {}) {
   return /advisor|leader|captain|队长/.test(roleText);
 }
 
+function hasConfiguredTeamAdvisor(advisor = {}) {
+  return Boolean(String(
+    advisor.userId || advisor.id || advisor.name || advisor.displayName || "",
+  ).trim());
+}
+
+function isConfiguredTeamRosterPerson(person = {}) {
+  return !person.isPlaceholder;
+}
+
 function getTeamRosterPeople(team = {}, members = []) {
   const advisor = team.advisor || {};
   const normalizedMembers = Array.isArray(members) ? members : [];
   const hasMemberLeader = normalizedMembers.some(isTeamLeaderPerson);
-  const hasAdvisor = Boolean(String(
-    advisor.name || advisor.displayName || advisor.userId || advisor.id || advisor.role || advisor.department || team.hostDepartment || "",
-  ).trim());
-  const leader = hasAdvisor && !hasMemberLeader
+  const hasAdvisor = hasConfiguredTeamAdvisor(advisor);
+  const leader = !hasMemberLeader
     ? [{
         ...advisor,
-        name: normalizeLeaderDisplay(advisor.name || advisor.displayName) || "队长未配置",
+        name: hasAdvisor ? (normalizeLeaderDisplay(advisor.name || advisor.displayName) || "队长") : "队长未配置",
         department: advisor.department || team.hostDepartment || "部门待补全",
         duty: normalizeLeaderDisplay(advisor.duty || advisor.role || "队长") || "队长",
         role: "队长",
         roleKey: advisor.roleKey || "advisor",
         photo: advisor.photo || advisor.avatar || "",
-        userId: advisor.userId || advisor.id || advisor.name || "",
+        userId: hasAdvisor ? (advisor.userId || advisor.id || advisor.name || "") : "",
         isLeader: true,
+        isPlaceholder: !hasAdvisor,
       }]
     : [];
 
@@ -637,7 +784,7 @@ function getTeamRoleCoverage(team = {}, members = []) {
   const teamPeople = getTeamRosterPeople(team, members);
   const teamCapacity = getTeamCapacity(team);
   const coveredCount = teamPeople.filter((member) => (
-    String(member?.roleKey || member?.duty || member?.role || "").trim()
+    isConfiguredTeamRosterPerson(member) && String(member?.roleKey || member?.duty || member?.role || "").trim()
   )).length;
 
   return {
@@ -1125,26 +1272,13 @@ function renderWorkList(works) {
 
   if (adminWorkReviewList) {
     adminWorkReviewList.innerHTML = normalizedWorks.length
-      ? normalizedWorks.map((work) => `
-          <article class="admin-work-review-card">
-            <div>
-              <h3>${escapeHtml(work.project || work.title || work.teamName || work.id || "未命名作品")}</h3>
-              <p>${escapeHtml(work.teamName || work.teamId || "未绑定队伍")} · ${escapeHtml(work.track || work.category || "赛道待补全")}</p>
-              <p>${escapeHtml(work.summary || work.description || work.problem || "提交说明待补全")}</p>
-            </div>
-            <em>${escapeHtml(workStatusText[work.status] || work.status || "未知")}</em>
-            <div class="admin-work-actions">
-              <button type="button" data-work-status="${escapeHtml(getWorkReviewId(work))}:published" ${work.status === "published" ? "disabled" : ""}>发布作品</button>
-              <button type="button" data-work-status="${escapeHtml(getWorkReviewId(work))}:rejected" ${work.status === "rejected" ? "disabled" : ""}>退回修改</button>
-            </div>
-          </article>
-        `).join("")
+      ? normalizedWorks.map(renderWorkReviewCard).join("")
       : '<p class="admin-empty">暂无作品提交</p>';
   }
 
-  const publishedCount = normalizedWorks.filter((work) => work.status === "published").length;
-  setText(adminWorkStatus, normalizedWorks.length ? `${publishedCount}/${normalizedWorks.length} 已发布` : "等待提交");
-  setText(adminWorkWorkspaceStatus, normalizedWorks.length ? `${publishedCount}/${normalizedWorks.length} 已发布` : "等待提交");
+  const statusSummary = formatWorkReviewStatusSummary(normalizedWorks);
+  setText(adminWorkStatus, statusSummary);
+  setText(adminWorkWorkspaceStatus, statusSummary);
 }
 
 function getTeamStatus(team = {}) {
@@ -1163,13 +1297,14 @@ function renderTeamStatusManager(teams = businessDataState.teams) {
         const status = getTeamStatus(team);
         const members = Array.isArray(team.members) ? team.members : [];
         const teamPeople = getTeamRosterPeople(team, members);
+        const configuredPeople = teamPeople.filter(isConfiguredTeamRosterPerson);
         const teamCapacity = getTeamCapacity(team);
         const isLocked = status === "locked";
         return `
           <article class="admin-team-status-card ${isLocked ? "is-locked" : ""}">
             <div>
               <b>${escapeHtml(team.index ? `${team.index} · ${team.name || teamId}` : team.name || teamId || "未命名赛道")}</b>
-              <span>${teamPeople.length}/${teamCapacity} 人 · ${escapeHtml(team.project || team.hostDepartment || team.nameEn || "组队状态")}</span>
+              <span>${configuredPeople.length}/${teamCapacity} 人 · ${escapeHtml(team.project || team.hostDepartment || team.nameEn || "组队状态")}</span>
             </div>
             <small class="admin-team-status-chip">${escapeHtml(teamStatusLabels[status] || status || "开放组队")}</small>
             <div class="admin-team-status-actions">
@@ -1190,7 +1325,8 @@ function renderTeamRoster(teams = businessDataState.teams) {
   renderTeamMemberUserOptions();
   const openSlots = normalizedTeams.reduce((total, team) => {
     const members = Array.isArray(team.members) ? team.members : [];
-    return total + Math.max(0, getTeamCapacity(team) - getTeamRosterPeople(team, members).length);
+    const configuredPeople = getTeamRosterPeople(team, members).filter(isConfiguredTeamRosterPerson);
+    return total + Math.max(0, getTeamCapacity(team) - configuredPeople.length);
   }, 0);
   setText(
     adminTeamRosterStatus,
@@ -1207,11 +1343,12 @@ function renderTeamRoster(teams = businessDataState.teams) {
     ? normalizedTeams.map((team) => {
         const members = Array.isArray(team.members) ? team.members : [];
         const teamPeople = getTeamRosterPeople(team, members);
+        const configuredPeople = teamPeople.filter(isConfiguredTeamRosterPerson);
         const teamCapacity = getTeamCapacity(team);
-        const remainingSlots = Math.max(0, teamCapacity - teamPeople.length);
+        const remainingSlots = Math.max(0, teamCapacity - configuredPeople.length);
         const roleCoverage = getTeamRoleCoverage(team, members);
         const capacityPercent = teamCapacity
-          ? Math.min(100, Math.round((teamPeople.length / teamCapacity) * 100))
+          ? Math.min(100, Math.round((configuredPeople.length / teamCapacity) * 100))
           : 0;
         const rolePercent = roleCoverage.expectedCount
           ? Math.min(100, Math.round((roleCoverage.coveredCount / roleCoverage.expectedCount) * 100))
@@ -1224,12 +1361,12 @@ function renderTeamRoster(teams = businessDataState.teams) {
                 <h3>${escapeHtml(team.name || "未命名赛道")}</h3>
                 <span>${escapeHtml(team.nameEn || team.hostDepartment || "TRACK")}</span>
               </div>
-              <strong class="admin-team-count">${teamPeople.length}/${teamCapacity} 人</strong>
+              <strong class="admin-team-count">${configuredPeople.length}/${teamCapacity} 人</strong>
             </header>
             <div class="admin-team-capacity">
               <div>
                 <b>队伍人数</b>
-                <span>${teamPeople.length}/${teamCapacity} 已就位 · 队长计入总人数 · ${remainingSlots} 个空位</span>
+                <span>${configuredPeople.length}/${teamCapacity} 已就位 · 队长计入总人数 · ${remainingSlots} 个空位</span>
               </div>
               <i class="admin-team-capacity-meter" style="--capacity-percent: ${capacityPercent}%"></i>
             </div>
@@ -1240,7 +1377,7 @@ function renderTeamRoster(teams = businessDataState.teams) {
             </div>
             <div class="admin-team-members" aria-label="${escapeHtml(team.name || "队伍")}五人阵容">
               ${teamPeople.map((person) => `
-                <div class="admin-team-member ${person.isLeader ? "is-leader" : ""}">
+                <div class="admin-team-member ${person.isLeader ? "is-leader" : ""}${person.isPlaceholder ? " is-placeholder" : ""}">
                   ${person.photo
                     ? `<img src="${escapeHtml(person.photo)}" alt="${escapeHtml(person.name || "成员")}" />`
                     : `<i>${escapeHtml(String(person.name || "?").slice(0, 1))}</i>`}
@@ -1248,7 +1385,7 @@ function renderTeamRoster(teams = businessDataState.teams) {
                     <strong>${escapeHtml(person.name || "未命名成员")}${person.isLeader ? '<em class="admin-team-member-badge">队长</em>' : ""}</strong>
                     <span>${escapeHtml(person.department || "部门待补全")} · ${escapeHtml(person.duty || person.role || "成员")}</span>
                   </div>
-                  <button class="admin-team-member-remove" type="button" data-remove-team-member="${escapeHtml(team.id || "")}" data-member-id="${escapeHtml(person.userId || person.id || person.name || "")}" data-member-name="${escapeHtml(person.name || person.userId || "成员")}" data-member-role-key="${escapeHtml(person.roleKey || "")}">移除</button>
+                  ${person.isPlaceholder ? "" : `<button class="admin-team-member-remove" type="button" data-remove-team-member="${escapeHtml(team.id || "")}" data-member-id="${escapeHtml(person.userId || person.id || person.name || "")}" data-member-name="${escapeHtml(person.name || person.userId || "成员")}" data-member-role-key="${escapeHtml(person.roleKey || "")}">移除</button>`}
                 </div>
               `).join("")}
             </div>
@@ -1684,7 +1821,7 @@ function renderContentManager() {
     { name: "业务场景", route: "data/teams.json", apiRoute: "/api/teams", count: `${businessDataState.teams.length} 张卡片`, note: "主会场 AI BUSINESS SCENARIOS 卡片内容与文档链接。" },
     { name: "投票排名", route: "data/vote-results.json", apiRoute: "/api/vote-results", count: `${formatNumber(getVoteTotal())} 票`, note: businessDataState.voteResults.windowLabel || "投票窗口状态待同步。" },
     { name: "最终结果快照", route: "data/result-snapshots.json", apiRoute: "/api/results/latest", count: snapshot?.id ? "已发布" : "未发布", note: snapshot?.id || "发布结果后生成不可变最终排名快照。" },
-    { name: "作品提交", route: "data/works.json", apiRoute: "/api/works", count: `${works.length} 件作品`, note: "作品提交后可在数据与投票页审核发布或退回。" },
+    { name: "作品提交", route: "data/works.json", apiRoute: "/api/admin/works", count: `${works.length} 件作品`, note: "作品提交后可在数据与投票页审核发布或退回。" },
     { name: "评委评分", route: "data/judge-scores.json", apiRoute: "/api/judge/scores", count: coverage.expectedCount ? `${coverage.submittedCount}/${coverage.expectedCount} 已提交` : `${coverage.teamCount} 个赛道`, note: coverage.locked ? "专家评分已锁定，可发布最终结果。" : `${coverage.judgeCount} 位评委提交进度待同步。` },
     { name: "审计日志", route: "data/audit-logs.json", apiRoute: "/api/admin/audit-logs", count: `${businessDataState.auditLogs.length} 条`, note: "记录后台关键写操作，便于排查与复盘。" },
     { name: "星锐档案", route: "data/trainees.json", apiRoute: "/api/trainees", count: `${traineeProfileState.trainees.length || 14} 人`, note: "新人档案和个人展示内容由后台统一维护。" },
@@ -2896,7 +3033,7 @@ async function loadBusinessData({ writeLog = false } = {}) {
   const [teamsResult, voteResult, worksResult, judgeResult, judgeProgressResult, snapshotResult] = await Promise.allSettled([
     window.AppData.loadTeams([]),
     window.AppData.loadVoteResults([]),
-    window.AppData.loadWorks([]),
+    window.AppData.loadAdminWorks([]),
     window.AppData.loadJudgeScores({ scores: {} }),
     window.AppData.loadJudgeProgress({ judges: [], teams: [], judgeCount: 0, teamCount: 0, locked: false }),
     window.AppData.loadLatestResultSnapshot({ snapshot: null }),
