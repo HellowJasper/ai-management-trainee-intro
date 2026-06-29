@@ -15,3 +15,5 @@ data/AI*附件/
 .vercel
 dist/
 .idea/
+assets/uploads/
+backups/
