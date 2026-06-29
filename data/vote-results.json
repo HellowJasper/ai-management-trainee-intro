@@ -7,7 +7,7 @@
     {
       "id": "pharma",
       "name": "药学",
-      "track": "PHARMACEUTICALS",
+      "track": "PHARMACEUTICAL SCIENCE",
       "project": "药物信息检索助手",
       "color": "var(--neon)",
       "colorRgb": "40, 255, 200",
@@ -17,7 +17,7 @@
     {
       "id": "medicine",
       "name": "医学",
-      "track": "CLINICAL MEDICINE",
+      "track": "MEDICAL AFFAIRS",
       "project": "医学资料问答中枢",
       "color": "rgb(205, 255, 92)",
       "colorRgb": "205, 255, 92",
@@ -37,7 +37,7 @@
     {
       "id": "functions",
       "name": "职能",
-      "track": "GENERAL FUNCTIONS",
+      "track": "CORPORATE FUNCTIONS",
       "project": "职能流程自动化助手",
       "color": "var(--neon-2)",
       "colorRgb": "167, 255, 79",
@@ -47,7 +47,7 @@
     {
       "id": "production",
       "name": "生产",
-      "track": "PRODUCTION & MANUFACTURING",
+      "track": "MANUFACTURING",
       "project": "生产排产与质量预警看板",
       "color": "rgb(110, 235, 150)",
       "colorRgb": "110, 235, 150",

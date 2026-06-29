@@ -1,65 +1,9 @@
 [
   {
-    "id": "pharma",
-    "index": "01",
-    "name": "药学",
-    "nameEn": "PHARMACEUTICALS",
-    "hostDepartment": "药学研发中心",
-    "hostDepartmentEn": "PHARMACEUTICAL R&D CENTER",
-    "focus": "文献挖掘、靶点筛选、处方工艺、专利检索。",
-    "focusEn": "Literature Mining, Target Screening, Formulation Process, Patent Search.",
-    "scenarios": [
-      "药物信息检索助手",
-      "实验方案生成",
-      "文献摘要与对比"
-    ],
-    "scenariosEn": [
-      "Drug Information Retrieval Assistant",
-      "Experiment Plan Generation",
-      "Literature Summary and Comparison"
-    ],
-    "deliverable": "知识库 + 分析报告 + 可演示 Demo。",
-    "deliverableEn": "Knowledge Base + Analysis Report + Demo.",
-    "docUrl": "",
-    "color": "var(--neon)",
-    "colorRgb": "40, 255, 200",
-    "advisor": {
-      "name": "队长 A",
-      "department": "药学研发中心",
-      "role": "队长"
-    },
-    "members": [
-      {
-        "name": "黄钊强",
-        "department": "药学研发中心",
-        "role": "队友 01",
-        "photo": "./assets/trainees/huang-zhaoqiang/idPhoto.jpg"
-      },
-      {
-        "name": "占美玲",
-        "department": "AIDD研究部",
-        "role": "队友 02",
-        "photo": "./assets/trainees/zhan-meiling/idPhoto.jpg"
-      },
-      {
-        "name": "顾灵茜",
-        "department": "AIDD研究部",
-        "role": "队友 03",
-        "photo": "./assets/trainees/gu-lingqian/idPhoto.jpg"
-      },
-      {
-        "name": "林艺新",
-        "department": "AI创新部",
-        "role": "队友 04",
-        "photo": "./assets/trainees/lin-yixin/idPhoto.jpg"
-      }
-    ]
-  },
-  {
     "id": "medicine",
-    "index": "02",
+    "index": "01",
     "name": "医学",
-    "nameEn": "CLINICAL MEDICINE",
+    "nameEn": "MEDICAL AFFAIRS",
     "hostDepartment": "临床研发中心",
     "hostDepartmentEn": "CLINICAL R&D CENTER",
     "focus": "临床资料、医学问答、病例归纳、研究辅助。",
@@ -112,8 +56,120 @@
     ]
   },
   {
-    "id": "marketing",
+    "id": "pharma",
+    "index": "02",
+    "name": "药学",
+    "nameEn": "PHARMACEUTICAL SCIENCE",
+    "hostDepartment": "药学研发中心",
+    "hostDepartmentEn": "PHARMACEUTICAL R&D CENTER",
+    "focus": "文献挖掘、靶点筛选、处方工艺、专利检索。",
+    "focusEn": "Literature Mining, Target Screening, Formulation Process, Patent Search.",
+    "scenarios": [
+      "药物信息检索助手",
+      "实验方案生成",
+      "文献摘要与对比"
+    ],
+    "scenariosEn": [
+      "Drug Information Retrieval Assistant",
+      "Experiment Plan Generation",
+      "Literature Summary and Comparison"
+    ],
+    "deliverable": "知识库 + 分析报告 + 可演示 Demo。",
+    "deliverableEn": "Knowledge Base + Analysis Report + Demo.",
+    "docUrl": "",
+    "color": "var(--neon)",
+    "colorRgb": "40, 255, 200",
+    "advisor": {
+      "name": "队长 A",
+      "department": "药学研发中心",
+      "role": "队长"
+    },
+    "members": [
+      {
+        "name": "黄钊强",
+        "department": "药学研发中心",
+        "role": "队友 01",
+        "photo": "./assets/trainees/huang-zhaoqiang/idPhoto.jpg"
+      },
+      {
+        "name": "占美玲",
+        "department": "AIDD研究部",
+        "role": "队友 02",
+        "photo": "./assets/trainees/zhan-meiling/idPhoto.jpg"
+      },
+      {
+        "name": "顾灵茜",
+        "department": "AIDD研究部",
+        "role": "队友 03",
+        "photo": "./assets/trainees/gu-lingqian/idPhoto.jpg"
+      },
+      {
+        "name": "林艺新",
+        "department": "AI创新部",
+        "role": "队友 04",
+        "photo": "./assets/trainees/lin-yixin/idPhoto.jpg"
+      }
+    ]
+  },
+  {
+    "id": "production",
     "index": "03",
+    "name": "生产",
+    "nameEn": "MANUFACTURING",
+    "hostDepartment": "生产管理中心",
+    "hostDepartmentEn": "PRODUCTION MANAGEMENT CENTER",
+    "focus": "智能制造、质量管控、设备预测、排产优化。",
+    "focusEn": "Smart Manufacturing, Quality Control, Equipment Prediction, Scheduling Optimization.",
+    "scenarios": [
+      "质检视觉识别",
+      "设备维保预测",
+      "能耗监控与排班建议"
+    ],
+    "scenariosEn": [
+      "Visual Quality Inspection",
+      "Equipment Maintenance Prediction",
+      "Energy Monitoring and Shift Recommendations"
+    ],
+    "deliverable": "生产看板 + 预警模型 + 操作建议。",
+    "deliverableEn": "Production Dashboard + Warning Model + Operation Recommendations.",
+    "docUrl": "",
+    "color": "rgb(110, 235, 150)",
+    "colorRgb": "110, 235, 150",
+    "advisor": {
+      "name": "队长 E",
+      "department": "生产管理中心",
+      "role": "队长"
+    },
+    "members": [
+      {
+        "name": "顾灵茜",
+        "department": "AIDD研究部",
+        "role": "队友 01",
+        "photo": "./assets/trainees/gu-lingqian/idPhoto.jpg"
+      },
+      {
+        "name": "许镁胜",
+        "department": "临床研发中心",
+        "role": "队友 02",
+        "photo": "./assets/trainees/xu-meisheng/idPhoto.jpg"
+      },
+      {
+        "name": "李蓓蓓",
+        "department": "健康品事业部",
+        "role": "队友 03",
+        "photo": "./assets/trainees/li-beibei/idPhoto.jpg"
+      },
+      {
+        "name": "黄钊强",
+        "department": "药学研发中心",
+        "role": "队友 04",
+        "photo": "./assets/trainees/huang-zhaoqiang/idPhoto.jpg"
+      }
+    ]
+  },
+  {
+    "id": "marketing",
+    "index": "04",
     "name": "营销",
     "nameEn": "SALES & MARKETING",
     "hostDepartment": "健康品事业部",
@@ -169,9 +225,9 @@
   },
   {
     "id": "functions",
-    "index": "04",
+    "index": "05",
     "name": "职能",
-    "nameEn": "GENERAL FUNCTIONS",
+    "nameEn": "CORPORATE FUNCTIONS",
     "hostDepartment": "董事长办公室",
     "hostDepartmentEn": "CHAIRMAN OFFICE",
     "focus": "流程自动化、知识管理、会议纪要、制度问答。",
@@ -220,62 +276,6 @@
         "department": "AI创新部",
         "role": "队友 04",
         "photo": "./assets/trainees/chen-xulin/idPhoto.png"
-      }
-    ]
-  },
-  {
-    "id": "production",
-    "index": "05",
-    "name": "生产",
-    "nameEn": "PRODUCTION & MANUFACTURING",
-    "hostDepartment": "生产管理中心",
-    "hostDepartmentEn": "PRODUCTION MANAGEMENT CENTER",
-    "focus": "智能制造、质量管控、设备预测、排产优化。",
-    "focusEn": "Smart Manufacturing, Quality Control, Equipment Prediction, Scheduling Optimization.",
-    "scenarios": [
-      "质检视觉识别",
-      "设备维保预测",
-      "能耗监控与排班建议"
-    ],
-    "scenariosEn": [
-      "Visual Quality Inspection",
-      "Equipment Maintenance Prediction",
-      "Energy Monitoring and Shift Recommendations"
-    ],
-    "deliverable": "生产看板 + 预警模型 + 操作建议。",
-    "deliverableEn": "Production Dashboard + Warning Model + Operation Recommendations.",
-    "docUrl": "",
-    "color": "rgb(110, 235, 150)",
-    "colorRgb": "110, 235, 150",
-    "advisor": {
-      "name": "队长 E",
-      "department": "生产管理中心",
-      "role": "队长"
-    },
-    "members": [
-      {
-        "name": "顾灵茜",
-        "department": "AIDD研究部",
-        "role": "队友 01",
-        "photo": "./assets/trainees/gu-lingqian/idPhoto.jpg"
-      },
-      {
-        "name": "许镁胜",
-        "department": "临床研发中心",
-        "role": "队友 02",
-        "photo": "./assets/trainees/xu-meisheng/idPhoto.jpg"
-      },
-      {
-        "name": "李蓓蓓",
-        "department": "健康品事业部",
-        "role": "队友 03",
-        "photo": "./assets/trainees/li-beibei/idPhoto.jpg"
-      },
-      {
-        "name": "黄钊强",
-        "department": "药学研发中心",
-        "role": "队友 04",
-        "photo": "./assets/trainees/huang-zhaoqiang/idPhoto.jpg"
       }
     ]
   }

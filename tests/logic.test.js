@@ -137,6 +137,7 @@ test("countActualTeamPeople only counts roster entries with real user identity",
   assert.equal(countActualTeamPeople({
     advisor: { userId: "leader", name: "真实队长" },
     members: [
+      { userId: "leader", name: "真实队长", role: "队长" },
       { userId: "u1", name: "真实成员 A" },
       { userId: "u2", name: "真实成员 B" },
       { userId: "u3", name: "真实成员 C" },
@@ -158,6 +159,7 @@ test("getActualTeamPeople excludes static fallback people without real identity"
   assert.deepEqual(getActualTeamPeople({
     advisor: { userId: "leader", name: "真实队长" },
     members: [
+      { userId: "leader", name: "真实队长", role: "队长" },
       { userId: "u1", name: "真实成员 A" },
     ],
   }).map((person) => person.name), ["真实队长", "真实成员 A"]);
@@ -806,6 +808,7 @@ test("official site result ranking reads published snapshot score field names", 
 
 test("official site schedule status reads the synchronized backend stage timer", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
   const renderScheduleBody = siteJs.match(/function renderSchedule\(\) \{([\s\S]*?)\n  \}/);
   const applySiteStageStateBody = siteJs.match(/function applySiteStageState\(state = SITE_STATE\) \{([\s\S]*?)\n  \}/);
   const timerRemainingSecondsBody = siteJs.match(/function timerRemainingSeconds\(timerState, fallbackSeconds\) \{([\s\S]*?)\n  \}/);
@@ -817,6 +820,7 @@ test("official site schedule status reads the synchronized backend stage timer",
   assert.match(renderScheduleBody[1], /\$\{esc\(phaseInfo\.phase\)\}/);
   assert.match(renderScheduleBody[1], /\$\{esc\(phaseInfo\.label\)\}/);
   assert.match(renderScheduleBody[1], /\$\{countdownAttrs\(\)\}/);
+  assert.match(siteCss, /\.schedule-count\s*\{[\s\S]*align-items:\s*flex-start/);
   assert.match(siteJs, /const MISSION_COUNTDOWN_STAGE_IDS = new Set\(\["opening", "icebreaker", "speech", "tracks", "team"\]\)/);
   assert.match(applySiteStageStateBody[1], /MISSION_COUNTDOWN_STAGE_IDS\.has\(CURRENT_STAGE_ID\)/);
   assert.match(timerRemainingSecondsBody[1], /return Math\.max\(0,\s*Math\.floor\(durationMs \/ 1000\)\)/);
@@ -889,11 +893,18 @@ test("hackathon overview cards lower the muted description copy", () => {
   assert.match(siteCss, /\.flow-step p\s*\{[\s\S]*?transform:\s*translateY\(6px\)/);
 });
 
-test("hackathon overview day badges do not wrap", () => {
+test("hackathon overview day badges keep a compact label gap", () => {
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+  const badgeBlock = siteCss.match(/\.fs-badge\s*\{[^}]*\}/)?.[0] || "";
 
-  assert.match(siteCss, /\.fs-badge\s*\{[\s\S]*white-space:\s*nowrap/);
+  assert.match(badgeBlock, /display:\s*grid/);
+  assert.match(badgeBlock, /grid-template-columns:\s*auto auto/);
+  assert.match(badgeBlock, /column-gap:\s*clamp\(10px,\s*0\.65vw,\s*14px\)/);
+  assert.match(badgeBlock, /width:\s*max-content/);
+  assert.match(badgeBlock, /white-space:\s*nowrap/);
   assert.match(siteCss, /\.fs-badge span,\s*\.fs-badge i\s*\{[^}]*white-space:\s*nowrap/);
+  assert.doesNotMatch(badgeBlock, /grid-template-columns:\s*auto 1fr/);
+  assert.doesNotMatch(badgeBlock, /width:\s*clamp\(198px,\s*13vw,\s*220px\)/);
 });
 
 test("official site exposes all requested PC pages in the SPA router", () => {
@@ -916,6 +927,30 @@ test("official site exposes all requested PC pages in the SPA router", () => {
   assert.match(siteJs, /key:\s*"judge", label:\s*"评委评分"/);
 });
 
+test("official site normalizes team track order and uppercase English labels", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /const TEAM_DISPLAY_ORDER = \["medicine", "pharma", "production", "marketing", "functions"\]/);
+  assert.match(siteJs, /medicine:\s*\{ code:\s*"01", nameEn:\s*"MEDICAL AFFAIRS" \}/);
+  assert.match(siteJs, /pharma:\s*\{ code:\s*"02", nameEn:\s*"PHARMACEUTICAL SCIENCE" \}/);
+  assert.match(siteJs, /production:\s*\{ code:\s*"03", nameEn:\s*"MANUFACTURING" \}/);
+  assert.match(siteJs, /marketing:\s*\{ code:\s*"04", nameEn:\s*"SALES & MARKETING" \}/);
+  assert.match(siteJs, /functions:\s*\{ code:\s*"05", nameEn:\s*"CORPORATE FUNCTIONS" \}/);
+  assert.match(siteJs, /function normalizeUpperText\(value, fallback = ""\)/);
+  assert.match(siteJs, /const track = normalizeUpperText\(\s*team\.nameEn \|\| team\.trackName \|\| team\.track \|\| base\.nameEn \|\| base\.track,\s*displayMeta\.nameEn \|\| "业务赛道",\s*\)/);
+  assert.match(siteJs, /nameEn:\s*track/);
+  assert.doesNotMatch(siteJs, /nameEn:\s*displayMeta\.nameEn \|\| team\.nameEn/);
+  assert.match(siteJs, /\.sort\(compareTeamDisplayOrder\)/);
+});
+
+test("official site keeps backend team cards when bootstrap is unavailable", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const loadSiteStateBody = siteJs.match(/async function loadSiteState\(\) \{([\s\S]*?)\n  \}/)?.[1] || "";
+
+  assert.match(loadSiteStateBody, /typeof AppData\.loadTeams === "function" \? await AppData\.loadTeams\(STATIC_TEAMS\) : \[\]/);
+  assert.doesNotMatch(loadSiteStateBody, /applySiteState\(\{ trainees: \[\], teams: \[\], works: \[\]/);
+});
+
 test("official site header uses compact team nav and balanced hero/brand copy", () => {
   const logicJs = fs.readFileSync(path.join(__dirname, "../src/logic.js"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
@@ -928,6 +963,8 @@ test("official site header uses compact team nav and balanced hero/brand copy", 
   assert.doesNotMatch(siteJs, /LIVE · AI_INNOVATION_HACKATHON_2026/);
   assert.match(siteCss, /\.hero-kicker\s*\{[\s\S]*justify-content:\s*space-between/);
   assert.match(siteCss, /\.hero-kicker-name\s*\{[\s\S]*margin-left:\s*auto[\s\S]*text-align:\s*right/);
+  assert.match(siteCss, /\.mh-hero\s*\{[\s\S]*border:\s*0[\s\S]*background:\s*none[\s\S]*box-shadow:\s*none/);
+  assert.match(siteCss, /\.mh-hero h1\s*\{[\s\S]*text-shadow:[\s\S]*rgba\(40,\s*255,\s*200,\s*0\.5\)/);
   assert.match(siteCss, /\.nav-brand strong\s*\{[\s\S]*font-size:\s*13\.5px/);
   assert.match(siteCss, /\.nav-brand small\s*\{[\s\S]*font-size:\s*9px/);
 });
@@ -937,7 +974,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260626-header-polish/);
+  assert.match(siteHtml, /site\.js\?v=20260629-[^"]+/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -979,7 +1016,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260626-header-polish/);
+  assert.match(siteHtml, /site\.js\?v=20260629-[^"]+/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -997,10 +1034,10 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.css\?v=20260626-header-polish/);
-  assert.match(siteHtml, /site\.js\?v=20260626-header-polish/);
+  assert.match(siteHtml, /site\.css\?v=20260629-[^"]+/);
+  assert.match(siteHtml, /site\.js\?v=20260629-[^"]+/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
-  assert.match(siteJs, /浏览已审核发布的队伍作品，选出你最认可的解决方案，并投出关键一票。/);
+  assert.match(siteJs, /投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
   assert.match(siteJs, /class="gl2-cover-name">\$\{esc\(t\.name\)\}<\/h3>/);
   assert.match(siteJs, /<b class="gl2-project-name">\$\{esc\(t\.project\)\}<\/b>/);
@@ -1217,11 +1254,51 @@ test("team card roster uses the same real-identity list as the member count", ()
   assert.doesNotMatch(renderTeamBody, /\[\{\s*\.\.\.t\.advisor,\s*role:\s*"队长"\s*\},\s*\.\.\.t\.members/);
 });
 
+test("team workspace roster excludes fallback people and avoids duplicate leader labels", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const teamPeopleStart = siteJs.indexOf("function teamPeople(team)");
+  const teamPeopleEnd = siteJs.indexOf("\n  function getTeamLeaderId", teamPeopleStart);
+  const teamPeopleBody = siteJs.slice(teamPeopleStart, teamPeopleEnd);
+  const workspaceStart = siteJs.indexOf("function renderTeamWorkspace");
+  const workspaceEnd = siteJs.indexOf("\n  /* ---- 投票状态", workspaceStart);
+  const workspaceBody = siteJs.slice(workspaceStart, workspaceEnd);
+
+  assert.match(teamPeopleBody, /const personId = realPersonId\(person\)/);
+  assert.match(teamPeopleBody, /if \(!personId \|\| seenPersonIds\.has\(personId\)\) return/);
+  assert.match(teamPeopleBody, /isAdvisorSlot: true/);
+  assert.match(workspaceBody, /const leaderSuffix = isLeader && !isLeaderRoleText\(duty\) \? " · 队长" : ""/);
+  assert.doesNotMatch(workspaceBody, /\$\{personId === leaderId \? " · 队长" : ""\}/);
+});
+
+test("gallery, work detail and ranking use filtered real team people", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const galleryStart = siteJs.indexOf("function renderGallery()");
+  const galleryEnd = siteJs.indexOf("\n  /* ---- 作品详情", galleryStart);
+  const galleryBody = siteJs.slice(galleryStart, galleryEnd);
+  const workStart = siteJs.indexOf("function renderWork(id)");
+  const workEnd = siteJs.indexOf("\n  /* ---- 投票状态", workStart);
+  const workBody = siteJs.slice(workStart, workEnd);
+  const resultStart = siteJs.indexOf("function renderResult");
+  const resultEnd = siteJs.indexOf("\n  function renderNoPermission", resultStart);
+  const resultBody = siteJs.slice(resultStart, resultEnd);
+
+  assert.match(galleryBody, /teamPeople\(t\)\.slice\(0, 5\)\.map\(\(p\) => avatar\(p, 34\)\)/);
+  assert.match(workBody, /const workLeaderId = getTeamLeaderId\(t\)/);
+  assert.match(workBody, /teamPeople\(t\)[\s\S]*p\.realUserId && p\.realUserId === workLeaderId \? "队长" : "组员"/);
+  assert.match(resultBody, /teamPeople\(t\)\.slice\(0, 5\)\.map\(\(p\) => avatar\(p, 30\)\)/);
+  assert.doesNotMatch(galleryBody, /\[t\.advisor,\s*...t\.members\]/);
+  assert.doesNotMatch(workBody, /\[\{\s*...t\.advisor,\s*role:\s*"队长"\s*\},\s*...t\.members/);
+  assert.doesNotMatch(resultBody, /\[t\.advisor,\s*...t\.members\]/);
+});
+
 test("team page removes the repeated formation explanation panel from the audience view", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteJs, /pageHead\("组队", "选择赛道队伍，查看队长、成员与作品方向", "TEAM FORMATION"\)/);
+  assert.match(siteJs, /pageHead\("组队", "选择你感兴趣的挑战方向，与伙伴组建战队，开启共创之旅", "TEAM FORMATION"\)/);
+  assert.match(siteJs, /<div class="sec-cap"><span><\/span>挑战赛道 · CHALLENGE TRACKS<\/div>/);
+  assert.doesNotMatch(siteJs, /选择赛道队伍，查看队长、成员与作品方向/);
+  assert.doesNotMatch(siteJs, />队伍列表<\/div>/);
   assert.doesNotMatch(siteJs, /const teamStatusLabel/);
   assert.doesNotMatch(siteJs, /const teamStatusHeadline/);
   assert.doesNotMatch(siteJs, /class="team-formation-panel/);
@@ -1698,6 +1775,8 @@ test("schedule journey follows the snake arrow order", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
   assert.match(siteJs, /赛事旅程\s*·\s*EVENT JOURNEY/);
+  assert.match(siteJs, /sub:\s*"总裁致辞·认识组织·认识彼此"/);
+  assert.doesNotMatch(siteJs, /sub:\s*"总裁致辞·认识彼此·认识组织"/);
   assert.match(siteJs, /const snakeOrder = \[0, 1, 2, 3, 7, 6, 5, 4\]/);
   assert.match(siteJs, /const journeyOrder = isMobileView\(\) \? chronologicalOrder : snakeOrder/);
 });
@@ -1710,14 +1789,31 @@ test("schedule journey uses chronological order on the mobile app view", () => {
   assert.match(siteJs, /journeyOrder\.map\(\(sourceIndex, gridIndex\) => entryCard\(journeyCards\[sourceIndex\], gridIndex, \{ hideEnglish: true \}\)\)/);
 });
 
-test("mobile home agenda reuses the shared flow day order", () => {
+test("mobile home focuses on the stage countdown without shortcut cards", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+  const renderMobileHomeBody = siteJs.match(/function renderMobileHome\(totalVotes\) \{([\s\S]*?)\n  \}/)?.[1] || "";
 
-  assert.match(siteJs, /const agenda = D\.flowDays\.map\(\(day\) =>/);
-  assert.match(siteJs, /<li><b>\$\{esc\(day\.day\)\}<\/b><span>\$\{esc\(day\.title\)\}<\/span><\/li>/);
-  assert.doesNotMatch(siteJs, /\["DAY 1", "发布挑战，完成组队"\]/);
-  assert.doesNotMatch(siteJs, /\["DAY 2", "集中制作可运行 Demo"\]/);
-  assert.doesNotMatch(siteJs, /\["DAY 3", "路演展评，投票颁奖"\]/);
+  assert.match(renderMobileHomeBody, /class="mh-slogan">36小时，用 AI 把创意照进现实/);
+  assert.match(renderMobileHomeBody, /五大真实业务挑战，五支战队，从业务场景出发，用 AI 解决真实问题，认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。/);
+  assert.match(renderMobileHomeBody, /class="mh-chip"><span class="live-dot"><\/span>当前阶段/);
+  assert.match(renderMobileHomeBody, /class="mh-chip">距离任务结束还有/);
+  assert.match(renderMobileHomeBody, /<b>\$\{esc\(phaseInfo\.phase\)\}<\/b>/);
+  assert.match(renderMobileHomeBody, /<strong \$\{countdownAttrs\(\)\}>\$\{fmtHMS\(COUNTDOWN_REMAIN\)\}<\/strong>/);
+  assert.match(siteCss, /\.mh-live\s*\{[\s\S]*align-items:\s*start/);
+  assert.match(siteCss, /\.mh-chip\s*\{[\s\S]*justify-content:\s*center[\s\S]*min-height:\s*28px/);
+  assert.match(renderMobileHomeBody, /const overview = D\.flowDays\.map\(\(day\) =>/);
+  assert.match(renderMobileHomeBody, /class="mh-overview"/);
+  assert.match(renderMobileHomeBody, />赛事全景</);
+  assert.match(renderMobileHomeBody, /class="mh-overview-card"/);
+  assert.match(renderMobileHomeBody, /\$\{esc\(day\.day\)\}/);
+  assert.match(renderMobileHomeBody, /\$\{esc\(day\.title\)\}/);
+  assert.match(siteCss, /\.mh-overview\s*\{/);
+  assert.match(siteCss, /\.mh-overview-list\s*\{/);
+  assert.match(siteCss, /\.mh-overview-card\s*\{/);
+  assert.match(siteCss, /\.mh-overview-badge\s*\{/);
+  assert.doesNotMatch(renderMobileHomeBody, /LIVE · HACKATHON 2026/);
+  assert.doesNotMatch(renderMobileHomeBody, /参赛伙伴图鉴|活动议程|认识这一届 AI 星锐|看懂比赛怎么进行|查看现场作品|class="mh-agenda"|class="mh-card/);
 });
 
 test("official site result page uses leaderboard copy and final award labels", () => {
@@ -1760,8 +1856,16 @@ test("schedule mechanism section uses briefing cards and separate evaluation cri
   assert.match(siteJs, /<i>\$\{pad\(index \+ 1\)\}<\/i><b>\$\{esc\(d\.label\)\}<\/b><span><em>\$\{d\.weight\}<\/em>%<\/span><small><ins><\/ins><\/small>/);
   assert.doesNotMatch(siteJs, /\$\{esc\(d\.en\)\}\s*·/);
 
-  assert.match(siteCss, /\.score-dim-grid\s*{[\s\S]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(siteCss, /\.site-body\[data-view="schedule"\] \.container\s*{[\s\S]*width:\s*min\(1360px,\s*calc\(100% - 48px\)\)/);
+  assert.match(siteCss, /\.score-dim-grid\s*{[\s\S]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)[\s\S]*gap:\s*clamp\(10px,\s*1\.2vw,\s*18px\)/);
+  assert.match(siteCss, /\.score-criteria\s*{[\s\S]*gap:\s*44px[\s\S]*margin-top:\s*26px/);
   assert.match(siteCss, /\.score-dim-card\s*{[\s\S]*display:\s*flex/);
+  assert.match(siteCss, /\.score-dim-card\s*{[\s\S]*--dim-accent:\s*#64e8d6[\s\S]*--dim-rgb:\s*100,\s*232,\s*214/);
+  assert.match(siteCss, /\.score-dim-card:nth-child\(1\)\s*{[\s\S]*--dim-accent:\s*#28ffc8[\s\S]*--dim-rgb:\s*40,\s*255,\s*200/);
+  assert.match(siteCss, /\.score-dim-card:nth-child\(2\)\s*{[\s\S]*--dim-accent:\s*#a7ff4f[\s\S]*--dim-rgb:\s*167,\s*255,\s*79/);
+  assert.match(siteCss, /\.score-dim-card:nth-child\(3\)\s*{[\s\S]*--dim-accent:\s*#c79bff[\s\S]*--dim-rgb:\s*199,\s*155,\s*255/);
+  assert.match(siteCss, /\.score-dim-card:nth-child\(4\)\s*{[\s\S]*--dim-accent:\s*#6ad7ff[\s\S]*--dim-rgb:\s*106,\s*215,\s*255/);
+  assert.match(siteCss, /\.score-dim-card:nth-child\(5\)\s*{[\s\S]*--dim-accent:\s*#f6ff81[\s\S]*--dim-rgb:\s*246,\s*255,\s*129/);
   assert.match(siteCss, /\.score-dim-card\s*{[\s\S]*align-items:\s*center/);
   assert.match(siteCss, /\.score-dim-card\s*{[\s\S]*justify-content:\s*center/);
   assert.match(siteCss, /\.score-dim-card\s*{[\s\S]*text-align:\s*center/);
@@ -1797,7 +1901,7 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260626-header-polish/);
+  assert.match(html, /src\/site\.css\?v=20260629-[^"]+/);
   assert.match(siteCss, /--site-detail-console-width:\s*calc\(min\(80vw,\s*1260px\) - 24px\)/);
   assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*max\(3vw,\s*calc\(100dvw - var\(--site-detail-console-width\) - var\(--site-detail-card-width\) - 40px\)\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*auto/);
@@ -1824,10 +1928,38 @@ test("mobile site opens on event home and uses a natural swipe-card browser", ()
 
   assert.match(siteJs, /function renderMobileHome\(/);
   assert.match(siteJs, /36小时，用 AI 把创意照进现实/);
-  assert.match(siteJs, /参赛伙伴图鉴/);
-  assert.match(siteJs, /看懂比赛怎么进行/);
-  assert.match(siteJs, /key: "people", label: "星锐"/);
-  assert.match(siteJs, /class="mh-agenda"/);
+  assert.match(siteJs, /class="mh-slogan"/);
+  assert.match(siteJs, /class="mh-intro"/);
+  assert.match(siteJs, /当前阶段/);
+  assert.match(siteJs, /距离任务结束还有/);
+  assert.match(siteJs, /赛事全景/);
+  assert.match(siteJs, /mh-overview-card/);
+  assert.match(siteCss, /\.mh-overview\s*\{/);
+  assert.match(siteCss, /\.mh-overview-list\s*\{/);
+  assert.match(siteCss, /\.mh-overview-card\s*\{/);
+  assert.match(siteCss, /\.mh-overview-badge\s*\{/);
+  assert.doesNotMatch(siteJs, /LIVE · HACKATHON 2026/);
+  assert.doesNotMatch(siteJs, /参赛伙伴图鉴|认识这一届 AI 星锐|看懂比赛怎么进行|查看现场作品|class="mh-agenda"|class="mh-card/);
+  assert.match(siteJs, /key: "people", label: "新生看板"/);
+  assert.match(siteJs, /const MOBILE_TABS_PLAYER = \[\s*\{ key: "home", label: "首页", icon: "target" \},\s*\{ key: "people", label: "新生看板", icon: "user" \},\s*\{ key: "schedule", label: "赛事指南", icon: "calendar" \}/);
+  assert.match(siteJs, /<span class="ph-en">Talent Profiles<\/span>/);
+  assert.match(siteJs, /\$\{pad\(MOBILE_TRAINEE_INDEX \+ 1\)\}\/\$\{pad\(list\.length\)\}/);
+  assert.doesNotMatch(siteJs, /ROSTER CARDS|星锐卡组|<button class="mobile-back-link"/);
+  assert.match(siteCss, /\.mobile-people-head\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\) auto/);
+  const mobilePeopleLabelBlock = siteCss.match(/\.mobile-people-head \.ph-en\s*\{[^}]*\}/)?.[0] || "";
+  const mobileCardIndexBlock = siteCss.match(/\.mobile-card-index\s*\{[^}]*\}/)?.[0] || "";
+  assert.match(mobilePeopleLabelBlock, /font-family:\s*var\(--display\)/);
+  assert.match(mobilePeopleLabelBlock, /font-size:\s*17px/);
+  assert.match(mobileCardIndexBlock, /font-size:\s*17px/);
+  assert.doesNotMatch(mobilePeopleLabelBlock, /border:/);
+  assert.doesNotMatch(mobilePeopleLabelBlock, /padding:/);
+  assert.doesNotMatch(mobilePeopleLabelBlock, /border-radius:/);
+  assert.match(siteCss, /\.mobile-people-stage,\s*\.mobile-profile-detail\s*\{[\s\S]*padding:\s*2px 0 calc\(82px \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(siteCss, /\.mobile-tabbar a b\s*\{[\s\S]*font-size:\s*10px/);
+  assert.match(siteCss, /\.mobile-swipe-deck\s*\{[\s\S]*height:\s*clamp\(390px,\s*calc\(100svh - 208px\),\s*472px\)/);
+  assert.match(siteCss, /\.mobile-card-photo-wrap\s*\{[\s\S]*flex:\s*0 0 clamp\(190px,\s*31svh,\s*246px\)/);
+  assert.match(siteCss, /\.mobile-card-active \.mobile-card-photo\s*\{[\s\S]*width:\s*auto[\s\S]*max-width:\s*92%[\s\S]*object-position:\s*center bottom/);
+  assert.match(siteCss, /\.mobile-person-line\s*\{[\s\S]*-webkit-line-clamp:\s*2/);
   assert.match(siteJs, /function renderMobilePeople\(/);
   assert.match(siteJs, /function renderMobileTraineeDetail\(/);
   assert.match(siteJs, /function setMobileTrainee\(/);
@@ -2012,9 +2144,9 @@ test("official site cache keys are bumped after navigation and detail layout pol
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
-  assert.match(html, /src\/site\.css\?v=20260626-header-polish/);
+  assert.match(html, /src\/site\.css\?v=20260629-[^"]+/);
   assert.match(html, /src\/logic\.js\?v=20260626-header-polish/);
-  assert.match(html, /src\/site\.js\?v=20260626-header-polish/);
+  assert.match(html, /src\/site\.js\?v=20260629-[^"]+/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
@@ -2554,12 +2686,20 @@ test("landing hero uses the merged two-line cinematic hierarchy", () => {
   assert.match(enterButtonBlock, /border-radius:\s*8px/);
 });
 
-test("home demo final nav opens the roadshow timer stage", () => {
+test("landing stage does not render the top navigation bar", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
-  const navBlock = html.match(/<nav class="hackathon-nav"[\s\S]*?<\/nav>/)?.[0] || "";
+  const landingStart = html.indexOf('<section class="landing-stage"');
+  const landingEnd = html.indexOf('<section class="welcome-stage"', landingStart);
+  const landingSection = html.slice(landingStart, landingEnd);
 
-  assert.match(navBlock, /<button type="button" data-view-target="roadshow">DEMO FINAL<\/button>/);
-  assert.doesNotMatch(navBlock, /data-discover-target="awards">DEMO&amp;AWARDS/);
+  assert.notEqual(landingStart, -1);
+  assert.notEqual(landingEnd, -1);
+  assert.doesNotMatch(landingSection, /<nav class="hackathon-nav"/);
+  assert.doesNotMatch(landingSection, /data-view-target="home">HOME<\/button>/);
+  assert.doesNotMatch(landingSection, /data-view-target="wall">PERSONA PROFILE<\/button>/);
+  assert.doesNotMatch(landingSection, /data-view-target="discover">BUSINESS SCENARIO<\/button>/);
+  assert.doesNotMatch(landingSection, /data-view-target="roadshow">DEMO FINAL<\/button>/);
+  assert.match(landingSection, /<button class="enter-button" type="button" id="enterButton"[^>]*>解锁任务<\/button>/);
 });
 
 test("getIntroTiming keeps the loading hold and crossfade durations explicit", () => {
@@ -3107,7 +3247,8 @@ test("navigation uses the bundled pixel display font", () => {
   assert.match(css, /@font-face\s*{[\s\S]*font-family:\s*"Press Start 2P"/);
   assert.match(css, /src:\s*url\("\.\/assets\/fonts\/press-start-2p\.ttf"\)/);
   assert.match(css, /--nav-pixel:\s*"Press Start 2P"/);
-  assert.match(css, /\.hackathon-nav button\s*{[\s\S]*font-family:\s*var\(--nav-pixel\)/);
+  assert.match(css, /\.brand-chip,\n\.cohort-mark,\n\.stage-footer span,\n\.stage-footer button\s*{[\s\S]*font-family:\s*var\(--nav-pixel\)/);
+  assert.doesNotMatch(css, /\.hackathon-nav/);
 });
 
 test("profile arc cards do not use yaw perspective that breaks left-right symmetry", () => {

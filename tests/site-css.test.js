@@ -35,6 +35,7 @@ test("mobile nav brand constrains logo and copy inside narrow headers", () => {
 
   assert.match(mobileNavBlock, /\.nav-brand\s*\{[^}]*max-width:\s*100%/s);
   assert.match(mobileNavBlock, /\.nav-brand img\s*\{[^}]*max-width:/s);
+  assert.match(mobileNavBlock, /\.nav-brand-copy\s*\{[^}]*justify-content:\s*space-between;[^}]*height:\s*26px;[^}]*margin-top:\s*2px/s);
   assert.match(mobileNavBlock, /\.nav-brand-copy\s*\{[^}]*min-width:\s*0;[^}]*overflow:\s*hidden/s);
   assert.match(mobileNavBlock, /\.nav-brand small\s*\{[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap/s);
 });
@@ -84,8 +85,17 @@ test("site trainee detail removes the digital blind box footer module", () => {
   assert.doesNotMatch(siteJs, /challenge-slot/);
   assert.doesNotMatch(siteJs, /MY DIGITAL BLIND BOX/);
   assert.doesNotMatch(siteJs, /blind-box-button/);
-  assert.match(css, /\.site-detail-layer \.profile-console-footer\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*center;[^}]*min-height:\s*clamp\(26px,\s*3dvh,\s*38px\);[^}]*border-top:\s*1px solid rgba\(103,\s*255,\s*213,\s*0\.12\)/s);
-  assert.match(css, /\.site-detail-layer \.profile-console-footer > span\s*\{[^}]*width:\s*100%;[^}]*text-align:\s*center/s);
+  assert.match(siteJs, /<span class="profile-footer-left">AI INNOVATION HACKATHON<\/span>/);
+  assert.match(siteJs, /<span class="profile-footer-right">JOINCARE<\/span>/);
+  assert.doesNotMatch(siteJs, /AI INNOVATION HACKATHON &gt; JOINCARE/);
+  assert.match(css, /\.site-detail-layer \.profile-console-footer\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*1fr auto;[^}]*align-items:\s*center;[^}]*min-height:\s*clamp\(26px,\s*3dvh,\s*38px\);[^}]*border-top:\s*1px solid rgba\(103,\s*255,\s*213,\s*0\.12\)/s);
+  assert.match(css, /\.site-detail-layer \.profile-footer-left\s*\{[^}]*justify-self:\s*start/s);
+  assert.doesNotMatch(css, /\.site-detail-layer \.profile-footer-left\s*\{[^}]*margin-left:/s);
+  assert.match(css, /\.site-detail-layer \.profile-footer-right\s*\{[^}]*justify-self:\s*end/s);
+  assert.match(css, /\.site-detail-layer \.profile-console-footer\s*\{[^}]*padding-left:\s*0/s);
+  assert.match(css, /\.site-detail-layer \.profile-console-footer\s*\{[^}]*padding-right:\s*0/s);
+  assert.match(css, /\.site-detail-layer \.profile-console-footer\s*\{[^}]*margin-left:\s*0/s);
+  assert.match(css, /\.site-detail-layer \.profile-console-footer\s*\{[^}]*margin-right:\s*0/s);
 });
 
 test("schedule journey cards keep consistent desktop height", () => {

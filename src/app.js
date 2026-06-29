@@ -336,12 +336,13 @@ function fallbackMemberByName(name, role) {
 }
 
 function getFallbackTeamState() {
+  const teamDisplayOrder = ["medicine", "pharma", "production", "marketing", "functions"];
   const teams = [
     {
       id: "pharma",
-      index: "01",
+      index: "02",
       name: "药学",
-      nameEn: "PHARMACEUTICALS",
+      nameEn: "PHARMACEUTICAL SCIENCE",
       hostDepartment: "药学研发中心",
       hostDepartmentEn: "PHARMACEUTICAL R&D CENTER",
       focus: "文献挖掘、靶点筛选、处方工艺、专利检索。",
@@ -358,9 +359,9 @@ function getFallbackTeamState() {
     },
     {
       id: "medicine",
-      index: "02",
+      index: "01",
       name: "医学",
-      nameEn: "CLINICAL MEDICINE",
+      nameEn: "MEDICAL AFFAIRS",
       hostDepartment: "临床研发中心",
       hostDepartmentEn: "CLINICAL R&D CENTER",
       focus: "临床资料、医学问答、病例归纳、研究辅助。",
@@ -377,7 +378,7 @@ function getFallbackTeamState() {
     },
     {
       id: "marketing",
-      index: "03",
+      index: "04",
       name: "营销",
       nameEn: "SALES & MARKETING",
       hostDepartment: "健康品事业部",
@@ -396,9 +397,9 @@ function getFallbackTeamState() {
     },
     {
       id: "functions",
-      index: "04",
+      index: "05",
       name: "职能",
-      nameEn: "GENERAL FUNCTIONS",
+      nameEn: "CORPORATE FUNCTIONS",
       hostDepartment: "董事长办公室",
       hostDepartmentEn: "CHAIRMAN OFFICE",
       focus: "流程自动化、知识管理、会议纪要、制度问答。",
@@ -415,9 +416,9 @@ function getFallbackTeamState() {
     },
     {
       id: "production",
-      index: "05",
+      index: "03",
       name: "生产",
-      nameEn: "PRODUCTION & MANUFACTURING",
+      nameEn: "MANUFACTURING",
       hostDepartment: "生产管理中心",
       hostDepartmentEn: "PRODUCTION MANAGEMENT CENTER",
       focus: "智能制造、质量管控、设备预测、排产优化。",
@@ -434,7 +435,7 @@ function getFallbackTeamState() {
     },
   ];
 
-  return teams.map(({ memberNames, advisor, ...team }) => ({
+  return teams.sort((a, b) => teamDisplayOrder.indexOf(a.id) - teamDisplayOrder.indexOf(b.id)).map(({ memberNames, advisor, ...team }) => ({
     ...team,
     advisor: { ...advisor },
     members: memberNames.map((name, index) => fallbackMemberByName(name, `队友 ${String(index + 1).padStart(2, "0")}`)),

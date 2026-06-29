@@ -809,20 +809,28 @@
     });
   }
 
+  function rosterIdentityKey(person) {
+    return String(person?.userId || person?.id || "").trim();
+  }
+
   function hasRosterIdentity(person) {
-    return Boolean(String(person?.userId || person?.id || "").trim());
+    return Boolean(rosterIdentityKey(person));
   }
 
   function getActualTeamPeople(team = {}) {
     const people = [];
-    if (hasRosterIdentity(team.advisor)) {
-      people.push(team.advisor);
-    }
+    const seen = new Set();
+    const addPerson = (person) => {
+      const key = rosterIdentityKey(person);
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      people.push(person);
+    };
+
+    addPerson(team.advisor);
 
     const members = Array.isArray(team.members) ? team.members : [];
-    members.filter(hasRosterIdentity).forEach((member) => {
-      people.push(member);
-    });
+    members.forEach(addPerson);
 
     return people;
   }

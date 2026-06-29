@@ -7,7 +7,7 @@ const DEFAULT_STATE = {
   currentTeamId: "marketing",
   currentTeam: {
     id: "marketing",
-    index: "03",
+    index: "04",
     name: "营销",
     nameEn: "SALES & MARKETING",
     hostDepartment: "健康品事业部",
@@ -18,9 +18,9 @@ const DEFAULT_STATE = {
   nextTeamId: "functions",
   nextTeam: {
     id: "functions",
-    index: "04",
+    index: "05",
     name: "职能",
-    nameEn: "GENERAL FUNCTIONS",
+    nameEn: "CORPORATE FUNCTIONS",
     hostDepartment: "董事长办公室",
     project: "职能流程自动化助手",
     color: "var(--neon-2)",

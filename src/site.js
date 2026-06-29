@@ -15,6 +15,32 @@
   const SESSION_KEY = "joincare_hackathon_session";
   const VALID_ROLES = ["public", "player", "judge", "admin"];
   const MISSION_COUNTDOWN_STAGE_IDS = new Set(["opening", "icebreaker", "speech", "tracks", "team"]);
+  const TEAM_DISPLAY_ORDER = ["medicine", "pharma", "production", "marketing", "functions"];
+  const TEAM_DISPLAY_META = {
+    medicine: { code: "01", nameEn: "MEDICAL AFFAIRS" },
+    pharma: { code: "02", nameEn: "PHARMACEUTICAL SCIENCE" },
+    production: { code: "03", nameEn: "MANUFACTURING" },
+    marketing: { code: "04", nameEn: "SALES & MARKETING" },
+    functions: { code: "05", nameEn: "CORPORATE FUNCTIONS" },
+  };
+  const TEAM_DISPLAY_ALIASES = {
+    t1: "medicine",
+    medicine: "medicine",
+    medical: "medicine",
+    clinical: "medicine",
+    t2: "pharma",
+    pharma: "pharma",
+    pharmaceutical: "pharma",
+    t3: "production",
+    production: "production",
+    manufacturing: "production",
+    t4: "marketing",
+    marketing: "marketing",
+    sales: "marketing",
+    t5: "functions",
+    functions: "functions",
+    corporate: "functions",
+  };
   const TEAM_ROLE_SLOTS = [
     { roleKey: "advisor", label: "队长", duty: "队长" },
     { roleKey: "biz", label: "业务洞察", duty: "业务洞察" },
@@ -151,6 +177,46 @@
   function normalizeSiteTrainee(trainee) {
     return Logic.normalizeTrainee ? Logic.normalizeTrainee(trainee) : trainee;
   }
+  function normalizeUpperText(value, fallback = "") {
+    const text = String(value || fallback || "").trim();
+    return text ? text.toUpperCase() : "";
+  }
+  function resolveTeamDisplayKey(team = {}, base = {}) {
+    const tokens = [
+      team.id,
+      base.id,
+      team.name,
+      base.name,
+      team.track,
+      team.trackName,
+      team.nameEn,
+      base.track,
+      base.trackName,
+      base.nameEn,
+      team.hostDepartment,
+      base.hostDepartment,
+    ].map((value) => String(value || "").trim().toLowerCase()).filter(Boolean);
+
+    for (const token of tokens) {
+      if (TEAM_DISPLAY_ALIASES[token]) return TEAM_DISPLAY_ALIASES[token];
+    }
+    if (tokens.some((token) => /医学|临床|medical|clinical/.test(token))) return "medicine";
+    if (tokens.some((token) => /药学|pharma|pharmaceutical/.test(token))) return "pharma";
+    if (tokens.some((token) => /生产|manufacturing|production/.test(token))) return "production";
+    if (tokens.some((token) => /营销|marketing|sales/.test(token))) return "marketing";
+    if (tokens.some((token) => /职能|functions|corporate|general/.test(token))) return "functions";
+    return "";
+  }
+  function compareTeamDisplayOrder(a = {}, b = {}) {
+    const aKey = a.displayKey || resolveTeamDisplayKey(a);
+    const bKey = b.displayKey || resolveTeamDisplayKey(b);
+    const aIndex = TEAM_DISPLAY_ORDER.indexOf(aKey);
+    const bIndex = TEAM_DISPLAY_ORDER.indexOf(bKey);
+    const safeA = aIndex === -1 ? TEAM_DISPLAY_ORDER.length : aIndex;
+    const safeB = bIndex === -1 ? TEAM_DISPLAY_ORDER.length : bIndex;
+    if (safeA !== safeB) return safeA - safeB;
+    return String(a.trackCode || a.index || a.id || "").localeCompare(String(b.trackCode || b.index || b.id || ""));
+  }
   function findStaticTeam(team, index) {
     const byId = STATIC_TEAM_BY_ID[team.id];
     if (byId) return byId.team;
@@ -203,8 +269,13 @@
     const base = findStaticTeam(team, index);
     const work = workForTeam(works, team.id);
     const vote = voteForTeam(voteResults, team.id);
-    const trackCode = team.trackCode || team.index || team.track_code || base.trackCode || pad(index + 1);
-    const track = team.track || team.trackName || team.nameEn || base.track || "业务赛道";
+    const displayKey = resolveTeamDisplayKey(team, base);
+    const displayMeta = TEAM_DISPLAY_META[displayKey] || {};
+    const trackCode = displayMeta.code || team.trackCode || team.index || team.track_code || base.trackCode || pad(index + 1);
+    const track = normalizeUpperText(
+      team.nameEn || team.trackName || team.track || base.nameEn || base.track,
+      displayMeta.nameEn || "业务赛道",
+    );
     const stack = Array.isArray(work?.stack) && work.stack.length
       ? work.stack
       : Array.isArray(team.stack) && team.stack.length
@@ -215,8 +286,10 @@
       ...base,
       ...team,
       id: team.id || base.id || `team-${index + 1}`,
+      displayKey,
       trackCode,
       track,
+      nameEn: track,
       accent: team.accent || base.accent || "var(--neon)",
       rgb: team.rgb || team.colorRgb || base.rgb || "40,255,200",
       name: team.name || base.name || track,
@@ -281,14 +354,17 @@
     const voteResults = normalizeList(state?.vote?.results);
     const works = normalizeList(state?.works);
     TRAINEES = normalizeList(state?.trainees).map(normalizeSiteTrainee);
-    D.teams = normalizeList(state?.teams).map((team, index) => normalizeSiteTeam(team, index, voteResults, works));
+    D.teams = normalizeList(state?.teams)
+      .map((team, index) => normalizeSiteTeam(team, index, voteResults, works))
+      .sort(compareTeamDisplayOrder);
     D.computeRanking = computeSiteRanking;
     applySiteStageState(state);
     updateSiteStats();
   }
   async function loadSiteState() {
     if (!AppData || typeof AppData.loadSiteBootstrap !== "function") {
-      applySiteState({ trainees: [], teams: [], works: [], vote: { results: [] }, result: { published: false, snapshot: null } });
+      const teams = typeof AppData.loadTeams === "function" ? await AppData.loadTeams(STATIC_TEAMS) : [];
+      applySiteState({ trainees: [], teams, works: [], vote: { results: [] }, result: { published: false, snapshot: null } });
       SITE_STATE_ERROR = "观众端真实数据接口未加载";
       return null;
     }
@@ -299,7 +375,8 @@
       return state;
     } catch (error) {
       console.warn("Failed to load site bootstrap state.", error);
-      applySiteState({ trainees: [], teams: [], works: [], vote: { results: [] }, result: { published: false, snapshot: null } });
+      const teams = typeof AppData.loadTeams === "function" ? await AppData.loadTeams(STATIC_TEAMS) : [];
+      applySiteState({ trainees: [], teams, works: [], vote: { results: [] }, result: { published: false, snapshot: null } });
       SITE_STATE_ERROR = "无法连接观众端真实数据接口，请稍后重试";
       return null;
     }
@@ -558,41 +635,55 @@
     return apiBaseUrl ? `${apiBaseUrl}${assetPath}` : original;
   }
 
+  function realPersonId(person = {}) {
+    return String(person?.userId || person?.id || "").trim();
+  }
+  function isLeaderRoleText(value) {
+    return /advisor|leader|captain|队长/i.test(String(value || ""));
+  }
   function teamPeople(team) {
     const leader = team.advisor || {};
-    const leaderUserId = leader.userId || leader.id || "";
-    return [
-      { ...leader, id: leaderUserId || `${team.id}-leader`, realUserId: leaderUserId, defaultDuty: leader.duty || leader.role || defaultDuty(0), roleKey: leader.roleKey || "advisor" },
-      ...team.members.map((m, i) => {
-        const memberUserId = m.userId || m.id || "";
-        return {
-          ...m,
-          id: memberUserId || `${team.id}-m${i + 1}`,
-          realUserId: memberUserId,
-          defaultDuty: m.duty || m.role || defaultDuty(i + 1),
-        };
-      }),
-    ];
+    const people = [];
+    const seenPersonIds = new Set();
+    const addPerson = (person = {}, fallbackDuty = "", extra = {}) => {
+      const personId = realPersonId(person);
+      if (!personId || seenPersonIds.has(personId)) return;
+      seenPersonIds.add(personId);
+      people.push({
+        ...person,
+        ...extra,
+        id: personId,
+        realUserId: personId,
+        defaultDuty: person.duty || person.role || fallbackDuty,
+      });
+    };
+
+    addPerson(leader, defaultDuty(0), { roleKey: leader.roleKey || "advisor", isAdvisorSlot: true });
+    normalizeList(team.members).forEach((member, index) => {
+      addPerson(member, defaultDuty(index + 1));
+    });
+
+    return people;
   }
   function getTeamLeaderId(team) {
     const people = teamPeople(team);
-    const explicit = people.find((person, index) => {
+    const explicit = people.find((person) => {
       const roleText = `${person.roleKey || ""} ${person.role || ""} ${person.duty || ""}`;
       const personId = String(person.realUserId || "").trim();
-      return personId && ((index === 0 && person.realUserId) || /advisor|leader|captain|队长/.test(roleText));
+      return personId && (person.isAdvisorSlot || isLeaderRoleText(roleText));
     });
     return explicit ? String(explicit.realUserId || "").trim() : "";
   }
   function findTeamRoleOccupant(team, roleKey) {
     const cleanRoleKey = String(roleKey || "").trim();
-    return teamPeople(team).find((person, index) => {
+    return teamPeople(team).find((person) => {
       const personId = String(person.realUserId || "").trim();
       if (!personId) return false;
       const memberRoleKey = String(person.roleKey || "").trim();
       if (memberRoleKey === cleanRoleKey) return true;
       if (cleanRoleKey === "advisor") {
         const roleText = `${person.role || ""} ${person.duty || ""}`;
-        return (index === 0 && person.realUserId) || /队长|leader|captain|advisor/i.test(roleText);
+        return person.isAdvisorSlot || isLeaderRoleText(roleText);
       }
       return false;
     }) || null;
@@ -760,7 +851,7 @@
   };
   function getHomeActions(role) {
     return [
-      { nav: "schedule", title: "启航时刻", en: "KICKOFF", sub: "总裁致辞·认识彼此·认识组织", icon: "calendar", accent: "#6ad7ff", rgb: "106,215,255" },
+      { nav: "schedule", title: "启航时刻", en: "KICKOFF", sub: "总裁致辞·认识组织·认识彼此", icon: "calendar", accent: "#6ad7ff", rgb: "106,215,255" },
       { nav: "tracks", title: "挑战发布", en: "CHALLENGE BRIEFING", sub: "五大业务赛道发布挑战课题", icon: "doc", accent: "#c79bff", rgb: "199,155,255" },
       { nav: "team", title: "自由组队", en: "TEAM FORMATION", sub: "选择感兴趣的赛题，组建战队", icon: "team", accent: "var(--neon-2)", rgb: "167,255,79" },
       { nav: "schedule", title: "方案共创", en: "SOLUTION DESIGN", sub: "洞察业务需求，探索解决方案方向", icon: "bulb", accent: "var(--warning)", rgb: "246,255,129" },
@@ -1054,38 +1145,36 @@
   }
 
   function renderMobileHome(totalVotes) {
-    const list = traineeList();
-    const sample = list.slice(0, 8).map((p, i) => `<span style="--i:${i};--lift:${i % 2}"><img src="${traineeIdImage(p)}" alt="${esc(p.name)}" /></span>`).join("");
-    const agenda = D.flowDays.map((day) => `<li><b>${esc(day.day)}</b><span>${esc(day.title)}</span></li>`).join("");
     const phaseInfo = resolveHomePhase(CURRENT_STAGE_ID);
+    const overview = D.flowDays.map((day) => `
+      <article class="mh-overview-card">
+        <header>
+          <span class="mh-overview-icon">${ICON(day.icon, "var(--neon)")}</span>
+          <span class="mh-overview-badge"><b>${esc(day.day)}</b><i>${esc(day.en)}</i></span>
+        </header>
+        <h3>${esc(day.title)}</h3>
+        <p>${day.lines.map(esc).join("<br>")}</p>
+      </article>`).join("");
     return `<section class="mobile-home">
       <div class="mh-hero">
-        <span class="hero-kicker"><span class="live-dot"></span>LIVE · HACKATHON 2026</span>
         <h1>AI创新黑客松</h1>
-        <p>36小时，用 AI 把创意照进现实</p>
-        <div class="mh-live glass">
-          <div><span>${esc(phaseInfo.phase)}</span><b>${esc(phaseInfo.label)}</b></div>
-          <strong ${countdownAttrs()}>${fmtHMS(COUNTDOWN_REMAIN)}</strong>
+        <p class="mh-slogan">36小时，用 AI 把创意照进现实</p>
+        <p class="mh-intro">五大真实业务挑战，五支战队，从业务场景出发，用 AI 解决真实问题，认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。</p>
+        <div class="mh-live">
+          <div class="mh-live-status">
+            <span class="mh-chip"><span class="live-dot"></span>当前阶段</span>
+            <b>${esc(phaseInfo.phase)}</b>
+          </div>
+          <div class="mh-live-count">
+            <span class="mh-chip">距离任务结束还有</span>
+            <strong ${countdownAttrs()}>${fmtHMS(COUNTDOWN_REMAIN)}</strong>
+          </div>
         </div>
       </div>
-      <div class="mh-grid">
-        <a class="mh-card mh-people glass" data-nav="people">
-          <div class="mh-card-top"><span>参赛伙伴图鉴</span><b>CARDS</b></div>
-          <h3>认识这一届 AI 星锐</h3>
-          <p>证件照卡组快速浏览，点开后看生活照和完整档案。</p>
-          <div class="mh-faces">${sample}</div>
-        </a>
-        <a class="mh-card mh-schedule glass" data-nav="schedule">
-          <div class="mh-card-top"><span>活动议程</span><b>36H</b></div>
-          <h3>看懂比赛怎么进行</h3>
-          <ul class="mh-agenda">${agenda}</ul>
-        </a>
-        <a class="mh-card mh-work glass" data-nav="gallery" style="--accent:var(--neon-2);--rgb:167,255,79">
-          <div class="mh-card-top"><span>作品展评</span><b>${D.teams.length} 组</b></div>
-          <h3>查看现场作品</h3>
-          <p>浏览各组 Demo、作品说明与投票状态。</p>
-        </a>
-      </div>
+      <section class="mh-overview" aria-label="赛事全景">
+        <h2>赛事全景</h2>
+        <div class="mh-overview-list">${overview}</div>
+      </section>
     </section>`;
   }
 
@@ -1160,9 +1249,8 @@
 
     return `<section class="mobile-people-stage" id="mobilePeopleStage">
       <header class="mobile-people-head">
-        <button class="mobile-back-link" type="button" data-nav="home">首页</button>
-        <div><span class="ph-en">ROSTER CARDS</span><h1>星锐卡组</h1></div>
-        <span class="mobile-card-index">${pad(MOBILE_TRAINEE_INDEX + 1)} / ${pad(list.length)}</span>
+        <span class="ph-en">Talent Profiles</span>
+        <span class="mobile-card-index">${pad(MOBILE_TRAINEE_INDEX + 1)}/${pad(list.length)}</span>
       </header>
       <div class="mobile-swipe-deck-wrap" style="position: relative; width: 100%;">
         <button class="mobile-nav-arrow mobile-nav-arrow-left" type="button" data-mobile-nav="prev" aria-label="上一个">‹</button>
@@ -1454,7 +1542,8 @@
         </section>
 
         <footer class="profile-console-footer">
-          <span>AI INNOVATION HACKATHON &gt; JOINCARE</span>
+          <span class="profile-footer-left">AI INNOVATION HACKATHON</span>
+          <span class="profile-footer-right">JOINCARE</span>
         </footer>
       </article>
     `;
@@ -1673,9 +1762,9 @@
         <div class="team-foot"><span>${count} 名成员已就位 · ${t.submitted ? "作品已提交" : "Demo 制作中"}</span><div class="team-actions">${action}${openAction}</div></div>
       </article>`;
     }).join("");
-    return `${pageHead("组队", "选择赛道队伍，查看队长、成员与作品方向", "TEAM FORMATION")}
+    return `${pageHead("组队", "选择你感兴趣的挑战方向，与伙伴组建战队，开启共创之旅", "TEAM FORMATION")}
     <section class="container sec team-board">
-      <div class="sec-cap"><span></span>队伍列表</div><div class="team-grid">${teams}</div>
+      <div class="sec-cap"><span></span>挑战赛道 · CHALLENGE TRACKS</div><div class="team-grid">${teams}</div>
     </section>`;
   }
 
@@ -1941,7 +2030,9 @@
       .map((p) => {
         const personId = p.realUserId || "";
         const duty = p.duty || p.role || p.defaultDuty || "队友协作";
-        return `<div class="workspace-person ${personId === leaderId ? "is-leader" : ""}">${avatar(p, 42)}<b>${esc(p.name)}</b><span>${esc(duty)}${personId === leaderId ? " · 队长" : ""}</span></div>`;
+        const isLeader = personId === leaderId;
+        const leaderSuffix = isLeader && !isLeaderRoleText(duty) ? " · 队长" : "";
+        return `<div class="workspace-person ${isLeader ? "is-leader" : ""}">${avatar(p, 42)}<b>${esc(p.name)}</b><span>${esc(duty)}${leaderSuffix}</span></div>`;
       }).join("");
     const editHint = canEdit
       ? "你是当前队长，可提交作品信息；提交后会写入后端作品表，并等待管理员审核。"
@@ -2090,7 +2181,7 @@
     const voteWindowOpen = isVoteWindowOpen();
     const publishedTeams = D.teams.filter(isPublishedWorkTeam);
     const cards = publishedTeams.map((t) => {
-      const avas = [t.advisor, ...t.members].slice(0, 5).map((p) => avatar(p, 34)).join("");
+      const avas = teamPeople(t).slice(0, 5).map((p) => avatar(p, 34)).join("");
       const isVoted = voted === t.id;
       const btn = !hasBackendSession()
         ? `<button class="gl2-vote" data-auth-vote="${t.id}">登录后投票</button>`
@@ -2119,7 +2210,7 @@
         ? `<div class="vote-banner ok"><span class="live-dot"></span>你已为 <b>${esc((D.teams.find((t) => t.id === voted) || {}).name || "")}</b> 投出一票；可在已投队伍卡片中取消后重新选择。</div>`
         : `<div class="vote-banner ok"><span class="live-dot"></span>你已为 <b>${esc((D.teams.find((t) => t.id === voted) || {}).name || "")}</b> 投出一票；投票窗口当前未开启，暂不能取消或重新选择。</div>`
       : voteWindowOpen
-        ? `<div class="vote-banner"><span class="live-dot"></span>浏览已审核发布的队伍作品，选出你最认可的解决方案，并投出关键一票。</div>`
+        ? `<div class="vote-banner"><span class="live-dot"></span>投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票</div>`
         : `<div class="vote-banner"><span class="live-dot"></span>投票窗口当前未开启，请等待管理员开启投票。</div>`;
     return `${pageHead("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE")}${dataNotice}${banner}<section class="container sec"><div class="gl2-grid horizontal">${cards || empty}</div></section>`;
   }
@@ -2137,8 +2228,12 @@
     const L = teamLinks(t);
     const workDocUrl = String(t.work?.docUrl || "").trim();
     const docHref = workDocUrl || L.page;
-    const people = [{ ...t.advisor, role: "队长" }, ...t.members.map((m) => ({ ...m, role: "组员" }))]
-      .map((p) => `<div class="wk-person">${avatar(p, 64, "ring")}<b>${esc(p.name)}</b><span>${esc(p.role)}</span></div>`).join("");
+    const workLeaderId = getTeamLeaderId(t);
+    const people = teamPeople(t)
+      .map((p) => {
+        const role = p.realUserId && p.realUserId === workLeaderId ? "队长" : "组员";
+        return `<div class="wk-person">${avatar(p, 64, "ring")}<b>${esc(p.name)}</b><span>${esc(role)}</span></div>`;
+      }).join("");
     const stack = (t.stack || []).map((s) => `<span>${esc(s)}</span>`).join("");
     const voteBtn = !hasBackendSession()
       ? `<button class="btn-primary" data-auth-vote="${t.id}">登录后投票</button>`
@@ -2275,7 +2370,7 @@
     const max = Math.max(1, ...ranked.map((t) => t.total));
     const rows = ranked.map((t) => {
       const champ = t.rank === 1;
-      const avas = [t.advisor, ...t.members].slice(0, 5).map((p) => avatar(p, 30)).join("");
+      const avas = teamPeople(t).slice(0, 5).map((p) => avatar(p, 30)).join("");
       const scoreWidth = ((t.total / max) * 100).toFixed(2);
       const delay = (t.rank - 1) * 120;
       return `<div class="rk-row glass ${champ ? "champ" : ""}" style="--accent:${t.accent};--rgb:${t.rgb};--score-width:${scoreWidth}%;--rank-delay:${delay}ms"><span class="rk-no ${t.rank <= 3 ? "top" : ""}">${champ ? "🏆" : pad(t.rank)}</span><div class="rk-id"><b>${esc(t.name)}${champ ? '<i class="rk-crown">Grand Prize · 冠军战队</i>' : ""}</b><span>${esc(t.track)} · ${esc(t.project)}</span></div><div class="rk-avas">${avas}</div><div class="rk-bar"><span class="meter" style="--accent:${t.accent};--rgb:${t.rgb}"><i></i></span></div><div class="rk-mini"><span>专家 ${t.expert}</span><span>赋分 ${t.votePoint}</span></div><span class="rk-total">${t.total}</span></div>`;
@@ -2312,28 +2407,28 @@
   ];
   const MOBILE_TABS = [
     { key: "home", label: "首页", icon: "target" },
-    { key: "people", label: "星锐", icon: "user" },
+    { key: "people", label: "新生看板", icon: "user" },
     { key: "schedule", label: "赛事指南", icon: "calendar" },
     { key: "gallery", label: "作品", icon: "doc" },
     { key: "me", label: "角色", icon: "team" },
   ];
   const MOBILE_TABS_PLAYER = [
     { key: "home", label: "首页", icon: "target" },
+    { key: "people", label: "新生看板", icon: "user" },
     { key: "schedule", label: "赛事指南", icon: "calendar" },
-    { key: "team", label: "组队", icon: "team" },
     { key: "gallery", label: "作品", icon: "doc" },
     { key: "me", label: "我的", icon: "user" },
   ];
   const MOBILE_TABS_PUBLIC = [
     { key: "home", label: "首页", icon: "target" },
-    { key: "people", label: "星锐", icon: "user" },
+    { key: "people", label: "新生看板", icon: "user" },
     { key: "gallery", label: "作品", icon: "doc" },
     { key: "vote", label: "投票", icon: "vote" },
     { key: "me", label: "角色", icon: "team" },
   ];
   const MOBILE_TABS_JUDGE = [
     { key: "home", label: "首页", icon: "target" },
-    { key: "people", label: "星锐", icon: "user" },
+    { key: "people", label: "新生看板", icon: "user" },
     { key: "schedule", label: "赛事指南", icon: "calendar" },
     { key: "gallery", label: "作品", icon: "doc" },
     { key: "judge", label: "评分", icon: "scale" },
