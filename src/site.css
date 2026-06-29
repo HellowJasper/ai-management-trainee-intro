@@ -50,7 +50,9 @@
 /* ---- 首页 hero ---- */
 .hero { position: relative; padding: clamp(40px, 7vw, 96px) 0 clamp(20px, 3vw, 40px); }
 .hero-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: clamp(24px, 4vw, 56px); align-items: center; }
-.hero-kicker { display: inline-flex; align-items: center; justify-content: center; gap: 10px; font-family: var(--nav-pixel); font-size: clamp(8px, 0.8vw, 11px); letter-spacing: 0.14em; color: var(--neon); padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px; background: rgba(40, 255, 200, 0.05); }
+.hero-kicker { display: inline-flex; align-items: center; justify-content: space-between; gap: clamp(16px, 2.8vw, 54px); font-family: var(--nav-pixel); font-size: clamp(8px, 0.8vw, 11px); letter-spacing: 0.14em; color: var(--neon); padding: 8px 16px 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: rgba(40, 255, 200, 0.05); }
+.hero-kicker-live { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; }
+.hero-kicker-name { margin-left: auto; text-align: right; white-space: nowrap; }
 .hero-header-group { display: inline-flex; flex-direction: column; align-items: stretch; width: fit-content; margin: 0; }
 .hero-title { margin: 22px 0 0; font-family: var(--display); font-size: clamp(48px, 7vw, 104px); font-weight: 900; line-height: 0.98; color: #eafff8; text-shadow: 0 0 26px rgba(40, 255, 200, 0.5), 0 0 64px rgba(40, 255, 200, 0.25); }
 .hero-slogan { margin: 16px 0 0; font-size: clamp(18px, 2vw, 30px); font-weight: 700; color: var(--neon-2); text-shadow: 0 0 16px rgba(167, 255, 79, 0.3); }
@@ -942,7 +944,7 @@
   }
 
   .nav-brand strong {
-    font-size: 15px;
+    font-size: 13.5px;
     line-height: 1;
     letter-spacing: 0;
     color: rgba(234, 255, 248, 0.86);
@@ -952,7 +954,7 @@
   .nav-brand small {
     display: block;
     color: rgba(179, 204, 199, 0.72);
-    font-size: 10px;
+    font-size: 9px;
     line-height: 1;
     letter-spacing: 0.04em;
     white-space: nowrap;

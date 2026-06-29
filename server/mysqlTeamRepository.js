@@ -98,6 +98,10 @@ function isAdvisorMember(member = {}) {
   return roleMatches(member, "advisor");
 }
 
+function teamRosterCount(team = {}, members = team.members || []) {
+  return (team.advisor ? 1 : 0) + (Array.isArray(members) ? members.length : 0);
+}
+
 function rowToTeam(row = {}) {
   const meta = parseJsonValue(row.meta_json || row.metaJson || row.meta);
   return {
@@ -200,7 +204,7 @@ function createMysqlTeamRepository(pool) {
 
     if (isAdvisorMember(member)) {
       await pool.execute(
-        "DELETE FROM team_members WHERE user_id = ? AND is_advisor = FALSE",
+        "DELETE FROM team_members WHERE user_id = ?",
         [member.userId],
       );
       await pool.execute(
@@ -234,12 +238,12 @@ function createMysqlTeamRepository(pool) {
       };
     }
 
-    if (targetMembersAfterMove.length >= teamCapacity(target) - 1) {
+    if (teamRosterCount(target, targetMembersAfterMove) >= teamCapacity(target)) {
       throw createHttpError(409, `Team ${teamId} is already full.`);
     }
 
     await pool.execute(
-      "DELETE FROM team_members WHERE user_id = ? AND is_advisor = FALSE",
+      "DELETE FROM team_members WHERE user_id = ?",
       [member.userId],
     );
     await pool.execute(
@@ -279,11 +283,8 @@ function createMysqlTeamRepository(pool) {
     const { target } = await findTeamFromList(teamId);
     assertTeamWritable(target, teamId, options);
 
-    const wantsAdvisor = isAdvisorMember(payload);
     const [result] = await pool.execute(
-      wantsAdvisor
-        ? "DELETE FROM team_members WHERE team_id = ? AND user_id = ? AND is_advisor = TRUE"
-        : "DELETE FROM team_members WHERE team_id = ? AND user_id = ? AND is_advisor = FALSE",
+      "DELETE FROM team_members WHERE team_id = ? AND user_id = ?",
       [teamId, userId],
     );
 

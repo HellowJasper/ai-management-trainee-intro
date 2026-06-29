@@ -1109,7 +1109,7 @@
     return `${renderMobileHome(totalVotes)}<section class="hero"><div class="container hero-grid">
       <div class="hero-copy">
         <div class="hero-header-group">
-          <span class="hero-kicker"><span class="live-dot"></span>LIVE · AI_INNOVATION_HACKATHON_2026</span>
+          <span class="hero-kicker"><span class="hero-kicker-live"><span class="live-dot"></span>LIVE</span><span class="hero-kicker-name">AI_INNOVATION_HACKATHON_2026</span></span>
           <h1 class="hero-title">AI创新黑客松</h1>
         </div>
         <p class="hero-slogan">36小时，用 AI 把创意照进现实</p>
@@ -1634,18 +1634,26 @@
     const selected = canJoin ? joinedTeam() : "";
     const selectedTeam = getTeam(selected);
     const teams = D.teams.map((t) => {
-      const count = 1 + t.members.length;
+      const rosterPeople = Logic.getActualTeamPeople
+        ? Logic.getActualTeamPeople(t)
+        : [
+            ...(t.advisor?.userId || t.advisor?.id ? [t.advisor] : []),
+            ...normalizeList(t.members).filter((member) => member.userId || member.id),
+          ];
+      const count = rosterPeople.length;
       const mine = selectedTeam && selectedTeam.id === t.id;
       const isLocked = String(t.status || "open").trim().toLowerCase() === "locked";
       const disabled = selectedTeam && !mine ? "disabled" : "";
       const lockedDisabled = isLocked ? "disabled" : "";
       const displayName = t.name;
       const openTarget = mine ? `data-team-workspace="${t.id}"` : `data-work="${t.id}"`;
-      const roster = [{ ...t.advisor, role: "队长" }, ...t.members.map((m) => ({ ...m, role: "组员" }))]
+      const roster = rosterPeople
         .map((p) => {
-          const label = p.role === "队长" && String(p.name || "").startsWith("队长")
+          const roleText = `${p.roleKey || ""} ${p.role || ""} ${p.duty || ""}`;
+          const role = /advisor|leader|captain|队长/i.test(roleText) ? "队长" : "组员";
+          const label = role === "队长" && String(p.name || "").startsWith("队长")
             ? p.name
-            : `${p.role} · ${p.name}`;
+            : `${role} · ${p.name}`;
           return `<span class="team-avatar">${avatar(p, 34)}<i>${esc(label)}</i></span>`;
         }).join("");
       const action = canJoin

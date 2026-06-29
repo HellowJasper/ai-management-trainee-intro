@@ -17,6 +17,8 @@ const {
   getRolePermissions,
   getRoleWorkbenchModel,
   getRoleNavItems,
+  getActualTeamPeople,
+  countActualTeamPeople,
   computeVoteRanking,
   computeFinalResults,
   nextIntroState,
@@ -120,6 +122,45 @@ test("computePhotoWallMetrics keeps fourteen trainee cards inside the mobile vie
 
   assert.ok(metrics.visualWidth <= metrics.availableWidth);
   assert.ok(metrics.step > 0);
+});
+
+test("countActualTeamPeople only counts roster entries with real user identity", () => {
+  assert.equal(countActualTeamPeople({
+    advisor: { name: "静态队长兜底" },
+    members: [
+      { userId: "u1", name: "真实成员 A" },
+      { id: "u2", name: "真实成员 B" },
+      { name: "静态成员兜底" },
+    ],
+  }), 2);
+
+  assert.equal(countActualTeamPeople({
+    advisor: { userId: "leader", name: "真实队长" },
+    members: [
+      { userId: "u1", name: "真实成员 A" },
+      { userId: "u2", name: "真实成员 B" },
+      { userId: "u3", name: "真实成员 C" },
+      { userId: "u4", name: "真实成员 D" },
+    ],
+  }), 5);
+});
+
+test("getActualTeamPeople excludes static fallback people without real identity", () => {
+  assert.deepEqual(getActualTeamPeople({
+    advisor: { name: "静态队长兜底" },
+    members: [
+      { userId: "u1", name: "真实成员 A" },
+      { id: "u2", name: "真实成员 B" },
+      { name: "静态成员兜底" },
+    ],
+  }).map((person) => person.name), ["真实成员 A", "真实成员 B"]);
+
+  assert.deepEqual(getActualTeamPeople({
+    advisor: { userId: "leader", name: "真实队长" },
+    members: [
+      { userId: "u1", name: "真实成员 A" },
+    ],
+  }).map((person) => person.name), ["真实队长", "真实成员 A"]);
 });
 
 test("twelve profile cards form one connected arc centered on the sixth card", () => {
@@ -875,12 +916,28 @@ test("official site exposes all requested PC pages in the SPA router", () => {
   assert.match(siteJs, /key:\s*"judge", label:\s*"评委评分"/);
 });
 
+test("official site header uses compact team nav and balanced hero/brand copy", () => {
+  const logicJs = fs.readFileSync(path.join(__dirname, "../src/logic.js"), "utf8");
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.match(logicJs, /key:\s*"team", label:\s*"组队"/);
+  assert.doesNotMatch(logicJs, /key:\s*"team", label:\s*key === "player" \? "组队" : "组队进度"/);
+  assert.match(siteJs, /<span class="hero-kicker-live"><span class="live-dot"><\/span>LIVE<\/span>/);
+  assert.match(siteJs, /<span class="hero-kicker-name">AI_INNOVATION_HACKATHON_2026<\/span>/);
+  assert.doesNotMatch(siteJs, /LIVE · AI_INNOVATION_HACKATHON_2026/);
+  assert.match(siteCss, /\.hero-kicker\s*\{[\s\S]*justify-content:\s*space-between/);
+  assert.match(siteCss, /\.hero-kicker-name\s*\{[\s\S]*margin-left:\s*auto[\s\S]*text-align:\s*right/);
+  assert.match(siteCss, /\.nav-brand strong\s*\{[\s\S]*font-size:\s*13\.5px/);
+  assert.match(siteCss, /\.nav-brand small\s*\{[\s\S]*font-size:\s*9px/);
+});
+
 test("official site lets users leave teams and cancel their vote", () => {
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260626-work-doc-url/);
+  assert.match(siteHtml, /site\.js\?v=20260626-header-polish/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -922,7 +979,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260626-work-doc-url/);
+  assert.match(siteHtml, /site\.js\?v=20260626-header-polish/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -940,8 +997,8 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.css\?v=20260626-auth-mobile/);
-  assert.match(siteHtml, /site\.js\?v=20260626-work-doc-url/);
+  assert.match(siteHtml, /site\.css\?v=20260626-header-polish/);
+  assert.match(siteHtml, /site\.js\?v=20260626-header-polish/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /浏览已审核发布的队伍作品，选出你最认可的解决方案，并投出关键一票。/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -1148,6 +1205,16 @@ test("team page keeps grouping focused on the team list and editable team names"
   assert.doesNotMatch(siteJs, /只读进度|当前角色仅可查看组队进度|仅查看组队进度/);
   assert.match(siteJs, /team-name-draft/);
   assert.match(siteCss, /\.team-name-draft/);
+});
+
+test("team card roster uses the same real-identity list as the member count", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const renderTeamStart = siteJs.indexOf("function renderTeam()");
+  const renderTeamEnd = siteJs.indexOf("\n  function getWorkSubmission", renderTeamStart);
+  const renderTeamBody = siteJs.slice(renderTeamStart, renderTeamEnd);
+
+  assert.match(renderTeamBody, /Logic\.getActualTeamPeople/);
+  assert.doesNotMatch(renderTeamBody, /\[\{\s*\.\.\.t\.advisor,\s*role:\s*"队长"\s*\},\s*\.\.\.t\.members/);
 });
 
 test("team page removes the repeated formation explanation panel from the audience view", () => {
@@ -1730,7 +1797,7 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260626-auth-mobile/);
+  assert.match(html, /src\/site\.css\?v=20260626-header-polish/);
   assert.match(siteCss, /--site-detail-console-width:\s*calc\(min\(80vw,\s*1260px\) - 24px\)/);
   assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*max\(3vw,\s*calc\(100dvw - var\(--site-detail-console-width\) - var\(--site-detail-card-width\) - 40px\)\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*auto/);
@@ -1945,9 +2012,9 @@ test("official site cache keys are bumped after navigation and detail layout pol
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
-  assert.match(html, /src\/site\.css\?v=20260626-auth-mobile/);
-  assert.match(html, /src\/logic\.js\?v=20260624-nav-labels/);
-  assert.match(html, /src\/site\.js\?v=20260626-work-doc-url/);
+  assert.match(html, /src\/site\.css\?v=20260626-header-polish/);
+  assert.match(html, /src\/logic\.js\?v=20260626-header-polish/);
+  assert.match(html, /src\/site\.js\?v=20260626-header-polish/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
@@ -2046,6 +2113,20 @@ test("admin work review cards expose full submitted work content", () => {
   assert.match(css, /\.admin-work-review-media/);
   assert.match(css, /\.admin-work-review-links/);
   assert.match(css, /\.admin-work-review-meta/);
+});
+
+test("admin work review uses a paged single-work carousel", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.match(adminJs, /let adminWorkReviewIndex = 0/);
+  assert.match(adminJs, /function renderWorkReviewPager/);
+  assert.match(adminJs, /class="admin-work-review-carousel"/);
+  assert.match(adminJs, /data-work-review-prev/);
+  assert.match(adminJs, /data-work-review-next/);
+  assert.doesNotMatch(adminJs, /normalizedWorks\.map\(renderWorkReviewCard\)\.join\(""\)/);
+  assert.match(css, /\.admin-work-review-carousel/);
+  assert.match(css, /\.admin-work-review-nav/);
 });
 
 test("admin content manager links to runtime backend data APIs", () => {
@@ -2416,9 +2497,9 @@ test("admin and big screen cache keys stay current", () => {
   const adminHtml = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
   const indexHtml = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
 
-  assert.match(adminHtml, /admin\.css\?v=20260626-work-review-detail/);
+  assert.match(adminHtml, /admin\.css\?v=20260629-work-review-carousel/);
   assert.match(adminHtml, /src\/data\.js\?v=20260625-time-sync/);
-  assert.match(adminHtml, /src\/admin\.js\?v=20260626-work-review-detail/);
+  assert.match(adminHtml, /src\/admin\.js\?v=20260629-work-review-carousel/);
   assert.match(indexHtml, /src\/data\.js\?v=20260625-time-sync/);
   assert.match(indexHtml, /src\/app\.js\?v=20260625-time-sync/);
 });

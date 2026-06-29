@@ -2507,7 +2507,98 @@ button {
   display: grid;
   gap: 12px;
   min-height: 0;
+  overflow: hidden;
+}
+
+.admin-work-review-carousel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+  height: 100%;
+}
+
+.admin-work-review-nav {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-work-review-nav button {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  aspect-ratio: 1;
+  border: 1px solid rgba(103, 255, 213, 0.28);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(40, 255, 200, 0.18), transparent 68%),
+    rgba(2, 13, 20, 0.82);
+  color: var(--neon);
+  box-shadow: inset 0 0 20px rgba(40, 255, 200, 0.08);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease, opacity 160ms ease;
+}
+
+.admin-work-review-nav button:hover:not(:disabled),
+.admin-work-review-nav button:focus-visible {
+  border-color: rgba(40, 255, 200, 0.72);
+  box-shadow: 0 0 24px rgba(40, 255, 200, 0.18), inset 0 0 24px rgba(40, 255, 200, 0.1);
+  outline: 0;
+  transform: translateY(-1px);
+}
+
+.admin-work-review-nav button:disabled {
+  cursor: not-allowed;
+  opacity: 0.34;
+}
+
+.admin-work-review-nav button span {
+  font-size: 34px;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+.admin-work-review-counter {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid rgba(103, 255, 213, 0.16);
+  border-radius: var(--radius);
+  min-height: 48px;
+  padding: 0 16px;
+  background: rgba(2, 13, 20, 0.5);
+  color: var(--text-soft);
+}
+
+.admin-work-review-counter span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.admin-work-review-counter strong,
+.admin-work-review-counter b {
+  color: var(--text);
+  font-family: var(--pixel);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.admin-work-review-counter strong {
+  color: var(--neon);
+}
+
+.admin-work-review-counter i {
+  color: var(--muted);
+  font-style: normal;
+}
+
+.admin-work-review-track {
+  min-height: 0;
   overflow: auto;
+  padding-right: 4px;
 }
 
 .admin-work-review-card {
@@ -3512,6 +3603,24 @@ button {
   .admin-work-review-head,
   .admin-work-review-meta {
     grid-template-columns: 1fr;
+  }
+
+  .admin-work-review-nav {
+    grid-template-columns: 42px minmax(0, 1fr) 42px;
+    gap: 8px;
+  }
+
+  .admin-work-review-nav button {
+    width: 42px;
+  }
+
+  .admin-work-review-counter {
+    min-height: 42px;
+    padding-inline: 10px;
+  }
+
+  .admin-work-review-counter span {
+    display: none;
   }
 
   .admin-work-review-media {

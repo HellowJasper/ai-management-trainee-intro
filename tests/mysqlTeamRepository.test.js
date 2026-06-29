@@ -56,10 +56,18 @@ class MemoryMysqlTeamPool {
       return [row ? [{ id: row.id }] : []];
     }
 
+    if (compactSql.startsWith("delete from team_members where user_id") && compactSql.includes("is_advisor = false")) {
+      const userId = params[0];
+      const before = this.members.length;
+      this.members = this.members.filter((member) => !(member.user_id === userId && !member.is_advisor));
+      return [{ affectedRows: before - this.members.length }];
+    }
+
     if (compactSql.startsWith("delete from team_members where user_id")) {
       const userId = params[0];
+      const before = this.members.length;
       this.members = this.members.filter((member) => member.user_id !== userId);
-      return [{ affectedRows: 1 }];
+      return [{ affectedRows: before - this.members.length }];
     }
 
     if (compactSql.startsWith("delete from team_members where team_id") && compactSql.includes("is_advisor = true") && params.length === 1) {
@@ -85,6 +93,20 @@ class MemoryMysqlTeamPool {
         joined_at: "2026-01-01T00:00:20.000Z",
       });
       return [{ affectedRows: 1 }];
+    }
+
+    if (compactSql.startsWith("delete from team_members where team_id") && compactSql.includes("is_advisor = true")) {
+      const [teamId, userId] = params;
+      const before = this.members.length;
+      this.members = this.members.filter((member) => !(member.team_id === teamId && member.user_id === userId && member.is_advisor));
+      return [{ affectedRows: before - this.members.length }];
+    }
+
+    if (compactSql.startsWith("delete from team_members where team_id") && compactSql.includes("is_advisor = false")) {
+      const [teamId, userId] = params;
+      const before = this.members.length;
+      this.members = this.members.filter((member) => !(member.team_id === teamId && member.user_id === userId && !member.is_advisor));
+      return [{ affectedRows: before - this.members.length }];
     }
 
     if (compactSql.startsWith("delete from team_members where team_id")) {
@@ -223,6 +245,110 @@ test("MySQL team repository blocks player roster changes after a team is locked"
 
   assert.equal(pool.members.length, 1);
   assert.equal(pool.members[0].role_key, "dev");
+});
+
+test("MySQL team repository lets an advisor leave without sending advisor metadata", async () => {
+  const pool = new MemoryMysqlTeamPool({
+    teams: [
+      {
+        id: "marketing",
+        index: "03",
+        name: "营销",
+        status: "open",
+        capacity: 5,
+      },
+    ],
+    members: [
+      { teamId: "marketing", userId: "captain", name: "队长 C", roleKey: "advisor", duty: "队长", isAdvisor: true },
+    ],
+  });
+  const repository = createMysqlTeamRepository(pool);
+
+  const left = await repository.leaveTeam({
+    teamId: "marketing",
+    userId: "captain",
+  });
+
+  assert.equal(left.accepted, true);
+  assert.equal(left.team.advisor, null);
+  assert.equal(pool.members.some((member) => member.user_id === "captain"), false);
+});
+
+test("MySQL team repository removes a previous advisor row when the user joins another team as a member", async () => {
+  const pool = new MemoryMysqlTeamPool({
+    teams: [
+      {
+        id: "marketing",
+        index: "03",
+        name: "营销",
+        status: "open",
+        capacity: 5,
+      },
+      {
+        id: "functions",
+        index: "04",
+        name: "职能",
+        status: "open",
+        capacity: 5,
+      },
+    ],
+    members: [
+      { teamId: "marketing", userId: "captain", name: "队长 C", roleKey: "advisor", duty: "队长", isAdvisor: true },
+      { teamId: "functions", userId: "member-a", name: "张瑞", duty: "队友 01" },
+    ],
+  });
+  const repository = createMysqlTeamRepository(pool);
+
+  const joined = await repository.joinTeam({
+    teamId: "functions",
+    userId: "captain",
+    name: "队长 C",
+    department: "AI创新部",
+  });
+
+  assert.equal(joined.accepted, true);
+  assert.equal(joined.teams.find((team) => team.id === "marketing").advisor, null);
+  assert.equal(
+    joined.teams.flatMap((team) => [
+      team.advisor,
+      ...(team.members || []),
+    ]).filter((member) => member?.userId === "captain").length,
+    1,
+  );
+  assert.equal(joined.team.members.some((member) => member.userId === "captain"), true);
+});
+
+test("MySQL team repository allows the fifth member when no advisor row exists", async () => {
+  const pool = new MemoryMysqlTeamPool({
+    teams: [
+      {
+        id: "medicine",
+        index: "02",
+        name: "医学",
+        status: "open",
+        capacity: 5,
+      },
+    ],
+    members: [
+      { teamId: "medicine", userId: "medicine-member-2", name: "许镁胜", duty: "队友 01" },
+      { teamId: "medicine", userId: "medicine-member-3", name: "陈徐林", duty: "队友 02" },
+      { teamId: "medicine", userId: "medicine-member-4", name: "唐靖沛", duty: "队友 03" },
+      { teamId: "medicine", userId: "medicine-member-5", name: "张瑞", duty: "队友 04" },
+    ],
+  });
+  const repository = createMysqlTeamRepository(pool);
+
+  const joined = await repository.joinTeam({
+    teamId: "medicine",
+    userId: "new-player",
+    name: "新成员",
+    department: "AI创新部",
+  });
+
+  assert.equal(joined.accepted, true);
+  assert.equal(joined.team.advisor, null);
+  assert.equal(joined.team.members.length, 5);
+  assert.equal(joined.team.members.some((member) => member.userId === "new-player"), true);
 });
 
 test("repository factory wires the MySQL team repository", async () => {

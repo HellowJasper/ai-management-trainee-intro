@@ -343,7 +343,7 @@
       { key: "home", label: "首页" },
       { key: "people", label: "新生看板" },
       { key: "schedule", label: "赛事指南" },
-      { key: "team", label: key === "player" ? "组队" : "组队进度" },
+      { key: "team", label: "组队" },
       { key: "gallery", label: "作品展厅" },
     ];
     const byRole = {
@@ -809,6 +809,28 @@
     });
   }
 
+  function hasRosterIdentity(person) {
+    return Boolean(String(person?.userId || person?.id || "").trim());
+  }
+
+  function getActualTeamPeople(team = {}) {
+    const people = [];
+    if (hasRosterIdentity(team.advisor)) {
+      people.push(team.advisor);
+    }
+
+    const members = Array.isArray(team.members) ? team.members : [];
+    members.filter(hasRosterIdentity).forEach((member) => {
+      people.push(member);
+    });
+
+    return people;
+  }
+
+  function countActualTeamPeople(team = {}) {
+    return getActualTeamPeople(team).length;
+  }
+
   return {
     positionJasperAtCenter,
     getDetailOrder,
@@ -825,6 +847,8 @@
     getRolePermissions,
     getRoleWorkbenchModel,
     getRoleNavItems,
+    getActualTeamPeople,
+    countActualTeamPeople,
     nextIntroState,
     normalizeTrainee,
     pickKeywordPair,

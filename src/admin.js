@@ -221,6 +221,8 @@ let businessDataState = {
   resultSnapshot: null,
 };
 
+let adminWorkReviewIndex = 0;
+
 let platformHealthState = {
   online: false,
   status: "checking",
@@ -713,6 +715,63 @@ function renderWorkReviewCard(work) {
       </div>
     </article>
   `;
+}
+
+function clampWorkReviewIndex(total) {
+  const count = Math.max(0, Number(total) || 0);
+  if (count <= 0) {
+    adminWorkReviewIndex = 0;
+    return 0;
+  }
+  adminWorkReviewIndex = Math.min(Math.max(adminWorkReviewIndex, 0), count - 1);
+  return adminWorkReviewIndex;
+}
+
+function renderWorkReviewPager(works) {
+  const normalizedWorks = normalizeWorks(works);
+  if (!normalizedWorks.length) {
+    adminWorkReviewIndex = 0;
+    return '<p class="admin-empty">暂无作品提交</p>';
+  }
+
+  const index = clampWorkReviewIndex(normalizedWorks.length);
+  const canMovePrev = index > 0;
+  const canMoveNext = index < normalizedWorks.length - 1;
+
+  return `
+    <section class="admin-work-review-carousel" aria-label="作品审核翻页">
+      <nav class="admin-work-review-nav" aria-label="作品审核翻页控制">
+        <button type="button" data-work-review-prev aria-label="上一件作品" title="上一件作品" ${canMovePrev ? "" : "disabled"}>
+          <span aria-hidden="true">‹</span>
+        </button>
+        <div class="admin-work-review-counter" aria-live="polite">
+          <span>当前作品</span>
+          <strong>${formatNumber(index + 1)}</strong>
+          <i>/</i>
+          <b>${formatNumber(normalizedWorks.length)}</b>
+        </div>
+        <button type="button" data-work-review-next aria-label="下一件作品" title="下一件作品" ${canMoveNext ? "" : "disabled"}>
+          <span aria-hidden="true">›</span>
+        </button>
+      </nav>
+      <div class="admin-work-review-track">
+        ${renderWorkReviewCard(normalizedWorks[index])}
+      </div>
+    </section>
+  `;
+}
+
+function changeWorkReviewPage(direction) {
+  const works = normalizeWorks(businessDataState.works);
+  if (works.length <= 1) {
+    return;
+  }
+
+  adminWorkReviewIndex += Number(direction) || 0;
+  clampWorkReviewIndex(works.length);
+  if (adminWorkReviewList) {
+    adminWorkReviewList.innerHTML = renderWorkReviewPager(works);
+  }
 }
 
 function formatWorkReviewStatusSummary(works) {
@@ -1271,9 +1330,7 @@ function renderWorkList(works) {
   }
 
   if (adminWorkReviewList) {
-    adminWorkReviewList.innerHTML = normalizedWorks.length
-      ? normalizedWorks.map(renderWorkReviewCard).join("")
-      : '<p class="admin-empty">暂无作品提交</p>';
+    adminWorkReviewList.innerHTML = renderWorkReviewPager(normalizedWorks);
   }
 
   const statusSummary = formatWorkReviewStatusSummary(normalizedWorks);
@@ -3577,6 +3634,17 @@ document.addEventListener("click", async (event) => {
   } else {
     addLog("admin", `回放阶段【${stage.name}】`);
   }
+});
+
+document.addEventListener("click", (event) => {
+  const prevButton = event.target.closest("[data-work-review-prev]");
+  const nextButton = event.target.closest("[data-work-review-next]");
+  if (!prevButton && !nextButton) {
+    return;
+  }
+
+  event.preventDefault();
+  changeWorkReviewPage(prevButton ? -1 : 1);
 });
 
 document.addEventListener("click", async (event) => {
