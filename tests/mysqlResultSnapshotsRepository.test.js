@@ -12,6 +12,7 @@ class MemoryMysqlResultSnapshotsPool {
       status: row.status || "published",
       point_scale_json: JSON.stringify(row.pointScale || [100, 85, 70, 55, 40]),
       result_json: JSON.stringify(row.results || []),
+      source_json: JSON.stringify(row.source || null),
       published_by: row.publishedBy || "admin",
       published_at: row.publishedAt || `2026-01-01T00:00:0${index}.000Z`,
     }));
@@ -32,12 +33,13 @@ class MemoryMysqlResultSnapshotsPool {
     }
 
     if (compactSql.startsWith("insert into result_snapshots")) {
-      const [status, pointScaleJson, resultJson, publishedBy] = params;
+      const [status, pointScaleJson, resultJson, sourceJson, publishedBy] = params;
       const row = {
         id: this.rows.length + 1,
         status,
         point_scale_json: pointScaleJson,
         result_json: resultJson,
+        source_json: sourceJson,
         published_by: publishedBy,
         published_at: "2026-01-01T00:00:10.000Z",
       };
@@ -59,6 +61,10 @@ test("MySQL result snapshots repository publishes immutable final results", asyn
       { id: "marketing", name: "营销", totalScore: 95.24, isChampion: true },
       { id: "pharma", name: "药学", totalScore: 91.1 },
     ],
+    source: {
+      vote: { status: "closed", results: [{ id: "marketing", votes: 180 }] },
+      judge: { records: { "judge-001": { marketing: { status: "locked", totalScore: 93 } } } },
+    },
     publishedBy: "admin-001",
   });
 
@@ -67,11 +73,14 @@ test("MySQL result snapshots repository publishes immutable final results", asyn
   assert.equal(snapshot.publishedBy, "admin-001");
   assert.equal(snapshot.results[0].id, "marketing");
   assert.equal(snapshot.results[0].isChampion, true);
+  assert.equal(snapshot.source.vote.status, "closed");
+  assert.equal(snapshot.source.judge.records["judge-001"].marketing.status, "locked");
 
   const latest = await repository.getLatestSnapshot();
   assert.equal(latest.id, "1");
   assert.deepEqual(latest.pointScale, [100, 85, 70, 55, 40]);
   assert.equal(latest.results.length, 2);
+  assert.equal(latest.source.vote.results[0].votes, 180);
 });
 
 test("repository factory wires the MySQL result snapshots repository", async () => {

@@ -3,8 +3,9 @@
     "start": "node server/index.js",
     "dev": "node server/index.js",
     "test": "node --test",
+    "db:reset:prelaunch": "node scripts/reset-hackathon-state.js --dry-run",
     "db:reset:prelaunch:dry-run": "node scripts/reset-hackathon-state.js --dry-run",
-    "db:reset:prelaunch": "node scripts/reset-hackathon-state.js --execute"
+    "db:reset:prelaunch:execute": "node scripts/reset-hackathon-state.js --execute"
   },
   "dependencies": {
     "mysql2": "^3.11.5",

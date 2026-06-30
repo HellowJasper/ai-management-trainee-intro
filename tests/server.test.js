@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { spawnSync } = require("node:child_process");
 const fs = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
@@ -79,6 +80,18 @@ async function loginAs(baseUrl, role, overrides = {}) {
   });
 
   return response.headers.get("set-cookie").split(";")[0];
+}
+
+async function createSessionCookie(authSessionRepository, role, overrides = {}) {
+  const session = await authSessionRepository.createSession({
+    role,
+    roles: [role],
+    userId: `${role}-001`,
+    name: `${role} 用户`,
+    department: "测试部门",
+    ...overrides,
+  });
+  return `joincare_session=${session.id}`;
 }
 
 function createSiteBootstrapTestRepositories(overrides = {}) {
@@ -215,6 +228,62 @@ test("API lists trainees and persists host sentence updates", async (t) => {
   assert.equal(storedTrainees[0].sentence, "我把咖啡变成自动化工作流的启动按钮。");
 });
 
+test("strict auth protects trainee write APIs while keeping reads public", async (t) => {
+  const { dataPath, publicRoot, repository } = await createTempRepository([
+    {
+      id: "jasper",
+      name: "Jasper",
+      sentence: "",
+    },
+  ]);
+  const sessionFile = await createTempJsonFile("ai-strict-trainee-sessions-", "sessions.json", { sessions: {} });
+  const authSessionRepository = createAuthSessionRepository(sessionFile.dataPath);
+  const server = createServer({
+    publicRoot,
+    repository,
+    authSessionRepository,
+    authEnforcement: "strict",
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const listResponse = await fetch(`${baseUrl}/api/trainees`);
+  assert.equal(listResponse.status, 200);
+
+  const deniedResponse = await fetch(`${baseUrl}/api/trainees/jasper/sentence`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sentence: "未授权改写" }),
+  });
+  const denied = await deniedResponse.json();
+
+  assert.equal(deniedResponse.status, 401);
+  assert.match(denied.error.message, /Authentication required/);
+
+  const publicCookie = await createSessionCookie(authSessionRepository, "public", { userId: "public-001" });
+  const wrongRoleResponse = await fetch(`${baseUrl}/api/trainees/jasper`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Cookie: publicCookie },
+    body: JSON.stringify({ name: "被观众改名" }),
+  });
+  assert.equal(wrongRoleResponse.status, 403);
+
+  const adminCookie = await createSessionCookie(authSessionRepository, "admin", { userId: "admin-001" });
+  const saveResponse = await fetch(`${baseUrl}/api/trainees/jasper/sentence`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Cookie: adminCookie },
+    body: JSON.stringify({ sentence: "管理员确认后的口播句" }),
+  });
+  const saved = await saveResponse.json();
+
+  assert.equal(saveResponse.status, 200);
+  assert.equal(saved.sentence, "管理员确认后的口播句");
+
+  const storedTrainees = JSON.parse(await fs.readFile(dataPath, "utf8"));
+  assert.equal(storedTrainees[0].sentence, "管理员确认后的口播句");
+});
+
 test("admin trainee asset upload saves local images under the public assets folder", async (t) => {
   const publicRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-upload-assets-"));
   const server = createServer({ publicRoot });
@@ -302,6 +371,26 @@ test("health API exposes backend runtime metadata for the admin console", async 
   assert.equal(payload.status, "ok");
   assert.equal(payload.runtime.dataBackend, "json");
   assert.equal(payload.runtime.api, "server/index.js");
+});
+
+test("prelaunch reset execute requires an explicit database confirmation", () => {
+  const scriptPath = path.join(__dirname, "../scripts/reset-hackathon-state.js");
+  const result = spawnSync(process.execPath, [scriptPath, "--execute", "--json"], {
+    cwd: path.join(__dirname, ".."),
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      CONFIRM_PRELAUNCH_RESET: "",
+      MYSQL_HOST: "127.0.0.1",
+      MYSQL_PORT: "1",
+      MYSQL_DATABASE: "test_prelaunch_guard",
+      MYSQL_USER: "root",
+      MYSQL_PASSWORD: "",
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(`${result.stdout}\n${result.stderr}`, /CONFIRM_PRELAUNCH_RESET/);
 });
 
 test("site bootstrap API composes public audience state from backend repositories", async (t) => {
@@ -464,6 +553,14 @@ test("works API applies the same unpublished work visibility boundary", async (t
           ];
           return status ? works.filter((work) => work.status === status) : works;
         },
+        async getWork(id) {
+          const works = [
+            { id: "work-marketing", teamId: "marketing", project: "待审核营销智能体", status: "submitted" },
+            { id: "work-clinical", teamId: "clinical", project: "审核中临床数据助手", status: "reviewing" },
+            { id: "work-production", teamId: "production", project: "已发布生产质检平台", status: "published" },
+          ];
+          return works.find((work) => [work.id, work.teamId].includes(id));
+        },
       },
     }),
   });
@@ -502,6 +599,23 @@ test("works API applies the same unpublished work visibility boundary", async (t
     "已发布生产质检平台",
     "待审核营销智能体",
   ]);
+
+  const publicHiddenDetailResponse = await fetch(`${baseUrl}/api/works/marketing`);
+  const publicHiddenDetail = await publicHiddenDetailResponse.json();
+  assert.equal(publicHiddenDetailResponse.status, 404);
+  assert.match(publicHiddenDetail.error.message, /not found/);
+
+  const playerOwnDetailResponse = await fetch(`${baseUrl}/api/works/marketing`, {
+    headers: { Cookie: marketingPlayerCookie },
+  });
+  const playerOwnDetail = await playerOwnDetailResponse.json();
+  assert.equal(playerOwnDetailResponse.status, 200);
+  assert.equal(playerOwnDetail.project, "待审核营销智能体");
+
+  const publicPublishedDetailResponse = await fetch(`${baseUrl}/api/works/production`);
+  const publicPublishedDetail = await publicPublishedDetailResponse.json();
+  assert.equal(publicPublishedDetailResponse.status, 200);
+  assert.equal(publicPublishedDetail.project, "已发布生产质检平台");
 });
 
 test("site bootstrap API resolves the logged-in audience vote from the session user", async (t) => {
@@ -1045,6 +1159,79 @@ test("API exposes current roadshow team state and starts its timer", async (t) =
   assert.equal(nextState.startedAt, "2026-06-18T14:02:00.000Z");
 });
 
+test("strict auth protects public timer start commands", async (t) => {
+  const publicRoot = path.join(__dirname, "..");
+  const sessionFile = await createTempJsonFile("ai-strict-public-timers-sessions-", "sessions.json", { sessions: {} });
+  const authSessionRepository = createAuthSessionRepository(sessionFile.dataPath);
+  const missionCountdownRepository = {
+    state: { startedAt: null, durationMs: 86400000 },
+    async getState() {
+      return { ...this.state, serverNow: "2026-06-18T10:00:00.000Z" };
+    },
+    async startCountdown(payload = {}) {
+      this.state = { ...this.state, startedAt: payload.startedAt || "2026-06-18T10:00:00.000Z" };
+      return this.getState();
+    },
+  };
+  const roadshowRepository = {
+    state: { startedAt: null, durationMs: 900000 },
+    async getState() {
+      return { ...this.state, serverNow: "2026-06-18T14:00:00.000Z" };
+    },
+    async startRoadshow(payload = {}) {
+      this.state = { ...this.state, startedAt: payload.startedAt || "2026-06-18T14:00:00.000Z" };
+      return this.getState();
+    },
+  };
+  const server = createServer({
+    publicRoot,
+    missionCountdownRepository,
+    roadshowRepository,
+    authSessionRepository,
+    authEnforcement: "strict",
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const readResponse = await fetch(`${baseUrl}/api/mission-countdown`);
+  assert.equal(readResponse.status, 200);
+
+  const deniedCountdownResponse = await fetch(`${baseUrl}/api/mission-countdown/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ startedAt: "2026-06-18T10:30:00.000Z" }),
+  });
+  assert.equal(deniedCountdownResponse.status, 401);
+
+  const publicCookie = await createSessionCookie(authSessionRepository, "public", { userId: "public-001" });
+  const wrongRoleRoadshowResponse = await fetch(`${baseUrl}/api/roadshow/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: publicCookie },
+    body: JSON.stringify({ startedAt: "2026-06-18T14:02:00.000Z" }),
+  });
+  assert.equal(wrongRoleRoadshowResponse.status, 403);
+
+  const adminCookie = await createSessionCookie(authSessionRepository, "admin", { userId: "admin-001" });
+  const countdownResponse = await fetch(`${baseUrl}/api/mission-countdown/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: adminCookie },
+    body: JSON.stringify({ startedAt: "2026-06-18T10:30:00.000Z" }),
+  });
+  const countdown = await countdownResponse.json();
+  assert.equal(countdownResponse.status, 200);
+  assert.equal(countdown.startedAt, "2026-06-18T10:30:00.000Z");
+
+  const roadshowResponse = await fetch(`${baseUrl}/api/roadshow/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: adminCookie },
+    body: JSON.stringify({ startedAt: "2026-06-18T14:02:00.000Z" }),
+  });
+  const roadshow = await roadshowResponse.json();
+  assert.equal(roadshowResponse.status, 200);
+  assert.equal(roadshow.startedAt, "2026-06-18T14:02:00.000Z");
+});
+
 test("API exposes Feishu auth placeholder and role permissions", async (t) => {
   const publicRoot = path.join(__dirname, "..");
   const server = createServer({ publicRoot });
@@ -1136,6 +1323,39 @@ test("auth APIs create local role sessions and resolve /api/me from cookie", asy
   assert.equal(afterLogoutResponse.status, 200);
   assert.equal(afterLogout.role, null);
   assert.deepEqual(afterLogout.permissions, []);
+});
+
+test("strict auth rejects local role login sessions from request payloads", async (t) => {
+  const { dataPath, publicRoot } = await createTempJsonFile("ai-strict-local-login-", "sessions.json", {
+    sessions: {},
+  });
+  const authSessionRepository = createAuthSessionRepository(dataPath);
+  const server = createServer({
+    publicRoot,
+    authSessionRepository,
+    authEnforcement: "strict",
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/auth/feishu/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      role: "admin",
+      userId: "payload-admin",
+      name: "伪造管理员",
+    }),
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 403);
+  assert.match(payload.error.message, /Local role login is disabled/);
+  assert.equal(response.headers.get("set-cookie"), null);
+
+  const stored = JSON.parse(await fs.readFile(dataPath, "utf8"));
+  assert.deepEqual(stored.sessions, {});
 });
 
 test("Feishu OAuth start reports missing config before redirecting users", async (t) => {
@@ -1352,7 +1572,7 @@ test("strict auth enforcement rejects missing and wrong-role team writes", async
   assert.equal(missingResponse.status, 401);
   assert.match(missing.error.message, /Authentication required/);
 
-  const judgeCookie = await loginAs(baseUrl, "judge", { userId: "judge-locked" });
+  const judgeCookie = await createSessionCookie(authSessionRepository, "judge", { userId: "judge-locked" });
   const wrongRoleResponse = await fetch(`${baseUrl}/api/team/join`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Cookie: judgeCookie },
@@ -1363,7 +1583,7 @@ test("strict auth enforcement rejects missing and wrong-role team writes", async
   assert.equal(wrongRoleResponse.status, 403);
   assert.match(wrongRole.error.message, /canJoinTeam/);
 
-  const playerCookie = await loginAs(baseUrl, "player", {
+  const playerCookie = await createSessionCookie(authSessionRepository, "player", {
     userId: "player-session",
     name: "Session 选手",
   });
@@ -1404,13 +1624,27 @@ test("strict auth enforcement protects vote, score, work, and admin write APIs",
     ],
     logs: [],
   });
+  const teamFile = await createTempJsonFile("ai-strict-work-teams-", "teams.json", [
+    {
+      id: "marketing",
+      name: "营销",
+      members: [{ userId: "player-001", name: "选手 001" }],
+    },
+    {
+      id: "functions",
+      name: "职能",
+      members: [{ userId: "player-002", name: "选手 002" }],
+    },
+  ]);
+  const authSessionRepository = createAuthSessionRepository(sessionFile.dataPath);
   const server = createServer({
     publicRoot: votesFile.publicRoot,
     voteResultsRepository: createVoteResultsRepository(votesFile.dataPath),
     judgeScoresRepository: createJudgeScoresRepository(scoresFile.dataPath),
     worksRepository: createWorksRepository(worksFile.dataPath),
+    teamRepository: createTeamRepository(teamFile.dataPath),
     auditLogRepository: createAuditLogRepository(auditFile.dataPath),
-    authSessionRepository: createAuthSessionRepository(sessionFile.dataPath),
+    authSessionRepository,
     adminStateRepository: createAdminStateRepository(adminFile.dataPath),
     authEnforcement: "strict",
   });
@@ -1418,10 +1652,10 @@ test("strict auth enforcement protects vote, score, work, and admin write APIs",
 
   t.after(() => new Promise((resolve) => server.close(resolve)));
 
-  const playerCookie = await loginAs(baseUrl, "player", { userId: "player-001" });
-  const publicCookie = await loginAs(baseUrl, "public", { userId: "public-001" });
-  const judgeCookie = await loginAs(baseUrl, "judge", { userId: "judge-001" });
-  const adminCookie = await loginAs(baseUrl, "admin", { userId: "admin-001" });
+  const playerCookie = await createSessionCookie(authSessionRepository, "player", { userId: "player-001" });
+  const publicCookie = await createSessionCookie(authSessionRepository, "public", { userId: "public-001" });
+  const judgeCookie = await createSessionCookie(authSessionRepository, "judge", { userId: "judge-001" });
+  const adminCookie = await createSessionCookie(authSessionRepository, "admin", { userId: "admin-001" });
 
   const deniedVoteResponse = await fetch(`${baseUrl}/api/vote/cast`, {
     method: "POST",
@@ -1464,6 +1698,19 @@ test("strict auth enforcement protects vote, score, work, and admin write APIs",
     headers: { Cookie: adminCookie },
   });
   assert.equal(adminScoreListResponse.status, 200);
+
+  const otherTeamWorkResponse = await fetch(`${baseUrl}/api/work/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: playerCookie },
+    body: JSON.stringify({
+      teamId: "functions",
+      submittedBy: "spoof-player",
+      project: "越权提交作品",
+    }),
+  });
+  const otherTeamWork = await otherTeamWorkResponse.json();
+  assert.equal(otherTeamWorkResponse.status, 403);
+  assert.match(otherTeamWork.error.message, /joined team/);
 
   const workResponse = await fetch(`${baseUrl}/api/work/submit`, {
     method: "POST",
@@ -2100,12 +2347,13 @@ test("judge score API supports draft, submit, progress, and admin lock workflow"
   });
   const sessionFile = await createTempJsonFile("ai-score-sop-sessions-", "sessions.json", { sessions: {} });
   const auditFile = await createTempJsonFile("ai-score-sop-audit-", "audit-logs.json", { logs: [] });
+  const authSessionRepository = createAuthSessionRepository(sessionFile.dataPath);
   const server = createServer({
     publicRoot: scoresFile.publicRoot,
     judgeScoresRepository: createJudgeScoresRepository(scoresFile.dataPath),
     teamRepository: createTeamRepository(teamsFile.dataPath),
     userRoleRepository: createUserRoleRepository(usersFile.dataPath),
-    authSessionRepository: createAuthSessionRepository(sessionFile.dataPath),
+    authSessionRepository,
     auditLogRepository: createAuditLogRepository(auditFile.dataPath),
     authEnforcement: "strict",
   });
@@ -2113,8 +2361,8 @@ test("judge score API supports draft, submit, progress, and admin lock workflow"
 
   t.after(() => new Promise((resolve) => server.close(resolve)));
 
-  const judgeCookie = await loginAs(baseUrl, "judge", { userId: "judge-001" });
-  const adminCookie = await loginAs(baseUrl, "admin", { userId: "admin-001" });
+  const judgeCookie = await createSessionCookie(authSessionRepository, "judge", { userId: "judge-001" });
+  const adminCookie = await createSessionCookie(authSessionRepository, "admin", { userId: "admin-001" });
   const completeScores = {
     innovation: 100,
     engineering: 80,
@@ -2236,6 +2484,34 @@ test("work APIs persist submissions and admin review status", async (t) => {
 
   const stored = JSON.parse(await fs.readFile(dataPath, "utf8"));
   assert.equal(stored.works[0].status, "published");
+});
+
+test("work submissions reject unsafe delivery URLs", async (t) => {
+  const { dataPath, publicRoot } = await createTempJsonFile("ai-works-unsafe-url-", "works.json", {
+    works: [],
+  });
+  const worksRepository = createWorksRepository(dataPath);
+  const server = createServer({ publicRoot, worksRepository });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/work/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      teamId: "marketing",
+      project: "恶意链接测试",
+      docUrl: "javascript:alert(1)",
+    }),
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.match(payload.error.message, /docUrl/);
+
+  const stored = JSON.parse(await fs.readFile(dataPath, "utf8"));
+  assert.deepEqual(stored.works, []);
 });
 
 test("work submissions can be updated and withdrawn before publication", async (t) => {
@@ -2404,6 +2680,52 @@ test("audit log API passes filter query parameters to the repository", async (t)
   });
 });
 
+test("strict auth protects admin audit log reads", async (t) => {
+  const { dataPath, publicRoot } = await createTempJsonFile("ai-strict-audit-read-", "audit-logs.json", {
+    logs: [
+      {
+        id: "audit_001",
+        at: "2026-06-25T08:00:00.000Z",
+        actor: "admin-001",
+        action: "stage.changed",
+        targetType: "stage",
+        targetId: "vote",
+        message: "开启阶段【投票开启】",
+      },
+    ],
+  });
+  const sessionFile = await createTempJsonFile("ai-strict-audit-read-sessions-", "sessions.json", { sessions: {} });
+  const authSessionRepository = createAuthSessionRepository(sessionFile.dataPath);
+  const server = createServer({
+    publicRoot,
+    auditLogRepository: createAuditLogRepository(dataPath),
+    authSessionRepository,
+    authEnforcement: "strict",
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const missingResponse = await fetch(`${baseUrl}/api/admin/audit-logs`);
+  assert.equal(missingResponse.status, 401);
+
+  const publicCookie = await createSessionCookie(authSessionRepository, "public", { userId: "public-001" });
+  const wrongRoleResponse = await fetch(`${baseUrl}/api/admin/audit-logs`, {
+    headers: { Cookie: publicCookie },
+  });
+  assert.equal(wrongRoleResponse.status, 403);
+
+  const adminCookie = await createSessionCookie(authSessionRepository, "admin", { userId: "admin-001" });
+  const adminResponse = await fetch(`${baseUrl}/api/admin/audit-logs`, {
+    headers: { Cookie: adminCookie },
+  });
+  const payload = await adminResponse.json();
+
+  assert.equal(adminResponse.status, 200);
+  assert.equal(payload.logs.length, 1);
+  assert.equal(payload.logs[0].action, "stage.changed");
+});
+
 test("API lists vote results with the confirmed ranking point scale", async (t) => {
   const publicRoot = path.join(__dirname, "..");
   const voteResultsRepository = {
@@ -2437,6 +2759,142 @@ test("API lists vote results with the confirmed ranking point scale", async (t) 
   );
 });
 
+test("admin result publish API requires a closed vote window and locked judge scores", async (t) => {
+  const snapshotsFile = await createTempJsonFile("ai-result-guard-snapshots-", "result-snapshots.json", {
+    snapshots: [],
+  });
+  const auditFile = await createTempJsonFile("ai-result-guard-audit-", "audit-logs.json", {
+    logs: [],
+  });
+  const voteState = {
+    pointScale: [100, 85, 70, 55, 40],
+    status: "voting",
+    results: [
+      { id: "marketing", name: "营销", votes: 180, expert: 93.2 },
+      { id: "pharma", name: "药学", votes: 148, expert: 91 },
+    ],
+  };
+  const judgeState = {
+    records: {
+      "judge-001": {
+        marketing: { status: "submitted", totalScore: 93 },
+        pharma: { status: "submitted", totalScore: 90 },
+      },
+    },
+  };
+  const server = createServer({
+    publicRoot: snapshotsFile.publicRoot,
+    voteResultsRepository: {
+      async listVoteResults() {
+        return voteState;
+      },
+    },
+    judgeScoresRepository: {
+      async readState() {
+        return judgeState;
+      },
+    },
+    resultSnapshotRepository: createResultSnapshotRepository(snapshotsFile.dataPath),
+    auditLogRepository: createAuditLogRepository(auditFile.dataPath),
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const votingResponse = await fetch(`${baseUrl}/api/admin/results/publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actor: "admin-001" }),
+  });
+  const votingPayload = await votingResponse.json();
+  assert.equal(votingResponse.status, 409);
+  assert.match(votingPayload.error.message, /vote window/i);
+
+  voteState.status = "closed";
+  const unlockedResponse = await fetch(`${baseUrl}/api/admin/results/publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actor: "admin-001" }),
+  });
+  const unlockedPayload = await unlockedResponse.json();
+  assert.equal(unlockedResponse.status, 409);
+  assert.match(unlockedPayload.error.message, /locked/i);
+
+  judgeState.records["judge-001"].marketing.status = "locked";
+  judgeState.records["judge-001"].pharma.status = "locked";
+  const publishResponse = await fetch(`${baseUrl}/api/admin/results/publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actor: "admin-001" }),
+  });
+  const published = await publishResponse.json();
+
+  assert.equal(publishResponse.status, 201);
+  assert.equal(published.status, "published");
+  assert.equal(published.results[0].id, "marketing");
+});
+
+test("admin result publish API rejects when an active judge has no locked scores", async (t) => {
+  const snapshotsFile = await createTempJsonFile("ai-result-missing-judge-snapshots-", "result-snapshots.json", {
+    snapshots: [],
+  });
+  const auditFile = await createTempJsonFile("ai-result-missing-judge-audit-", "audit-logs.json", {
+    logs: [],
+  });
+  const server = createServer({
+    publicRoot: snapshotsFile.publicRoot,
+    voteResultsRepository: {
+      async listVoteResults() {
+        return {
+          pointScale: [100, 85, 70, 55, 40],
+          status: "closed",
+          results: [
+            { id: "marketing", name: "营销", votes: 180 },
+            { id: "pharma", name: "药学", votes: 148 },
+          ],
+        };
+      },
+    },
+    judgeScoresRepository: {
+      async readState() {
+        return {
+          records: {
+            "judge-001": {
+              marketing: { status: "locked", totalScore: 93 },
+              pharma: { status: "locked", totalScore: 90 },
+            },
+          },
+        };
+      },
+    },
+    userRoleRepository: {
+      async listUsers() {
+        return {
+          users: [
+            { id: "judge-001", roles: ["judge"], status: "active" },
+            { id: "judge-002", roles: ["judge"], status: "active" },
+          ],
+        };
+      },
+    },
+    resultSnapshotRepository: createResultSnapshotRepository(snapshotsFile.dataPath),
+    auditLogRepository: createAuditLogRepository(auditFile.dataPath),
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/admin/results/publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actor: "admin-001" }),
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 409);
+  assert.match(payload.error.message, /all judge scores to be locked/i);
+});
+
 test("admin result publish API creates a final result snapshot", async (t) => {
   const snapshotsFile = await createTempJsonFile("ai-result-snapshots-", "result-snapshots.json", {
     snapshots: [],
@@ -2462,14 +2920,20 @@ test("admin result publish API creates a final result snapshot", async (t) => {
   const judgeScoresRepository = {
     async readState() {
       return {
-        scores: {
+        records: {
           "judge-001": {
-            marketing: { innovation: 94, business: 92 },
-            pharma: { innovation: 91, business: 90 },
+            marketing: { status: "locked", totalScore: 93 },
+            pharma: { status: "locked", totalScore: 90.5 },
+            medicine: { status: "locked", totalScore: 92 },
+            production: { status: "locked", totalScore: 88 },
+            functions: { status: "locked", totalScore: 87 },
           },
           "judge-002": {
-            marketing: { innovation: 95, business: 92 },
-            pharma: { innovation: 90, business: 91 },
+            marketing: { status: "locked", totalScore: 93.5 },
+            pharma: { status: "locked", totalScore: 90.5 },
+            medicine: { status: "locked", totalScore: 92 },
+            production: { status: "locked", totalScore: 88 },
+            functions: { status: "locked", totalScore: 87 },
           },
         },
       };

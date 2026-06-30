@@ -7,6 +7,8 @@ const { createRepositoryBundle } = require("../server/repositoryFactory");
 class MemoryMysqlJudgeScoresPool {
   constructor(rows = []) {
     this.calls = [];
+    this.transactionEvents = [];
+    this.forceLockMissFor = new Set();
     this.rows = rows.map((row) => ({
       judge_id: row.judgeId,
       team_id: row.teamId,
@@ -17,6 +19,25 @@ class MemoryMysqlJudgeScoresPool {
       submitted_at: row.submittedAt || null,
       updated_at: row.updatedAt || "2026-01-01T00:00:00.000Z",
     }));
+  }
+
+  async getConnection() {
+    this.transactionEvents.push("getConnection");
+    return {
+      execute: (sql, params) => this.execute(sql, params),
+      beginTransaction: async () => {
+        this.transactionEvents.push("begin");
+      },
+      commit: async () => {
+        this.transactionEvents.push("commit");
+      },
+      rollback: async () => {
+        this.transactionEvents.push("rollback");
+      },
+      release: () => {
+        this.transactionEvents.push("release");
+      },
+    };
   }
 
   async execute(sql, params = []) {
@@ -59,6 +80,9 @@ class MemoryMysqlJudgeScoresPool {
 
     if (compactSql.startsWith("update judge_scores set status = ?")) {
       const [status, judgeId, teamId, expectedStatus] = params;
+      if (this.forceLockMissFor.has(`${judgeId}:${teamId}`)) {
+        return [{ affectedRows: 0 }];
+      }
       const existing = this.rows.find((row) => (
         row.judge_id === judgeId
         && row.team_id === teamId
@@ -151,6 +175,94 @@ test("MySQL judge scores repository submits and locks complete judge scores", as
 
   const mine = await repository.readMyScores({ judgeId: "judge-a" });
   assert.equal(mine.teams.marketing.status, "locked");
+});
+
+test("MySQL judge scores repository wraps submit writes in a transaction and locks existing rows", async () => {
+  const completeScores = {
+    innovation: 100,
+    engineering: 80,
+    business: 60,
+    feasibility: 40,
+    presentation: 20,
+  };
+  const pool = new MemoryMysqlJudgeScoresPool([
+    {
+      judgeId: "judge-a",
+      teamId: "marketing",
+      status: "draft",
+      scores: completeScores,
+    },
+  ]);
+  const repository = createMysqlJudgeScoresRepository(pool);
+
+  await repository.submitScores({
+    judgeId: "judge-a",
+    teamIds: ["marketing"],
+    scores: { marketing: completeScores },
+  });
+
+  assert.deepEqual(pool.transactionEvents, ["getConnection", "begin", "commit", "release"]);
+  assert.ok(pool.calls.some((call) => /from judge_scores/i.test(call.sql) && /for update/i.test(call.sql)));
+});
+
+test("MySQL judge scores repository rolls back when a lock update misses a submitted row", async () => {
+  const completeScores = {
+    innovation: 100,
+    engineering: 80,
+    business: 60,
+    feasibility: 40,
+    presentation: 20,
+  };
+  const pool = new MemoryMysqlJudgeScoresPool([
+    {
+      judgeId: "judge-a",
+      teamId: "marketing",
+      status: "submitted",
+      scores: completeScores,
+    },
+  ]);
+  pool.forceLockMissFor.add("judge-a:marketing");
+  const repository = createMysqlJudgeScoresRepository(pool);
+
+  await assert.rejects(
+    () => repository.lockScores({
+      teamIds: ["marketing"],
+      judges: [{ id: "judge-a", name: "Judge A", roles: ["judge"] }],
+    }),
+    /changed while locking/,
+  );
+
+  assert.deepEqual(pool.transactionEvents, ["getConnection", "begin", "rollback", "release"]);
+});
+
+test("MySQL judge scores repository treats already locked rows as a lock retry", async () => {
+  const completeScores = {
+    innovation: 100,
+    engineering: 80,
+    business: 60,
+    feasibility: 40,
+    presentation: 20,
+  };
+  const pool = new MemoryMysqlJudgeScoresPool([
+    {
+      judgeId: "judge-a",
+      teamId: "marketing",
+      status: "locked",
+      scores: completeScores,
+    },
+  ]);
+  const repository = createMysqlJudgeScoresRepository(pool);
+
+  const locked = await repository.lockScores({
+    teamIds: ["marketing"],
+    judges: [{ id: "judge-a", name: "Judge A", roles: ["judge"] }],
+  });
+
+  assert.equal(locked.accepted, true);
+  assert.equal(locked.status, "locked");
+  assert.equal(locked.progress.locked, true);
+  assert.deepEqual(pool.transactionEvents, ["getConnection", "begin", "commit", "release"]);
+  assert.equal(pool.calls.some((call) => /update judge_scores set status/i.test(call.sql)), false);
 });
 
 test("repository factory wires the MySQL judge scores repository", async () => {

@@ -164,6 +164,7 @@ CREATE TABLE IF NOT EXISTS result_snapshots (
   status VARCHAR(32) NOT NULL DEFAULT 'published',
   point_scale_json JSON NOT NULL,
   result_json JSON NOT NULL,
+  source_json JSON NULL,
   published_by VARCHAR(64) NOT NULL DEFAULT '',
   published_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

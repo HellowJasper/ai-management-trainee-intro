@@ -13,6 +13,7 @@ function normalizeSnapshot(snapshot = {}) {
       ? snapshot.pointScale
       : DEFAULT_POINT_SCALE,
     results: Array.isArray(snapshot.results) ? snapshot.results : [],
+    source: snapshot.source && typeof snapshot.source === "object" ? snapshot.source : null,
     publishedBy: String(snapshot.publishedBy || snapshot.actor || "admin").trim() || "admin",
     publishedAt: snapshot.publishedAt || new Date().toISOString(),
   };

@@ -50,6 +50,10 @@ MYSQL_APP_PASSWORD=""
 if [ -f "/root/middleware-credentials.txt" ]; then
     MYSQL_APP_PASSWORD=\$(awk '/^  otc[[:space:]]*\// {print \$3; exit}' /root/middleware-credentials.txt)
 fi
+if [ -z "\$MYSQL_APP_PASSWORD" ]; then
+    echo "MySQL app password was not found in /root/middleware-credentials.txt; aborting deployment."
+    exit 1
+fi
 
 NETWORK_ARGS=""
 if docker network inspect "\$NETWORK_NAME" >/dev/null 2>&1; then
@@ -67,6 +71,7 @@ fi
 echo "Running new container..."
 docker run -d -p "\$PORT_MAPPING" --restart=always --name "\$CONTAINER_NAME" \$NETWORK_ARGS \$ENV_FILE_ARGS \\
     -e DATA_BACKEND=mysql \\
+    -e AUTH_ENFORCEMENT=strict \\
     -e MYSQL_HOST=mysql \\
     -e MYSQL_PORT=3306 \\
     -e MYSQL_DATABASE=ai_management_trainee_intro \\

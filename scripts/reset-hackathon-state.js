@@ -40,15 +40,41 @@ function parseArgs(argv) {
 function printHelp() {
   console.log(`Usage:
   node scripts/reset-hackathon-state.js --dry-run
-  node scripts/reset-hackathon-state.js --execute
+  CONFIRM_PRELAUNCH_RESET=<database> node scripts/reset-hackathon-state.js --execute
 
 Options:
   --dry-run             Show planned reset impact without changing data.
-  --execute             Backup and reset MySQL runtime state.
+  --execute             Backup and reset MySQL runtime state. Requires CONFIRM_PRELAUNCH_RESET to equal the target database name.
   --public-root <path>  Static public root that contains assets/uploads.
   --backup-root <path>  Directory where reset backups are created.
   --json                Print raw JSON result.
 `);
+}
+
+function resolveTargetDatabaseName() {
+  if (process.env.MYSQL_DATABASE) {
+    return String(process.env.MYSQL_DATABASE).trim();
+  }
+  const databaseUrl = process.env.DATABASE_URL || process.env.MYSQL_URL;
+  if (databaseUrl) {
+    try {
+      return decodeURIComponent(new URL(databaseUrl).pathname.replace(/^\//, "")).trim();
+    } catch {
+      return "";
+    }
+  }
+  return "joincare_hackathon";
+}
+
+function assertExecuteConfirmed(options = {}) {
+  if (options.dryRun) {
+    return;
+  }
+  const targetDatabase = resolveTargetDatabaseName();
+  const confirmation = String(process.env.CONFIRM_PRELAUNCH_RESET || "").trim();
+  if (!targetDatabase || confirmation !== targetDatabase) {
+    throw new Error(`Refusing to execute prelaunch reset. Set CONFIRM_PRELAUNCH_RESET=${targetDatabase || "<target-database>"} to confirm the target database.`);
+  }
 }
 
 function printHumanResult(result) {
@@ -83,6 +109,7 @@ async function main() {
   }
 
   loadEnv();
+  assertExecuteConfirmed(options);
   const pool = createMysqlPool();
   try {
     const result = await resetHackathonState({

@@ -10,6 +10,7 @@ class MemoryMysqlTeamPool {
     members = [],
   } = {}) {
     this.calls = [];
+    this.transactionEvents = [];
     this.teams = new Map(teams.map((team, index) => [team.id, {
       id: team.id,
       name: team.name || "",
@@ -36,6 +37,25 @@ class MemoryMysqlTeamPool {
     }));
   }
 
+  async getConnection() {
+    this.transactionEvents.push("getConnection");
+    return {
+      execute: (sql, params) => this.execute(sql, params),
+      beginTransaction: async () => {
+        this.transactionEvents.push("begin");
+      },
+      commit: async () => {
+        this.transactionEvents.push("commit");
+      },
+      rollback: async () => {
+        this.transactionEvents.push("rollback");
+      },
+      release: () => {
+        this.transactionEvents.push("release");
+      },
+    };
+  }
+
   async execute(sql, params = []) {
     this.calls.push({ sql, params });
     const compactSql = sql.replace(/\s+/g, " ").trim().toLowerCase();
@@ -44,8 +64,23 @@ class MemoryMysqlTeamPool {
       return [[...this.teams.values()].sort((a, b) => a.sort_order - b.sort_order || a.id.localeCompare(b.id))];
     }
 
-    if (compactSql.startsWith("select team_id, user_id, name, department, role_key, duty,")) {
+    if (compactSql.startsWith("select id, name, track_code, track_name, project, status, capacity, sort_order, meta_json from teams where id")) {
+      const row = this.teams.get(params[0]);
+      return [row ? [{ ...row }] : []];
+    }
+
+    if (compactSql.startsWith("select team_id from team_members where user_id")) {
+      const userId = params[0];
       return [this.members
+        .filter((member) => member.user_id === userId)
+        .map((member) => ({ team_id: member.team_id }))];
+    }
+
+    if (compactSql.startsWith("select team_id, user_id, name, department, role_key, duty,")) {
+      const filteredMembers = compactSql.includes(" where team_id = ")
+        ? this.members.filter((member) => member.team_id === params[0])
+        : this.members;
+      return [filteredMembers
         .slice()
         .sort((a, b) => a.id - b.id)
         .map((member) => ({ ...member }))];
@@ -217,6 +252,35 @@ test("MySQL team repository keeps the grouping and role claiming contract", asyn
   assert.equal(removedLeader.team.advisor, null);
 });
 
+test("MySQL team repository wraps joins in a transaction and locks the target team", async () => {
+  const pool = new MemoryMysqlTeamPool({
+    teams: [
+      {
+        id: "marketing",
+        index: "03",
+        name: "营销",
+        status: "open",
+        capacity: 2,
+      },
+    ],
+    members: [
+      { teamId: "marketing", userId: "player-a", name: "已有选手", roleKey: "dev", duty: "AI 开发" },
+    ],
+  });
+  const repository = createMysqlTeamRepository(pool);
+
+  const joined = await repository.joinTeam({
+    teamId: "marketing",
+    userId: "player-b",
+    name: "新选手",
+  });
+
+  assert.equal(joined.accepted, true);
+  assert.deepEqual(pool.transactionEvents, ["getConnection", "begin", "commit", "release"]);
+  assert.ok(pool.calls.some((call) => /from teams/i.test(call.sql) && /for update/i.test(call.sql)));
+  assert.equal(joined.team.members.length, 2);
+});
+
 test("MySQL team repository blocks player roster changes after a team is locked", async () => {
   const pool = new MemoryMysqlTeamPool({
     teams: [
@@ -245,6 +309,44 @@ test("MySQL team repository blocks player roster changes after a team is locked"
 
   assert.equal(pool.members.length, 1);
   assert.equal(pool.members[0].role_key, "dev");
+});
+
+test("MySQL team repository blocks moving a player out of a locked source team", async () => {
+  const pool = new MemoryMysqlTeamPool({
+    teams: [
+      {
+        id: "marketing",
+        index: "03",
+        name: "营销",
+        status: "locked",
+        capacity: 5,
+      },
+      {
+        id: "functions",
+        index: "04",
+        name: "职能",
+        status: "open",
+        capacity: 5,
+      },
+    ],
+    members: [
+      { teamId: "marketing", userId: "player-a", name: "李蓓蓓", roleKey: "dev", duty: "AI 开发" },
+    ],
+  });
+  const repository = createMysqlTeamRepository(pool);
+
+  await assert.rejects(
+    () => repository.joinTeam({
+      teamId: "functions",
+      userId: "player-a",
+      name: "李蓓蓓",
+      department: "AI创新部",
+    }),
+    /Team marketing is locked/,
+  );
+
+  assert.equal(pool.members.filter((member) => member.team_id === "marketing" && member.user_id === "player-a").length, 1);
+  assert.equal(pool.members.filter((member) => member.team_id === "functions" && member.user_id === "player-a").length, 0);
 });
 
 test("MySQL team repository lets an advisor leave without sending advisor metadata", async () => {
@@ -349,6 +451,41 @@ test("MySQL team repository allows the fifth member when no advisor row exists",
   assert.equal(joined.team.advisor, null);
   assert.equal(joined.team.members.length, 5);
   assert.equal(joined.team.members.some((member) => member.userId === "new-player"), true);
+});
+
+test("MySQL team repository counts a new advisor against team capacity", async () => {
+  const pool = new MemoryMysqlTeamPool({
+    teams: [
+      {
+        id: "medicine",
+        index: "02",
+        name: "医学",
+        status: "open",
+        capacity: 5,
+      },
+    ],
+    members: [
+      { teamId: "medicine", userId: "member-1", name: "队友 1", duty: "队友 01" },
+      { teamId: "medicine", userId: "member-2", name: "队友 2", duty: "队友 02" },
+      { teamId: "medicine", userId: "member-3", name: "队友 3", duty: "队友 03" },
+      { teamId: "medicine", userId: "member-4", name: "队友 4", duty: "队友 04" },
+      { teamId: "medicine", userId: "member-5", name: "队友 5", duty: "队友 05" },
+    ],
+  });
+  const repository = createMysqlTeamRepository(pool);
+
+  await assert.rejects(
+    () => repository.joinTeam({
+      teamId: "medicine",
+      userId: "captain-new",
+      name: "新队长",
+      roleKey: "advisor",
+      duty: "队长",
+    }),
+    /Team medicine is already full/,
+  );
+
+  assert.equal(pool.members.some((member) => member.user_id === "captain-new"), false);
 });
 
 test("repository factory wires the MySQL team repository", async () => {

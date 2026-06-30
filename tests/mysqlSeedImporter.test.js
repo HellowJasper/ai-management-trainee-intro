@@ -141,6 +141,61 @@ test("mysql seed importer loads current JSON fixtures into relational tables", a
   assert.ok(executed.some((item) => item.params.includes("marketing")));
 });
 
+test("mysql seed importer clears previous seed votes before importing aggregate vote counts", async () => {
+  const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-mysql-seed-votes-"));
+  await writeJson(dataDir, "vote-results.json", {
+    status: "voting",
+    results: [
+      { id: "marketing", votes: 1 },
+    ],
+  });
+
+  const executed = [];
+  const pool = {
+    async execute(sql, params = []) {
+      executed.push({ sql, params });
+      return [{ affectedRows: 1 }, []];
+    },
+  };
+
+  await seedMysqlFromJson({ dataDir, pool });
+
+  const seedDeleteIndex = executed.findIndex((item) => (
+    /delete from votes/i.test(item.sql) && item.params.includes("seed")
+  ));
+  const firstVoteInsertIndex = executed.findIndex((item) => /insert into votes/i.test(item.sql));
+
+  assert.ok(seedDeleteIndex >= 0, "seed importer should delete previous seed votes");
+  assert.ok(firstVoteInsertIndex > seedDeleteIndex, "seed votes must be cleared before importing new seed votes");
+});
+
+test("mysql seed importer avoids overwriting active non-seed voters when seed ids collide", async () => {
+  const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-mysql-seed-vote-collision-"));
+  await writeJson(dataDir, "vote-results.json", {
+    status: "voting",
+    results: [
+      { id: "marketing", votes: 1 },
+    ],
+  });
+
+  const executed = [];
+  const pool = {
+    async execute(sql, params = []) {
+      executed.push({ sql, params });
+      if (/select voter_id from votes/i.test(sql)) {
+        return [[{ voter_id: "seed-marketing-1" }]];
+      }
+      return [{ affectedRows: 1 }, []];
+    },
+  };
+
+  await seedMysqlFromJson({ dataDir, pool });
+
+  const seedInsert = executed.find((item) => /insert into votes/i.test(item.sql));
+  assert.notEqual(seedInsert.params[0], "seed-marketing-1");
+  assert.match(seedInsert.params[0], /^seed-marketing-1-/);
+});
+
 test("mysql seed importer closes a pool it creates internally", async () => {
   const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-mysql-seed-"));
   const executed = [];

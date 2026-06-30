@@ -6,7 +6,7 @@ const { createOAuthStateRepository } = require("./oauthStateRepository");
 const { createAuthSessionRepository } = require("./authSessionRepository");
 const { createAuthSessionRepositoryFromEnv } = require("./redisAuthSessionRepository");
 const { createRepositoryBundle } = require("./repositoryFactory");
-const { buildFinalResultSnapshot } = require("./resultSnapshotService");
+const { assertFinalResultPublishable, buildFinalResultSnapshot } = require("./resultSnapshotService");
 const { createSiteStateService, filterVisibleWorks, findJoinedTeamId } = require("./siteStateService");
 const { getRolePermissions } = require("../src/logic");
 
@@ -293,6 +293,41 @@ function resolveAuthEnforcement(value = process.env.AUTH_ENFORCEMENT) {
   return String(value || "").trim().toLowerCase() === "strict" ? "strict" : null;
 }
 
+function isLocalRoleLoginAllowed(authEnforcement) {
+  if (authEnforcement === "strict") {
+    return false;
+  }
+  const configured = String(process.env.ALLOW_LOCAL_DEV_LOGIN || "").trim().toLowerCase();
+  return !configured || ["1", "true", "yes", "on"].includes(configured);
+}
+
+function isSafeWorkUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return true;
+  }
+  if ((raw.startsWith("/") && !raw.startsWith("//")) || raw.startsWith("./assets/") || raw.startsWith("assets/")) {
+    return true;
+  }
+  try {
+    const url = new URL(raw);
+    if (url.protocol === "https:") {
+      return true;
+    }
+    return url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function assertSafeWorkUrls(payload = {}) {
+  ["demoUrl", "codeUrl", "docUrl"].forEach((field) => {
+    if (!isSafeWorkUrl(payload[field])) {
+      throw createStatusError(400, `${field} must be an https URL or a same-origin asset path.`);
+    }
+  });
+}
+
 function sanitizeRedirectPath(value, fallback = "/site.html#me") {
   const redirectPath = String(value || "").trim();
   if (!redirectPath || !redirectPath.startsWith("/") || redirectPath.startsWith("//")) {
@@ -399,6 +434,25 @@ async function routeApi(
         };
     me.teamId = findJoinedTeamId(normalizeRouteArrayPayload(teamsPayload, "teams"), me.user?.id);
     return filterVisibleWorks(normalizeRouteArrayPayload(worksPayload, "works"), me);
+  }
+
+  async function getVisibleWorkForRequest(request, id) {
+    const visibleWorks = await listVisibleWorksForRequest(request);
+    const cleanId = String(id || "").trim();
+    return visibleWorks.find((work) => [work.id, work.teamId].some((value) => String(value || "").trim() === cleanId)) || null;
+  }
+
+  async function enforceJoinedTeamWork(session, teamId) {
+    const cleanTeamId = String(teamId || "").trim();
+    const userId = String(session?.user?.id || "").trim();
+    if (!cleanTeamId || !userId) {
+      return;
+    }
+    const teamsPayload = await teamRepository.listTeams();
+    const joinedTeamId = findJoinedTeamId(normalizeRouteArrayPayload(teamsPayload, "teams"), userId);
+    if (joinedTeamId !== cleanTeamId) {
+      throw createStatusError(403, "Work submissions must target the current user's joined team.");
+    }
   }
 
   async function enforcePermission(request, response, permissionName) {
@@ -776,7 +830,10 @@ async function routeApi(
       return true;
     }
 
-    // ③ 本地开发：直接按提交的角色建会话。
+    // ③ 本地开发：直接按提交的角色建会话。strict/生产权限边界下禁用。
+    if (!isLocalRoleLoginAllowed(authEnforcement)) {
+      throw createStatusError(403, "Local role login is disabled when strict auth enforcement is enabled.");
+    }
     const session = await authSessionRepository.createSession({
       ...payload,
       source: "local-dev",
@@ -1106,7 +1163,9 @@ async function routeApi(
     const session = await enforcePermission(request, response, "canSubmitWork");
     if (!session) return true;
     const payload = await readJsonBody(request);
+    assertSafeWorkUrls(payload);
     attachSessionUser(payload, session, { includeName: true, includeSubmitter: true });
+    await enforceJoinedTeamWork(session, payload.teamId || payload.id);
     const result = await worksRepository.submitWork(payload);
     await auditLogRepository.record({
       actor: payload.userId || payload.submittedBy || "system",
@@ -1125,6 +1184,7 @@ async function routeApi(
     if (!session) return true;
     const payload = await readJsonBody(request);
     attachSessionUser(payload, session, { includeName: true, includeSubmitter: true });
+    await enforceJoinedTeamWork(session, payload.teamId || payload.id);
     const result = await worksRepository.withdrawWork(payload);
     await auditLogRepository.record({
       actor: payload.userId || payload.submittedBy || "system",
@@ -1139,7 +1199,11 @@ async function routeApi(
   }
 
   if (segments[0] === "api" && segments[1] === "works" && segments.length === 3 && request.method === "GET") {
-    sendJson(response, 200, await worksRepository.getWork(segments[2]));
+    const work = await getVisibleWorkForRequest(request, segments[2]);
+    if (!work) {
+      throw createStatusError(404, `Work ${segments[2]} was not found.`);
+    }
+    sendJson(response, 200, work);
     return true;
   }
 
@@ -1171,6 +1235,8 @@ async function routeApi(
   }
 
   if (url.pathname === "/api/admin/audit-logs" && request.method === "GET") {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
     sendJson(response, 200, await auditLogRepository.listLogs({
       limit: url.searchParams.get("limit"),
       action: url.searchParams.get("action"),
@@ -1197,10 +1263,12 @@ async function routeApi(
     if (authEnforcement === "strict") {
       payload.actor = session.user.id;
     }
-    const [voteState, judgeState] = await Promise.all([
+    const [voteState, judgeState, judges] = await Promise.all([
       voteResultsRepository.listVoteResults(),
       judgeScoresRepository.readState(),
+      listJudgeUsers(),
     ]);
+    assertFinalResultPublishable({ voteState, judgeState: { ...judgeState, judges } });
     const snapshotPayload = buildFinalResultSnapshot({
       voteState,
       judgeState,
@@ -1367,6 +1435,8 @@ async function routeApi(
   }
 
   if (url.pathname === "/api/mission-countdown/start" && request.method === "POST") {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
     const payload = await readJsonBody(request);
     sendJson(response, 200, await missionCountdownRepository.startCountdown(payload));
     return true;
@@ -1378,6 +1448,8 @@ async function routeApi(
   }
 
   if (url.pathname === "/api/roadshow/start" && request.method === "POST") {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
     const payload = await readJsonBody(request);
     sendJson(response, 200, await roadshowRepository.startRoadshow(payload));
     return true;
@@ -1398,6 +1470,8 @@ async function routeApi(
   }
 
   if (segments.length === 2 && request.method === "POST") {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
     const payload = await readJsonBody(request);
     sendJson(response, 201, await repository.createTrainee(payload));
     return true;
@@ -1414,17 +1488,23 @@ async function routeApi(
   }
 
   if (segments.length === 3 && request.method === "PATCH") {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
     const payload = await readJsonBody(request);
     sendJson(response, 200, await repository.updateTrainee(id, payload));
     return true;
   }
 
   if (segments.length === 3 && request.method === "DELETE") {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
     sendJson(response, 200, await repository.deleteTrainee(id));
     return true;
   }
 
   if (segments.length === 4 && segments[3] === "sentence" && ["POST", "PATCH"].includes(request.method)) {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
     const payload = await readJsonBody(request);
     sendJson(response, 200, await repository.saveSentence(id, payload.sentence));
     return true;
@@ -1591,10 +1671,8 @@ function createServer(options = {}) {
       // 大屏 / 后台 / 演示页仅管理员可进；否则跳回用户站并提示访问非法。
       if (resolveProtectedPageKey(request, url)) {
         const session = await authSessionRepository.getSession(getSessionIdFromRequest(request));
-        const roles = session
-          ? (Array.isArray(session.roles) && session.roles.length ? session.roles : (session.role ? [session.role] : []))
-          : [];
-        if (!roles.includes("admin")) {
+        const permissions = session?.role ? (session.permissions || getRolePermissions(session.role)) : {};
+        if (!permissions.canAdmin) {
           sendRedirect(response, "/site.html?denied=1");
           return;
         }
@@ -1609,6 +1687,9 @@ function createServer(options = {}) {
 
 if (require.main === module) {
   require("./loadEnv").loadEnv();
+  if (process.env.AUTH_ENFORCEMENT === undefined) {
+    process.env.AUTH_ENFORCEMENT = "strict";
+  }
   // 全盘 MySQL：禁止本地文件存储。未显式声明则强制 mysql；显式声明为其它后端则拒绝启动。
   if (process.env.DATA_BACKEND === undefined) {
     process.env.DATA_BACKEND = "mysql";

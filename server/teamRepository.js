@@ -124,6 +124,21 @@ function advisorMatchesUser(advisor = {}, userId = "") {
   return Boolean(advisor) && memberMatchesUser(advisor, userId);
 }
 
+function teamHasUser(team = {}, userId = "") {
+  const members = Array.isArray(team.members) ? team.members : [];
+  return advisorMatchesUser(team.advisor, userId)
+    || members.some((member) => memberMatchesUser(member, userId));
+}
+
+function assertUserCanMoveFromCurrentTeams(teams = [], userId = "", targetTeamId = "", options = {}) {
+  teams.forEach((team) => {
+    if (String(team.id || "").trim() === targetTeamId || !teamHasUser(team, userId)) {
+      return;
+    }
+    assertTeamWritable(team, team.id, options);
+  });
+}
+
 function normalizeAdvisor(member = {}, fallbackTeam = {}) {
   return {
     userId: member.userId || member.id || "",
@@ -139,6 +154,7 @@ function normalizeAdvisor(member = {}, fallbackTeam = {}) {
 
 function createTeamRepository(dataPath = DEFAULT_DATA_PATH) {
   const resolvedDataPath = path.resolve(dataPath);
+  let writeQueue = Promise.resolve();
 
   async function readTeams() {
     const raw = await fs.readFile(resolvedDataPath, "utf8");
@@ -152,11 +168,17 @@ function createTeamRepository(dataPath = DEFAULT_DATA_PATH) {
   }
 
   async function listTeams() {
-    return readTeams();
+    return writeQueue.then(() => readTeams());
   }
 
   async function writeTeams(teams) {
     await writeJsonFile(resolvedDataPath, teams);
+  }
+
+  function withSerializedWrite(operation) {
+    const nextOperation = writeQueue.then(operation);
+    writeQueue = nextOperation.catch(() => {});
+    return nextOperation;
   }
 
   async function joinTeam(payload = {}, options = {}) {
@@ -173,6 +195,7 @@ function createTeamRepository(dataPath = DEFAULT_DATA_PATH) {
       throw createHttpError(404, `Team ${teamId} was not found.`);
     }
 
+    assertUserCanMoveFromCurrentTeams(teams, member.userId, teamId, options);
     const nextTeams = teams.map((team) => ({
       ...team,
       advisor: advisorMatchesUser(team.advisor, member.userId) ? null : team.advisor,
@@ -383,12 +406,12 @@ function createTeamRepository(dataPath = DEFAULT_DATA_PATH) {
   }
 
   return {
-    claimRole,
-    joinTeam,
-    leaveTeam,
+    claimRole: (payload, options) => withSerializedWrite(() => claimRole(payload, options)),
+    joinTeam: (payload, options) => withSerializedWrite(() => joinTeam(payload, options)),
+    leaveTeam: (payload, options) => withSerializedWrite(() => leaveTeam(payload, options)),
     listTeams,
-    updateTeamScenario,
-    updateTeamStatus,
+    updateTeamScenario: (teamId, payload) => withSerializedWrite(() => updateTeamScenario(teamId, payload)),
+    updateTeamStatus: (teamId, payload) => withSerializedWrite(() => updateTeamStatus(teamId, payload)),
   };
 }
 

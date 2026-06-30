@@ -33,6 +33,7 @@ function normalizeSnapshot(snapshot = {}) {
       ? snapshot.pointScale
       : DEFAULT_POINT_SCALE,
     results: Array.isArray(snapshot.results) ? snapshot.results : [],
+    source: snapshot.source && typeof snapshot.source === "object" ? snapshot.source : null,
     publishedBy: String(snapshot.publishedBy || snapshot.published_by || "admin").trim() || "admin",
     publishedAt: normalizeDate(snapshot.publishedAt || snapshot.published_at),
   };
@@ -44,6 +45,7 @@ function rowToSnapshot(row = {}) {
     status: row.status,
     pointScale: parseJsonValue(row.point_scale_json || row.pointScaleJson, DEFAULT_POINT_SCALE),
     results: parseJsonValue(row.result_json || row.resultJson, []),
+    source: parseJsonValue(row.source_json || row.sourceJson, null),
     publishedBy: row.published_by || row.publishedBy,
     publishedAt: row.published_at || row.publishedAt,
   });
@@ -56,7 +58,7 @@ function createMysqlResultSnapshotsRepository(pool) {
 
   async function getLatestSnapshot({ status = "published" } = {}) {
     const [rows] = await pool.execute(
-      `SELECT id, status, point_scale_json, result_json, published_by, published_at
+      `SELECT id, status, point_scale_json, result_json, source_json, published_by, published_at
        FROM result_snapshots
        WHERE status = ?
        ORDER BY published_at DESC, id DESC
@@ -73,12 +75,13 @@ function createMysqlResultSnapshotsRepository(pool) {
     }
 
     const [result] = await pool.execute(
-      `INSERT INTO result_snapshots (status, point_scale_json, result_json, published_by)
-       VALUES (?, ?, ?, ?)`,
+      `INSERT INTO result_snapshots (status, point_scale_json, result_json, source_json, published_by)
+       VALUES (?, ?, ?, ?, ?)`,
       [
         snapshot.status,
         JSON.stringify(snapshot.pointScale),
         JSON.stringify(snapshot.results),
+        JSON.stringify(snapshot.source),
         snapshot.publishedBy,
       ],
     );

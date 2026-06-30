@@ -1,5 +1,11 @@
 const { computeFinalResults } = require("../src/logic");
-const { effectiveRecordsForTeam } = require("./judgeScoreDomain");
+const { createHttpError } = require("./traineeRepository");
+const {
+  JUDGE_SCORE_STATUSES,
+  effectiveRecordsForTeam,
+  normalizeRecord,
+  normalizeState,
+} = require("./judgeScoreDomain");
 
 function averageNumericValues(values = []) {
   const numericValues = values
@@ -34,6 +40,80 @@ function getExpertScoresForTeam(judgeState = {}, teamId) {
     .filter((score) => score !== null);
 }
 
+function buildFinalResultSource({ voteState = {}, judgeState = {} } = {}) {
+  const normalizedJudgeState = normalizeState(judgeState);
+  const judgeRecords = {};
+  Object.entries(normalizedJudgeState.records || {}).forEach(([judgeId, teamRecords]) => {
+    judgeRecords[judgeId] = {};
+    Object.entries(teamRecords || {}).forEach(([teamId, record]) => {
+      const normalized = normalizeRecord(record);
+      judgeRecords[judgeId][teamId] = {
+        status: normalized.status,
+        totalScore: normalized.totalScore,
+        updatedAt: normalized.updatedAt || "",
+      };
+    });
+  });
+
+  return {
+    vote: {
+      status: String(voteState.status || "").trim(),
+      windowLabel: String(voteState.windowLabel || "").trim(),
+      updatedAt: voteState.updatedAt || "",
+      pointScale: Array.isArray(voteState.pointScale) ? voteState.pointScale : [],
+      results: (Array.isArray(voteState.results) ? voteState.results : []).map((team) => ({
+        id: String(team?.id || "").trim(),
+        name: String(team?.name || "").trim(),
+        votes: Number(team?.votes || 0),
+      })),
+    },
+    judge: {
+      updatedAt: normalizedJudgeState.updatedAt || "",
+      records: judgeRecords,
+    },
+  };
+}
+
+function assertFinalResultPublishable({ voteState = {}, judgeState = {} } = {}) {
+  const voteStatus = String(voteState.status || "").trim().toLowerCase();
+  if (voteStatus !== "closed") {
+    throw createHttpError(409, "Final results can only be published after the vote window is closed.");
+  }
+
+  const teamIds = (Array.isArray(voteState.results) ? voteState.results : [])
+    .map((team) => String(team?.id || "").trim())
+    .filter(Boolean);
+  if (!teamIds.length) {
+    throw createHttpError(409, "Final results require at least one ranked team.");
+  }
+
+  const state = normalizeState(judgeState);
+  const expectedJudgeIds = (Array.isArray(judgeState.judges) ? judgeState.judges : [])
+    .map((judge) => String(judge?.id || judge?.judgeId || judge?.userId || "").trim())
+    .filter(Boolean);
+  const judgeEntries = expectedJudgeIds.length
+    ? expectedJudgeIds.map((judgeId) => [judgeId, state.records[judgeId] || {}])
+    : Object.entries(state.records || {})
+      .filter(([, records]) => records && typeof records === "object" && teamIds.some((teamId) => records[teamId]));
+  if (!judgeEntries.length) {
+    throw createHttpError(409, "Final results require locked judge scores before publishing.");
+  }
+
+  const unlocked = [];
+  judgeEntries.forEach(([judgeId, records]) => {
+    teamIds.forEach((teamId) => {
+      const record = records[teamId] ? normalizeRecord(records[teamId]) : null;
+      if (!record || record.status !== JUDGE_SCORE_STATUSES.LOCKED) {
+        unlocked.push(`${judgeId}:${teamId}`);
+      }
+    });
+  });
+
+  if (unlocked.length) {
+    throw createHttpError(409, "Final results require all judge scores to be locked before publishing.");
+  }
+}
+
 function buildFinalResultSnapshot({ voteState = {}, judgeState = {}, publishedBy = "admin" } = {}) {
   const pointScale = Array.isArray(voteState.pointScale) && voteState.pointScale.length
     ? voteState.pointScale
@@ -50,10 +130,13 @@ function buildFinalResultSnapshot({ voteState = {}, judgeState = {}, publishedBy
   return {
     pointScale,
     results: computeFinalResults(resultsWithJudgeScores, pointScale),
+    source: buildFinalResultSource({ voteState, judgeState }),
     publishedBy,
   };
 }
 
 module.exports = {
+  assertFinalResultPublishable,
   buildFinalResultSnapshot,
+  buildFinalResultSource,
 };

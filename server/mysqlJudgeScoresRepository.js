@@ -35,6 +35,21 @@ function normalizeDate(value) {
   return String(value);
 }
 
+async function withTransaction(pool, work) {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const result = await work(connection);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 function createMysqlJudgeScoresRepository(pool) {
   if (!pool || typeof pool.execute !== "function") {
     throw new Error("A mysql2-compatible pool with execute(sql, params) is required.");
@@ -75,12 +90,12 @@ function createMysqlJudgeScoresRepository(pool) {
     });
   }
 
-  async function getExistingRecord(judgeId, teamId) {
-    const [rows] = await pool.execute(
+  async function getExistingRecord(judgeId, teamId, { connection = pool, forUpdate = false } = {}) {
+    const [rows] = await connection.execute(
       `SELECT judge_id, team_id, status, score_json, total_score, comment, submitted_at, updated_at
        FROM judge_scores
        WHERE judge_id = ? AND team_id = ?
-       LIMIT 1`,
+       LIMIT 1${forUpdate ? " FOR UPDATE" : ""}`,
       [judgeId, teamId],
     );
     if (!rows.length) {
@@ -110,14 +125,15 @@ function createMysqlJudgeScoresRepository(pool) {
       throw createHttpError(400, "scores must include at least one team.");
     }
 
-    await Promise.all(receivedTeamIds.map(async (teamId) => {
-      const existing = await getExistingRecord(judgeId, teamId);
+    await withTransaction(pool, async (connection) => {
+      for (const teamId of receivedTeamIds) {
+        const existing = await getExistingRecord(judgeId, teamId, { connection, forUpdate: true });
       if (existing && [JUDGE_SCORE_STATUSES.SUBMITTED, JUDGE_SCORE_STATUSES.LOCKED].includes(existing.status)) {
         throw createHttpError(409, `Score for team ${teamId} has already been submitted.`);
       }
       const teamScores = scores[teamId];
       const comment = Object.prototype.hasOwnProperty.call(comments, teamId) ? comments[teamId] : existing?.comment || "";
-      return pool.execute(
+        await connection.execute(
         `INSERT INTO judge_scores (judge_id, team_id, status, score_json, total_score, comment, submitted_at)
          VALUES (?, ?, ?, ?, ?, ?, NULL)
          ON DUPLICATE KEY UPDATE
@@ -136,7 +152,8 @@ function createMysqlJudgeScoresRepository(pool) {
           comment,
         ],
       );
-    }));
+      }
+    });
 
     const nextState = await readState();
     return {
@@ -181,8 +198,12 @@ function createMysqlJudgeScoresRepository(pool) {
       throw createHttpError(400, "scores must include at least one team.");
     }
 
-    await Promise.all(teamIds.map(async (teamId) => {
-      const existing = currentRecords[teamId] ? normalizeRecord(currentRecords[teamId]) : normalizeRecord(await getExistingRecord(judgeId, teamId) || {});
+    await withTransaction(pool, async (connection) => {
+      for (const teamId of teamIds) {
+        const lockedExisting = await getExistingRecord(judgeId, teamId, { connection, forUpdate: true });
+        const existing = lockedExisting
+          ? normalizeRecord(lockedExisting)
+          : normalizeRecord(currentRecords[teamId] || {});
       if (existing.status === JUDGE_SCORE_STATUSES.LOCKED) {
         throw createHttpError(423, `Score for team ${teamId} is locked.`);
       }
@@ -192,7 +213,7 @@ function createMysqlJudgeScoresRepository(pool) {
       const teamScores = incomingScores[teamId] || existing.scores || {};
       assertCompleteScores(teamScores, teamId);
       const comment = Object.prototype.hasOwnProperty.call(incomingComments, teamId) ? incomingComments[teamId] : existing.comment || "";
-      return pool.execute(
+        await connection.execute(
         `INSERT INTO judge_scores (judge_id, team_id, status, score_json, total_score, comment, submitted_at)
          VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
          ON DUPLICATE KEY UPDATE
@@ -211,7 +232,8 @@ function createMysqlJudgeScoresRepository(pool) {
           comment,
         ],
       );
-    }));
+      }
+    });
 
     const nextState = await readState();
     return {
@@ -248,12 +270,25 @@ function createMysqlJudgeScoresRepository(pool) {
       throw createHttpError(409, "Some judges have not submitted all scores.");
     }
 
-    await Promise.all(progress.judges.flatMap((judge) => progress.teams.map((team) => pool.execute(
-      `UPDATE judge_scores
-       SET status = ?, updated_at = CURRENT_TIMESTAMP
-       WHERE judge_id = ? AND team_id = ? AND status = ?`,
-      [JUDGE_SCORE_STATUSES.LOCKED, judge.judgeId, team.teamId, JUDGE_SCORE_STATUSES.SUBMITTED],
-    ))));
+    await withTransaction(pool, async (connection) => {
+      for (const judge of progress.judges) {
+        for (const team of progress.teams) {
+          const teamStatus = judge.teams?.[team.teamId]?.status;
+          if (teamStatus === JUDGE_SCORE_STATUSES.LOCKED) {
+            continue;
+          }
+          const [result] = await connection.execute(
+            `UPDATE judge_scores
+             SET status = ?, updated_at = CURRENT_TIMESTAMP
+             WHERE judge_id = ? AND team_id = ? AND status = ?`,
+            [JUDGE_SCORE_STATUSES.LOCKED, judge.judgeId, team.teamId, JUDGE_SCORE_STATUSES.SUBMITTED],
+          );
+          if (result.affectedRows !== 1) {
+            throw createHttpError(409, "Judge score state changed while locking; refresh and retry.");
+          }
+        }
+      }
+    });
 
     const nextState = await readState();
     return {

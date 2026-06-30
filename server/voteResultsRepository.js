@@ -43,6 +43,7 @@ function normalizeVoteResults(payload = {}) {
 
 function createVoteResultsRepository(dataPath = DEFAULT_DATA_PATH) {
   const resolvedDataPath = path.resolve(dataPath);
+  let writeQueue = Promise.resolve();
 
   async function readVoteResults() {
     const raw = await fs.readFile(resolvedDataPath, "utf8");
@@ -53,8 +54,14 @@ function createVoteResultsRepository(dataPath = DEFAULT_DATA_PATH) {
     await fs.writeFile(resolvedDataPath, `${JSON.stringify(normalizeVoteResults(payload), null, 2)}\n`);
   }
 
+  function withSerializedWrite(operation) {
+    const nextOperation = writeQueue.then(operation);
+    writeQueue = nextOperation.catch(() => {});
+    return nextOperation;
+  }
+
   async function listVoteResults() {
-    return readVoteResults();
+    return writeQueue.then(() => readVoteResults());
   }
 
   function ensureVotingOpen(state) {
@@ -72,94 +79,100 @@ function createVoteResultsRepository(dataPath = DEFAULT_DATA_PATH) {
   }
 
   async function castVote(payload = {}) {
-    const teamId = String(payload.teamId || "").trim();
-    const userId = normalizeUserId(payload);
-    if (!teamId) {
-      throw createHttpError(400, "teamId is required.");
-    }
+    return withSerializedWrite(async () => {
+      const teamId = String(payload.teamId || "").trim();
+      const userId = normalizeUserId(payload);
+      if (!teamId) {
+        throw createHttpError(400, "teamId is required.");
+      }
 
-    const state = await readVoteResults();
-    ensureVotingOpen(state);
-    const resultIndex = findResultIndex(state, teamId);
-    const currentVote = state.voters[userId];
+      const state = await readVoteResults();
+      ensureVotingOpen(state);
+      const resultIndex = findResultIndex(state, teamId);
+      const currentVote = state.voters[userId];
 
-    if (currentVote && currentVote !== teamId) {
-      throw createHttpError(409, `User ${userId} already voted for ${currentVote}.`);
-    }
+      if (currentVote && currentVote !== teamId) {
+        throw createHttpError(409, `User ${userId} already voted for ${currentVote}.`);
+      }
 
-    if (!currentVote) {
-      state.results[resultIndex] = {
-        ...state.results[resultIndex],
-        votes: Math.max(0, Number(state.results[resultIndex].votes) || 0) + 1,
+      if (!currentVote) {
+        state.results[resultIndex] = {
+          ...state.results[resultIndex],
+          votes: Math.max(0, Number(state.results[resultIndex].votes) || 0) + 1,
+        };
+        state.voters[userId] = teamId;
+        state.updatedAt = new Date().toISOString();
+        await writeVoteResults(state);
+      }
+
+      return {
+        accepted: true,
+        teamId,
+        userId,
+        ...normalizeVoteResults(state),
       };
-      state.voters[userId] = teamId;
-      state.updatedAt = new Date().toISOString();
-      await writeVoteResults(state);
-    }
-
-    return {
-      accepted: true,
-      teamId,
-      userId,
-      ...normalizeVoteResults(state),
-    };
+    });
   }
 
   async function cancelVote(payload = {}) {
-    const userId = normalizeUserId(payload);
-    const state = await readVoteResults();
-    ensureVotingOpen(state);
-    const currentVote = state.voters[userId];
-    const teamId = String(payload.teamId || currentVote || "").trim();
+    return withSerializedWrite(async () => {
+      const userId = normalizeUserId(payload);
+      const state = await readVoteResults();
+      ensureVotingOpen(state);
+      const currentVote = state.voters[userId];
+      const teamId = String(payload.teamId || currentVote || "").trim();
 
-    if (!teamId) {
-      throw createHttpError(400, "teamId is required.");
-    }
-    if (!currentVote) {
+      if (!teamId) {
+        throw createHttpError(400, "teamId is required.");
+      }
+      if (!currentVote) {
+        return {
+          accepted: false,
+          teamId,
+          userId,
+          ...state,
+        };
+      }
+      if (currentVote !== teamId) {
+        throw createHttpError(409, `User ${userId} voted for ${currentVote}, not ${teamId}.`);
+      }
+
+      const resultIndex = findResultIndex(state, teamId);
+      state.results[resultIndex] = {
+        ...state.results[resultIndex],
+        votes: Math.max(0, (Number(state.results[resultIndex].votes) || 0) - 1),
+      };
+      delete state.voters[userId];
+      state.updatedAt = new Date().toISOString();
+      await writeVoteResults(state);
+
       return {
-        accepted: false,
+        accepted: true,
         teamId,
         userId,
-        ...state,
+        ...normalizeVoteResults(state),
       };
-    }
-    if (currentVote !== teamId) {
-      throw createHttpError(409, `User ${userId} voted for ${currentVote}, not ${teamId}.`);
-    }
-
-    const resultIndex = findResultIndex(state, teamId);
-    state.results[resultIndex] = {
-      ...state.results[resultIndex],
-      votes: Math.max(0, (Number(state.results[resultIndex].votes) || 0) - 1),
-    };
-    delete state.voters[userId];
-    state.updatedAt = new Date().toISOString();
-    await writeVoteResults(state);
-
-    return {
-      accepted: true,
-      teamId,
-      userId,
-      ...normalizeVoteResults(state),
-    };
+    });
   }
 
   async function updateWindowStatus(payload = {}) {
-    const state = await readVoteResults();
-    const status = normalizeVoteWindowStatus(payload.status);
-    const nextState = {
-      ...state,
-      status,
-      windowLabel: payload.windowLabel || VOTE_WINDOW_LABELS[status],
-      updatedAt: new Date().toISOString(),
-    };
+    return withSerializedWrite(async () => {
+      const state = await readVoteResults();
+      const status = normalizeVoteWindowStatus(payload.status);
+      const nextState = {
+        ...state,
+        status,
+        windowLabel: payload.windowLabel || VOTE_WINDOW_LABELS[status],
+        updatedAt: new Date().toISOString(),
+      };
 
-    await writeVoteResults(nextState);
+      await writeVoteResults(nextState);
 
-    return {
-      accepted: true,
-      ...normalizeVoteResults(nextState),
-    };
+      return {
+        accepted: true,
+        ...normalizeVoteResults(nextState),
+      };
+    });
   }
 
   return {

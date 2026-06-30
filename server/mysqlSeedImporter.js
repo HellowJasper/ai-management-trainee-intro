@@ -312,6 +312,31 @@ async function seedVotes(pool, voteResults) {
     ],
   );
 
+  await pool.execute(
+    "DELETE FROM votes WHERE source = ?",
+    ["seed"],
+  );
+
+  const [activeNonSeedVoteRows] = await pool.execute(
+    "SELECT voter_id FROM votes WHERE status = 'active' AND source <> ?",
+    ["seed"],
+  );
+  const reservedVoterIds = new Set((Array.isArray(activeNonSeedVoteRows) ? activeNonSeedVoteRows : [])
+    .map((row) => clean(row.voter_id || row.voterId))
+    .filter(Boolean));
+
+  function createSeedVoterId(teamId, index) {
+    const baseId = `seed-${teamId}-${index + 1}`;
+    let candidate = baseId;
+    let suffix = 2;
+    while (reservedVoterIds.has(candidate)) {
+      candidate = `${baseId}-${suffix}`;
+      suffix += 1;
+    }
+    reservedVoterIds.add(candidate);
+    return candidate;
+  }
+
   let voteCount = 0;
   for (const result of results) {
     const teamId = clean(result.id || result.teamId);
@@ -328,7 +353,7 @@ async function seedVotes(pool, voteResults) {
           status = VALUES(status),
           source = VALUES(source),
           updated_at = CURRENT_TIMESTAMP`,
-        [`seed-${teamId}-${index + 1}`, teamId],
+        [createSeedVoterId(teamId, index), teamId],
       );
       voteCount += 1;
     }

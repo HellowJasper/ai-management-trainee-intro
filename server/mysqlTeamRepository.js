@@ -102,6 +102,21 @@ function teamRosterCount(team = {}, members = team.members || []) {
   return (team.advisor ? 1 : 0) + (Array.isArray(members) ? members.length : 0);
 }
 
+async function withTransaction(pool, work) {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const result = await work(connection);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 function rowToTeam(row = {}) {
   const meta = parseJsonValue(row.meta_json || row.metaJson || row.meta);
   return {
@@ -170,6 +185,57 @@ function createMysqlTeamRepository(pool) {
     });
   }
 
+  async function getTeamSnapshot(connection, teamId, { forUpdate = false } = {}) {
+    const [teamRows] = await connection.execute(
+      `SELECT id, name, track_code, track_name, project, status, capacity, sort_order, meta_json
+       FROM teams
+       WHERE id = ?
+       LIMIT 1${forUpdate ? " FOR UPDATE" : ""}`,
+      [teamId],
+    );
+    if (!teamRows.length) {
+      throw createHttpError(404, `Team ${teamId} was not found.`);
+    }
+
+    const [memberRows] = await connection.execute(
+      `SELECT team_id, user_id, name, department, role_key, duty, photo_url AS photo, role, is_advisor, joined_at
+       FROM team_members
+       WHERE team_id = ?
+       ORDER BY joined_at ASC, id ASC${forUpdate ? " FOR UPDATE" : ""}`,
+      [teamId],
+    );
+
+    const team = rowToTeam(teamRows[0]);
+    const members = [];
+    let advisor = null;
+    memberRows.forEach((row) => {
+      if (row.is_advisor) {
+        advisor = rowToMember(row);
+        return;
+      }
+      members.push(rowToMember(row));
+    });
+
+    return {
+      ...team,
+      advisor,
+      members,
+    };
+  }
+
+  async function getUserTeamIds(connection, userId, { forUpdate = false } = {}) {
+    const [rows] = await connection.execute(
+      `SELECT team_id
+       FROM team_members
+       WHERE user_id = ?
+       ORDER BY team_id ASC${forUpdate ? " FOR UPDATE" : ""}`,
+      [userId],
+    );
+    return Array.from(new Set((rows || [])
+      .map((row) => normalizeId(row.team_id || row.teamId))
+      .filter(Boolean)));
+  }
+
   async function ensureTeamExists(teamId) {
     const [rows] = await pool.execute(
       "SELECT id FROM teams WHERE id = ? LIMIT 1",
@@ -196,72 +262,77 @@ function createMysqlTeamRepository(pool) {
     }
 
     const member = normalizeMember(payload);
-    const teams = await listTeams();
-    const { target } = await findTeamFromList(teamId, teams);
-    const targetMembersAfterMove = target.members.filter((item) => !memberMatchesUser(item, member.userId));
 
-    assertTeamWritable(target, teamId, options);
+    await withTransaction(pool, async (connection) => {
+      const target = await getTeamSnapshot(connection, teamId, { forUpdate: true });
+      const sourceTeamIds = await getUserTeamIds(connection, member.userId, { forUpdate: true });
+      for (const sourceTeamId of sourceTeamIds) {
+        if (sourceTeamId === teamId) {
+          continue;
+        }
+        const sourceTeam = await getTeamSnapshot(connection, sourceTeamId, { forUpdate: true });
+        assertTeamWritable(sourceTeam, sourceTeamId, options);
+      }
+      const targetMembersAfterMove = target.members.filter((item) => !memberMatchesUser(item, member.userId));
 
-    if (isAdvisorMember(member)) {
-      await pool.execute(
+      assertTeamWritable(target, teamId, options);
+
+      if (isAdvisorMember(member)) {
+        if (targetMembersAfterMove.length + 1 > teamCapacity(target)) {
+          throw createHttpError(409, `Team ${teamId} is already full.`);
+        }
+        await connection.execute(
+          "DELETE FROM team_members WHERE user_id = ?",
+          [member.userId],
+        );
+        await connection.execute(
+          "DELETE FROM team_members WHERE team_id = ? AND is_advisor = TRUE",
+          [teamId],
+        );
+        await connection.execute(
+          `INSERT INTO team_members
+            (team_id, user_id, name, department, role_key, duty, photo_url, role, is_advisor)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
+          [
+            teamId,
+            member.userId,
+            member.name,
+            member.department,
+            "advisor",
+            member.duty || "队长",
+            member.photo,
+            member.role || member.duty || "队长",
+            true,
+          ],
+        );
+        return;
+      }
+
+      if (teamRosterCount(target, targetMembersAfterMove) >= teamCapacity(target)) {
+        throw createHttpError(409, `Team ${teamId} is already full.`);
+      }
+
+      await connection.execute(
         "DELETE FROM team_members WHERE user_id = ?",
         [member.userId],
       );
-      await pool.execute(
-        "DELETE FROM team_members WHERE team_id = ? AND is_advisor = TRUE",
-        [teamId],
-      );
-      await pool.execute(
+      await connection.execute(
         `INSERT INTO team_members
           (team_id, user_id, name, department, role_key, duty, photo_url, role, is_advisor)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, TRUE)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, FALSE)`,
         [
           teamId,
           member.userId,
           member.name,
           member.department,
-          "advisor",
-          member.duty || "队长",
+          member.roleKey || null,
+          member.duty,
           member.photo,
-          member.role || member.duty || "队长",
-          true,
+          member.role,
+          false,
         ],
       );
-
-      const nextTeams = await listTeams();
-      const nextTeam = nextTeams.find((team) => team.id === teamId);
-      return {
-        accepted: true,
-        team: nextTeam,
-        member: nextTeam?.advisor || member,
-        teams: nextTeams,
-      };
-    }
-
-    if (teamRosterCount(target, targetMembersAfterMove) >= teamCapacity(target)) {
-      throw createHttpError(409, `Team ${teamId} is already full.`);
-    }
-
-    await pool.execute(
-      "DELETE FROM team_members WHERE user_id = ?",
-      [member.userId],
-    );
-    await pool.execute(
-      `INSERT INTO team_members
-        (team_id, user_id, name, department, role_key, duty, photo_url, role, is_advisor)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, FALSE)`,
-      [
-        teamId,
-        member.userId,
-        member.name,
-        member.department,
-        member.roleKey || null,
-        member.duty,
-        member.photo,
-        member.role,
-        false,
-      ],
-    );
+    });
 
     const nextTeams = await listTeams();
     const nextTeam = nextTeams.find((team) => team.id === teamId);
