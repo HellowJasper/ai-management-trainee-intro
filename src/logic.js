@@ -697,7 +697,7 @@
 
   function resolveStageScreenView(stageId) {
     const stageViews = {
-      prestart: "countdown",
+      prestart: "home",
       opening: "welcome",
       icebreaker: "wall",
       speech: "home",

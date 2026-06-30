@@ -2280,29 +2280,35 @@
   }
   .mh-live {
     display: grid;
-    grid-template-columns: minmax(102px, 1fr) max-content;
-    align-items: start;
-    justify-content: space-between;
-    gap: 12px;
+    grid-template-columns: 1fr;
+    gap: 13px;
     margin-top: 22px;
-    padding: 16px 14px;
+    padding: 15px 14px 17px;
     border: 1px solid rgba(103, 255, 213, 0.22);
     border-radius: 18px;
     background:
-      radial-gradient(circle at 12% 0%, rgba(40, 255, 200, 0.12), transparent 38%),
+      radial-gradient(circle at 16% 4%, rgba(40, 255, 200, 0.16), transparent 42%),
+      radial-gradient(circle at 86% 72%, rgba(137, 255, 77, 0.1), transparent 42%),
       linear-gradient(140deg, rgba(7, 24, 28, 0.78), rgba(4, 10, 14, 0.72));
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 42px rgba(0, 0, 0, 0.28);
   }
   .mh-live-status,
   .mh-live-count {
-    display: flex;
+    display: grid;
     min-width: 0;
-    flex-direction: column;
-    gap: 10px;
+    gap: 9px;
+  }
+  .mh-live-status {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
   }
   .mh-live-count {
-    align-items: flex-end;
-    text-align: right;
+    padding-top: 11px;
+    border-top: 1px solid rgba(103, 255, 213, 0.16);
+    text-align: left;
+  }
+  .mh-live-count .mh-chip {
+    justify-self: start;
   }
   .mh-chip {
     display: inline-flex;
@@ -2336,21 +2342,29 @@
   }
   .mh-live b {
     display: block;
+    min-width: 0;
+    justify-self: end;
     color: #f4fff9;
-    font-size: clamp(17px, 5vw, 21px);
+    font-size: clamp(14px, 4.2vw, 17px);
     line-height: 1.18;
+    text-align: right;
     white-space: nowrap;
   }
   .mh-live strong {
+    display: block;
+    width: 100%;
     color: var(--neon);
     font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
     font-feature-settings: "tnum" 1;
-    font-size: clamp(27px, 8vw, 36px);
+    font-size: clamp(33px, 10.6vw, 42px);
     font-variant-numeric: tabular-nums;
     font-weight: 950;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.015em;
     line-height: 1;
-    text-align: right;
+    text-align: center;
+    text-shadow:
+      0 0 14px rgba(40, 255, 200, 0.42),
+      0 0 32px rgba(40, 255, 200, 0.2);
     white-space: nowrap;
   }
   .mh-live strong i {
@@ -2826,10 +2840,13 @@
 }
 .judge-score-card > span { display: none; }
 .judge-score-top {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  column-gap: 8px;
+}
+.judge-score-title {
+  justify-self: start;
 }
 .judge-score-top em {
   min-width: 0;
@@ -2838,11 +2855,23 @@
   font-size: 12px;
   font-weight: 800;
 }
+.judge-score-top i {
+  justify-self: center;
+  color: rgba(var(--rgb), 0.72);
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
 .judge-score-top b {
+  justify-self: end;
   color: var(--accent);
-  font-family: var(--display);
-  font-size: 25px;
+  font-size: 12px;
+  font-weight: 800;
   line-height: 1;
+  text-align: right;
+  white-space: nowrap;
 }
 .judge-score-control {
   display: grid;
@@ -3104,15 +3133,15 @@
 
   .mh-live {
     margin-top: 20px;
-    padding: 15px 13px;
+    padding: 15px 13px 17px;
   }
 
   .mh-live b {
-    font-size: clamp(17px, 5vw, 21px);
+    font-size: clamp(14px, 4.2vw, 17px);
   }
 
   .mh-live strong {
-    font-size: clamp(27px, 7.8vw, 35px);
+    font-size: clamp(33px, 10.4vw, 40px);
   }
 
   .mh-overview {
@@ -3509,10 +3538,17 @@
   }
 
   .mh-live {
-    grid-template-columns: minmax(96px, 1fr) max-content;
-    align-items: start;
-    gap: 10px;
-    padding: 13px 11px;
+    grid-template-columns: 1fr;
+    gap: 11px;
+    padding: 13px 11px 15px;
+  }
+
+  .mh-live-status {
+    gap: 8px;
+  }
+
+  .mh-live-count {
+    padding-top: 10px;
   }
 
   .mh-chip {
@@ -3522,11 +3558,11 @@
   }
 
   .mh-live b {
-    font-size: clamp(15px, 4.8vw, 17px);
+    font-size: clamp(13px, 4vw, 15px);
   }
 
   .mh-live strong {
-    font-size: clamp(23px, 7.2vw, 27px);
+    font-size: clamp(30px, 10vw, 36px);
   }
 
   .mobile-swipe-deck {

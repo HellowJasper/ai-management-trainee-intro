@@ -3931,6 +3931,13 @@ button {
 .admin-user-modal-close:hover { color: var(--neon); border-color: rgba(40, 255, 200, 0.4); }
 .admin-user-modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
 .admin-user-modal-actions button { min-width: 110px; }
+.prestart-flow-modal-card { width: min(520px, 100%); }
+.prestart-flow-form { display: grid; gap: 14px; }
+.prestart-flow-form label { display: grid; gap: 8px; color: var(--text-soft); font-size: 13px; }
+.prestart-flow-form input { min-height: 42px; border: 1px solid rgba(103, 255, 213, 0.22); border-radius: 9px; padding: 0 12px; background: rgba(2, 13, 20, 0.78); color: var(--text); font: inherit; }
+.prestart-flow-form input:focus { outline: 0; border-color: rgba(40, 255, 200, 0.58); box-shadow: 0 0 0 2px rgba(40, 255, 200, 0.12); }
+.prestart-flow-form p { margin: 0; color: var(--text-soft); font-size: 12px; line-height: 1.6; }
+.prestart-flow-error { min-height: 18px; color: #ff9aaa; font-size: 12px; }
 
 /* ---- 右上角用户：真实头像 + 角色切换（对齐 site） ---- */
 .user-avatar.has-img { background-size: cover; background-position: center; color: transparent; }

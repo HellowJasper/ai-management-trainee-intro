@@ -177,6 +177,15 @@ function createSiteBootstrapTestRepositories(overrides = {}) {
         };
       },
     },
+    prestartCountdownRepository: {
+      async getState() {
+        return {
+          startedAt: "2026-06-25T00:00:00.000Z",
+          durationMs: 86400000,
+          serverNow: "2026-06-25T08:00:00.000Z",
+        };
+      },
+    },
     roadshowRepository: {
       async getState() {
         return {
@@ -415,6 +424,7 @@ test("site bootstrap API composes public audience state from backend repositorie
   assert.equal(payload.stage.currentStageId, "vote");
   assert.equal(payload.stage.currentStage.name, "投票开启");
   assert.equal(payload.timers.missionCountdown.durationMs, 129600000);
+  assert.equal(payload.timers.prestartCountdown.durationMs, 86400000);
   assert.equal(payload.timers.roadshow.durationMs, 900000);
   assert.equal(payload.trainees.length, 1);
   assert.equal(payload.teams.length, 1);
@@ -3012,7 +3022,7 @@ test("admin / screen / big-screen pages require an admin session", async (t) => 
   assert.match(response.headers.get("content-type"), /text\/html/);
   assert.match(html, /AI 星锐黑客松 管理后台/);
   assert.match(html, /id="stageRows"/);
-  assert.match(html, /src="\.\/src\/admin\.js\?v=20260629-prestart-flow-reset"/);
+  assert.match(html, /src="\.\/src\/admin\.js\?v=20260630-reset-flow-direct"/);
 });
 
 test("root serves the user site for everyone; big screen stays admin-only", async (t) => {
@@ -3323,6 +3333,20 @@ test("admin timer APIs control countdown and roadshow display times", async (t) 
       return this.getState();
     },
   };
+  const prestartCountdownRepository = {
+    state: { startedAt: null, durationMs: 86400000 },
+    async getState() {
+      return { ...this.state, serverNow: "2026-06-23T10:00:00.000Z" };
+    },
+    async updateState(payload = {}) {
+      this.state = {
+        ...this.state,
+        startedAt: Object.hasOwn(payload, "startedAt") ? payload.startedAt : this.state.startedAt,
+        durationMs: payload.durationMs || this.state.durationMs,
+      };
+      return this.getState();
+    },
+  };
   const roadshowRepository = {
     state: { currentTeamId: "marketing", nextTeamId: "functions", startedAt: null, durationMs: 900000, phase: "DEMO" },
     async getState() {
@@ -3345,7 +3369,7 @@ test("admin timer APIs control countdown and roadshow display times", async (t) 
       return this.getState();
     },
   };
-  const server = createServer({ publicRoot, missionCountdownRepository, roadshowRepository, auditLogRepository });
+  const server = createServer({ publicRoot, missionCountdownRepository, prestartCountdownRepository, roadshowRepository, auditLogRepository });
   const baseUrl = await listen(server);
 
   t.after(() => new Promise((resolve) => server.close(resolve)));
@@ -3363,6 +3387,22 @@ test("admin timer APIs control countdown and roadshow display times", async (t) 
   assert.equal(countdownResponse.status, 200);
   assert.equal(countdown.startedAt, "2026-06-23T10:00:00.000Z");
   assert.equal(countdown.durationMs, 7200000);
+
+  const prestartResponse = await fetch(`${baseUrl}/api/admin/prestart-countdown`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      startedAt: "2026-06-23T10:05:00.000Z",
+      durationMs: 10 * 24 * 60 * 60 * 1000,
+    }),
+  });
+  const prestart = await prestartResponse.json();
+
+  assert.equal(prestartResponse.status, 200);
+  assert.equal(prestart.startedAt, "2026-06-23T10:05:00.000Z");
+  assert.equal(prestart.durationMs, 864000000);
+  assert.equal(missionCountdownRepository.state.startedAt, "2026-06-23T10:00:00.000Z");
+  assert.equal(missionCountdownRepository.state.durationMs, 7200000);
 
   const roadshowResponse = await fetch(`${baseUrl}/api/admin/roadshow`, {
     method: "PATCH",

@@ -344,6 +344,13 @@
     return readLocalMissionCountdown({ storageKey, durationMs });
   }
 
+  async function loadPrestartCountdown() {
+    return normalizeMissionCountdownState(
+      await fetchJson("/api/prestart-countdown"),
+      { durationMs: 24 * 60 * 60 * 1000, mode: "api" },
+    );
+  }
+
   async function startMissionCountdown({
     storageKey = DEFAULT_COUNTDOWN_STORAGE_KEY,
     durationMs = DEFAULT_COUNTDOWN_DURATION_MS,
@@ -764,6 +771,16 @@
     });
   }
 
+  async function updateAdminPrestartCountdown(payload = {}) {
+    return fetchJson("/api/admin/prestart-countdown", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload || {}),
+    });
+  }
+
   async function updateAdminRoadshow(payload = {}) {
     return fetchJson("/api/admin/roadshow", {
       method: "PATCH",
@@ -897,6 +914,7 @@
     loadJudgeScores,
     loadLatestResultSnapshot,
     loadMissionCountdown,
+    loadPrestartCountdown,
     loadRoadshow,
     loadTeams,
     loadTrainees,
@@ -917,6 +935,7 @@
     updateAdminScreenOverride,
     updateAdminDisplayTimes,
     updateAdminMissionCountdown,
+    updateAdminPrestartCountdown,
     updateAdminRoadshow,
     updateAdminVoteWindow,
     updateAdminWorkStatus,

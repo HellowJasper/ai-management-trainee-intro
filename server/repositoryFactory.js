@@ -16,6 +16,7 @@ const { createAuditLogRepository } = require("./auditLogRepository");
 const { createAdminStateRepository } = require("./adminStateRepository");
 const { createJudgeScoresRepository } = require("./judgeScoresRepository");
 const { createMissionCountdownRepository } = require("./missionCountdownRepository");
+const { createPrestartCountdownRepository } = require("./prestartCountdownRepository");
 const { createRoadshowRepository } = require("./roadshowRepository");
 const { createResultSnapshotRepository } = require("./resultSnapshotRepository");
 const { createTeamRepository } = require("./teamRepository");
@@ -45,6 +46,11 @@ function createRepositoryBundle({
       worksRepository: createMysqlWorksRepository(pool),
       auditLogRepository: createMysqlAuditLogRepository(pool),
       missionCountdownRepository: createMysqlMissionCountdownRepository(pool),
+      prestartCountdownRepository: createMysqlMissionCountdownRepository(pool, {
+        id: "prestart",
+        defaultDurationMs: 24 * 60 * 60 * 1000,
+        label: "Prestart countdown",
+      }),
       roadshowRepository: createMysqlRoadshowRepository(pool),
       adminStateRepository: createMysqlAdminStateRepository(pool),
       resultSnapshotRepository: createMysqlResultSnapshotsRepository(pool),
@@ -64,6 +70,7 @@ function createRepositoryBundle({
     worksRepository: createWorksRepository(),
     auditLogRepository: createAuditLogRepository(),
     missionCountdownRepository: createMissionCountdownRepository(),
+    prestartCountdownRepository: createPrestartCountdownRepository(),
     roadshowRepository: createRoadshowRepository(),
     adminStateRepository: createAdminStateRepository(),
     resultSnapshotRepository: createResultSnapshotRepository(),

@@ -973,8 +973,10 @@ button:disabled {
   z-index: 1;
   display: grid;
   align-content: center;
+  justify-items: center;
   min-height: min(720px, calc(100vh - 150px));
   padding: clamp(40px, 5vh, 62px) clamp(44px, 5.4vw, 74px) clamp(38px, 4.8vh, 58px);
+  text-align: center;
 }
 
 .welcome-kicker {
@@ -1010,6 +1012,39 @@ button:disabled {
   font-weight: 900;
   line-height: 1.35;
   text-shadow: 0 0 18px rgba(167, 255, 79, 0.42);
+}
+
+.welcome-terminal .welcome-brief-copy {
+  display: grid;
+  gap: clamp(8px, 1.2vh, 14px);
+  width: min(780px, 100%);
+  margin: 0 auto clamp(24px, 3.2vh, 38px);
+  color: #eafff8;
+  font-family: var(--body);
+  font-size: clamp(22px, 2.05vw, 32px);
+  font-weight: 850;
+  line-height: 1.55;
+  letter-spacing: 0;
+  text-align: center;
+  text-shadow:
+    0 0 18px rgba(234, 255, 248, 0.14),
+    0 0 34px rgba(40, 255, 200, 0.16);
+}
+
+.welcome-terminal .welcome-brief-copy span {
+  display: block;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  text-shadow: inherit;
+}
+
+.welcome-terminal .welcome-brief-copy span:first-child {
+  color: #ffffff;
+  font-size: clamp(26px, 2.55vw, 40px);
+  font-weight: 900;
 }
 
 .welcome-boot-lines {
@@ -1071,8 +1106,9 @@ button:disabled {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 0;
   width: min(440px, 100%);
+  min-height: clamp(74px, 7vh, 92px);
   margin: clamp(16px, 2.2vh, 28px) auto 0;
   border: 1px solid rgba(167, 255, 79, 0.42);
   border-radius: 999px;
@@ -1103,7 +1139,7 @@ button:disabled {
   display: block;
   color: #ffffff;
   font-family: var(--pixel);
-  font-size: clamp(16.5px, 1.55vw, 23px);
+  font-size: clamp(19px, 1.75vw, 27px);
   line-height: 1.25;
   letter-spacing: 0.06em;
   text-shadow: 0 0 12px rgba(167, 255, 79, 0.5);
@@ -5852,6 +5888,17 @@ button:disabled {
     font-size: clamp(24px, 7vw, 34px);
   }
 
+  .welcome-terminal .welcome-brief-copy {
+    gap: 7px;
+    margin-bottom: 18px;
+    font-size: clamp(18px, 4.8vw, 24px);
+    line-height: 1.55;
+  }
+
+  .welcome-terminal .welcome-brief-copy span:first-child {
+    font-size: clamp(22px, 5.8vw, 30px);
+  }
+
   .welcome-mission-lock strong {
     font-size: clamp(20px, 6.5vw, 30px);
   }
@@ -5960,7 +6007,16 @@ button:disabled {
     padding-top: 4px;
     padding-bottom: 4px;
   }
+  .welcome-terminal .welcome-brief-copy {
+    gap: 6px;
+    margin-bottom: 14px;
+    font-size: clamp(18px, 1.8vw, 26px);
+  }
+  .welcome-terminal .welcome-brief-copy span:first-child {
+    font-size: clamp(22px, 2.2vw, 32px);
+  }
   .welcome-enter-button {
+    min-height: 66px;
     margin-top: 11px;
   }
   .draw-card {

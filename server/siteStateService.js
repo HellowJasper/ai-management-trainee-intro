@@ -146,6 +146,7 @@ function createSiteStateService({
   authSessionRepository,
   adminStateRepository,
   missionCountdownRepository,
+  prestartCountdownRepository,
   roadshowRepository,
 } = {}) {
   if (!repository || typeof repository.listTrainees !== "function") {
@@ -168,7 +169,7 @@ function createSiteStateService({
   }
 
   async function getBootstrapState({ sessionId } = {}) {
-    const [session, trainees, teams, voteState, worksPayload, snapshot, adminState, missionCountdown, roadshow] = await Promise.all([
+    const [session, trainees, teams, voteState, worksPayload, snapshot, adminState, missionCountdown, prestartCountdown, roadshow] = await Promise.all([
       authSessionRepository.getSession(sessionId),
       repository.listTrainees(),
       teamRepository.listTeams(),
@@ -177,6 +178,7 @@ function createSiteStateService({
       resultSnapshotRepository.getLatestSnapshot(),
       readOptionalState(adminStateRepository, "getState", {}),
       readOptionalState(missionCountdownRepository, "getState", {}),
+      readOptionalState(prestartCountdownRepository, "getState", {}),
       readOptionalState(roadshowRepository, "getState", {}),
     ]);
     const normalizedTeams = normalizeArrayPayload(teams, "teams");
@@ -197,6 +199,7 @@ function createSiteStateService({
       },
       timers: {
         missionCountdown: normalizeTimerState(missionCountdown),
+        prestartCountdown: normalizeTimerState(prestartCountdown),
         roadshow: normalizeTimerState(roadshow),
       },
       trainees: normalizeArrayPayload(trainees, "trainees"),

@@ -14,7 +14,8 @@
   const ROLE_KEY = "joincare_hackathon_role";
   const SESSION_KEY = "joincare_hackathon_session";
   const VALID_ROLES = ["public", "player", "judge", "admin"];
-  const MISSION_COUNTDOWN_STAGE_IDS = new Set(["prestart", "opening", "icebreaker", "speech", "tracks", "team"]);
+  const PRESTART_COUNTDOWN_STAGE_ID = "prestart";
+  const MISSION_COUNTDOWN_STAGE_IDS = new Set(["opening", "icebreaker", "speech", "tracks", "team"]);
   const TEAM_DISPLAY_ORDER = ["medicine", "pharma", "production", "marketing", "functions"];
   const TEAM_DISPLAY_META = {
     medicine: { code: "01", nameEn: "MEDICAL AFFAIRS" },
@@ -80,7 +81,7 @@
   function resolveHomePhase(stageId) {
     const s = String(stageId || "").toLowerCase();
     if (s === "prestart") {
-      return { phase: "比赛即将开始", label: "距离比赛开始还有", remain: 129600 };
+      return { phase: "大赛筹备中", label: "正式比赛开始倒计时", remain: 86400 };
     } else if (["opening", "icebreaker", "speech", "tracks"].includes(s)) {
       return { phase: "挑战任务发布中", label: "距任务开始还有", remain: 7200 };
     } else if (s === "team") {
@@ -109,6 +110,9 @@
   }
   function isCountdownPaused() {
     const timers = SITE_STATE?.timers || {};
+    if (CURRENT_STAGE_ID === PRESTART_COUNTDOWN_STAGE_ID) {
+      return !parseSiteTimestamp(timers.prestartCountdown?.startedAt);
+    }
     if (MISSION_COUNTDOWN_STAGE_IDS.has(CURRENT_STAGE_ID)) {
       return !parseSiteTimestamp(timers.missionCountdown?.startedAt);
     }
@@ -125,7 +129,9 @@
     if (stageId) CURRENT_STAGE_ID = stageId;
     const phaseInfo = resolveHomePhase(CURRENT_STAGE_ID);
     const timers = state?.timers || {};
-    if (MISSION_COUNTDOWN_STAGE_IDS.has(CURRENT_STAGE_ID)) {
+    if (CURRENT_STAGE_ID === PRESTART_COUNTDOWN_STAGE_ID) {
+      COUNTDOWN_REMAIN = timerRemainingSeconds(timers.prestartCountdown, phaseInfo.remain);
+    } else if (MISSION_COUNTDOWN_STAGE_IDS.has(CURRENT_STAGE_ID)) {
       COUNTDOWN_REMAIN = timerRemainingSeconds(timers.missionCountdown, phaseInfo.remain);
     } else if (["vote", "result", "final"].includes(CURRENT_STAGE_ID)) {
       COUNTDOWN_REMAIN = timerRemainingSeconds(timers.roadshow, phaseInfo.remain);
@@ -227,6 +233,12 @@
   function workForTeam(works, teamId) {
     return works.find((work) => String(work.teamId || work.id || "") === String(teamId || ""));
   }
+  function workProjectTitle(work = {}) {
+    return String(work.project || work.title || work.workTitle || "").trim();
+  }
+  function displayWorkProjectName(team = {}) {
+    return workProjectTitle(team.work || {}) || "作品待提交";
+  }
   function isPublishedWorkTeam(team) {
     return String(team?.work?.status || "").trim() === "published";
   }
@@ -295,7 +307,7 @@
       accent: team.accent || base.accent || "var(--neon)",
       rgb: team.rgb || team.colorRgb || base.rgb || "40,255,200",
       name: team.name || base.name || track,
-      project: work?.project || team.project || base.project || "作品待提交",
+      project: workProjectTitle(work) || team.project || base.project || "作品待提交",
       pitch: work?.pitch || team.pitch || base.pitch || "",
       stack,
       submitted: Boolean(work && !["draft", "rejected"].includes(work.status)) || Boolean(team.submitted),
@@ -477,6 +489,10 @@
         ]),
       },
       timers: {
+        prestartCountdown: [
+          timers.prestartCountdown?.startedAt || "",
+          timers.prestartCountdown?.durationMs || "",
+        ],
         missionCountdown: [
           timers.missionCountdown?.startedAt || "",
           timers.missionCountdown?.durationMs || "",
@@ -1168,7 +1184,7 @@
             <b>${esc(phaseInfo.phase)}</b>
           </div>
           <div class="mh-live-count">
-            <span class="mh-chip">距离任务结束还有</span>
+            <span class="mh-chip">${esc(phaseInfo.label)}</span>
             <strong ${countdownAttrs()}>${fmtHMS(COUNTDOWN_REMAIN)}</strong>
           </div>
         </div>
@@ -1777,7 +1793,7 @@
     const work = team.work || {};
     return {
       teamName: work.teamName || team.name || "",
-      project: work.project || "",
+      project: workProjectTitle(work),
       pitch: work.pitch || "",
       stack: Array.isArray(work.stack) ? work.stack.join(" / ") : "",
       demoUrl: work.demoUrl || "",
@@ -2146,20 +2162,21 @@
     const draft = readJson(JUDGE_KEY, {});
     const head = D.dimensions.map((d) => `<span>${esc(d.label)}<i>${d.weight}%</i></span>`).join("");
     const rows = D.teams.map((t) => {
+      const projectName = displayWorkProjectName(t);
       const inputs = D.dimensions.map((d, i) => {
         const key = judgeDimensionKey(i);
         const val = judgeScoreValue(draft[t.id], key, i, "");
         const hasScore = val !== "";
         const displayValue = hasScore ? val : "未评分";
         return `<label class="judge-score-card${hasScore ? "" : " is-empty"}">
-          <div class="judge-score-top"><em>${esc(d.label)}</em><b data-score-value="${t.id}:${key}">${esc(displayValue)}</b></div>
+          <div class="judge-score-top"><em class="judge-score-title">${esc(d.label)}</em><i class="judge-score-weight">占比 ${esc(d.weight)}%</i><b data-score-value="${t.id}:${key}">${esc(displayValue)}</b></div>
           <div class="judge-score-control">
             <input class="judge-score-number" type="number" min="0" max="100" step="1" inputmode="numeric" value="${hasScore ? esc(val) : ""}" placeholder="0-100" aria-label="${esc(t.name)} ${esc(d.label)}输入分数" data-score="${t.id}:${key}" data-score-touched="${hasScore ? "true" : "false"}" />
           </div>
         </label>`;
       }).join("");
       return `<article class="judge-row glass" data-judge-row="${esc(t.id)}" data-judge-status="draft" style="--accent:${t.accent};--rgb:${t.rgb}">
-        <div class="judge-team"><span class="status-chip">${esc(t.trackCode)}</span><b>${esc(t.name)}</b><em>${esc(t.project)}</em><small data-judge-row-status="${esc(t.id)}">待评分</small></div>
+        <div class="judge-team"><span class="status-chip">${esc(t.trackCode)}</span><b>${esc(t.name)}</b><em>${esc(projectName)}</em><small data-judge-row-status="${esc(t.id)}">待评分</small></div>
         <div class="judge-input-grid">${inputs}</div>
       </article>`;
     }).join("");
@@ -2186,6 +2203,7 @@
     const voteWindowOpen = isVoteWindowOpen();
     const publishedTeams = D.teams.filter(isPublishedWorkTeam);
     const cards = publishedTeams.map((t) => {
+      const projectName = displayWorkProjectName(t);
       const avas = teamPeople(t).slice(0, 5).map((p) => avatar(p, 34)).join("");
       const isVoted = voted === t.id;
       const btn = !hasBackendSession()
@@ -2204,7 +2222,7 @@
             ? `<button class="gl2-vote dim" disabled>投票未开启</button>`
             : `<button class="gl2-vote dim" disabled>无投票权限</button>`;
       const stack = (t.stack || []).map((s) => `<span>${esc(s)}</span>`).join("");
-      return `<article class="gl2-card glass gl2-h ${isVoted ? "voted" : ""}" data-work="${t.id}" style="--accent:${t.accent};--rgb:${t.rgb}"><div class="gl2-shot"><span class="gl2-dots"></span><span class="gl2-cover-label"><span class="gl2-cover-index">${esc(t.trackCode)}</span><span class="gl2-cover-track">${esc(t.track)}</span></span><h3 class="gl2-cover-name">${esc(t.name)}</h3><span class="gl2-bars"></span><span class="gl2-hover">点击查看作品详情 ➔</span></div><div class="gl2-mid"><div class="gl2-id"><b class="gl2-project-name">${esc(t.project)}</b></div><p class="gl2-pitch">${esc(t.pitch || "")}</p><div class="gl2-stack2">${stack}</div><div class="gl2-avas">${avas}</div></div><div class="gl2-right"><div class="gl2-vcount"><b>${t.votes.toLocaleString()}</b><span>实时票数</span></div><span class="gl2-detail" data-work="${t.id}">查看详情 ➔</span>${btn}</div></article>`;
+      return `<article class="gl2-card glass gl2-h ${isVoted ? "voted" : ""}" data-work="${t.id}" style="--accent:${t.accent};--rgb:${t.rgb}"><div class="gl2-shot"><span class="gl2-dots"></span><span class="gl2-cover-label"><span class="gl2-cover-index">${esc(t.trackCode)}</span><span class="gl2-cover-track">${esc(t.track)}</span></span><h3 class="gl2-cover-name">${esc(t.name)}</h3><span class="gl2-bars"></span><span class="gl2-hover">点击查看作品详情 ➔</span></div><div class="gl2-mid"><div class="gl2-id"><b class="gl2-project-name">${esc(projectName)}</b></div><p class="gl2-pitch">${esc(t.pitch || "")}</p><div class="gl2-stack2">${stack}</div><div class="gl2-avas">${avas}</div></div><div class="gl2-right"><div class="gl2-vcount"><b>${t.votes.toLocaleString()}</b><span>实时票数</span></div><span class="gl2-detail" data-work="${t.id}">查看详情 ➔</span>${btn}</div></article>`;
     }).join("");
     const empty = publishedTeams.length ? "" : `<div class="gl2-empty glass"><b>暂无已发布作品</b><span>队伍提交后需管理员审核发布，作品才会进入展厅。</span></div>`;
     const dataNotice = SITE_STATE_ERROR

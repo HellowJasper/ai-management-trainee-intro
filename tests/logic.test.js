@@ -821,9 +821,11 @@ test("official site schedule status reads the synchronized backend stage timer",
   assert.match(renderScheduleBody[1], /\$\{esc\(phaseInfo\.label\)\}/);
   assert.match(renderScheduleBody[1], /\$\{countdownAttrs\(\)\}/);
   assert.match(siteCss, /\.schedule-count\s*\{[\s\S]*align-items:\s*flex-start/);
-  assert.match(siteJs, /const MISSION_COUNTDOWN_STAGE_IDS = new Set\(\["prestart", "opening", "icebreaker", "speech", "tracks", "team"\]\)/);
-  assert.match(siteJs, /s === "prestart"[\s\S]*phase:\s*"比赛即将开始"[\s\S]*label:\s*"距离比赛开始还有"/);
-  assert.match(applySiteStageStateBody[1], /MISSION_COUNTDOWN_STAGE_IDS\.has\(CURRENT_STAGE_ID\)/);
+  assert.match(siteJs, /const PRESTART_COUNTDOWN_STAGE_ID = "prestart"/);
+  assert.match(siteJs, /const MISSION_COUNTDOWN_STAGE_IDS = new Set\(\["opening", "icebreaker", "speech", "tracks", "team"\]\)/);
+  assert.match(siteJs, /s === "prestart"[\s\S]*phase:\s*"大赛筹备中"[\s\S]*label:\s*"正式比赛开始倒计时"/);
+  assert.match(applySiteStageStateBody[1], /CURRENT_STAGE_ID === PRESTART_COUNTDOWN_STAGE_ID[\s\S]*timers\.prestartCountdown/);
+  assert.match(applySiteStageStateBody[1], /MISSION_COUNTDOWN_STAGE_IDS\.has\(CURRENT_STAGE_ID\)[\s\S]*timers\.missionCountdown/);
   assert.match(timerRemainingSecondsBody[1], /return Math\.max\(0,\s*Math\.floor\(durationMs \/ 1000\)\)/);
   assert.doesNotMatch(siteJs, /apiRequest\("\/api\/admin\/state"\)/);
   assert.doesNotMatch(siteJs, /await syncHomeState\(\)/);
@@ -838,6 +840,7 @@ test("official site countdown stays paused until the backend timer starts", () =
   const countdownAttrUses = siteJs.match(/\$\{countdownAttrs\(\)\}/g) || [];
 
   assert.match(siteJs, /function isCountdownPaused\(\)/);
+  assert.match(siteJs, /CURRENT_STAGE_ID === PRESTART_COUNTDOWN_STAGE_ID[\s\S]*?timers\.prestartCountdown\?\.startedAt/);
   assert.match(siteJs, /MISSION_COUNTDOWN_STAGE_IDS\.has\(CURRENT_STAGE_ID\)[\s\S]*?timers\.missionCountdown\?\.startedAt/);
   assert.match(countdownAttrsBody, /data-paused="\$\{isCountdownPaused\(\) \? "true" : "false"\}"/);
   assert.match(tickBody, /if \(el\.dataset\.paused === "true"\) return;/);
@@ -975,7 +978,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260629-[^"]+/);
+  assert.match(siteHtml, /site\.js\?v=20260630-prestart-phase-copy/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -1017,7 +1020,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260629-[^"]+/);
+  assert.match(siteHtml, /site\.js\?v=20260630-prestart-phase-copy/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -1035,13 +1038,16 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.css\?v=20260629-[^"]+/);
-  assert.match(siteHtml, /site\.js\?v=20260629-[^"]+/);
+  assert.match(siteHtml, /site\.css\?v=20260630-mobile-home-countdown-card/);
+  assert.match(siteHtml, /site\.js\?v=20260630-prestart-phase-copy/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
   assert.match(siteJs, /class="gl2-cover-name">\$\{esc\(t\.name\)\}<\/h3>/);
-  assert.match(siteJs, /<b class="gl2-project-name">\$\{esc\(t\.project\)\}<\/b>/);
+  assert.match(siteJs, /function workProjectTitle\(work = \{\}\)/);
+  assert.match(siteJs, /function displayWorkProjectName\(team = \{\}\)/);
+  assert.match(siteJs, /const projectName = displayWorkProjectName\(t\);/);
+  assert.match(siteJs, /<b class="gl2-project-name">\$\{esc\(projectName\)\}<\/b>/);
   assert.doesNotMatch(siteJs, /class="gl2-track2"/);
   assert.doesNotMatch(siteJs, /\$\{esc\(t\.trackCode\)\} PROJECT/);
   assert.doesNotMatch(siteCss, /\.site-body\[data-view="gallery"\] \.page-hero/);
@@ -1511,7 +1517,7 @@ test("team surfaces present the advisor slot as team leader copy", () => {
 });
 
 test("stage screen routing opens the vote progress and result screens", () => {
-  assert.equal(resolveStageScreenView("prestart"), "countdown");
+  assert.equal(resolveStageScreenView("prestart"), "home");
   assert.equal(resolveStageScreenView("vote"), "vote");
   assert.equal(resolveStageScreenView("result"), "vote-result");
   assert.equal(resolveStageScreenView("final"), "final-result");
@@ -1799,10 +1805,13 @@ test("mobile home focuses on the stage countdown without shortcut cards", () => 
   assert.match(renderMobileHomeBody, /class="mh-slogan">36小时，用 AI 把创意照进现实/);
   assert.match(renderMobileHomeBody, /五大真实业务挑战，五支战队，从业务场景出发，用 AI 解决真实问题，认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。/);
   assert.match(renderMobileHomeBody, /class="mh-chip"><span class="live-dot"><\/span>当前阶段/);
-  assert.match(renderMobileHomeBody, /class="mh-chip">距离任务结束还有/);
+  assert.match(renderMobileHomeBody, /class="mh-chip">\$\{esc\(phaseInfo\.label\)\}/);
   assert.match(renderMobileHomeBody, /<b>\$\{esc\(phaseInfo\.phase\)\}<\/b>/);
   assert.match(renderMobileHomeBody, /<strong \$\{countdownAttrs\(\)\}>\$\{fmtHMS\(COUNTDOWN_REMAIN\)\}<\/strong>/);
-  assert.match(siteCss, /\.mh-live\s*\{[\s\S]*align-items:\s*start/);
+  assert.match(siteCss, /\.mh-live\s*\{[\s\S]*grid-template-columns:\s*1fr/);
+  assert.match(siteCss, /\.mh-live-status\s*\{[\s\S]*grid-template-columns:\s*auto minmax\(0,\s*1fr\)/);
+  assert.match(siteCss, /\.mh-live-count\s*\{[\s\S]*border-top:\s*1px solid rgba\(103,\s*255,\s*213,\s*0\.16\)/);
+  assert.match(siteCss, /\.mh-live strong\s*\{[\s\S]*text-align:\s*center/);
   assert.match(siteCss, /\.mh-chip\s*\{[\s\S]*justify-content:\s*center[\s\S]*min-height:\s*28px/);
   assert.match(renderMobileHomeBody, /const overview = D\.flowDays\.map\(\(day\) =>/);
   assert.match(renderMobileHomeBody, /class="mh-overview"/);
@@ -1909,7 +1918,7 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260629-[^"]+/);
+  assert.match(html, /src\/site\.css\?v=20260630-mobile-home-countdown-card/);
   assert.match(siteCss, /--site-detail-console-width:\s*calc\(min\(80vw,\s*1260px\) - 24px\)/);
   assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*max\(3vw,\s*calc\(100dvw - var\(--site-detail-console-width\) - var\(--site-detail-card-width\) - 40px\)\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*auto/);
@@ -1939,7 +1948,7 @@ test("mobile site opens on event home and uses a natural swipe-card browser", ()
   assert.match(siteJs, /class="mh-slogan"/);
   assert.match(siteJs, /class="mh-intro"/);
   assert.match(siteJs, /当前阶段/);
-  assert.match(siteJs, /距离任务结束还有/);
+  assert.match(siteJs, /\$\{esc\(phaseInfo\.label\)\}/);
   assert.match(siteJs, /赛事全景/);
   assert.match(siteJs, /mh-overview-card/);
   assert.match(siteCss, /\.mh-overview\s*\{/);
@@ -2054,6 +2063,8 @@ test("judge scoring uses manual numeric input only", () => {
   assert.match(siteJs, /function persistJudgeScoreDraft\(/);
   assert.match(siteJs, /if \(markTouched\) persistJudgeScoreDraft\(input, value, touched\)/);
   assert.match(siteJs, /class="judge-score-control"/);
+  assert.match(siteJs, /<em class="judge-score-title">\$\{esc\(d\.label\)\}<\/em><i class="judge-score-weight">占比 \$\{esc\(d\.weight\)\}%<\/i><b data-score-value/);
+  assert.match(siteJs, /<em>\$\{esc\(projectName\)\}<\/em><small data-judge-row-status/);
   assert.doesNotMatch(siteJs, /type="range"/);
   assert.match(siteJs, /type="number"[^>]*data-score="\$\{t\.id\}:\$\{key\}"/);
   assert.doesNotMatch(siteJs, /data-score-input/);
@@ -2062,6 +2073,11 @@ test("judge scoring uses manual numeric input only", () => {
   assert.match(siteJs, /querySelectorAll\("\[data-score\]"\)/);
   assert.match(siteJs, /const score = e\.target\.closest\("\[data-score\]"\)/);
   assert.match(siteCss, /\.judge-score-control\s*\{[\s\S]*grid-template-columns:\s*1fr/);
+  assert.match(siteCss, /\.judge-score-top\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\) auto minmax\(0,\s*1fr\)/);
+  assert.match(siteCss, /\.judge-score-title\s*\{[\s\S]*justify-self:\s*start/);
+  assert.match(siteCss, /\.judge-score-top i\s*\{[\s\S]*font-size:\s*11px/);
+  assert.match(siteCss, /\.judge-score-top i\s*\{[\s\S]*justify-self:\s*center/);
+  assert.match(siteCss, /\.judge-score-top b\s*\{[\s\S]*font-size:\s*12px/);
   assert.match(siteCss, /\.judge-score-number\s*\{/);
   assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.judge-input-grid\s*\{[\s\S]*grid-template-columns:\s*1fr/);
   assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.judge-score-control\s*\{[\s\S]*grid-template-columns:\s*1fr/);
@@ -2152,9 +2168,10 @@ test("official site cache keys are bumped after navigation and detail layout pol
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
-  assert.match(html, /src\/site\.css\?v=20260629-[^"]+/);
-  assert.match(html, /src\/logic\.js\?v=20260629-prestart-flow-reset/);
-  assert.match(html, /src\/site\.js\?v=20260629-[^"]+/);
+  assert.match(html, /src\/site\.css\?v=20260630-mobile-home-countdown-card/);
+  assert.match(html, /src\/logic\.js\?v=20260630-prestart-target-time/);
+  assert.match(html, /src\/data\.js\?v=20260630-prestart-separate-timer/);
+  assert.match(html, /src\/site\.js\?v=20260630-prestart-phase-copy/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
@@ -2162,24 +2179,40 @@ test("terminal boot welcome stage is wired into the HTML", () => {
 
   assert.match(html, /<section class="welcome-stage" id="welcomeStage"/);
   assert.match(html, /id="welcomeRain"/);
-  assert.match(html, /BOOTING HACKATHON_PROTOCOL_2026/);
-  assert.match(html, /进入未来伙伴档案/);
+  assert.match(html, /MISSION BRIEF/);
+  assert.match(html, /AI_MANAGEMENT_TRAINEES/);
+  assert.match(html, /AI_INNOVATION_HACKATHON_2026/);
+  assert.match(html, /2026\/\/IN PROGRESS/);
+  assert.match(html, /STATUS:\/\/KICKOFF/);
+  assert.match(html, /欢迎来到AI创新黑客松 2026/);
+  assert.match(html, /借助AI，让创意真正落地。/);
+  assert.match(html, /MISSION START NOW/);
+  assert.doesNotMatch(html, /BOOTING HACKATHON_PROTOCOL_2026/);
+  assert.doesNotMatch(html, /Welcome to AI innovation hackathon/);
+  assert.doesNotMatch(html, /任务现在开始 \/ 进入未来伙伴档案/);
 });
 
 test("terminal boot welcome stage uses a balanced centered composition", () => {
   const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
   const terminalBlock = css.match(/\.welcome-terminal\s*{[\s\S]*?\n}/)?.[0] || "";
   const bodyBlock = css.match(/\.welcome-terminal-body\s*{[\s\S]*?\n}/)?.[0] || "";
-  const linesBlock = css.match(/\.welcome-boot-lines\s*{[\s\S]*?\n}/)?.[0] || "";
-  const lineItemBlock = css.match(/\.welcome-boot-lines section\s*{[\s\S]*?\n}/)?.[0] || "";
+  const briefBlock = css.match(/\.welcome-terminal \.welcome-brief-copy\s*{[\s\S]*?\n}/)?.[0] || "";
+  const briefLineBlock = css.match(/\.welcome-terminal \.welcome-brief-copy span\s*{[\s\S]*?\n}/)?.[0] || "";
   const buttonBlock = css.match(/\.welcome-enter-button\s*{[\s\S]*?\n}/)?.[0] || "";
+  const buttonLabelBlock = css.match(/\.welcome-enter-button strong\s*{[\s\S]*?\n}/)?.[0] || "";
 
   assert.match(terminalBlock, /width:\s*min\(1180px,\s*calc\(100vw - clamp\(120px,\s*14vw,\s*280px\)\)\)/);
   assert.match(bodyBlock, /display:\s*grid/);
   assert.match(bodyBlock, /align-content:\s*center/);
-  assert.match(linesBlock, /max-width:\s*980px/);
-  assert.match(lineItemBlock, /grid-template-columns:\s*minmax\(0,\s*1\.08fr\)\s*minmax\(260px,\s*0\.72fr\)/);
+  assert.match(bodyBlock, /justify-items:\s*center/);
+  assert.match(bodyBlock, /text-align:\s*center/);
+  assert.match(briefBlock, /width:\s*min\(780px,\s*100%\)/);
+  assert.match(briefBlock, /text-align:\s*center/);
+  assert.match(briefLineBlock, /display:\s*block/);
   assert.match(buttonBlock, /width:\s*min\(440px,\s*100%\)/);
+  assert.match(buttonBlock, /justify-content:\s*center/);
+  assert.match(buttonBlock, /min-height:\s*clamp\(74px,\s*7vh,\s*92px\)/);
+  assert.match(buttonLabelBlock, /font-size:\s*clamp\(19px,\s*1\.75vw,\s*27px\)/);
 });
 
 test("admin console keeps the event control cockpit structure wired", () => {
@@ -2204,14 +2237,31 @@ test("admin console keeps the event control cockpit structure wired", () => {
   assert.doesNotMatch(css, /\.flow-panel\s*{[\s\S]*grid-row:\s*1 \/ 4/);
   assert.match(css, /\.admin-nav button\.is-active/);
   assert.match(flowView, /id="resetFlowToStart"[^>]*>回到最开始<\/button>/);
-  assert.match(flowView, /赛前 \/ 任务倒计时/);
-  assert.match(flowView, /2 天填写 48 小时/);
+  assert.match(html, /id="prestartFlowModal"/);
+  assert.match(html, /id="prestartStartAt"[^>]*type="datetime-local"/);
+  assert.match(html, /首页状态卡会显示“大赛筹备中”/);
+  assert.match(flowView, />任务倒计时</);
+  assert.match(flowView, /这里控制任务\/作品倒计时/);
   assert.match(css, /\.quick-switch\s*{[\s\S]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(js, /id:\s*"prestart"/);
   assert.match(js, /name:\s*"组队开启"/);
   assert.match(js, /async function resetFlowToStart\(\)/);
-  assert.match(js, /updateAdminStage\(firstStage\.id\)/);
-  assert.match(js, /updateAdminMissionCountdown\(\{[\s\S]*startedAt:\s*null/);
+  assert.match(js, /function openPrestartFlowModal\(\)/);
+  assert.match(js, /function hoistPrestartFlowModal\(\)[\s\S]*document\.body\.appendChild\(prestartFlowModal\)/);
+  assert.match(js, /async function initAdmin\(\) \{[\s\S]*hoistPrestartFlowModal\(\)/);
+  const resetFlowStart = js.indexOf("async function resetFlowToStart()");
+  const resetFlowEnd = js.indexOf("\nfunction durationMsToTotalMinutes", resetFlowStart);
+  const resetFlowBody = js.slice(resetFlowStart, resetFlowEnd);
+  assert.doesNotMatch(resetFlowBody, /openPrestartFlowModal/);
+  assert.match(js, /async function publishPrestartFlowWithTarget\(targetDate\)/);
+  const prestartPublishStart = js.indexOf("async function publishPrestartFlowWithTarget(targetDate)");
+  const prestartPublishEnd = js.indexOf("\nasync function toggleScreenOverride", prestartPublishStart);
+  const prestartPublishBody = js.slice(prestartPublishStart, prestartPublishEnd);
+  assert.match(prestartPublishBody, /durationMs = targetDate\.getTime\(\) - startedAt\.getTime\(\)/);
+  assert.match(prestartPublishBody, /updateAdminPrestartCountdown\(\{[\s\S]*durationMs,[\s\S]*startedAt:\s*startedAt\.toISOString\(\)/);
+  assert.doesNotMatch(prestartPublishBody, /updateAdminMissionCountdown/);
+  assert.match(js, /await publishScreenFlowStage\("prestart",\s*\{\s*throwOnError:\s*true\s*\}\)/);
+  assert.match(js, /if \(cleanStageId === "prestart" && openPrestartFlowModal\(\)\) \{/);
   assert.match(js, /data-stage-command/);
 });
 
@@ -2645,10 +2695,10 @@ test("admin and big screen cache keys stay current", () => {
   const adminHtml = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
   const indexHtml = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
 
-  assert.match(adminHtml, /admin\.css\?v=20260629-prestart-flow-reset/);
-  assert.match(adminHtml, /src\/data\.js\?v=20260625-time-sync/);
-  assert.match(adminHtml, /src\/admin\.js\?v=20260629-prestart-flow-reset/);
-  assert.match(indexHtml, /src\/data\.js\?v=20260625-time-sync/);
+  assert.match(adminHtml, /admin\.css\?v=20260630-prestart-target-time/);
+  assert.match(adminHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
+  assert.match(adminHtml, /src\/admin\.js\?v=20260630-reset-flow-direct/);
+  assert.match(indexHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(indexHtml, /src\/app\.js\?v=20260625-time-sync/);
 });
 
@@ -2731,7 +2781,7 @@ test("resolveDiscoverTarget accepts known discover menu targets", () => {
 });
 
 test("resolveStageScreenView maps admin stages to existing screen views", () => {
-  assert.equal(resolveStageScreenView("prestart"), "countdown");
+  assert.equal(resolveStageScreenView("prestart"), "home");
   assert.equal(resolveStageScreenView("opening"), "welcome");
   assert.equal(resolveStageScreenView("icebreaker"), "wall");
   assert.equal(resolveStageScreenView("speech"), "home");
@@ -2779,6 +2829,8 @@ test("admin state API helpers are exposed without swallowing failures", () => {
   assert.match(dataJs, /fetchJson\("\/api\/admin\/display-times"/);
   assert.match(dataJs, /async function updateAdminMissionCountdown\(payload/);
   assert.match(dataJs, /fetchJson\("\/api\/admin\/mission-countdown"/);
+  assert.match(dataJs, /async function updateAdminPrestartCountdown\(payload/);
+  assert.match(dataJs, /fetchJson\("\/api\/admin\/prestart-countdown"/);
   assert.match(dataJs, /async function updateAdminRoadshow\(payload/);
   assert.match(dataJs, /fetchJson\("\/api\/admin\/roadshow"/);
   assert.match(dataJs, /loadAdminState,/);
@@ -2786,6 +2838,7 @@ test("admin state API helpers are exposed without swallowing failures", () => {
   assert.match(dataJs, /updateAdminScreenOverride,/);
   assert.match(dataJs, /updateAdminDisplayTimes,/);
   assert.match(dataJs, /updateAdminMissionCountdown,/);
+  assert.match(dataJs, /updateAdminPrestartCountdown,/);
   assert.match(dataJs, /updateAdminRoadshow,/);
 });
 

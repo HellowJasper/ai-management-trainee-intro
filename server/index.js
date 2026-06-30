@@ -380,6 +380,7 @@ async function routeApi(
   adminStateRepository,
   teamRepository,
   missionCountdownRepository,
+  prestartCountdownRepository,
   roadshowRepository,
   voteResultsRepository,
   judgeScoresRepository,
@@ -1404,6 +1405,26 @@ async function routeApi(
     return true;
   }
 
+  if (url.pathname === "/api/admin/prestart-countdown" && ["POST", "PATCH"].includes(request.method)) {
+    const session = await enforcePermission(request, response, "canAdmin");
+    if (!session) return true;
+    const payload = await readJsonBody(request);
+    if (authEnforcement === "strict") {
+      payload.actor = session.user.id;
+    }
+    const state = await prestartCountdownRepository.updateState(payload);
+
+    await auditLogRepository.record({
+      actor: payload.actor || "admin",
+      action: "timer.prestartCountdown.updated",
+      targetType: "timer",
+      targetId: "prestart-countdown",
+      message: state.startedAt ? "设置赛前倒计时" : "重置赛前倒计时",
+    });
+    sendJson(response, 200, state);
+    return true;
+  }
+
   if (url.pathname === "/api/admin/roadshow" && ["POST", "PATCH"].includes(request.method)) {
     const session = await enforcePermission(request, response, "canAdmin");
     if (!session) return true;
@@ -1431,6 +1452,11 @@ async function routeApi(
 
   if (url.pathname === "/api/mission-countdown" && request.method === "GET") {
     sendJson(response, 200, await missionCountdownRepository.getState());
+    return true;
+  }
+
+  if (url.pathname === "/api/prestart-countdown" && request.method === "GET") {
+    sendJson(response, 200, await prestartCountdownRepository.getState());
     return true;
   }
 
@@ -1588,6 +1614,7 @@ function createServer(options = {}) {
       || !options.worksRepository
       || !options.auditLogRepository
       || !options.missionCountdownRepository
+      || !options.prestartCountdownRepository
       || !options.roadshowRepository
       || !options.adminStateRepository
       || !options.resultSnapshotRepository
@@ -1600,6 +1627,7 @@ function createServer(options = {}) {
     adminStateRepository = repositoryBundle.adminStateRepository,
     teamRepository = repositoryBundle.teamRepository,
     missionCountdownRepository = repositoryBundle.missionCountdownRepository,
+    prestartCountdownRepository = repositoryBundle.prestartCountdownRepository,
     roadshowRepository = repositoryBundle.roadshowRepository,
     voteResultsRepository = repositoryBundle.voteResultsRepository,
     judgeScoresRepository = repositoryBundle.judgeScoresRepository,
@@ -1621,6 +1649,7 @@ function createServer(options = {}) {
     authSessionRepository,
     adminStateRepository,
     missionCountdownRepository,
+    prestartCountdownRepository,
     roadshowRepository,
   });
   const resolvedPublicRoot = path.resolve(publicRoot);
@@ -1642,6 +1671,7 @@ function createServer(options = {}) {
           adminStateRepository,
           teamRepository,
           missionCountdownRepository,
+          prestartCountdownRepository,
           roadshowRepository,
           voteResultsRepository,
           judgeScoresRepository,

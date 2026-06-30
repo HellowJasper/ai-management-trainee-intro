@@ -99,6 +99,10 @@ const missionCountdownState = document.querySelector("#missionCountdownState");
 const startMissionCountdownButton = document.querySelector("#startMissionCountdownButton");
 const resetMissionCountdownButton = document.querySelector("#resetMissionCountdownButton");
 const resetFlowToStartButton = document.querySelector("#resetFlowToStart");
+const prestartFlowModal = document.querySelector("#prestartFlowModal");
+const prestartFlowForm = document.querySelector("#prestartFlowForm");
+const prestartStartAt = document.querySelector("#prestartStartAt");
+const prestartFlowError = document.querySelector("#prestartFlowError");
 const roadshowHours = document.querySelector("#roadshowHours");
 const roadshowMinutes = document.querySelector("#roadshowMinutes");
 const roadshowCurrentTeamSelect = document.querySelector("#roadshowCurrentTeamSelect");
@@ -246,6 +250,8 @@ let syncStatusState = {
 
 let adminAutoRefreshTimer = null;
 let auditFilterDebounceTimer = null;
+let missionCountdownControlState = {};
+let prestartCountdownControlState = {};
 
 let roadshowTeamState = {
   currentTeamId: "",
@@ -253,6 +259,12 @@ let roadshowTeamState = {
   currentTeam: null,
   nextTeam: null,
 };
+
+function hoistPrestartFlowModal() {
+  if (prestartFlowModal && prestartFlowModal.parentElement !== document.body) {
+    document.body.appendChild(prestartFlowModal);
+  }
+}
 
 let currentAdminSessionState = {
   user: { name: "admin" },
@@ -368,7 +380,7 @@ const teamStatusLabels = {
 };
 
 const screenRoutes = [
-  { stageId: "prestart", name: "赛前倒计时", route: "/index.html?stage=prestart", note: "比赛开始前倒计时" },
+  { stageId: "prestart", name: "赛前倒计时", route: "/index.html?stage=prestart", note: "官网首页显示比赛开始倒计时" },
   { stageId: "opening", name: "启动仪式", route: "/index.html?stage=opening", note: "开场和入场引导" },
   { stageId: "icebreaker", name: "新生破冰", route: "/index.html?stage=icebreaker", note: "星锐档案与互动破冰" },
   { stageId: "tracks", name: "赛道发布", route: "/index.html?stage=tracks", note: "五条赛道与组队大屏" },
@@ -2887,6 +2899,18 @@ async function setScreenFlowStage(stageId) {
   if (!cleanStageId) {
     return;
   }
+  if (cleanStageId === "prestart" && openPrestartFlowModal()) {
+    return;
+  }
+
+  await publishScreenFlowStage(cleanStageId);
+}
+
+async function publishScreenFlowStage(stageId, { throwOnError = false } = {}) {
+  const cleanStageId = String(stageId || "").trim();
+  if (!cleanStageId) {
+    return;
+  }
 
   try {
     let state = await window.AppData.updateAdminStage(cleanStageId);
@@ -2897,6 +2921,38 @@ async function setScreenFlowStage(stageId) {
   } catch (error) {
     console.warn("Admin screen flow sync failed.", error);
     addLog("system", "同步失败：流程当前阶段未切换");
+    if (throwOnError) {
+      throw error;
+    }
+  }
+}
+
+async function publishPrestartFlowWithTarget(targetDate) {
+  if (!targetDate || Number.isNaN(targetDate.getTime())) {
+    if (prestartFlowError) prestartFlowError.textContent = "请选择正式比赛开始时间";
+    return;
+  }
+
+  const startedAt = new Date();
+  const durationMs = targetDate.getTime() - startedAt.getTime();
+  if (!Number.isFinite(durationMs) || durationMs <= 0) {
+    if (prestartFlowError) prestartFlowError.textContent = "正式比赛开始时间需要晚于当前时间";
+    return;
+  }
+
+  try {
+    const timerState = await window.AppData.updateAdminPrestartCountdown({
+      durationMs,
+      startedAt: startedAt.toISOString(),
+    });
+    prestartCountdownControlState = { ...timerState };
+    await publishScreenFlowStage("prestart", { throwOnError: true });
+    closePrestartFlowModal();
+    addLog("admin", `赛前倒计时设为流程，正式开始：${formatStartedAt(targetDate.toISOString())}`);
+  } catch (error) {
+    console.warn("Prestart countdown sync failed.", error);
+    if (prestartFlowError) prestartFlowError.textContent = "同步失败：赛前倒计时未设置成功";
+    addLog("system", "同步失败：赛前倒计时未设置成功");
   }
 }
 
@@ -2941,7 +2997,6 @@ async function resetFlowToStart() {
   if (!firstStage) {
     return;
   }
-
   try {
     let state = await window.AppData.updateAdminStage(firstStage.id);
     if (screenOverrideStageId) {
@@ -3003,12 +3058,74 @@ function formatStartedAt(startedAt) {
   return parsed.toLocaleString("zh-CN", { hour12: false });
 }
 
+function padDatePart(value) {
+  return String(value).padStart(2, "0");
+}
+
+function toDatetimeLocalValue(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return [
+    date.getFullYear(),
+    padDatePart(date.getMonth() + 1),
+    padDatePart(date.getDate()),
+  ].join("-") + `T${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`;
+}
+
+function getPrestartDefaultTargetDate() {
+  const startedAt = prestartCountdownControlState.startedAt
+    ? new Date(prestartCountdownControlState.startedAt)
+    : null;
+  const durationMs = Number(prestartCountdownControlState.durationMs);
+  if (startedAt && !Number.isNaN(startedAt.getTime()) && Number.isFinite(durationMs) && durationMs > 0) {
+    const target = new Date(startedAt.getTime() + durationMs);
+    if (target.getTime() > Date.now()) {
+      return target;
+    }
+  }
+
+  return new Date(Date.now() + 24 * 60 * 60 * 1000);
+}
+
+function openPrestartFlowModal() {
+  if (!prestartFlowModal || !prestartStartAt) {
+    return false;
+  }
+
+  prestartStartAt.value = toDatetimeLocalValue(getPrestartDefaultTargetDate());
+  if (prestartFlowError) prestartFlowError.textContent = "";
+  prestartFlowModal.hidden = false;
+  prestartStartAt.focus();
+  return true;
+}
+
+function closePrestartFlowModal() {
+  if (prestartFlowModal) prestartFlowModal.hidden = true;
+  if (prestartFlowError) prestartFlowError.textContent = "";
+}
+
+function getPrestartTargetFromInput() {
+  const target = prestartStartAt?.value ? new Date(prestartStartAt.value) : null;
+  if (!target || Number.isNaN(target.getTime())) {
+    return null;
+  }
+  return target;
+}
+
 function renderMissionCountdownState(state = {}) {
+  missionCountdownControlState = { ...state };
   setDurationInputs(missionCountdownHours, missionCountdownMinutes, state.durationMs, 1440);
   if (missionCountdownState) {
     missionCountdownState.textContent = `状态：${formatStartedAt(state.startedAt)}`;
   }
   setText(adminScreenMissionState, `状态：${formatStartedAt(state.startedAt)} / ${formatDurationLabel(state.durationMs, 1440)}`);
+}
+
+function renderPrestartCountdownState(state = {}) {
+  prestartCountdownControlState = { ...state };
 }
 
 function renderRoadshowState(state = {}) {
@@ -3067,6 +3184,12 @@ async function saveTimeConfiguration() {
 }
 
 async function loadTimerControls() {
+  try {
+    renderPrestartCountdownState(await window.AppData.loadPrestartCountdown());
+  } catch (error) {
+    console.warn("Prestart countdown state load failed.", error);
+  }
+
   try {
     renderMissionCountdownState(await window.AppData.loadMissionCountdown());
   } catch (error) {
@@ -3759,6 +3882,11 @@ document.addEventListener("click", async (event) => {
 });
 
 document.addEventListener("click", (event) => {
+  if (event.target.closest("[data-close-prestart-flow-modal]")) {
+    closePrestartFlowModal();
+    return;
+  }
+
   const editButton = event.target.closest("[data-edit-user-role]");
   if (editButton) {
     const user = userRoleState.users.find((item) => item.id === editButton.dataset.editUserRole);
@@ -3778,6 +3906,11 @@ document.addEventListener("click", (event) => {
     userRolePage += pageButton.dataset.userPage === "next" ? 1 : -1;
     renderUserRoleManager();
   }
+});
+
+prestartFlowForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await publishPrestartFlowWithTarget(getPrestartTargetFromInput());
 });
 
 document.addEventListener("click", (event) => {
@@ -3912,6 +4045,7 @@ publishResultButton?.addEventListener("click", () => updateAdminVoteWindow("publ
 syncDangerActionButtons();
 
 async function initAdmin() {
+  hoistPrestartFlowModal();
   render();
   renderBusinessData();
   renderAuditLogList();
