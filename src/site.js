@@ -16,6 +16,7 @@
   const VALID_ROLES = ["public", "player", "judge", "admin"];
   const PRESTART_COUNTDOWN_STAGE_ID = "prestart";
   const MISSION_COUNTDOWN_STAGE_IDS = new Set(["opening", "icebreaker", "speech", "tracks", "team"]);
+  const DISPLAY_PARTICIPANT_COUNT = 20;
   const TEAM_DISPLAY_ORDER = ["medicine", "pharma", "production", "marketing", "functions"];
   const TEAM_DISPLAY_META = {
     medicine: { code: "01", nameEn: "MEDICAL AFFAIRS" },
@@ -320,11 +321,10 @@
     };
   }
   function updateSiteStats() {
-    const memberCount = D.teams.reduce((sum, team) => sum + 1 + normalizeList(team.members).length, 0);
     D.stats = {
       ...(D.stats || {}),
       teams: D.teams.length,
-      members: memberCount,
+      members: DISPLAY_PARTICIPANT_COUNT,
       mentors: D.teams.length,
     };
   }

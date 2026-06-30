@@ -823,6 +823,8 @@ test("official site schedule status reads the synchronized backend stage timer",
   assert.match(siteCss, /\.schedule-count\s*\{[\s\S]*align-items:\s*flex-start/);
   assert.match(siteJs, /const PRESTART_COUNTDOWN_STAGE_ID = "prestart"/);
   assert.match(siteJs, /const MISSION_COUNTDOWN_STAGE_IDS = new Set\(\["opening", "icebreaker", "speech", "tracks", "team"\]\)/);
+  assert.match(siteJs, /const DISPLAY_PARTICIPANT_COUNT = 20/);
+  assert.match(siteJs, /members:\s*DISPLAY_PARTICIPANT_COUNT/);
   assert.match(siteJs, /s === "prestart"[\s\S]*phase:\s*"大赛筹备中"[\s\S]*label:\s*"正式比赛开始倒计时"/);
   assert.match(applySiteStageStateBody[1], /CURRENT_STAGE_ID === PRESTART_COUNTDOWN_STAGE_ID[\s\S]*timers\.prestartCountdown/);
   assert.match(applySiteStageStateBody[1], /MISSION_COUNTDOWN_STAGE_IDS\.has\(CURRENT_STAGE_ID\)[\s\S]*timers\.missionCountdown/);
@@ -978,7 +980,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260630-prestart-phase-copy/);
+  assert.match(siteHtml, /site\.js\?v=20260630-participant-count-20/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -2171,7 +2173,7 @@ test("official site cache keys are bumped after navigation and detail layout pol
   assert.match(html, /src\/site\.css\?v=20260630-mobile-home-countdown-card/);
   assert.match(html, /src\/logic\.js\?v=20260630-prestart-target-time/);
   assert.match(html, /src\/data\.js\?v=20260630-prestart-separate-timer/);
-  assert.match(html, /src\/site\.js\?v=20260630-prestart-phase-copy/);
+  assert.match(html, /src\/site\.js\?v=20260630-participant-count-20/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
