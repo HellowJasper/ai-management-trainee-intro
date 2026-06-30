@@ -6,6 +6,12 @@ const DEFAULT_DATA_PATH = path.join(__dirname, "../data/admin-state.json");
 
 const DEFAULT_STAGES = [
   {
+    id: "prestart",
+    name: "赛前倒计时",
+    subtitle: "距离比赛开始还有多少时间",
+    time: "赛前倒计时\n等待启动",
+  },
+  {
     id: "opening",
     name: "启动仪式",
     subtitle: "活动开场，启动仪式",
@@ -86,9 +92,16 @@ function normalizeAdminStages(stages) {
   const list = Array.isArray(stages) && stages.length > 0
     ? stages.map((stage) => ({ ...stage }))
     : clone(DEFAULT_STAGES);
+  const hasPrestartStage = list.some((stage) => stage.id === "prestart");
+  const openingStageIndex = list.findIndex((stage) => stage.id === "opening");
+  const defaultPrestartStage = DEFAULT_STAGES.find((stage) => stage.id === "prestart");
   const hasFinalStage = list.some((stage) => stage.id === "final");
   const resultStageIndex = list.findIndex((stage) => stage.id === "result");
   const defaultFinalStage = DEFAULT_STAGES.find((stage) => stage.id === "final");
+
+  if (!hasPrestartStage && openingStageIndex >= 0 && defaultPrestartStage) {
+    list.splice(openingStageIndex, 0, { ...defaultPrestartStage });
+  }
 
   if (!hasFinalStage && resultStageIndex >= 0 && defaultFinalStage) {
     list.splice(resultStageIndex + 1, 0, { ...defaultFinalStage });

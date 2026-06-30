@@ -1786,7 +1786,7 @@ button {
 
 .quick-switch {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin: 14px 0;
 }
@@ -1954,6 +1954,14 @@ button {
   gap: 7px;
   color: var(--text-soft);
   font-size: 12px;
+}
+
+.timer-control-hint {
+  grid-column: 1 / -1;
+  margin: -2px 0 0;
+  color: rgba(183, 205, 199, 0.68);
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .timer-control-card .timer-duration-label {

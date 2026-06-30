@@ -222,9 +222,9 @@ test("execute preserves candidate and user data while resetting hackathon runtim
   assert.equal(pool.tables.roadshow_sessions[0].started_at, null);
   assert.equal(pool.tables.roadshow_sessions[0].duration_ms, 900000);
   assert.deepEqual(pool.tables.event_stages.map((stage) => `${stage.id}:${stage.status}`).slice(0, 3), [
-    "opening:active",
+    "prestart:active",
+    "opening:pending",
     "icebreaker:pending",
-    "speech:pending",
   ]);
   assert.deepEqual(pool.transactionEvents, ["getConnection", "begin", "commit", "release"]);
   await assert.rejects(() => fs.access(path.join(workUploadDir, "shot.png")));

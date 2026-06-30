@@ -14,7 +14,7 @@
   const ROLE_KEY = "joincare_hackathon_role";
   const SESSION_KEY = "joincare_hackathon_session";
   const VALID_ROLES = ["public", "player", "judge", "admin"];
-  const MISSION_COUNTDOWN_STAGE_IDS = new Set(["opening", "icebreaker", "speech", "tracks", "team"]);
+  const MISSION_COUNTDOWN_STAGE_IDS = new Set(["prestart", "opening", "icebreaker", "speech", "tracks", "team"]);
   const TEAM_DISPLAY_ORDER = ["medicine", "pharma", "production", "marketing", "functions"];
   const TEAM_DISPLAY_META = {
     medicine: { code: "01", nameEn: "MEDICAL AFFAIRS" },
@@ -79,7 +79,9 @@
   let COUNTDOWN_REMAIN = 6353;
   function resolveHomePhase(stageId) {
     const s = String(stageId || "").toLowerCase();
-    if (["opening", "icebreaker", "speech", "tracks"].includes(s)) {
+    if (s === "prestart") {
+      return { phase: "比赛即将开始", label: "距离比赛开始还有", remain: 129600 };
+    } else if (["opening", "icebreaker", "speech", "tracks"].includes(s)) {
       return { phase: "挑战任务发布中", label: "距任务开始还有", remain: 7200 };
     } else if (s === "team") {
       return { phase: "挑战任务进行中", label: "距作品提交截止", remain: 129600 };
@@ -1696,6 +1698,9 @@
       return `<div class="mech2 glass" style="--accent:${c.accent};--rgb:${c.rgb}"><div class="m2-top"><span>${esc(c.label)}<i>${esc(c.en)}</i></span>${ICON(c.icon, c.accent)}</div><b>${esc(copy.headline)}</b><span class="m2-sub">${esc(copy.sub)}</span></div>`;
     }).join("");
     const dims = D.dimensions.map((d, index) => `<li class="score-dim-card" style="--score-width:${d.weight * 4}%"><i>${pad(index + 1)}</i><b>${esc(d.label)}</b><span><em>${d.weight}</em>%</span><small><ins></ins></small></li>`).join("");
+    const scoreCriteria = isMobileView()
+      ? ""
+      : `<div class="score-criteria"><div class="sec-cap score-criteria-title"><span></span>评分维度 · EVALUATION CRITERIA</div><ul class="score-dim-grid">${dims}</ul></div>`;
     const phaseInfo = resolveHomePhase(CURRENT_STAGE_ID);
 
     return `${pageHead("赛事指南", "了解赛事进展与赛事机制，快速掌握黑客松全貌", "EVENT GUIDE")}
@@ -1712,7 +1717,7 @@
       </div>
       <div class="sec-cap"><span></span>赛事旅程 · EVENT JOURNEY</div><div class="entry-grid four">${actionCards}</div>
       <div class="sec-cap"><span></span>赛事机制 · EVENT FORMAT</div><div class="mech2-grid">${mech}</div>
-      <div class="score-criteria"><div class="sec-cap score-criteria-title"><span></span>评分维度 · EVALUATION CRITERIA</div><ul class="score-dim-grid">${dims}</ul></div>
+      ${scoreCriteria}
     </section>`;
   }
 
@@ -2416,6 +2421,7 @@
     { key: "home", label: "首页", icon: "target" },
     { key: "people", label: "新生看板", icon: "user" },
     { key: "schedule", label: "赛事指南", icon: "calendar" },
+    { key: "team", label: "组队", icon: "team" },
     { key: "gallery", label: "作品", icon: "doc" },
     { key: "me", label: "我的", icon: "user" },
   ];
@@ -2435,6 +2441,7 @@
   ];
   const MOBILE_TABS_ADMIN = [
     { key: "home", label: "首页", icon: "target" },
+    { key: "people", label: "新生看板", icon: "user" },
     { key: "team", label: "组队", icon: "team" },
     { key: "gallery", label: "作品", icon: "doc" },
     { key: "result", label: "排行榜", icon: "trophy" },
@@ -2483,7 +2490,9 @@
   }
   function renderMobileTabbar() {
     if (!mobileTabbar) return;
-    mobileTabbar.innerHTML = mobileTabs().map((v) => `<a data-nav="${v.key}" href="#${v.key}"><span aria-hidden="true">${ICON(v.icon, "currentColor")}</span><b>${esc(v.label)}</b></a>`).join("");
+    const tabs = mobileTabs();
+    mobileTabbar.style.setProperty("--mobile-tab-count", tabs.length);
+    mobileTabbar.innerHTML = tabs.map((v) => `<a data-nav="${v.key}" href="#${v.key}"><span aria-hidden="true">${ICON(v.icon, "currentColor")}</span><b>${esc(v.label)}</b></a>`).join("");
   }
 
   function setActive(key) {

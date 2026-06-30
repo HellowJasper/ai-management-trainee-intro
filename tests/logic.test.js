@@ -821,7 +821,8 @@ test("official site schedule status reads the synchronized backend stage timer",
   assert.match(renderScheduleBody[1], /\$\{esc\(phaseInfo\.label\)\}/);
   assert.match(renderScheduleBody[1], /\$\{countdownAttrs\(\)\}/);
   assert.match(siteCss, /\.schedule-count\s*\{[\s\S]*align-items:\s*flex-start/);
-  assert.match(siteJs, /const MISSION_COUNTDOWN_STAGE_IDS = new Set\(\["opening", "icebreaker", "speech", "tracks", "team"\]\)/);
+  assert.match(siteJs, /const MISSION_COUNTDOWN_STAGE_IDS = new Set\(\["prestart", "opening", "icebreaker", "speech", "tracks", "team"\]\)/);
+  assert.match(siteJs, /s === "prestart"[\s\S]*phase:\s*"比赛即将开始"[\s\S]*label:\s*"距离比赛开始还有"/);
   assert.match(applySiteStageStateBody[1], /MISSION_COUNTDOWN_STAGE_IDS\.has\(CURRENT_STAGE_ID\)/);
   assert.match(timerRemainingSecondsBody[1], /return Math\.max\(0,\s*Math\.floor\(durationMs \/ 1000\)\)/);
   assert.doesNotMatch(siteJs, /apiRequest\("\/api\/admin\/state"\)/);
@@ -1510,6 +1511,7 @@ test("team surfaces present the advisor slot as team leader copy", () => {
 });
 
 test("stage screen routing opens the vote progress and result screens", () => {
+  assert.equal(resolveStageScreenView("prestart"), "countdown");
   assert.equal(resolveStageScreenView("vote"), "vote");
   assert.equal(resolveStageScreenView("result"), "vote-result");
   assert.equal(resolveStageScreenView("final"), "final-result");
@@ -1847,8 +1849,10 @@ test("schedule mechanism section uses briefing cards and separate evaluation cri
   assert.match(siteJs, /五维评审 \+ 全员投票/);
   assert.match(siteJs, /最终评选一支冠军团队/);
   assert.doesNotMatch(siteJs, /class="score-note/);
+  assert.match(siteJs, /const scoreCriteria = isMobileView\(\)\s*\?\s*""\s*:\s*`<div class="score-criteria"/);
   assert.match(siteJs, /class="score-criteria"/);
   assert.match(siteJs, /class="sec-cap score-criteria-title"><span><\/span>评分维度 · EVALUATION CRITERIA/);
+  assert.match(siteJs, /\$\{scoreCriteria\}/);
   assert.doesNotMatch(siteJs, /class="schedule-section-heading score-criteria-title"/);
   assert.match(siteJs, /class="score-dim-grid"/);
   assert.match(siteJs, /class="score-dim-card"/);
@@ -1857,6 +1861,7 @@ test("schedule mechanism section uses briefing cards and separate evaluation cri
   assert.doesNotMatch(siteJs, /\$\{esc\(d\.en\)\}\s*·/);
 
   assert.match(siteCss, /\.site-body\[data-view="schedule"\] \.container\s*{[\s\S]*width:\s*min\(1360px,\s*calc\(100% - 48px\)\)/);
+  assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.site-body\[data-view="schedule"\] \.score-criteria\s*\{\s*display:\s*none/);
   assert.match(siteCss, /\.score-dim-grid\s*{[\s\S]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)[\s\S]*gap:\s*clamp\(10px,\s*1\.2vw,\s*18px\)/);
   assert.match(siteCss, /\.score-criteria\s*{[\s\S]*gap:\s*44px[\s\S]*margin-top:\s*26px/);
   assert.match(siteCss, /\.score-dim-card\s*{[\s\S]*display:\s*flex/);
@@ -1890,10 +1895,13 @@ test("official site includes a mobile app shell with bottom tab navigation", () 
 
   assert.match(html, /id="mobileTabbar"/);
   assert.match(siteJs, /const MOBILE_TABS = \[/);
+  assert.match(siteJs, /const MOBILE_TABS_ADMIN = \[\s*\{ key: "home", label: "首页", icon: "target" \},\s*\{ key: "people", label: "新生看板", icon: "user" \}/);
+  assert.match(siteJs, /mobileTabbar\.style\.setProperty\("--mobile-tab-count", tabs\.length\)/);
   assert.match(siteJs, /mobileTabbar\.innerHTML/);
   assert.match(siteJs, /mobileTabbar\.querySelectorAll\("a"\)/);
   assert.match(siteCss, /\.mobile-tabbar/);
   assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.mobile-tabbar\s*{[\s\S]*position:\s*fixed/);
+  assert.match(siteCss, /grid-template-columns:\s*repeat\(var\(--mobile-tab-count,\s*5\),\s*minmax\(0,\s*1fr\)\)/);
   assert.match(siteCss, /\.mobile-tabbar\s+a\s*{[\s\S]*min-width:\s*0/);
 });
 
@@ -1941,7 +1949,7 @@ test("mobile site opens on event home and uses a natural swipe-card browser", ()
   assert.doesNotMatch(siteJs, /LIVE · HACKATHON 2026/);
   assert.doesNotMatch(siteJs, /参赛伙伴图鉴|认识这一届 AI 星锐|看懂比赛怎么进行|查看现场作品|class="mh-agenda"|class="mh-card/);
   assert.match(siteJs, /key: "people", label: "新生看板"/);
-  assert.match(siteJs, /const MOBILE_TABS_PLAYER = \[\s*\{ key: "home", label: "首页", icon: "target" \},\s*\{ key: "people", label: "新生看板", icon: "user" \},\s*\{ key: "schedule", label: "赛事指南", icon: "calendar" \}/);
+  assert.match(siteJs, /const MOBILE_TABS_PLAYER = \[\s*\{ key: "home", label: "首页", icon: "target" \},\s*\{ key: "people", label: "新生看板", icon: "user" \},\s*\{ key: "schedule", label: "赛事指南", icon: "calendar" \},\s*\{ key: "team", label: "组队", icon: "team" \}/);
   assert.match(siteJs, /<span class="ph-en">Talent Profiles<\/span>/);
   assert.match(siteJs, /\$\{pad\(MOBILE_TRAINEE_INDEX \+ 1\)\}\/\$\{pad\(list\.length\)\}/);
   assert.doesNotMatch(siteJs, /ROSTER CARDS|星锐卡组|<button class="mobile-back-link"/);
@@ -2145,7 +2153,7 @@ test("official site cache keys are bumped after navigation and detail layout pol
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
   assert.match(html, /src\/site\.css\?v=20260629-[^"]+/);
-  assert.match(html, /src\/logic\.js\?v=20260626-header-polish/);
+  assert.match(html, /src\/logic\.js\?v=20260629-prestart-flow-reset/);
   assert.match(html, /src\/site\.js\?v=20260629-[^"]+/);
 });
 
@@ -2195,7 +2203,15 @@ test("admin console keeps the event control cockpit structure wired", () => {
   assert.match(css, /\.admin-flow-column-secondary\s*{[\s\S]*grid-column:\s*2/);
   assert.doesNotMatch(css, /\.flow-panel\s*{[\s\S]*grid-row:\s*1 \/ 4/);
   assert.match(css, /\.admin-nav button\.is-active/);
+  assert.match(flowView, /id="resetFlowToStart"[^>]*>回到最开始<\/button>/);
+  assert.match(flowView, /赛前 \/ 任务倒计时/);
+  assert.match(flowView, /2 天填写 48 小时/);
+  assert.match(css, /\.quick-switch\s*{[\s\S]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(js, /id:\s*"prestart"/);
   assert.match(js, /name:\s*"组队开启"/);
+  assert.match(js, /async function resetFlowToStart\(\)/);
+  assert.match(js, /updateAdminStage\(firstStage\.id\)/);
+  assert.match(js, /updateAdminMissionCountdown\(\{[\s\S]*startedAt:\s*null/);
   assert.match(js, /data-stage-command/);
 });
 
@@ -2629,9 +2645,9 @@ test("admin and big screen cache keys stay current", () => {
   const adminHtml = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
   const indexHtml = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
 
-  assert.match(adminHtml, /admin\.css\?v=20260629-work-review-carousel/);
+  assert.match(adminHtml, /admin\.css\?v=20260629-prestart-flow-reset/);
   assert.match(adminHtml, /src\/data\.js\?v=20260625-time-sync/);
-  assert.match(adminHtml, /src\/admin\.js\?v=20260629-work-review-carousel/);
+  assert.match(adminHtml, /src\/admin\.js\?v=20260629-prestart-flow-reset/);
   assert.match(indexHtml, /src\/data\.js\?v=20260625-time-sync/);
   assert.match(indexHtml, /src\/app\.js\?v=20260625-time-sync/);
 });
@@ -2715,6 +2731,7 @@ test("resolveDiscoverTarget accepts known discover menu targets", () => {
 });
 
 test("resolveStageScreenView maps admin stages to existing screen views", () => {
+  assert.equal(resolveStageScreenView("prestart"), "countdown");
   assert.equal(resolveStageScreenView("opening"), "welcome");
   assert.equal(resolveStageScreenView("icebreaker"), "wall");
   assert.equal(resolveStageScreenView("speech"), "home");

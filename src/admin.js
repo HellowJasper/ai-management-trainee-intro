@@ -1,5 +1,12 @@
 const stages = [
   {
+    id: "prestart",
+    name: "赛前倒计时",
+    subtitle: "距离比赛开始还有多少时间",
+    status: "done",
+    time: "赛前倒计时\n等待启动",
+  },
+  {
     id: "opening",
     name: "启动仪式",
     subtitle: "活动开场，启动仪式",
@@ -91,6 +98,7 @@ const missionCountdownMinutes = document.querySelector("#missionCountdownMinutes
 const missionCountdownState = document.querySelector("#missionCountdownState");
 const startMissionCountdownButton = document.querySelector("#startMissionCountdownButton");
 const resetMissionCountdownButton = document.querySelector("#resetMissionCountdownButton");
+const resetFlowToStartButton = document.querySelector("#resetFlowToStart");
 const roadshowHours = document.querySelector("#roadshowHours");
 const roadshowMinutes = document.querySelector("#roadshowMinutes");
 const roadshowCurrentTeamSelect = document.querySelector("#roadshowCurrentTeamSelect");
@@ -360,6 +368,7 @@ const teamStatusLabels = {
 };
 
 const screenRoutes = [
+  { stageId: "prestart", name: "赛前倒计时", route: "/index.html?stage=prestart", note: "比赛开始前倒计时" },
   { stageId: "opening", name: "启动仪式", route: "/index.html?stage=opening", note: "开场和入场引导" },
   { stageId: "icebreaker", name: "新生破冰", route: "/index.html?stage=icebreaker", note: "星锐档案与互动破冰" },
   { stageId: "tracks", name: "赛道发布", route: "/index.html?stage=tracks", note: "五条赛道与组队大屏" },
@@ -2927,6 +2936,31 @@ async function finishCurrentStage() {
   addLog("system", "同步失败：当前已是最后阶段，无法继续结束");
 }
 
+async function resetFlowToStart() {
+  const firstStage = stages[0];
+  if (!firstStage) {
+    return;
+  }
+
+  try {
+    let state = await window.AppData.updateAdminStage(firstStage.id);
+    if (screenOverrideStageId) {
+      state = await window.AppData.updateAdminScreenOverride("");
+    }
+    applyAdminState(state);
+
+    const timerState = await window.AppData.updateAdminMissionCountdown({
+      durationMs: durationInputsToDurationMs(missionCountdownHours, missionCountdownMinutes, 1440),
+      startedAt: null,
+    });
+    renderMissionCountdownState(timerState);
+    addLog("admin", `流程回到最开始【${firstStage.name}】`);
+  } catch (error) {
+    console.warn("Admin flow reset failed.", error);
+    addLog("system", "同步失败：流程未能回到最开始");
+  }
+}
+
 function durationMsToTotalMinutes(durationMs, fallbackMinutes) {
   const minutes = Math.round((Number(durationMs) || 0) / 60000);
   return Number.isFinite(minutes) && minutes > 0 ? minutes : fallbackMinutes;
@@ -3807,6 +3841,7 @@ document.querySelector("#startNextStage").addEventListener("click", async () => 
 });
 
 document.querySelector("#finishCurrentStage").addEventListener("click", finishCurrentStage);
+resetFlowToStartButton?.addEventListener("click", resetFlowToStart);
 
 saveDisplayTimesButton?.addEventListener("click", saveTimeConfiguration);
 startMissionCountdownButton?.addEventListener("click", () => updateMissionCountdown(new Date().toISOString()));

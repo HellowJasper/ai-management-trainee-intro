@@ -1438,6 +1438,7 @@
   .sec { padding-top: 28px; }
   .sec-cap { margin-bottom: 14px; font-size: 15px; gap: 9px; }
   .sec-cap span { height: 18px; }
+  .site-body[data-view="schedule"] .score-criteria { display: none; }
 
   .mobile-tabbar {
     position: fixed;
@@ -1448,7 +1449,7 @@
     width: min(calc(100vw - 16px), 374px);
     box-sizing: border-box;
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--mobile-tab-count, 5), minmax(0, 1fr));
     gap: 3px;
     padding: 7px;
     border: 1px solid rgba(103, 255, 213, 0.2);
@@ -3396,6 +3397,11 @@
     padding-bottom: 10px;
   }
 
+  .mobile-card-progress {
+    align-self: center;
+    padding: 0 0 clamp(4px, 1svh, 10px);
+  }
+
   .vote-banner {
     margin-top: 16px;
   }
@@ -3972,3 +3978,111 @@
 .num-roles button i { font-style: normal; font-size: 10px; color: var(--neon); font-family: var(--nav-pixel); }
 .num-logout { padding: 10px; border-radius: 9px; border: 1px solid rgba(255, 90, 120, 0.35); background: rgba(255, 90, 120, 0.08); color: #ff8aa3; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 180ms ease; }
 .num-logout:hover { background: rgba(255, 90, 120, 0.16); }
+
+/* Mobile people viewport fill override */
+@media (max-width: 680px) {
+  .site-body[data-view="people"] .site-main {
+    min-height: calc(100svh - 58px);
+    padding-bottom: 0;
+  }
+
+  .site-body[data-view="people"] .mobile-people-stage {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: clamp(8px, 1.35svh, 16px);
+    width: min(calc(100% - 24px), 410px);
+    height: calc(100svh - 58px - 68px - env(safe-area-inset-bottom));
+    min-height: min(510px, calc(100svh - 58px - 68px - env(safe-area-inset-bottom)));
+    margin: 0 auto;
+    padding: clamp(8px, 1.4svh, 14px) 0 clamp(8px, 1.2svh, 12px);
+    overflow: hidden;
+  }
+
+  .site-body[data-view="people"] .mobile-swipe-deck-wrap {
+    min-height: 0;
+  }
+
+  .site-body[data-view="people"] .mobile-swipe-deck {
+    height: 100%;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .site-body[data-view="people"] .mobile-card-active {
+    inset: 0 clamp(26px, 7vw, 34px) clamp(26px, 3.4svh, 34px);
+    left: clamp(26px, 7vw, 34px);
+    right: clamp(26px, 7vw, 34px);
+    width: auto;
+    transform: translate3d(var(--swipe-x, 0px), 0, 0) rotate(var(--swipe-rot, 0deg));
+    transform-origin: center bottom;
+    z-index: 5;
+  }
+
+  .site-body[data-view="people"] .mobile-card-ghost {
+    top: clamp(18px, 3svh, 28px);
+    bottom: clamp(42px, 6svh, 58px);
+    width: min(68%, 260px);
+    opacity: 0.2;
+    filter: saturate(0.78) brightness(0.58);
+    z-index: 1;
+  }
+
+  .site-body[data-view="people"] .mobile-card-ghost.ghost-one {
+    display: block;
+    left: auto;
+    right: -28px;
+    transform: translate3d(0, 12px, 0) scale(0.94) rotate(2deg);
+  }
+
+  .site-body[data-view="people"] .mobile-card-ghost.ghost-two {
+    display: block;
+    left: -28px;
+    right: auto;
+    transform: translate3d(0, 12px, 0) scale(0.94) rotate(-2deg);
+  }
+
+  .site-body[data-view="people"] .mobile-card-ghost.ghost-three {
+    display: none;
+  }
+
+  .site-body[data-view="people"] .mobile-card-ghost .mobile-card-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+  }
+
+  .site-body[data-view="people"] .mobile-card-photo-wrap {
+    flex: 1 1 auto;
+    min-height: clamp(188px, 30svh, 286px);
+    max-height: none;
+    padding-top: clamp(6px, 1svh, 9px);
+    place-items: start center;
+  }
+
+  .site-body[data-view="people"] .mobile-card-active .mobile-card-photo {
+    width: min(91%, 274px);
+    height: calc(100% + clamp(26px, 4svh, 36px));
+    max-width: none;
+    max-height: none;
+    object-fit: cover;
+    object-position: center top;
+    margin: 0 auto;
+    transform: translateY(1px);
+  }
+
+  .site-body[data-view="people"] .mobile-card-progress {
+    align-self: center;
+    padding: 0 0 clamp(4px, 1svh, 10px);
+  }
+}
+
+@media (max-width: 380px) {
+  .site-body[data-view="people"] .mobile-swipe-deck {
+    height: 100%;
+  }
+
+  .site-body[data-view="people"] .mobile-card-photo-wrap {
+    min-height: clamp(164px, 26svh, 232px);
+  }
+}
