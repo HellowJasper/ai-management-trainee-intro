@@ -1717,20 +1717,8 @@
     const scoreCriteria = isMobileView()
       ? ""
       : `<div class="score-criteria"><div class="sec-cap score-criteria-title"><span></span>评分维度 · EVALUATION CRITERIA</div><ul class="score-dim-grid">${dims}</ul></div>`;
-    const phaseInfo = resolveHomePhase(CURRENT_STAGE_ID);
-
     return `${pageHead("赛事指南", "了解赛事进展与赛事机制，快速掌握黑客松全貌", "EVENT GUIDE")}
     <section class="container sec schedule-board">
-      <div class="schedule-live glass">
-        <div class="schedule-info">
-          <span class="status-chip on">当前阶段</span>
-          <h2>${esc(phaseInfo.phase)}</h2>
-        </div>
-        <div class="schedule-count">
-          <span class="status-chip on">${esc(phaseInfo.label)}</span>
-          <b ${countdownAttrs()}>${fmtHMS(COUNTDOWN_REMAIN)}</b>
-        </div>
-      </div>
       <div class="sec-cap"><span></span>赛事旅程 · EVENT JOURNEY</div><div class="entry-grid four">${actionCards}</div>
       <div class="sec-cap"><span></span>赛事机制 · EVENT FORMAT</div><div class="mech2-grid">${mech}</div>
       ${scoreCriteria}
@@ -2433,7 +2421,7 @@
     { key: "people", label: "新生看板", icon: "user" },
     { key: "schedule", label: "赛事指南", icon: "calendar" },
     { key: "gallery", label: "作品", icon: "doc" },
-    { key: "me", label: "角色", icon: "team" },
+    { key: "me", label: "我的", icon: "team" },
   ];
   const MOBILE_TABS_PLAYER = [
     { key: "home", label: "首页", icon: "target" },
@@ -2448,7 +2436,7 @@
     { key: "people", label: "新生看板", icon: "user" },
     { key: "gallery", label: "作品", icon: "doc" },
     { key: "vote", label: "投票", icon: "vote" },
-    { key: "me", label: "角色", icon: "team" },
+    { key: "me", label: "我的", icon: "team" },
   ];
   const MOBILE_TABS_JUDGE = [
     { key: "home", label: "首页", icon: "target" },
@@ -2456,6 +2444,7 @@
     { key: "schedule", label: "赛事指南", icon: "calendar" },
     { key: "gallery", label: "作品", icon: "doc" },
     { key: "judge", label: "评分", icon: "scale" },
+    { key: "me", label: "我的", icon: "user" },
   ];
   const MOBILE_TABS_ADMIN = [
     { key: "home", label: "首页", icon: "target" },

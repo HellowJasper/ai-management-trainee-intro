@@ -980,7 +980,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260630-participant-count-20/);
+  assert.match(siteHtml, /site\.js\?v=20260701-mobile-me-tabs/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -1781,6 +1781,16 @@ test("schedule page omits the key-node timeline section", () => {
   assert.doesNotMatch(siteJs, /class="timeline-grid"/);
 });
 
+test("schedule page omits the current phase countdown card", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const renderSchedule = siteJs.match(/function renderSchedule\(\) \{[\s\S]*?function renderTeam\(\)/)?.[0] || "";
+
+  assert.match(renderSchedule, /赛事旅程\s*·\s*EVENT JOURNEY/);
+  assert.doesNotMatch(renderSchedule, /class="schedule-live glass"/);
+  assert.doesNotMatch(renderSchedule, /当前阶段/);
+  assert.doesNotMatch(renderSchedule, /countdownAttrs\(\)/);
+});
+
 test("schedule journey follows the snake arrow order", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
@@ -1907,6 +1917,9 @@ test("official site includes a mobile app shell with bottom tab navigation", () 
   assert.match(html, /id="mobileTabbar"/);
   assert.match(siteJs, /const MOBILE_TABS = \[/);
   assert.match(siteJs, /const MOBILE_TABS_ADMIN = \[\s*\{ key: "home", label: "首页", icon: "target" \},\s*\{ key: "people", label: "新生看板", icon: "user" \}/);
+  assert.match(siteJs, /const MOBILE_TABS = \[[\s\S]*\{ key: "me", label: "我的", icon: "team" \}/);
+  assert.match(siteJs, /const MOBILE_TABS_PUBLIC = \[[\s\S]*\{ key: "me", label: "我的", icon: "team" \}/);
+  assert.match(siteJs, /const MOBILE_TABS_JUDGE = \[[\s\S]*\{ key: "judge", label: "评分", icon: "scale" \},\s*\{ key: "me", label: "我的", icon: "user" \}/);
   assert.match(siteJs, /mobileTabbar\.style\.setProperty\("--mobile-tab-count", tabs\.length\)/);
   assert.match(siteJs, /mobileTabbar\.innerHTML/);
   assert.match(siteJs, /mobileTabbar\.querySelectorAll\("a"\)/);
@@ -2173,7 +2186,7 @@ test("official site cache keys are bumped after navigation and detail layout pol
   assert.match(html, /src\/site\.css\?v=20260630-mobile-home-countdown-card/);
   assert.match(html, /src\/logic\.js\?v=20260630-prestart-target-time/);
   assert.match(html, /src\/data\.js\?v=20260630-prestart-separate-timer/);
-  assert.match(html, /src\/site\.js\?v=20260630-participant-count-20/);
+  assert.match(html, /src\/site\.js\?v=20260701-mobile-me-tabs/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
