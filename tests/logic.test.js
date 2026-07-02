@@ -975,7 +975,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260701-mobile-me-tabs/);
+  assert.match(siteHtml, /site\.js\?v=20260702-work-stack-source/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -1017,7 +1017,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260701-mobile-me-tabs/);
+  assert.match(siteHtml, /site\.js\?v=20260702-work-stack-source/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -1035,8 +1035,8 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.css\?v=20260630-mobile-home-countdown-card/);
-  assert.match(siteHtml, /site\.js\?v=20260701-mobile-me-tabs/);
+  assert.match(siteHtml, /site\.css\?v=20260702-workspace-head-stack/);
+  assert.match(siteHtml, /site\.js\?v=20260702-work-stack-source/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -1068,6 +1068,17 @@ test("gallery only lists published works while admins and owning players can ope
   assert.match(canViewBody, /permissions\.canSubmitWork && joinedTeam\(\) === team\?\.id && Boolean\(team\?\.work\)/);
   assert.doesNotMatch(canViewBody, /permissions\.canVote/);
   assert.doesNotMatch(canViewBody, /permissions\.canScore/);
+});
+
+test("published work cards do not backfill empty submitted tech stack from demo data", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const normalizeStart = siteJs.indexOf("function normalizeSiteTeam");
+  const normalizeEnd = siteJs.indexOf("\n  function updateSiteStats", normalizeStart);
+  const normalizeBody = siteJs.slice(normalizeStart, normalizeEnd);
+
+  assert.match(normalizeBody, /const hasWork = Boolean\(work\)/);
+  assert.match(normalizeBody, /hasWork\s*\?\s*\(\s*Array\.isArray\(work\?\.stack\)\s*\?\s*work\.stack\s*:\s*\[\]\s*\)/);
+  assert.doesNotMatch(normalizeBody, /Array\.isArray\(work\?\.stack\) && work\.stack\.length[\s\S]*normalizeList\(base\.stack\)/);
 });
 
 test("official site regular page headers match the talent profile title scale", () => {
@@ -1162,11 +1173,13 @@ test("role permissions reserve team joining, voting, judging, and admin control 
   assert.equal(getRolePermissions("judge").canScore, true);
   assert.equal(getRolePermissions("judge").canVote, false);
   assert.equal(getRolePermissions("judge").canAdmin, false);
+  assert.equal(getRolePermissions("judge").canViewTeamProgress, false);
   assert.equal(getRolePermissions("public").canJoinTeam, false);
   assert.equal(getRolePermissions("public").canSubmitWork, false);
   assert.equal(getRolePermissions("public").canVote, true);
   assert.equal(getRolePermissions("public").canScore, false);
   assert.equal(getRolePermissions("public").canAdmin, false);
+  assert.equal(getRolePermissions("public").canViewTeamProgress, false);
   assert.equal(getRolePermissions("admin").canJoinTeam, false);
   assert.equal(getRolePermissions("admin").canAdmin, true);
   assert.equal(getRolePermissions("admin").canControlBigscreen, true);
@@ -1196,6 +1209,36 @@ test("role workbench model hides player-only team actions from public, judge, an
   assert.ok(player.quickEntries.some((entry) => entry.title === "报名组队"));
 });
 
+test("judge role does not expose team progress entry points on PC", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const model = getRoleWorkbenchModel({
+    role: "judge",
+    scoredTeams: 1,
+    totalTeams: 5,
+  });
+  const modelText = JSON.stringify(model);
+
+  assert.ok(!getRoleNavItems("judge").some((item) => item.key === "team"));
+  assert.ok(!model.statusCards.some((card) => card.nav === "team"));
+  assert.ok(!model.quickEntries.some((entry) => entry.nav === "team"));
+  assert.doesNotMatch(modelText, /组队只读|组队进度|查看各赛道名额/);
+  assert.match(siteJs, /if \(v\.key === "team" && !rolePermissions\(currentRole\(\)\)\.canViewTeamProgress\)/);
+});
+
+test("public role does not expose team progress entry points on PC", () => {
+  const model = getRoleWorkbenchModel({
+    role: "public",
+    votedTeamName: "",
+    totalTeams: 5,
+  });
+  const modelText = JSON.stringify(model);
+
+  assert.ok(!getRoleNavItems("public").some((item) => item.key === "team"));
+  assert.ok(!model.statusCards.some((card) => card.nav === "team"));
+  assert.ok(!model.quickEntries.some((entry) => entry.nav === "team"));
+  assert.doesNotMatch(modelText, /组队只读|组队进度|查看当前队伍形成情况|查看赛道满员状态/);
+});
+
 test("player workbench routes work submission through the team workspace", () => {
   const player = getRoleWorkbenchModel({
     role: "player",
@@ -1222,11 +1265,11 @@ test("role navigation exposes role-specific operational entries", () => {
   );
   assert.deepEqual(
     getRoleNavItems("judge").map((item) => item.key),
-    ["home", "people", "schedule", "team", "gallery", "judge", "result"],
+    ["home", "people", "schedule", "gallery", "judge", "result"],
   );
   assert.deepEqual(
     getRoleNavItems("public").map((item) => item.key),
-    ["home", "people", "schedule", "team", "gallery", "vote", "result"],
+    ["home", "people", "schedule", "gallery", "vote", "result"],
   );
   assert.deepEqual(
     getRoleNavItems("admin").map((item) => item.key),
@@ -1370,6 +1413,17 @@ test("team workspace fields align with the public gallery work details", () => {
   assert.match(siteCss, /object-fit:\s*contain/);
   assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.workspace-preview-shots \.workspace-preview-shot\s*{[\s\S]*min-height:\s*clamp\(160px,\s*54vw,\s*260px\)/);
   assert.match(siteCss, /\.workspace-preview-shots \.workspace-preview-empty/);
+});
+
+test("team workspace submission heading stacks English above Chinese", () => {
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+  const headBlock = siteCss.match(/\.workspace-form-head\s*\{[\s\S]*?\n}/)?.[0] || "";
+  const chineseTitleBlock = siteCss.match(/\.workspace-form-head b\s*\{[\s\S]*?\n}/)?.[0] || "";
+
+  assert.match(headBlock, /display:\s*grid/);
+  assert.match(headBlock, /grid-template-columns:\s*1fr/);
+  assert.match(headBlock, /justify-items:\s*start/);
+  assert.match(chineseTitleBlock, /white-space:\s*nowrap/);
 });
 
 test("team workspace screenshot upload accepts image files without browser MIME metadata", () => {
@@ -1928,7 +1982,7 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260630-mobile-home-countdown-card/);
+  assert.match(html, /src\/site\.css\?v=20260702-workspace-head-stack/);
   assert.match(siteCss, /--site-detail-console-width:\s*calc\(min\(80vw,\s*1260px\) - 24px\)/);
   assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*max\(3vw,\s*calc\(100dvw - var\(--site-detail-console-width\) - var\(--site-detail-card-width\) - 40px\)\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*auto/);
@@ -2178,10 +2232,10 @@ test("official site cache keys are bumped after navigation and detail layout pol
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
-  assert.match(html, /src\/site\.css\?v=20260630-mobile-home-countdown-card/);
-  assert.match(html, /src\/logic\.js\?v=20260630-prestart-target-time/);
+  assert.match(html, /src\/site\.css\?v=20260702-workspace-head-stack/);
+  assert.match(html, /src\/logic\.js\?v=20260702-audience-team-hidden/);
   assert.match(html, /src\/data\.js\?v=20260630-prestart-separate-timer/);
-  assert.match(html, /src\/site\.js\?v=20260701-mobile-me-tabs/);
+  assert.match(html, /src\/site\.js\?v=20260702-work-stack-source/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {

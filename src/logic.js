@@ -37,7 +37,7 @@
         canScore: true,
         canAdmin: false,
         canControlBigscreen: false,
-        canViewTeamProgress: true,
+        canViewTeamProgress: false,
       }),
     }),
     public: Object.freeze({
@@ -50,7 +50,7 @@
         canScore: false,
         canAdmin: false,
         canControlBigscreen: false,
-        canViewTeamProgress: true,
+        canViewTeamProgress: false,
       }),
     }),
     admin: Object.freeze({
@@ -343,9 +343,9 @@
       { key: "home", label: "首页" },
       { key: "people", label: "新生看板" },
       { key: "schedule", label: "赛事指南" },
-      { key: "team", label: "组队" },
       { key: "gallery", label: "作品展厅" },
     ];
+    const teamNav = getRolePermissions(key).canViewTeamProgress ? [{ key: "team", label: "组队" }] : [];
     const byRole = {
       player: [],
       judge: [{ key: "judge", label: "评委评分" }],
@@ -353,7 +353,7 @@
       admin: [{ key: "admin", label: "管理后台", href: "./admin.html" }],
     };
 
-    return [...shared, ...(byRole[key] || []), { key: "result", label: "排行榜" }];
+    return [...shared.slice(0, 3), ...teamNav, ...shared.slice(3), ...(byRole[key] || []), { key: "result", label: "排行榜" }];
   }
 
   function getRoleWorkbenchModel({
@@ -425,7 +425,7 @@
         eyebrow: "JUDGE CONSOLE",
         title: "评委工作台",
         subtitle: "查看待评作品、完成五维评分，并保留自己的评分记录。",
-        chips: ["组队只读", "专家评分", "不参与投票"],
+        chips: ["专家评分", "作品评审", "不参与投票"],
         statusCards: [
           baseIdentity,
           {
@@ -445,12 +445,12 @@
             nav: "judge",
           },
           {
-            label: "组队进度",
-            value: "仅可查看",
-            sub: "查看各赛道名额与满员状态",
-            icon: "team",
+            label: "作品展厅",
+            value: "查看作品",
+            sub: "浏览已发布作品与路演资料",
+            icon: "doc",
             accent: "var(--neon-2)",
-            nav: "team",
+            nav: "gallery",
           },
         ],
         quickEntries: [
@@ -464,7 +464,7 @@
         eyebrow: "PUBLIC VOTE DESK",
         title: "观众评委工作台",
         subtitle: "浏览作品，并在投票窗口内为一个团队投出一票。",
-        chips: [votedTeamName ? "已投票" : "待投票", "组队只读", "不可评分"],
+        chips: [votedTeamName ? "已投票" : "待投票", "作品浏览", "不可评分"],
         statusCards: [
           baseIdentity,
           {
@@ -476,12 +476,12 @@
             nav: "vote",
           },
           {
-            label: "组队进度",
-            value: "仅可查看",
-            sub: "查看当前队伍形成情况",
-            icon: "team",
+            label: "作品展厅",
+            value: "查看作品",
+            sub: "浏览五支队伍的已发布作品",
+            icon: "doc",
             accent: "var(--neon-2)",
-            nav: "team",
+            nav: "gallery",
           },
           {
             label: "专家评分",
@@ -495,8 +495,8 @@
         quickEntries: [
           { nav: "vote", title: "投票入口", sub: "查看投票状态" },
           { nav: "gallery", title: "作品展厅", sub: "查看作品详情" },
-          { nav: "team", title: "组队进度", sub: "查看赛道满员状态" },
           { nav: "result", title: "排行榜", sub: "查看综合结果" },
+          { nav: "schedule", title: "赛事指南", sub: "查看赛事机制与规则" },
         ],
       },
       admin: {

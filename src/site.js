@@ -291,8 +291,9 @@
       team.nameEn || team.trackName || team.track || base.nameEn || base.track,
       displayMeta.nameEn || "业务赛道",
     );
-    const stack = Array.isArray(work?.stack) && work.stack.length
-      ? work.stack
+    const hasWork = Boolean(work);
+    const stack = hasWork
+      ? (Array.isArray(work?.stack) ? work.stack : [])
       : Array.isArray(team.stack) && team.stack.length
         ? team.stack
         : normalizeList(base.stack);
@@ -2520,6 +2521,10 @@
       main.innerHTML = renderHome();
       setActive("home");
       showAuthGate(v.key);
+      return;
+    }
+    if (v.key === "team" && !rolePermissions(currentRole()).canViewTeamProgress) {
+      go(rolePermissions(currentRole()).canScore ? "judge" : "me", push);
       return;
     }
     if (v.key === "judge" && !rolePermissions(currentRole()).canScore) {
