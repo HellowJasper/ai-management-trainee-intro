@@ -1,7 +1,6 @@
 const { computeFinalResults } = require("../src/logic");
 const { createHttpError } = require("./traineeRepository");
 const {
-  JUDGE_SCORE_STATUSES,
   effectiveRecordsForTeam,
   normalizeRecord,
   normalizeState,
@@ -74,9 +73,9 @@ function buildFinalResultSource({ voteState = {}, judgeState = {} } = {}) {
   };
 }
 
-function assertFinalResultPublishable({ voteState = {}, judgeState = {} } = {}) {
+function assertFinalResultPublishable({ voteState = {} } = {}) {
   const voteStatus = String(voteState.status || "").trim().toLowerCase();
-  if (voteStatus !== "closed") {
+  if (!["closed", "published"].includes(voteStatus)) {
     throw createHttpError(409, "Final results can only be published after the vote window is closed.");
   }
 
@@ -85,32 +84,6 @@ function assertFinalResultPublishable({ voteState = {}, judgeState = {} } = {}) 
     .filter(Boolean);
   if (!teamIds.length) {
     throw createHttpError(409, "Final results require at least one ranked team.");
-  }
-
-  const state = normalizeState(judgeState);
-  const expectedJudgeIds = (Array.isArray(judgeState.judges) ? judgeState.judges : [])
-    .map((judge) => String(judge?.id || judge?.judgeId || judge?.userId || "").trim())
-    .filter(Boolean);
-  const judgeEntries = expectedJudgeIds.length
-    ? expectedJudgeIds.map((judgeId) => [judgeId, state.records[judgeId] || {}])
-    : Object.entries(state.records || {})
-      .filter(([, records]) => records && typeof records === "object" && teamIds.some((teamId) => records[teamId]));
-  if (!judgeEntries.length) {
-    throw createHttpError(409, "Final results require locked judge scores before publishing.");
-  }
-
-  const unlocked = [];
-  judgeEntries.forEach(([judgeId, records]) => {
-    teamIds.forEach((teamId) => {
-      const record = records[teamId] ? normalizeRecord(records[teamId]) : null;
-      if (!record || record.status !== JUDGE_SCORE_STATUSES.LOCKED) {
-        unlocked.push(`${judgeId}:${teamId}`);
-      }
-    });
-  });
-
-  if (unlocked.length) {
-    throw createHttpError(409, "Final results require all judge scores to be locked before publishing.");
   }
 }
 

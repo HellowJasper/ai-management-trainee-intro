@@ -92,6 +92,8 @@ const operationLog = document.querySelector("#operationLog");
 const confirmDangerAction = document.querySelector("#confirmDangerAction");
 const closeVoteButton = document.querySelector("#closeVoteButton");
 const publishResultButton = document.querySelector("#publishResultButton");
+const confirmResultPublishAction = document.querySelector("#confirmResultPublishAction");
+const resultPublishButtons = [...document.querySelectorAll("[data-result-publish]")];
 const saveDisplayTimesButton = document.querySelector("#saveDisplayTimesButton");
 const missionCountdownHours = document.querySelector("#missionCountdownHours");
 const missionCountdownMinutes = document.querySelector("#missionCountdownMinutes");
@@ -133,8 +135,21 @@ const adminWorkStatus = document.querySelector("#adminWorkStatus");
 const adminWorkList = document.querySelector("#adminWorkList");
 const adminJudgeSummary = document.querySelector("#adminJudgeSummary");
 const adminJudgeProgress = document.querySelector("#adminJudgeProgress");
-const adminResultSnapshotStatus = document.querySelector("#adminResultSnapshotStatus");
-const adminResultSnapshot = document.querySelector("#adminResultSnapshot");
+const resultSnapshotStatusTargets = [...document.querySelectorAll("[data-result-snapshot-status]")];
+const resultSnapshotContainers = [...document.querySelectorAll("[data-result-snapshot]")];
+const adminResultPublishStatus = document.querySelector("#adminResultPublishStatus");
+const adminResultPublishState = document.querySelector("#adminResultPublishState");
+const adminResultPublishVoteStatus = document.querySelector("#adminResultPublishVoteStatus");
+const adminResultPublishVoteTotal = document.querySelector("#adminResultPublishVoteTotal");
+const adminResultPublishScoreCoverage = document.querySelector("#adminResultPublishScoreCoverage");
+const adminResultPublishScoreStatus = document.querySelector("#adminResultPublishScoreStatus");
+const adminResultPublishWorkStatus = document.querySelector("#adminResultPublishWorkStatus");
+const adminResultFlowVoteState = document.querySelector("#adminResultFlowVoteState");
+const adminResultFlowVoteHint = document.querySelector("#adminResultFlowVoteHint");
+const adminResultFlowScoreState = document.querySelector("#adminResultFlowScoreState");
+const adminResultFlowScoreHint = document.querySelector("#adminResultFlowScoreHint");
+const adminResultFlowSnapshotState = document.querySelector("#adminResultFlowSnapshotState");
+const adminResultFlowSnapshotHint = document.querySelector("#adminResultFlowSnapshotHint");
 const adminNavButtons = [...document.querySelectorAll("[data-admin-nav]")];
 const adminViewPanels = [...document.querySelectorAll("[data-admin-view-panel]")];
 const adminDashboardState = document.querySelector("#adminDashboardState");
@@ -143,7 +158,6 @@ const adminScreenControl = document.querySelector("#adminScreenControl");
 const adminScreenRouteStatus = document.querySelector("#adminScreenRouteStatus");
 const adminScreenMissionState = document.querySelector("#adminScreenMissionState");
 const adminScreenRoadshowState = document.querySelector("#adminScreenRoadshowState");
-const adminPageManager = document.querySelector("#adminPageManager");
 const adminContentManager = document.querySelector("#adminContentManager");
 const adminContentTabs = [...document.querySelectorAll("[data-content-tab]")];
 const adminContentPanels = [...document.querySelectorAll("[data-content-panel]")];
@@ -248,9 +262,14 @@ let syncStatusState = {
   meta: "业务数据 / 日志",
 };
 
+const ADMIN_DISPLAY_TIMER_POLL_MS = 5000;
+const ADMIN_DISPLAY_TIMER_TICK_MS = 1000;
 let adminAutoRefreshTimer = null;
+let adminDisplayTimerPollTimer = null;
+let adminDisplayTimerTickTimer = null;
 let auditFilterDebounceTimer = null;
 let missionCountdownControlState = {};
+let missionCountdownScreenState = {};
 let prestartCountdownControlState = {};
 
 let roadshowTeamState = {
@@ -259,6 +278,7 @@ let roadshowTeamState = {
   currentTeam: null,
   nextTeam: null,
 };
+let roadshowScreenState = {};
 
 function hoistPrestartFlowModal() {
   if (prestartFlowModal && prestartFlowModal.parentElement !== document.body) {
@@ -388,15 +408,6 @@ const screenRoutes = [
   { stageId: "vote", name: "投票开启", route: "/index.html?stage=vote", note: "大众投票进度" },
   { stageId: "result", name: "结果发布", route: "/index.html?stage=result", note: "票数与赋分结果" },
   { stageId: "final", name: "冠军展示", route: "/index.html?stage=final", note: "冠军队伍展示" },
-];
-
-const pageRoutes = [
-  { name: "主入口大屏", route: "/index.html", note: "开场、组队、倒计时、投票与最终展示。" },
-  { name: "移动端 / 公众端", route: "/site.html", note: "面向参赛选手、评委和观众的移动端入口。" },
-  { name: "演示 Deck", route: "/screen.html", note: "独立赛事流程展示页面。" },
-  { name: "管理后台", route: "/admin", note: "管理员控制台与数据管理入口。" },
-  { name: "分离前端服务", route: "/runtime-config.js", note: "前端运行时 API Base 配置文件。" },
-  { name: "API 健康检查", route: "/api/health", note: "后端 API 服务状态检查。" },
 ];
 
 function escapeHtml(value) {
@@ -738,6 +749,43 @@ function renderWorkReviewCard(work) {
   `;
 }
 
+function renderWorkReviewTable(works) {
+  const normalizedWorks = normalizeWorks(works);
+  if (!normalizedWorks.length) {
+    return "";
+  }
+
+  return `
+    <section class="admin-work-review-table" role="table" aria-label="作品审核总览">
+      <div class="admin-work-review-table-head" role="row">
+        <span role="columnheader">队伍</span>
+        <span role="columnheader">作品</span>
+        <span role="columnheader">状态</span>
+        <span role="columnheader">更新时间</span>
+        <span role="columnheader">操作</span>
+      </div>
+      ${normalizedWorks.map((work, index) => {
+        const reviewId = getWorkReviewId(work);
+        const title = getFirstWorkText(work.project, work.title, work.id, "未命名作品");
+        const teamName = getFirstWorkText(work.teamName, work.teamId, "未绑定队伍");
+        const statusText = workStatusText[work.status] || work.status || "未知";
+        const time = getFirstWorkText(work.updatedAt, work.reviewedAt, work.submittedAt);
+        return `
+          <article class="admin-work-review-table-row ${index === adminWorkReviewIndex ? "is-active" : ""}" role="row">
+            <strong role="cell">${escapeHtml(teamName)}</strong>
+            <span role="cell">${escapeHtml(title)}</span>
+            <em role="cell">${escapeHtml(statusText)}</em>
+            <time role="cell">${escapeHtml(time ? formatSnapshotTime(time) : "未记录")}</time>
+            <div class="admin-work-review-table-actions" role="cell">
+              <button type="button" data-work-review-jump="${index}" ${index === adminWorkReviewIndex ? "disabled" : ""}>查看详情</button>
+            </div>
+          </article>
+        `;
+      }).join("")}
+    </section>
+  `;
+}
+
 function clampWorkReviewIndex(total) {
   const count = Math.max(0, Number(total) || 0);
   if (count <= 0) {
@@ -760,6 +808,7 @@ function renderWorkReviewPager(works) {
   const canMoveNext = index < normalizedWorks.length - 1;
 
   return `
+    ${renderWorkReviewTable(normalizedWorks)}
     <section class="admin-work-review-carousel" aria-label="作品审核翻页">
       <nav class="admin-work-review-nav" aria-label="作品审核翻页控制">
         <button type="button" data-work-review-prev aria-label="上一件作品" title="上一件作品" ${canMovePrev ? "" : "disabled"}>
@@ -1287,7 +1336,7 @@ function formatSnapshotTime(value) {
 }
 
 function renderResultSnapshot(snapshot = businessDataState.resultSnapshot) {
-  if (!adminResultSnapshot) {
+  if (!resultSnapshotContainers.length) {
     return;
   }
 
@@ -1295,18 +1344,23 @@ function renderResultSnapshot(snapshot = businessDataState.resultSnapshot) {
   const champion = results.find((item) => item.isChampion) || results[0];
 
   if (!snapshot || !snapshot.id) {
-    setText(adminResultSnapshotStatus, "尚未发布");
-    adminResultSnapshot.innerHTML = `
+    resultSnapshotStatusTargets.forEach((target) => setText(target, "尚未发布"));
+    const emptyMarkup = `
       <article class="admin-result-snapshot-card is-empty">
         <b>最终结果快照</b>
         <p>发布结果后，这里会固定冠军、总分和最终排名，方便后台复核。</p>
       </article>
     `;
+    resultSnapshotContainers.forEach((container) => {
+      container.innerHTML = emptyMarkup;
+    });
     return;
   }
 
-  setText(adminResultSnapshotStatus, `已发布 · ${formatSnapshotTime(snapshot.publishedAt)}`);
-  adminResultSnapshot.innerHTML = `
+  resultSnapshotStatusTargets.forEach((target) => {
+    setText(target, `已发布 · ${formatSnapshotTime(snapshot.publishedAt)}`);
+  });
+  const snapshotMarkup = `
     <article class="admin-result-snapshot-card">
       <div class="admin-result-champion">
         <span>冠军</span>
@@ -1329,6 +1383,78 @@ function renderResultSnapshot(snapshot = businessDataState.resultSnapshot) {
       </ol>
     </article>
   `;
+  resultSnapshotContainers.forEach((container) => {
+    container.innerHTML = snapshotMarkup;
+  });
+}
+
+function setResultFlowStepStatus(step, status) {
+  const card = document.querySelector(`[data-result-flow-step="${step}"]`);
+  if (!card) {
+    return;
+  }
+  card.classList.toggle("is-complete", status === "complete");
+  card.classList.toggle("is-pending", status === "pending");
+  card.classList.toggle("is-blocked", status === "blocked");
+}
+
+function renderResultPublishSummary() {
+  const voteResults = businessDataState.voteResults || {};
+  const snapshot = businessDataState.resultSnapshot;
+  const coverage = scoreCoverage(businessDataState.judgeScores, businessDataState.judgeProgress);
+  const works = normalizeWorks(businessDataState.works);
+  const publishedWorks = works.filter((work) => work.status === "published").length;
+  const voteStatus = voteResults.windowLabel || voteResults.status || "等待同步";
+  const needsSnapshotRecovery = voteResults.status === "published" && !snapshot?.id;
+  const voteReady = voteResults.status === "closed" || voteResults.status === "published";
+  const missingScoreCount = Math.max(0, (coverage.expectedCount || 0) - (coverage.submittedCount || 0));
+  const scoreText = coverage.expectedCount
+    ? `${formatNumber(coverage.submittedCount)}/${formatNumber(coverage.expectedCount)}`
+    : `${formatNumber(coverage.teamCount)} 队`;
+
+  setText(adminResultPublishStatus, snapshot?.id ? `已发布 · ${formatSnapshotTime(snapshot.publishedAt)}` : needsSnapshotRecovery ? "需补发结果快照" : "等待发布");
+  setText(adminResultPublishState, snapshot?.id ? "已发布" : needsSnapshotRecovery ? "需补发快照" : "未发布");
+  setText(adminResultPublishVoteStatus, voteStatus);
+  setText(adminResultPublishVoteTotal, `${formatNumber(getVoteTotal(voteResults))} 票`);
+  setText(adminResultPublishScoreCoverage, scoreText);
+  setText(
+    adminResultPublishScoreStatus,
+    coverage.locked
+      ? "专家评分已锁定"
+      : coverage.expectedCount
+        ? "评分未锁定，可直接发布"
+        : "暂无评分，可直接发布",
+  );
+  setText(adminResultPublishWorkStatus, `${formatNumber(publishedWorks)}/${formatNumber(works.length)}`);
+  setText(adminResultFlowVoteState, voteReady ? "投票已停止" : "投票仍在开放");
+  setText(
+    adminResultFlowVoteHint,
+    voteReady
+      ? "大众投票入口已停止，管理员可直接发布排行。"
+      : "先关闭投票，避免发布前票数继续变化。",
+  );
+  setText(adminResultFlowScoreState, coverage.locked ? "专家评分已锁定" : scoreText);
+  setText(
+    adminResultFlowScoreHint,
+    coverage.locked
+      ? "专家评分已经定稿，会写入最终排行快照。"
+      : coverage.expectedCount
+        ? `已同步 ${formatNumber(coverage.submittedCount)}/${formatNumber(coverage.expectedCount)} 份评分，未锁定也不阻止发布。`
+        : "暂无正式评分，管理员仍可按投票排名发布结果。",
+  );
+  setText(adminResultFlowSnapshotState, snapshot?.id ? "快照已发布" : needsSnapshotRecovery ? "需补发快照" : "快照未生成");
+  setText(
+    adminResultFlowSnapshotHint,
+    snapshot?.id
+      ? `前台排行榜正在读取快照 ${snapshot.id}。`
+      : !voteReady
+        ? "先完成关闭投票，再发布排行榜。"
+        : "前置条件已满足，勾选确认后可直接发布最终排行榜。",
+  );
+  setResultFlowStepStatus("vote", voteReady ? "complete" : "pending");
+  setResultFlowStepStatus("judge", coverage.locked ? "complete" : voteReady ? "pending" : "blocked");
+  setResultFlowStepStatus("publish", snapshot?.id ? "complete" : voteReady ? "pending" : "blocked");
+  syncDangerActionButtons();
 }
 
 function renderWorkList(works) {
@@ -1511,7 +1637,7 @@ function renderAuditLogList(entries = businessDataState.auditLogs) {
     : "后台暂未返回审计记录；如刚执行过操作，请刷新日志或检查 API 连接。";
   adminAuditLogList.innerHTML = normalizedEntries.length
     ? normalizedEntries.slice(0, 80).map((entry) => `
-        <li>
+        <li class="admin-audit-table">
           <details>
             <summary>
               <span>${escapeHtml(entry.time)}</span>
@@ -1543,17 +1669,17 @@ function renderAuditLogList(entries = businessDataState.auditLogs) {
 }
 
 function renderJudgeProgress(progress = businessDataState.judgeProgress) {
-  const lockButton = document.querySelector("[data-lock-judge-scores]");
+  const lockButtons = [...document.querySelectorAll("[data-lock-judge-scores]")];
   const judges = Array.isArray(progress?.judges) ? progress.judges : [];
   const teams = Array.isArray(progress?.teams) ? progress.teams : [];
   const expected = judges.reduce((sum, judge) => sum + (Number(judge.totalTeamCount) || 0), 0);
   const submitted = judges.reduce((sum, judge) => sum + (Number(judge.submittedCount) || 0), 0);
   const allSubmitted = expected > 0 && submitted >= expected;
 
-  if (lockButton) {
+  lockButtons.forEach((lockButton) => {
     lockButton.disabled = !allSubmitted || Boolean(progress?.locked);
     lockButton.textContent = progress?.locked ? "专家评分已锁定" : "锁定专家评分";
-  }
+  });
   if (!adminJudgeProgress) {
     return;
   }
@@ -1629,6 +1755,7 @@ function renderBusinessData(payload = {}) {
 
   renderVoteRanking(data.voteResults);
   renderResultSnapshot(data.resultSnapshot);
+  renderResultPublishSummary();
   renderWorkList(data.works);
   renderJudgeProgress(data.judgeProgress);
   renderTeamRoster(data.teams);
@@ -1638,15 +1765,25 @@ function renderBusinessData(payload = {}) {
 }
 
 function syncDangerActionButtons() {
-  const confirmed = Boolean(confirmDangerAction?.checked);
+  const flowConfirmed = Boolean(confirmDangerAction?.checked);
+  const resultConfirmed = Boolean(confirmResultPublishAction?.checked);
   const voteStatus = businessDataState.voteResults?.status || "voting";
+  const voteReady = voteStatus === "closed" || voteStatus === "published";
+  const publishAlreadyComplete = voteStatus === "published" && Boolean(businessDataState.resultSnapshot?.id);
+  const publishReady = voteReady && !publishAlreadyComplete;
 
   if (closeVoteButton) {
-    closeVoteButton.disabled = !confirmed || voteStatus !== "voting";
+    closeVoteButton.disabled = !flowConfirmed || voteStatus !== "voting";
   }
   if (publishResultButton) {
-    publishResultButton.disabled = !confirmed || voteStatus === "published";
+    publishResultButton.disabled = !flowConfirmed || !publishReady;
   }
+  resultPublishButtons.forEach((button) => {
+    button.disabled = !resultConfirmed || !publishReady;
+  });
+  document.querySelectorAll('[data-result-flow-step="vote"] [data-vote-window-status="closed"]').forEach((button) => {
+    button.disabled = voteStatus !== "voting";
+  });
 }
 
 function getVoteTotal(voteResults = businessDataState.voteResults) {
@@ -1729,7 +1866,14 @@ function renderScreenControl() {
       ? `已锁定：${overrideStage.name || screenOverrideStageId} · 取消后停留此流程`
       : `${active.name} · ${statusLabel[active.status] || active.status} · 跟随流程`,
   );
-  adminScreenControl.innerHTML = screenRoutes.map((item) => {
+  adminScreenControl.innerHTML = `
+    <section class="admin-screen-route-table" role="table" aria-label="阶段大屏映射">
+      <div class="admin-screen-route-head" role="row">
+        <span role="columnheader">阶段</span>
+        <span role="columnheader">状态</span>
+        <span role="columnheader">操作</span>
+      </div>
+      ${screenRoutes.map((item) => {
     const isFlowCurrent = active.id === item.stageId;
     const isOverride = screenOverrideStageId === item.stageId;
     const badges = [
@@ -1738,12 +1882,16 @@ function renderScreenControl() {
     ].filter(Boolean);
     const badgeItems = badges.map((badge) => `<span>${escapeHtml(badge)}</span>`).join("");
     return `
-      <article class="admin-screen-route-card">
-        <div class="admin-screen-route-main">
+        <article class="admin-screen-route-card" role="row">
+        <div class="admin-screen-route-main" role="cell">
           <b>${escapeHtml(item.name)}</b>
-          ${badgeItems ? `<em>${badgeItems}</em>` : ""}
+          <small>${escapeHtml(item.note || "大屏画面")}</small>
+          <code>${escapeHtml(item.route)}</code>
         </div>
-        <div class="admin-control-actions">
+        <div class="admin-screen-route-state" role="cell">
+          ${badgeItems ? `<em>${badgeItems}</em>` : "<span>未锁定</span>"}
+        </div>
+        <div class="admin-control-actions" role="cell">
           <a href="${escapeHtml(item.route)}" target="_blank" rel="noreferrer">打开</a>
           <button
             type="button"
@@ -1759,7 +1907,9 @@ function renderScreenControl() {
         </div>
       </article>
     `;
-  }).join("");
+  }).join("")}
+    </section>
+  `;
 }
 
 function resolveAdminRouteHref(route) {
@@ -1868,24 +2018,6 @@ function renderTopbarMenus() {
   renderAdminUserMenu();
 }
 
-function renderPageManager() {
-  if (!adminPageManager) {
-    return;
-  }
-
-  adminPageManager.innerHTML = pageRoutes.map((item) => {
-    const href = resolveAdminRouteHref(item.route);
-    return `
-      <article class="admin-route-card">
-        <span>${escapeHtml(item.route)}</span>
-        <b>${escapeHtml(item.name)}</b>
-        <p>${escapeHtml(item.note)}</p>
-        <a href="${escapeHtml(href)}" target="_blank" rel="noreferrer">打开页面</a>
-      </article>
-    `;
-  }).join("");
-}
-
 function renderContentManager() {
   if (!adminContentManager) {
     return;
@@ -1896,7 +2028,7 @@ function renderContentManager() {
   const snapshot = businessDataState.resultSnapshot;
   const contentCards = [
     { name: "赛道与成员", route: "data/teams.json", apiRoute: "/api/teams", count: `${businessDataState.teams.length} 个赛道`, note: `${countTeamMembers(businessDataState.teams)} 名成员，供组队页和后台队伍页使用。` },
-    { name: "业务场景", route: "data/teams.json", apiRoute: "/api/teams", count: `${businessDataState.teams.length} 张卡片`, note: "主会场 AI BUSINESS SCENARIOS 卡片内容与文档链接。" },
+    { name: "业务场景", route: "data/teams.json", apiRoute: "/api/teams", count: `${businessDataState.teams.length} 张卡片`, note: "主会场 BUSINESS SCENARIOS 卡片内容与文档链接。" },
     { name: "投票排名", route: "data/vote-results.json", apiRoute: "/api/vote-results", count: `${formatNumber(getVoteTotal())} 票`, note: businessDataState.voteResults.windowLabel || "投票窗口状态待同步。" },
     { name: "最终结果快照", route: "data/result-snapshots.json", apiRoute: "/api/results/latest", count: snapshot?.id ? "已发布" : "未发布", note: snapshot?.id || "发布结果后生成不可变最终排名快照。" },
     { name: "作品提交", route: "data/works.json", apiRoute: "/api/admin/works", count: `${works.length} 件作品`, note: "作品提交后可在数据与投票页审核发布或退回。" },
@@ -2420,7 +2552,7 @@ function renderSystemSettings() {
     ["当前身份", `${adminName} · ${currentAdminSessionState.role || "admin"}`],
     ["静态资源入口", "server/frontendServer.js / admin.html"],
     ["API 服务入口", "server/index.js"],
-    ["本地后端端口", "63779（npm run dev:api）"],
+    ["本地后端端口", "5173（npm run dev / npm start）"],
     ["本地前端端口", "5174（npm run dev:web）"],
     ["会话策略", "HTTP-only Cookie，支持后续 Redis Session"],
     ["当前存储", dataBackendLabel],
@@ -3035,6 +3167,45 @@ function formatDurationLabel(durationMs, fallbackMinutes) {
   return `${hours} 小时 ${minutes} 分钟`;
 }
 
+function toTimerTimestamp(value) {
+  if (value === null || typeof value === "undefined" || value === "") {
+    return 0;
+  }
+  const timestamp = typeof value === "number" ? value : Date.parse(String(value));
+  return Number.isFinite(timestamp) && timestamp > 0 ? timestamp : 0;
+}
+
+function formatTimerClock(totalSeconds) {
+  const safeSeconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const seconds = safeSeconds % 60;
+  return [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
+}
+
+function formatDisplayTimerState(state = {}, fallbackMinutes) {
+  const startedAt = toTimerTimestamp(state.startedAt);
+  const fallbackDurationMs = durationMsToTotalMinutes(null, fallbackMinutes) * 60000;
+  const durationMs = Math.max(1, Number(state.durationMs) || fallbackDurationMs);
+
+  if (!startedAt) {
+    return {
+      status: "未启动",
+      clock: formatTimerClock(durationMs / 1000),
+      isActive: false,
+      isComplete: false,
+    };
+  }
+
+  const remainingMs = Math.max(0, startedAt + durationMs - Date.now());
+  return {
+    status: remainingMs > 0 ? "进行中" : "已结束",
+    clock: formatTimerClock(remainingMs / 1000),
+    isActive: remainingMs > 0,
+    isComplete: remainingMs <= 0,
+  };
+}
+
 function setDurationInputs(hoursInput, minutesInput, durationMs, fallbackMinutes) {
   const { hours, minutes } = durationMsToHourMinuteParts(durationMs, fallbackMinutes);
   if (hoursInput) hoursInput.value = String(hours);
@@ -3115,17 +3286,36 @@ function getPrestartTargetFromInput() {
   return target;
 }
 
+function renderMissionCountdownScreenState(state = {}) {
+  missionCountdownScreenState = { ...missionCountdownScreenState, ...state };
+  const timer = formatDisplayTimerState(missionCountdownScreenState, 1440);
+  const statusText = timer.isActive || timer.isComplete
+    ? `${timer.status} · 剩余 ${timer.clock}`
+    : timer.status;
+  setText(adminScreenMissionState, `状态：${statusText} / ${formatDurationLabel(missionCountdownScreenState.durationMs, 1440)}`);
+}
+
 function renderMissionCountdownState(state = {}) {
   missionCountdownControlState = { ...state };
   setDurationInputs(missionCountdownHours, missionCountdownMinutes, state.durationMs, 1440);
   if (missionCountdownState) {
     missionCountdownState.textContent = `状态：${formatStartedAt(state.startedAt)}`;
   }
-  setText(adminScreenMissionState, `状态：${formatStartedAt(state.startedAt)} / ${formatDurationLabel(state.durationMs, 1440)}`);
+  renderMissionCountdownScreenState(state);
 }
 
 function renderPrestartCountdownState(state = {}) {
   prestartCountdownControlState = { ...state };
+}
+
+function renderRoadshowScreenState(state = {}) {
+  roadshowScreenState = { ...roadshowScreenState, ...state };
+  const timer = formatDisplayTimerState(roadshowScreenState, 15);
+  const statusText = timer.isActive || timer.isComplete
+    ? `${timer.status} · 剩余 ${timer.clock}`
+    : timer.status;
+  const currentTeamId = roadshowScreenState.currentTeamId || roadshowTeamState.currentTeamId || "未选择队伍";
+  setText(adminScreenRoadshowState, `状态：${statusText} / ${formatDurationLabel(roadshowScreenState.durationMs, 15)} / ${currentTeamId}`);
 }
 
 function renderRoadshowState(state = {}) {
@@ -3143,7 +3333,40 @@ function renderRoadshowState(state = {}) {
     const currentTeamName = roadshowTeamState.currentTeam?.name || roadshowTeamState.currentTeamId || "未选择队伍";
     roadshowStateLabel.textContent = `状态：${formatStartedAt(state.startedAt)} · 当前：${currentTeamName}`;
   }
-  setText(adminScreenRoadshowState, `状态：${formatStartedAt(state.startedAt)} / ${formatDurationLabel(state.durationMs, 15)} / ${roadshowTeamState.currentTeamId || "未选择队伍"}`);
+  renderRoadshowScreenState(state);
+}
+
+async function syncDisplayTimerStates() {
+  const [missionCountdownResult, roadshowResult] = await Promise.allSettled([
+    window.AppData.loadMissionCountdown(),
+    window.AppData.loadRoadshow(),
+  ]);
+
+  if (missionCountdownResult.status === "fulfilled") {
+    renderMissionCountdownScreenState(missionCountdownResult.value);
+  } else {
+    setText(adminScreenMissionState, "状态：同步失败");
+  }
+
+  if (roadshowResult.status === "fulfilled") {
+    renderRoadshowScreenState(roadshowResult.value);
+  } else {
+    setText(adminScreenRoadshowState, "状态：同步失败");
+  }
+}
+
+function renderDisplayTimerScreenStates() {
+  renderMissionCountdownScreenState(missionCountdownScreenState);
+  renderRoadshowScreenState(roadshowScreenState);
+}
+
+function startDisplayTimerPolling() {
+  clearInterval(adminDisplayTimerPollTimer);
+  clearInterval(adminDisplayTimerTickTimer);
+  adminDisplayTimerPollTimer = setInterval(() => syncDisplayTimerStates().catch((error) => {
+    console.warn("Display timer status polling failed.", error);
+  }), ADMIN_DISPLAY_TIMER_POLL_MS);
+  adminDisplayTimerTickTimer = setInterval(renderDisplayTimerScreenStates, ADMIN_DISPLAY_TIMER_TICK_MS);
 }
 
 function collectStageDisplayTimes() {
@@ -3243,14 +3466,16 @@ async function loadAuditTrail() {
 }
 
 async function loadBusinessData({ writeLog = false } = {}) {
-  setSyncStatus("syncing", "同步业务数据", "队伍 / 投票 / 作品 / 评分 / 快照");
-  const [teamsResult, voteResult, worksResult, judgeResult, judgeProgressResult, snapshotResult] = await Promise.allSettled([
+  setSyncStatus("syncing", "同步后台数据", "队伍 / 投票 / 作品 / 评分 / 快照 / 计时器");
+  const [teamsResult, voteResult, worksResult, judgeResult, judgeProgressResult, snapshotResult, missionCountdownResult, roadshowResult] = await Promise.allSettled([
     window.AppData.loadTeams([]),
     window.AppData.loadVoteResults([]),
     window.AppData.loadAdminWorks([]),
     window.AppData.loadJudgeScores({ scores: {} }),
     window.AppData.loadJudgeProgress({ judges: [], teams: [], judgeCount: 0, teamCount: 0, locked: false }),
     window.AppData.loadLatestResultSnapshot({ snapshot: null }),
+    window.AppData.loadMissionCountdown(),
+    window.AppData.loadRoadshow(),
   ]);
   const nextBusinessData = {};
   if (teamsResult.status === "fulfilled") nextBusinessData.teams = teamsResult.value;
@@ -3259,6 +3484,8 @@ async function loadBusinessData({ writeLog = false } = {}) {
   if (judgeResult.status === "fulfilled") nextBusinessData.judgeScores = judgeResult.value;
   if (judgeProgressResult.status === "fulfilled") nextBusinessData.judgeProgress = judgeProgressResult.value;
   if (snapshotResult.status === "fulfilled") nextBusinessData.resultSnapshot = snapshotResult.value?.snapshot || null;
+  if (missionCountdownResult.status === "fulfilled") renderMissionCountdownScreenState(missionCountdownResult.value);
+  if (roadshowResult.status === "fulfilled") renderRoadshowScreenState(roadshowResult.value);
 
   renderBusinessData(nextBusinessData);
 
@@ -3269,6 +3496,8 @@ async function loadBusinessData({ writeLog = false } = {}) {
   if (judgeResult.status === "rejected") failedSources.push("评分");
   if (judgeProgressResult.status === "rejected") failedSources.push("评分进度");
   if (snapshotResult.status === "rejected") failedSources.push("快照");
+  if (missionCountdownResult.status === "rejected") failedSources.push("任务倒计时");
+  if (roadshowResult.status === "rejected") failedSources.push("路演计时");
 
   if (failedSources.length) {
     addLog("system", "同步失败：部分业务数据未加载");
@@ -3276,7 +3505,7 @@ async function loadBusinessData({ writeLog = false } = {}) {
     return;
   }
 
-  setSyncStatus("success", "业务数据已同步", `最近同步 ${formatSyncTime()}`);
+  setSyncStatus("success", "后台数据已同步", `最近同步 ${formatSyncTime()}`);
   if (writeLog) {
     addLog("system", "业务数据同步完成");
   }
@@ -3451,44 +3680,88 @@ async function updateWorkReviewStatus(teamId, status, button) {
   }
 }
 
+function setVoteWindowControlsDisabled(disabled) {
+  if (closeVoteButton) closeVoteButton.disabled = disabled;
+  if (publishResultButton) publishResultButton.disabled = disabled;
+  resultPublishButtons.forEach((button) => {
+    button.disabled = disabled;
+  });
+  document.querySelectorAll("[data-vote-window-status]").forEach((button) => {
+    button.disabled = disabled;
+  });
+}
+
+function resetDangerActionChecks() {
+  if (confirmDangerAction) {
+    confirmDangerAction.checked = false;
+  }
+  if (confirmResultPublishAction) {
+    confirmResultPublishAction.checked = false;
+  }
+}
+
+async function publishAdminResultSnapshot({ skipConfirm = false } = {}) {
+  if (!skipConfirm && !confirmVoteWindowAction("published")) {
+    return;
+  }
+
+  setVoteWindowControlsDisabled(true);
+  let publishFailed = false;
+
+  try {
+    const resultAction = "result.published";
+    const snapshot = await window.AppData.publishAdminResults({ actor: getAdminUserDisplayName(), action: resultAction });
+    const voteResults = await window.AppData.updateAdminVoteWindow("published");
+
+    renderBusinessData({ voteResults, resultSnapshot: snapshot });
+    addLog("admin", `发布最终结果快照【${snapshot.id}】`);
+    await loadAuditTrail();
+  } catch (error) {
+    publishFailed = true;
+    console.warn("Result publish failed.", error);
+    setText(adminResultPublishStatus, formatErrorStatus("发布失败", error));
+    addLog("system", formatErrorStatus("发布失败", error));
+  } finally {
+    resetDangerActionChecks();
+    renderVoteWindowManager();
+    if (!publishFailed) {
+      renderResultPublishSummary();
+    }
+    syncDangerActionButtons();
+  }
+}
+
 async function updateAdminVoteWindow(status, { skipConfirm = false } = {}) {
   if (!status) {
+    return;
+  }
+  if (status === "published") {
+    await publishAdminResultSnapshot({ skipConfirm });
     return;
   }
   if (!skipConfirm && !confirmVoteWindowAction(status)) {
     return;
   }
 
-  if (closeVoteButton) closeVoteButton.disabled = true;
-  if (publishResultButton) publishResultButton.disabled = true;
-  document.querySelectorAll("[data-vote-window-status]").forEach((button) => {
-    button.disabled = true;
-  });
+  setVoteWindowControlsDisabled(true);
 
   try {
     const voteResults = await window.AppData.updateAdminVoteWindow(status);
-    const resultAction = "result.published";
-    const snapshot = status === "published"
-      ? await window.AppData.publishAdminResults({ actor: getAdminUserDisplayName(), action: resultAction })
-      : null;
-    const nextPayload = snapshot ? { voteResults, resultSnapshot: snapshot } : { voteResults };
     const actionLabel = {
       voting: "开启投票窗口",
       closed: "关闭投票窗口",
-      published: "发布最终结果快照",
     }[status] || "更新投票窗口";
 
-    renderBusinessData(nextPayload);
-    addLog("admin", snapshot ? `${actionLabel}【${snapshot.id}】` : actionLabel);
+    renderBusinessData({ voteResults });
+    addLog("admin", actionLabel);
     await loadAuditTrail();
   } catch (error) {
     console.warn("Vote window sync failed.", error);
     addLog("system", "同步失败：投票窗口状态未更新");
   } finally {
-    if (confirmDangerAction) {
-      confirmDangerAction.checked = false;
-    }
+    resetDangerActionChecks();
     renderVoteWindowManager();
+    renderResultPublishSummary();
     syncDangerActionButtons();
   }
 }
@@ -3623,7 +3896,7 @@ function switchAdminView(view) {
     button.setAttribute("aria-pressed", String(isActive));
   });
 
-  if (targetView === "dashboard" || targetView === "data" || targetView === "teams" || targetView === "content") {
+  if (targetView === "dashboard" || targetView === "data" || targetView === "results" || targetView === "teams" || targetView === "content") {
     loadBusinessData().catch((error) => {
       console.warn("Business data refresh failed.", error);
     });
@@ -3641,10 +3914,6 @@ function switchAdminView(view) {
     renderScreenControl();
   }
 
-  if (targetView === "pages") {
-    renderPageManager();
-  }
-
   if (targetView === "settings") {
     renderSystemSettings();
   }
@@ -3660,6 +3929,12 @@ function switchAdminView(view) {
       console.warn("Audit log refresh failed.", error);
     });
   }
+}
+
+function getInitialAdminView() {
+  const hashView = String(window.location.hash || "").replace(/^#/, "").trim();
+  const hasPanel = adminViewPanels.some((panel) => panel.dataset.adminViewPanel === hashView);
+  return hasPanel ? hashView : "flow";
 }
 
 function setupRainCanvas() {
@@ -3796,11 +4071,21 @@ document.addEventListener("click", async (event) => {
 document.addEventListener("click", (event) => {
   const prevButton = event.target.closest("[data-work-review-prev]");
   const nextButton = event.target.closest("[data-work-review-next]");
-  if (!prevButton && !nextButton) {
+  const jumpButton = event.target.closest("[data-work-review-jump]");
+  if (!prevButton && !nextButton && !jumpButton) {
     return;
   }
 
   event.preventDefault();
+  if (jumpButton) {
+    adminWorkReviewIndex = Number(jumpButton.dataset.workReviewJump) || 0;
+    clampWorkReviewIndex(normalizeWorks(businessDataState.works).length);
+    if (adminWorkReviewList) {
+      adminWorkReviewList.innerHTML = renderWorkReviewPager(businessDataState.works);
+    }
+    return;
+  }
+
   changeWorkReviewPage(prevButton ? -1 : 1);
 });
 
@@ -3839,6 +4124,20 @@ document.addEventListener("click", async (event) => {
     await updateAdminVoteWindow(status);
   } finally {
     renderVoteWindowManager();
+  }
+});
+
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-result-publish]");
+  if (!button) {
+    return;
+  }
+
+  button.disabled = true;
+  try {
+    await updateAdminVoteWindow("published");
+  } finally {
+    renderResultPublishSummary();
   }
 });
 
@@ -4040,8 +4339,15 @@ document.querySelector("#clearLogButton")?.addEventListener("click", () => {
 });
 
 confirmDangerAction?.addEventListener("change", syncDangerActionButtons);
+confirmResultPublishAction?.addEventListener("change", syncDangerActionButtons);
 closeVoteButton?.addEventListener("click", () => updateAdminVoteWindow("closed"));
 publishResultButton?.addEventListener("click", () => updateAdminVoteWindow("published"));
+window.addEventListener("hashchange", () => switchAdminView(getInitialAdminView()));
+window.addEventListener("pagehide", () => {
+  clearInterval(adminAutoRefreshTimer);
+  clearInterval(adminDisplayTimerPollTimer);
+  clearInterval(adminDisplayTimerTickTimer);
+});
 syncDangerActionButtons();
 
 async function initAdmin() {
@@ -4050,7 +4356,6 @@ async function initAdmin() {
   renderBusinessData();
   renderAuditLogList();
   renderScreenControl();
-  renderPageManager();
   renderContentManager();
   renderSystemSettings();
   renderUserRoleManager();
@@ -4058,7 +4363,9 @@ async function initAdmin() {
   renderPlatformHealth();
   renderSyncStatus();
   renderTopbarMenus();
+  switchAdminView(getInitialAdminView());
   setupRainCanvas();
+  startDisplayTimerPolling();
 
   try {
     const state = await window.AppData.loadAdminState();

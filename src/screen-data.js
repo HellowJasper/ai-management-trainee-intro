@@ -38,19 +38,19 @@
 
   // ---- 五条赛道（与飞书文档一致；doc 为讲解文档占位链接）----------------
   const TRACKS = [
-    { code: "01", name: "医学", en: "MEDICAL AFFAIRS", accent: "var(--neon)", rgb: "40, 255, 200", icon: "target",
+    { code: "01", name: "医学", en: "MEDICAL AFFAIRS", accent: "rgb(205, 255, 92)", rgb: "205, 255, 92", icon: "target",
       focus: "临床试验 · 数据洞察 · 真实世界研究", pains: ["试验入组", "病例管理", "数据清洗", "随访追踪"], mentor: "临床研发中心",
       doc: "https://joincare.feishu.cn/docx/track-clinical" },
-    { code: "02", name: "药学", en: "PHARMACEUTICAL SCIENCE", accent: "var(--neon-2)", rgb: "167, 255, 79", icon: "scale",
+    { code: "02", name: "药学", en: "PHARMACEUTICAL SCIENCE", accent: "var(--neon)", rgb: "40, 255, 200", icon: "scale",
       focus: "分子设计 · 工艺优化 · 文献挖掘", pains: ["靶点筛选", "配方实验", "文献综述", "专利检索"], mentor: "药学研发中心",
       doc: "https://joincare.feishu.cn/docx/track-pharma" },
-    { code: "03", name: "生产", en: "MANUFACTURING", accent: "#6ad7ff", rgb: "106, 215, 255", icon: "code",
+    { code: "03", name: "生产", en: "MANUFACTURING", accent: "rgb(110, 235, 150)", rgb: "110, 235, 150", icon: "code",
       focus: "智能制造 · 质量管控 · 设备预测", pains: ["排产优化", "质检视觉", "能耗监控", "设备维保"], mentor: "生产管理中心",
       doc: "https://joincare.feishu.cn/docx/track-production" },
-    { code: "04", name: "营销", en: "SALES & MARKETING", accent: "#c79bff", rgb: "199, 155, 255", icon: "rocket",
+    { code: "04", name: "营销", en: "SALES & MARKETING", accent: "rgb(100, 232, 214)", rgb: "100, 232, 214", icon: "rocket",
       focus: "用户洞察 · 内容生成 · 投放优化", pains: ["内容生产", "客户分层", "投放 ROI", "经营分析"], mentor: "健康品事业部",
       doc: "https://joincare.feishu.cn/docx/track-marketing" },
-    { code: "05", name: "职能", en: "CORPORATE FUNCTIONS", accent: "var(--warning)", rgb: "246, 255, 129", icon: "doc",
+    { code: "05", name: "职能", en: "CORPORATE FUNCTIONS", accent: "var(--neon-2)", rgb: "167, 255, 79", icon: "doc",
       focus: "人力 · 财务 · 行政 · 董办", pains: ["流程自动化", "报表生成", "知识问答", "合同审阅"], mentor: "董事长办公室",
       doc: "https://joincare.feishu.cn/docx/track-functions" },
   ];
@@ -59,7 +59,7 @@
   // name/project 在组队完成后由队伍自取；组队进度屏不展示队名。
   const TEAMS = [
     {
-      id: "t1", trackCode: "01", track: "MEDICAL AFFAIRS", accent: "var(--neon)", rgb: "40, 255, 200",
+      id: "t1", trackCode: "01", track: "MEDICAL AFFAIRS", accent: "rgb(205, 255, 92)", rgb: "205, 255, 92",
       name: "智元先锋", project: "临床试验智能入组系统", submitted: true, capacity: 5,
       pitch: "AI 自动匹配受试者，入组效率提升 3 倍", stack: ["RAG", "Agent", "FastAPI"],
       advisor: { name: "林艺新", avatar: A("lin-yixin", "idPhoto.jpg") },
@@ -72,7 +72,7 @@
       expert: 93.2, votes: 312,
     },
     {
-      id: "t2", trackCode: "02", track: "PHARMACEUTICAL SCIENCE", accent: "var(--neon-2)", rgb: "167, 255, 79",
+      id: "t2", trackCode: "02", track: "PHARMACEUTICAL SCIENCE", accent: "var(--neon)", rgb: "40, 255, 200",
       name: "丹方智造", project: "AI 辅助配方优化平台", submitted: true, capacity: 5,
       pitch: "工艺参数智能寻优，研发周期缩短一半", stack: ["贝叶斯优化", "LLM", "Vue"],
       advisor: { name: "张瑞", avatar: A("zhang-rui", "idPhoto.jpg") },
@@ -84,7 +84,7 @@
       expert: 90.5, votes: 286,
     },
     {
-      id: "t3", trackCode: "03", track: "MANUFACTURING", accent: "#6ad7ff", rgb: "106, 215, 255",
+      id: "t3", trackCode: "03", track: "MANUFACTURING", accent: "rgb(110, 235, 150)", rgb: "110, 235, 150",
       name: "智造引擎", project: "产线质检视觉系统", submitted: false, capacity: 5,
       pitch: "缺陷识别准确率 99.2%，质检零漏检", stack: ["YOLO", "Edge", "React"],
       advisor: { name: "唐靖沛", avatar: A("tang-jingpei", "idPhoto.jpg") },
@@ -97,7 +97,7 @@
       expert: 88.1, votes: 251,
     },
     {
-      id: "t4", trackCode: "04", track: "SALES & MARKETING", accent: "#c79bff", rgb: "199, 155, 255",
+      id: "t4", trackCode: "04", track: "SALES & MARKETING", accent: "rgb(100, 232, 214)", rgb: "100, 232, 214",
       name: "增长黑客", project: "全域内容生成引擎", submitted: true, capacity: 5,
       pitch: "一键生成全渠道营销内容，产能 ×10", stack: ["Diffusion", "LLM", "Next.js"],
       advisor: { name: "李蓓蓓", avatar: A("li-beibei", "idPhoto.jpg") },
@@ -109,7 +109,7 @@
       expert: 86.7, votes: 274,
     },
     {
-      id: "t5", trackCode: "05", track: "CORPORATE FUNCTIONS", accent: "var(--warning)", rgb: "246, 255, 129",
+      id: "t5", trackCode: "05", track: "CORPORATE FUNCTIONS", accent: "var(--neon-2)", rgb: "167, 255, 79",
       name: "效能中枢", project: "职能流程自动化助手", submitted: false, capacity: 5,
       pitch: "表单/合同/报表自动化，人均提效 40%", stack: ["RPA", "Workflow", "Dify"],
       advisor: { name: "贾博深", avatar: A("jasper", "idPhoto.jpg") },

@@ -355,10 +355,11 @@
     storageKey = DEFAULT_COUNTDOWN_STORAGE_KEY,
     durationMs = DEFAULT_COUNTDOWN_DURATION_MS,
     startedAt = Date.now(),
+    requireBackend = false,
   } = {}) {
     const cleanStartedAt = toCountdownTimestamp(startedAt) || Date.now();
 
-    if (root.JoincareMissionCountdown && typeof root.JoincareMissionCountdown.start === "function") {
+    if (!requireBackend && root.JoincareMissionCountdown && typeof root.JoincareMissionCountdown.start === "function") {
       try {
         const bridgeState = await root.JoincareMissionCountdown.start({
           storageKey,
@@ -387,6 +388,9 @@
       );
     } catch (error) {
       console.warn(error);
+      if (requireBackend) {
+        throw error;
+      }
     }
 
     return writeLocalMissionCountdown({ storageKey, durationMs, startedAt: cleanStartedAt });

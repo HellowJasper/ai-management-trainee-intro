@@ -19,11 +19,11 @@
   const DISPLAY_PARTICIPANT_COUNT = 20;
   const TEAM_DISPLAY_ORDER = ["medicine", "pharma", "production", "marketing", "functions"];
   const TEAM_DISPLAY_META = {
-    medicine: { code: "01", nameEn: "MEDICAL AFFAIRS" },
-    pharma: { code: "02", nameEn: "PHARMACEUTICAL SCIENCE" },
-    production: { code: "03", nameEn: "MANUFACTURING" },
-    marketing: { code: "04", nameEn: "SALES & MARKETING" },
-    functions: { code: "05", nameEn: "CORPORATE FUNCTIONS" },
+    medicine: { code: "01", nameEn: "MEDICAL AFFAIRS", accent: "rgb(205, 255, 92)", rgb: "205, 255, 92" },
+    pharma: { code: "02", nameEn: "PHARMACEUTICAL SCIENCE", accent: "var(--neon)", rgb: "40, 255, 200" },
+    production: { code: "03", nameEn: "MANUFACTURING", accent: "rgb(110, 235, 150)", rgb: "110, 235, 150" },
+    marketing: { code: "04", nameEn: "SALES & MARKETING", accent: "rgb(100, 232, 214)", rgb: "100, 232, 214" },
+    functions: { code: "05", nameEn: "CORPORATE FUNCTIONS", accent: "var(--neon-2)", rgb: "167, 255, 79" },
   };
   const TEAM_DISPLAY_ALIASES = {
     t1: "medicine",
@@ -254,6 +254,7 @@
     const permissions = rolePermissions(currentRole());
     return hasBackendSession() && (
       permissions.canAdmin
+      || (permissions.canScore && Boolean(team?.work))
       || (permissions.canSubmitWork && joinedTeam() === team?.id && Boolean(team?.work))
     );
   }
@@ -306,8 +307,8 @@
       trackCode,
       track,
       nameEn: track,
-      accent: team.accent || base.accent || "var(--neon)",
-      rgb: team.rgb || team.colorRgb || base.rgb || "40,255,200",
+      accent: team.color || displayMeta.accent || team.accent || base.accent || "var(--neon)",
+      rgb: team.colorRgb || displayMeta.rgb || team.rgb || base.rgb || "40, 255, 200",
       name: team.name || base.name || track,
       project: workProjectTitle(work) || team.project || base.project || "作品待提交",
       pitch: work?.pitch || team.pitch || base.pitch || "",
@@ -1220,7 +1221,7 @@
           <span class="hero-kicker"><span class="hero-kicker-live"><span class="live-dot"></span>LIVE</span><span class="hero-kicker-name">AI_INNOVATION_HACKATHON_2026</span></span>
           <h1 class="hero-title">AI创新黑客松</h1>
         </div>
-        <p class="hero-slogan">36小时，用 AI 把创意照进现实</p>
+        <p class="hero-slogan">36小时 · 让想法落地，让创新发生</p>
         <p class="hero-desc">五大真实业务挑战，五支战队，从业务场景出发，用AI解决真实问题。认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。</p>
         <div class="hero-ctas"><a class="btn-primary" data-nav="gallery">进入作品展厅</a>${secondaryCta}</div>
       </div>
@@ -2152,6 +2153,7 @@
     const head = D.dimensions.map((d) => `<span>${esc(d.label)}<i>${d.weight}%</i></span>`).join("");
     const rows = D.teams.map((t) => {
       const projectName = displayWorkProjectName(t);
+      const canBrowseWork = canViewWorkTeam(t);
       const inputs = D.dimensions.map((d, i) => {
         const key = judgeDimensionKey(i);
         const val = judgeScoreValue(draft[t.id], key, i, "");
@@ -2165,7 +2167,7 @@
         </label>`;
       }).join("");
       return `<article class="judge-row glass" data-judge-row="${esc(t.id)}" data-judge-status="draft" style="--accent:${t.accent};--rgb:${t.rgb}">
-        <div class="judge-team"><span class="status-chip">${esc(t.trackCode)}</span><b>${esc(t.name)}</b><em>${esc(projectName)}</em><small data-judge-row-status="${esc(t.id)}">待评分</small></div>
+        <button class="judge-team${canBrowseWork ? "" : " is-unavailable"}" type="button" ${canBrowseWork ? `data-work="${esc(t.id)}" data-work-return="judge" aria-label="浏览${esc(t.name)}作品展示页面"` : `disabled aria-label="${esc(t.name)}作品暂未发布"`}><span class="status-chip">${esc(t.trackCode)}</span><b>${esc(t.name)}</b><em>${esc(projectName)}</em><small data-judge-row-status="${esc(t.id)}">待评分</small>${canBrowseWork ? '<span class="judge-team-browse" aria-hidden="true">浏览作品</span>' : ""}</button>
         <div class="judge-input-grid">${inputs}</div>
       </article>`;
     }).join("");
@@ -2197,6 +2199,8 @@
       const isVoted = voted === t.id;
       const btn = !hasBackendSession()
         ? `<button class="gl2-vote" data-auth-vote="${t.id}">登录后投票</button>`
+        : permissions.canScore
+          ? `<button class="gl2-vote" type="button" data-gallery-judge-entry>去评分 ➔</button>`
         : !permissions.canVote
           ? `<button class="gl2-vote dim" disabled>无投票权限</button>`
           : voted
@@ -2206,10 +2210,10 @@
             : `<button class="gl2-vote dim" disabled>投票已关闭</button>`
           : `<button class="gl2-vote dim" disabled>已投票</button>`
         : canVote && voteWindowOpen
-          ? `<button class="gl2-vote" data-vote="${t.id}">为TA加油</button>`
-          : canVote
-            ? `<button class="gl2-vote dim" disabled>投票未开启</button>`
-            : `<button class="gl2-vote dim" disabled>无投票权限</button>`;
+        ? `<button class="gl2-vote" data-vote="${t.id}">为TA加油</button>`
+        : canVote
+          ? `<button class="gl2-vote dim" disabled>投票未开启</button>`
+          : `<button class="gl2-vote dim" disabled>无投票权限</button>`;
       const stack = (t.stack || []).map((s) => `<span>${esc(s)}</span>`).join("");
       return `<article class="gl2-card glass gl2-h ${isVoted ? "voted" : ""}" data-work="${t.id}" style="--accent:${t.accent};--rgb:${t.rgb}"><div class="gl2-shot"><span class="gl2-dots"></span><span class="gl2-cover-label"><span class="gl2-cover-index">${esc(t.trackCode)}</span><span class="gl2-cover-track">${esc(t.track)}</span></span><h3 class="gl2-cover-name">${esc(t.name)}</h3><span class="gl2-bars"></span><span class="gl2-hover">点击查看作品详情 ➔</span></div><div class="gl2-mid"><div class="gl2-id"><b class="gl2-project-name">${esc(projectName)}</b></div><p class="gl2-pitch">${esc(t.pitch || "")}</p><div class="gl2-stack2">${stack}</div><div class="gl2-avas">${avas}</div></div><div class="gl2-right"><div class="gl2-vcount"><b>${t.votes.toLocaleString()}</b><span>实时票数</span></div><span class="gl2-detail" data-work="${t.id}">查看详情 ➔</span>${btn}</div></article>`;
     }).join("");
@@ -2228,10 +2232,12 @@
   }
 
   /* ---- 作品详情 ------------------------------------------------------- */
-  function renderWork(id) {
+  function renderWork(id, returnView) {
     const t = D.teams.find((x) => x.id === id);
     if (!t) return renderGallery();
     if (!canViewWorkTeam(t)) return renderGallery();
+    const safeReturnView = returnView === "judge" ? "judge" : "gallery";
+    const backLabel = safeReturnView === "judge" ? "返回评委评分" : "返回作品展厅";
     const permissions = rolePermissions(currentRole());
     const canVote = canUseVoteAction();
     const voted = canVote ? votedTeam() : "";
@@ -2274,7 +2280,7 @@
     }).join("");
     const dotEls = slides.map((_, i) => `<button class="wkc-dot ${i === 0 ? "on" : ""}" data-cgoto="${i}" aria-label="第 ${i + 1} 张"></button>`).join("");
     return `<section class="page-hero wk-hero" style="--accent:${t.accent};--rgb:${t.rgb}"><div class="container">
-      <a class="wk-back" data-nav="gallery">‹ 返回作品展厅</a>
+      <a class="wk-back" data-nav="${safeReturnView}">‹ ${backLabel}</a>
       <span class="ph-en">${esc(t.trackCode)} · ${esc(t.track)} TRACK</span>
       <h1>${esc(t.project)}</h1>
       <p class="wk-pitch">${esc(t.pitch || "")}</p>
@@ -2363,15 +2369,25 @@
     </div>`;
   }
 
+  function shouldShowResultVoteOverview() {
+    return !rolePermissions(currentRole()).canScore;
+  }
+
   /* ---- 最终排行（仅公布后显示）-------------------------------------- */
   function renderResult(forcePreview) {
     const resultSubtitle = "创新与价值并重，共同见证最终荣誉的诞生";
     const resultHead = (title, subtitle = resultSubtitle) => {
-      const overviewHtml = renderOverviewBanner();
+      const overviewHtml = shouldShowResultVoteOverview() ? renderOverviewBanner() : "";
       return `<section class="page-hero result-hero"><div class="container">${overviewHtml}<h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div></section>`;
     };
     const hasPublishedResult = Boolean(SITE_STATE?.result?.published && SITE_STATE.result.snapshot);
     if (!hasPublishedResult) {
+      const isAdminViewer = hasBackendSession() && rolePermissions(currentRole()).canAdmin;
+      const voteLabel = SITE_STATE?.vote?.windowLabel || SITE_STATE?.stage?.voteWindowLabel || "等待同步";
+      if (isAdminViewer) {
+        return `${resultHead("排行榜")}
+        <section class="container sec"><div class="rk-locked glass"><span class="rk-lock-ic">${ICON("lock", "var(--neon)")}</span><h2>结果快照未生成</h2><p>当前投票状态：${esc(voteLabel)}。关闭投票后即可发布最终排行；专家评分会按当前已同步数据写入快照，不再作为发布前置条件。</p><div class="rk-locked-cta"><a class="btn-primary" href="/admin.html#results">去后台发布排行</a><a class="btn-ghost" data-nav="gallery">查看作品展厅</a></div></div></section>`;
+      }
       return `${resultHead("排行榜")}
       <section class="container sec"><div class="rk-locked glass"><span class="rk-lock-ic">${ICON("lock", "var(--neon)")}</span><h2>结果待公布</h2><p>排行榜将在后台正式发布后展示。<br>当前请前往作品展厅，为你支持的团队投票。</p><div class="rk-locked-cta"><a class="btn-primary" data-nav="gallery">去作品展厅加油</a></div></div></section>`;
     }
@@ -2436,7 +2452,7 @@
     { key: "home", label: "首页", icon: "target" },
     { key: "people", label: "新生看板", icon: "user" },
     { key: "gallery", label: "作品", icon: "doc" },
-    { key: "vote", label: "投票", icon: "vote" },
+    { key: "result", label: "排行榜", icon: "trophy" },
     { key: "me", label: "我的", icon: "team" },
   ];
   const MOBILE_TABS_JUDGE = [
@@ -2545,10 +2561,13 @@
     }
     if (push !== false && location.hash.slice(1) !== v.key) history.pushState(null, "", `#${v.key}`);
   }
-  function showWork(id, push) {
-    main.innerHTML = renderWork(id);
-    setActive("gallery");
+  function showWork(id, push, returnView) {
+    const safeReturnView = returnView === "judge" ? "judge" : "";
+    main.innerHTML = renderWork(id, safeReturnView);
+    setActive(safeReturnView || "gallery");
     setupCarousel();
+    if (safeReturnView) root.sessionStorage.setItem("joincare_work_return_view", safeReturnView);
+    else root.sessionStorage.removeItem("joincare_work_return_view");
     if (push !== false) history.pushState(null, "", `#work-${id}`);
   }
   function showTeamWorkspace(id, push) {
@@ -2580,7 +2599,7 @@
   function route(push) {
     const raw = location.hash.slice(1);
     const h = HASH_ALIASES[raw] || raw;
-    if (h.indexOf("work-") === 0) showWork(h.slice(5), false);
+    if (h.indexOf("work-") === 0) showWork(h.slice(5), false, root.sessionStorage.getItem("joincare_work_return_view") || "");
     else if (h.indexOf("team-workspace-") === 0) showTeamWorkspace(h.slice("team-workspace-".length), false);
     else go(h || "home", false);
   }
@@ -3278,6 +3297,7 @@
       const vote = e.target.closest("[data-vote]");
       const authVote = e.target.closest("[data-auth-vote]");
       const cancelVoteButton = e.target.closest("[data-cancel-vote]");
+      const galleryJudgeEntry = e.target.closest("[data-gallery-judge-entry]");
       const team = e.target.closest("[data-join-team]");
       const leaveTeamButton = e.target.closest("[data-leave-team]");
       const teamWorkspace = e.target.closest("[data-team-workspace]");
@@ -3331,6 +3351,7 @@
         showAuthGate(root.location.hash.slice(1) || "gallery");
         return;
       }
+      if (galleryJudgeEntry) { e.preventDefault(); go("judge"); return; }
       if (cancelVoteButton) { cancelVote(cancelVoteButton.dataset.cancelVote); return; }
       if (vote) { castVote(vote.dataset.vote); return; }
       if (leaveTeamButton) { leaveTeam(leaveTeamButton.dataset.leaveTeam); return; }
@@ -3355,7 +3376,7 @@
       if (teamWorkspace) { showTeamWorkspace(teamWorkspace.dataset.teamWorkspace); return; }
       if (judgeSubmit) { submitJudgeScores(); return; }
       if (judgeSave) { saveJudgeDraft(); return; }
-      if (work) { showWork(work.dataset.work); return; }
+      if (work) { showWork(work.dataset.work, true, work.dataset.workReturn || ""); return; }
       if (nav) { e.preventDefault(); go(nav.dataset.nav); return; }
       if (prev) { main.innerHTML = renderResult(true); setActive("result"); return; }
       const switchRoleBtn = e.target.closest("[data-switch-role]");

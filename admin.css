@@ -20,6 +20,12 @@
   --neon-2: #a7ff4f;
   --warning: #f6ff81;
   --danger: #ff4d67;
+  --surface: #06161a;
+  --surface-raised: #0b2025;
+  --surface-muted: #0e272b;
+  --border-subtle: rgba(151, 190, 181, 0.16);
+  --border-quiet: rgba(151, 190, 181, 0.1);
+  --accent-soft: rgba(40, 255, 200, 0.12);
   --body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   --pixel: "Press Start 2P", "Courier New", monospace;
   --radius: 8px;
@@ -184,6 +190,16 @@ button {
   overflow-x: hidden;
   height: 100vh;
   padding: 24px;
+}
+
+.admin-main-scroll {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  padding-right: 2px;
 }
 
 .admin-topbar {
@@ -510,6 +526,10 @@ button {
   height: auto;
 }
 
+.admin-management-view[data-admin-view-panel="results"] {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
 .admin-management-view[data-admin-view-panel="content"] {
   grid-template-rows: auto auto minmax(0, 1fr);
   overflow: hidden;
@@ -683,11 +703,6 @@ button {
   align-content: start;
 }
 
-.admin-data-management-layout .admin-result-snapshot-panel {
-  justify-self: stretch;
-  width: 100%;
-}
-
 .admin-data-management-layout .admin-vote-window-manager {
   min-height: 246px;
 }
@@ -708,6 +723,281 @@ button {
 
 .admin-data-management-layout .admin-work-review-panel {
   min-height: clamp(420px, calc(100vh - 330px), 620px);
+}
+
+.admin-result-action-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.admin-result-action-grid a,
+.admin-result-action-grid button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  min-width: 104px;
+  border: 1px solid rgba(103, 255, 213, 0.22);
+  border-radius: var(--radius);
+  padding: 0 14px;
+  background: rgba(40, 255, 200, 0.08);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.admin-result-action-grid a:hover,
+.admin-result-action-grid button:hover {
+  border-color: rgba(40, 255, 200, 0.52);
+  background: rgba(40, 255, 200, 0.14);
+  color: var(--neon);
+}
+
+.admin-result-management-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.admin-result-publish-panel,
+.admin-leaderboard-snapshot-panel {
+  min-width: 0;
+  min-height: auto;
+}
+
+.admin-leaderboard-snapshot-panel {
+  max-height: none;
+}
+
+.admin-result-publish-body {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.28fr) minmax(0, 1fr);
+  align-items: stretch;
+  align-content: start;
+  gap: 14px;
+  min-height: 0;
+  padding: 14px 16px 16px;
+}
+
+.admin-result-publish-state {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  border: 1px solid rgba(103, 255, 213, 0.14);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background:
+    linear-gradient(135deg, rgba(40, 255, 200, 0.09), rgba(167, 255, 79, 0.04)),
+    rgba(2, 13, 20, 0.5);
+}
+
+.admin-result-publish-state span,
+.admin-result-check-grid span {
+  color: var(--text-soft);
+  font-family: var(--pixel);
+  font-size: 8px;
+}
+
+.admin-result-publish-state strong {
+  color: var(--neon);
+  font-size: clamp(24px, 2.2vw, 36px);
+  line-height: 1;
+}
+
+.admin-result-publish-state p {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.admin-result-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.admin-result-flow-step {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto minmax(36px, auto) auto auto;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  min-height: 216px;
+  border: 1px solid rgba(103, 255, 213, 0.16);
+  border-radius: 12px;
+  padding: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01)),
+    rgba(2, 13, 20, 0.58);
+}
+
+.admin-result-flow-step::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: 12px 0 0 12px;
+  background: rgba(103, 255, 213, 0.26);
+}
+
+.admin-result-flow-step.is-complete::before {
+  background: linear-gradient(180deg, var(--neon), var(--lime));
+  box-shadow: 0 0 18px rgba(40, 255, 200, 0.34);
+}
+
+.admin-result-flow-step.is-blocked {
+  border-color: rgba(255, 255, 255, 0.08);
+  opacity: 0.78;
+}
+
+.admin-result-step-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.admin-result-step-head > span {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(103, 255, 213, 0.28);
+  border-radius: 999px;
+  color: var(--neon);
+  font-family: var(--pixel);
+  font-size: 9px;
+  background: rgba(40, 255, 200, 0.08);
+}
+
+.admin-result-step-head strong {
+  display: block;
+  color: var(--text);
+  font-size: 16px;
+}
+
+.admin-result-step-head small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.admin-result-flow-step > b {
+  color: var(--neon);
+  font-size: clamp(18px, 1.5vw, 24px);
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.admin-result-flow-step > p {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.admin-result-step-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-result-step-meta span {
+  min-width: 0;
+  border: 1px solid rgba(103, 255, 213, 0.16);
+  border-radius: 999px;
+  padding: 6px 9px;
+  color: var(--text-soft);
+  font-size: 11px;
+  background: rgba(3, 15, 22, 0.55);
+}
+
+.admin-result-step-action {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid rgba(103, 255, 213, 0.26);
+  border-radius: 10px;
+  background: rgba(40, 255, 200, 0.08);
+  color: var(--neon);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.admin-result-step-action:hover:not(:disabled) {
+  border-color: rgba(40, 255, 200, 0.64);
+  background: rgba(40, 255, 200, 0.16);
+}
+
+.admin-result-step-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.admin-result-check-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-result-check-grid article {
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: 112px;
+  border: 1px solid rgba(103, 255, 213, 0.14);
+  border-radius: 10px;
+  padding: 14px;
+  background: rgba(2, 13, 20, 0.42);
+}
+
+.admin-result-check-grid strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: clamp(18px, 1.5vw, 26px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-result-check-grid small {
+  overflow: hidden;
+  color: var(--text-soft);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-result-confirm {
+  align-items: flex-start;
+  border: 1px solid rgba(255, 77, 103, 0.22);
+  border-radius: 10px;
+  margin-top: 0;
+  padding: 9px 11px;
+  background: rgba(255, 77, 103, 0.055);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-result-primary-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 46px;
+  text-align: center;
+  font-weight: 900;
 }
 
 .admin-wide-panel {
@@ -2393,6 +2683,11 @@ button {
   white-space: nowrap;
 }
 
+.admin-result-management-layout .admin-leaderboard-snapshot-panel {
+  min-height: 260px;
+  max-height: none;
+}
+
 .admin-vote-ranking,
 .admin-work-list {
   display: grid;
@@ -3558,6 +3853,413 @@ button {
   font-weight: 500;
 }
 
+/* Professional operations console layer. */
+.admin-rain {
+  opacity: 0.06;
+}
+
+.admin-vignette {
+  background:
+    linear-gradient(90deg, rgba(2, 8, 14, 0.66), transparent 22%, transparent 78%, rgba(2, 8, 14, 0.68)),
+    linear-gradient(180deg, rgba(2, 8, 14, 0.24), transparent 46%, rgba(2, 8, 14, 0.66));
+}
+
+.admin-shell {
+  grid-template-columns: 248px minmax(0, 1fr);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(40, 255, 200, 0.06), transparent 30%),
+    linear-gradient(135deg, rgba(3, 17, 21, 0.94), rgba(2, 8, 14, 0.98) 54%, rgba(4, 14, 18, 0.98));
+}
+
+.admin-sidebar {
+  padding: 22px 16px;
+  border-right-color: var(--border-subtle);
+  background:
+    linear-gradient(180deg, rgba(4, 18, 23, 0.96), rgba(2, 10, 15, 0.94)),
+    var(--surface);
+  box-shadow: none;
+}
+
+.admin-nav {
+  gap: 6px;
+}
+
+.admin-nav button {
+  min-height: 44px;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(234, 255, 248, 0.68);
+}
+
+.admin-nav button.is-active {
+  border-color: rgba(40, 255, 200, 0.42);
+  background: rgba(40, 255, 200, 0.1);
+  box-shadow: inset 3px 0 0 var(--neon);
+}
+
+.admin-workspace {
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 18px;
+  padding: 22px 28px 24px;
+  overflow: hidden;
+}
+
+.admin-main-scroll {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+  scrollbar-gutter: stable;
+}
+
+.admin-main-scroll::-webkit-scrollbar,
+.admin-control-list::-webkit-scrollbar,
+.admin-audit-list::-webkit-scrollbar,
+.admin-team-roster::-webkit-scrollbar {
+  width: 8px;
+}
+
+.admin-main-scroll::-webkit-scrollbar-thumb,
+.admin-control-list::-webkit-scrollbar-thumb,
+.admin-audit-list::-webkit-scrollbar-thumb,
+.admin-team-roster::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(151, 190, 181, 0.24);
+}
+
+.admin-topbar {
+  align-items: flex-start;
+  gap: 16px;
+  border-bottom: 1px solid var(--border-quiet);
+  padding-bottom: 18px;
+}
+
+.admin-kicker {
+  margin-bottom: 10px;
+  color: rgba(167, 201, 192, 0.68);
+}
+
+.admin-topbar h1 {
+  color: var(--text);
+  font-size: clamp(28px, 2.5vw, 40px);
+  font-weight: 800;
+}
+
+.admin-topbar-actions {
+  gap: 10px;
+}
+
+.connection-chip,
+.admin-sync-status,
+.screen-select,
+.admin-user {
+  min-height: 42px;
+  border-color: var(--border-subtle);
+  border-radius: 6px;
+  background: rgba(11, 32, 37, 0.72);
+  box-shadow: none;
+}
+
+.admin-view-panel {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.admin-view-panel.is-active {
+  display: grid;
+}
+
+.admin-grid,
+.management-split {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.admin-grid {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.admin-flow-column-primary {
+  grid-column: span 7;
+}
+
+.admin-flow-column-secondary {
+  grid-column: span 5;
+}
+
+.management-split {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: start;
+}
+
+.management-heading {
+  border: 0;
+  border-radius: 0;
+  padding: 2px 2px 4px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.management-heading h2 {
+  font-size: clamp(26px, 2vw, 34px);
+}
+
+.management-heading > span,
+.management-heading button,
+.management-link {
+  border-color: var(--border-subtle);
+  border-radius: 6px;
+  background: rgba(11, 32, 37, 0.72);
+  box-shadow: none;
+}
+
+.panel {
+  background: var(--surface);
+  border-color: var(--border-subtle);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.22);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.panel-heading,
+.wide-panel-heading {
+  border-bottom-color: var(--border-quiet);
+}
+
+.primary-admin-action {
+  background: linear-gradient(180deg, #29f5c2, #18b79a);
+  box-shadow: none;
+}
+
+.secondary-admin-action,
+.danger-action {
+  box-shadow: none;
+}
+
+.danger-action {
+  border-color: rgba(255, 77, 103, 0.28);
+  background: rgba(255, 77, 103, 0.08);
+  color: #ffb3bf;
+}
+
+.admin-management-view[data-admin-view-panel="screen"] .management-split > .panel:first-child {
+  grid-column: span 8;
+}
+
+.admin-management-view[data-admin-view-panel="screen"] .management-split > .panel:last-child {
+  grid-column: span 4;
+}
+
+.admin-data-management-layout .admin-vote-management-stack {
+  grid-column: span 5;
+}
+
+.admin-data-management-layout .admin-work-management-stack {
+  grid-column: span 7;
+}
+
+.admin-result-management-layout .admin-result-publish-panel,
+.admin-result-management-layout .admin-leaderboard-snapshot-panel {
+  grid-column: 1 / -1;
+}
+
+.admin-team-management-layout .admin-team-control-panel {
+  grid-column: span 4;
+}
+
+.admin-team-management-layout .admin-team-roster-panel {
+  grid-column: span 8;
+}
+
+.admin-settings-grid > .admin-wide-panel {
+  grid-column: 1 / -1;
+}
+
+.admin-screen-route-table {
+  display: grid;
+  gap: 8px;
+  min-height: 0;
+}
+
+.admin-screen-route-head,
+.admin-screen-route-card {
+  display: grid;
+  grid-template-columns: minmax(170px, 1fr) minmax(150px, 0.7fr) minmax(300px, auto);
+  align-items: center;
+  gap: 14px;
+}
+
+.admin-screen-route-head {
+  border-bottom: 1px solid var(--border-quiet);
+  padding: 0 4px 8px;
+  color: rgba(167, 201, 192, 0.7);
+  font-size: 12px;
+}
+
+.admin-screen-route-card {
+  min-height: 58px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: var(--surface-raised);
+}
+
+.admin-screen-route-main {
+  display: grid;
+  gap: 5px;
+}
+
+.admin-screen-route-main b {
+  font-size: 17px;
+}
+
+.admin-screen-route-main small {
+  color: rgba(167, 201, 192, 0.66);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-screen-route-state em {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-style: normal;
+}
+
+.admin-screen-route-state span,
+.admin-screen-route-state em span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 0 9px;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.admin-screen-route-table .admin-control-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(76px, max-content));
+  justify-content: end;
+  gap: 8px;
+  width: auto;
+}
+
+.admin-screen-route-table .admin-control-actions a,
+.admin-screen-route-table .admin-control-actions button {
+  min-height: 34px;
+  border-radius: 6px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.admin-work-review-table {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 10px;
+  background: rgba(11, 32, 37, 0.5);
+}
+
+.admin-work-review-table-head,
+.admin-work-review-table-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.75fr) minmax(160px, 1.3fr) 88px 150px minmax(126px, auto);
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-work-review-table-head {
+  padding: 0 6px 6px;
+  color: rgba(167, 201, 192, 0.68);
+  font-size: 12px;
+}
+
+.admin-work-review-table-row {
+  min-height: 52px;
+  border: 1px solid rgba(151, 190, 181, 0.12);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: var(--surface);
+}
+
+.admin-work-review-table-row strong,
+.admin-work-review-table-row span,
+.admin-work-review-table-row time {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-work-review-table-row em {
+  justify-self: start;
+  border: 1px solid rgba(40, 255, 200, 0.28);
+  border-radius: 999px;
+  padding: 4px 9px;
+  color: var(--neon);
+  font-style: normal;
+  font-size: 12px;
+}
+
+.admin-work-review-table-row time {
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.admin-work-review-table-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.admin-work-review-table-actions button {
+  min-height: 32px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 0 10px;
+  background: rgba(40, 255, 200, 0.08);
+  color: var(--neon);
+  font-size: 12px;
+}
+
+.admin-work-review-table-actions button:last-child {
+  border-color: rgba(255, 77, 103, 0.24);
+  background: rgba(255, 77, 103, 0.08);
+  color: #ffb3bf;
+}
+
+.admin-work-review-table-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.admin-work-review-carousel {
+  margin-top: 14px;
+}
+
+.admin-audit-list {
+  gap: 8px;
+}
+
+.admin-audit-table {
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.admin-audit-list summary {
+  grid-template-columns: 150px 110px minmax(0, 1fr) 150px;
+  min-height: 48px;
+  padding: 10px 12px;
+}
+
 @keyframes previewRain {
   from {
     background-position: 0 -160px, 0 0;
@@ -3569,6 +4271,12 @@ button {
 
 @media (max-width: 1100px) {
   .admin-data-management-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-result-management-layout,
+  .admin-result-publish-body,
+  .admin-result-flow {
     grid-template-columns: 1fr;
   }
 
@@ -3600,6 +4308,10 @@ button {
 
   .admin-data-management-layout .admin-vote-window-body {
     grid-template-columns: 1fr;
+  }
+
+  .admin-result-flow-step {
+    min-height: auto;
   }
 
   .admin-data-management-layout .admin-vote-window-manager,
@@ -3701,6 +4413,7 @@ button {
   }
 
   .management-split,
+  .admin-result-management-layout,
   .admin-dashboard-grid,
   .admin-route-grid,
   .admin-judge-progress-grid,
@@ -3719,6 +4432,7 @@ button {
   .admin-trainee-profile-form,
   .admin-trainee-profile-actions,
   .admin-vote-window-body,
+  .admin-result-check-grid,
   .admin-team-member-form,
   .admin-team-member-actions {
     grid-template-columns: 1fr;
@@ -4036,6 +4750,8 @@ button {
   .management-heading button,
   .management-heading > span,
   .management-link,
+  .admin-result-action-grid a,
+  .admin-result-action-grid button,
   .admin-export-actions button {
     width: 100%;
     min-width: 0;
@@ -4045,6 +4761,11 @@ button {
   }
 
   .admin-export-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .admin-result-action-grid {
     width: 100%;
     justify-content: stretch;
   }
@@ -4145,5 +4866,450 @@ button {
     width: 100%;
     max-width: none;
     text-align: center;
+  }
+}
+
+/* Final layout safeguards: keep the admin shell predictable after legacy media rules. */
+body {
+  overflow: hidden;
+}
+
+.admin-shell {
+  min-height: 100vh;
+  height: 100vh;
+  grid-template-columns: 220px minmax(0, 1fr);
+}
+
+.admin-sidebar {
+  gap: 14px;
+  padding: 18px 14px;
+}
+
+.admin-brand {
+  min-height: 46px;
+}
+
+.admin-brand img {
+  width: min(146px, 100%);
+  filter: none;
+}
+
+.admin-nav {
+  gap: 4px;
+  padding-top: 4px;
+}
+
+.admin-nav button {
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 10px;
+  min-height: 40px;
+  border-radius: 6px;
+  padding: 0 11px;
+  font-size: 14px;
+  box-shadow: none;
+}
+
+.admin-nav button:hover,
+.admin-nav button.is-active {
+  background: rgba(40, 255, 200, 0.09);
+  box-shadow: inset 3px 0 0 var(--neon);
+}
+
+.nav-icon {
+  font-size: 9px;
+}
+
+.admin-version-panel {
+  padding: 14px;
+}
+
+.admin-workspace {
+  height: 100vh;
+  min-height: 0;
+}
+
+.admin-main-scroll {
+  min-height: 0;
+  overflow: auto;
+}
+
+.admin-main-scroll > .admin-view-panel {
+  min-height: 0;
+}
+
+.admin-control-list {
+  max-height: none;
+}
+
+.admin-route-grid,
+.admin-content-route-grid,
+.admin-business-scenario-form,
+.admin-trainee-profile-form,
+.admin-trainee-profile-list,
+.admin-team-roster {
+  max-height: none;
+}
+
+.admin-dashboard-grid,
+.admin-data-management-layout,
+.admin-result-management-layout,
+.admin-team-management-layout,
+.admin-settings-grid {
+  align-items: start;
+}
+
+.flow-table {
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.flow-row {
+  grid-template-columns: minmax(150px, 1.12fr) minmax(76px, 0.42fr) minmax(128px, 0.68fr) minmax(82px, 0.38fr);
+  gap: 7px;
+  padding: 0 8px;
+}
+
+.stage-cell,
+.stage-name,
+.stage-time {
+  min-width: 0;
+}
+
+.stage-name strong,
+.stage-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stage-time-input {
+  min-width: 0;
+  font-size: 12px;
+}
+
+.stage-command {
+  width: 100%;
+  min-width: 0;
+  padding: 0 8px;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1280px) {
+  html,
+  body {
+    overflow: hidden;
+  }
+
+  .admin-shell {
+    grid-template-columns: 208px minmax(0, 1fr);
+    height: 100vh;
+  }
+
+  .admin-workspace {
+    height: 100vh;
+    padding: 18px;
+  }
+
+  .admin-main-scroll {
+    overflow: auto;
+  }
+
+  .admin-grid,
+  .management-split,
+  .admin-data-management-layout,
+  .admin-result-management-layout,
+  .admin-team-management-layout {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .admin-flow-column-primary,
+  .admin-management-view[data-admin-view-panel="screen"] .management-split > .panel:first-child,
+  .admin-data-management-layout .admin-work-management-stack,
+  .admin-result-management-layout .admin-result-publish-panel,
+  .admin-team-management-layout .admin-team-roster-panel {
+    grid-column: span 7;
+  }
+
+  .admin-flow-column-secondary,
+  .admin-management-view[data-admin-view-panel="screen"] .management-split > .panel:last-child,
+  .admin-data-management-layout .admin-vote-management-stack,
+  .admin-result-management-layout .admin-leaderboard-snapshot-panel,
+  .admin-team-management-layout .admin-team-control-panel {
+    grid-column: span 5;
+  }
+
+  .admin-screen-route-head,
+  .admin-screen-route-card {
+    grid-template-columns: minmax(150px, 1fr) minmax(120px, 0.62fr) minmax(270px, auto);
+  }
+}
+
+@media (max-width: 980px) {
+  .admin-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .admin-sidebar {
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 10px;
+    min-height: 0;
+    padding: 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .admin-brand {
+    min-height: 42px;
+  }
+
+  .admin-nav {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .admin-nav button {
+    flex: 0 0 148px;
+  }
+
+  .admin-version-panel {
+    display: none;
+  }
+
+  .admin-workspace {
+    height: auto;
+    min-height: 0;
+    padding: 14px;
+  }
+
+  .admin-grid,
+  .management-split,
+  .admin-data-management-layout,
+  .admin-result-management-layout,
+  .admin-team-management-layout,
+  .admin-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-flow-column-primary,
+  .admin-flow-column-secondary,
+  .admin-management-view[data-admin-view-panel="screen"] .management-split > .panel:first-child,
+  .admin-management-view[data-admin-view-panel="screen"] .management-split > .panel:last-child,
+  .admin-data-management-layout .admin-vote-management-stack,
+  .admin-data-management-layout .admin-work-management-stack,
+  .admin-result-management-layout .admin-result-publish-panel,
+  .admin-result-management-layout .admin-leaderboard-snapshot-panel,
+  .admin-team-management-layout .admin-team-control-panel,
+  .admin-team-management-layout .admin-team-roster-panel {
+    grid-column: 1;
+  }
+
+  .admin-screen-route-head {
+    display: none;
+  }
+
+  .admin-screen-route-card,
+  .admin-work-review-table-row,
+  .admin-audit-list summary {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-screen-route-table .admin-control-actions,
+  .admin-work-review-table-actions {
+    justify-content: stretch;
+  }
+}
+
+/* Final reconciliation after legacy breakpoints. */
+.admin-grid {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.admin-flow-column-primary {
+  grid-column: span 7;
+}
+
+.admin-flow-column-secondary {
+  grid-column: span 5;
+}
+
+.screen-preview {
+  aspect-ratio: 16 / 9;
+  height: auto;
+  min-height: 0;
+}
+
+.screen-preview > span {
+  position: relative;
+  z-index: 1;
+  margin-top: 8px;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.screen-preview .timeline-node {
+  font-size: 0;
+  line-height: 0;
+}
+
+.admin-screen-route-head,
+.admin-screen-route-card {
+  grid-template-columns: minmax(150px, 1fr) minmax(92px, 0.42fr) minmax(240px, auto);
+}
+
+.admin-screen-route-main code {
+  color: rgba(167, 201, 192, 0.5);
+  font-family: var(--body);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-screen-route-table .admin-control-actions {
+  grid-template-columns: repeat(3, minmax(66px, max-content));
+}
+
+.admin-screen-route-table .admin-control-actions a,
+.admin-screen-route-table .admin-control-actions button {
+  padding: 0 9px;
+  font-size: 12px;
+}
+
+.admin-team-management-layout .admin-team-control-stack {
+  grid-column: span 4;
+}
+
+.admin-team-management-layout .admin-team-roster-panel {
+  grid-column: span 8;
+}
+
+.admin-work-review-table-row.is-active {
+  border-color: rgba(40, 255, 200, 0.34);
+  background: rgba(40, 255, 200, 0.06);
+}
+
+.admin-work-review-table-actions button {
+  min-width: 76px;
+}
+
+.admin-result-management-layout {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.admin-result-management-layout .admin-result-publish-panel,
+.admin-result-management-layout .admin-leaderboard-snapshot-panel {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.admin-result-publish-body {
+  grid-template-columns: minmax(260px, 0.28fr) minmax(0, 1fr);
+}
+
+.admin-result-flow {
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  align-items: stretch;
+}
+
+.admin-result-flow-step {
+  min-height: 190px;
+}
+
+.admin-leaderboard-snapshot-panel {
+  margin-top: 0;
+}
+
+@media (max-width: 1280px) {
+  .admin-shell {
+    grid-template-columns: 208px minmax(0, 1fr);
+  }
+
+  .admin-brand img {
+    display: block;
+  }
+
+  .admin-nav button {
+    grid-template-columns: 18px minmax(0, 1fr);
+    justify-items: start;
+    padding: 0 10px;
+    font-size: 13px;
+  }
+
+  .admin-nav button:not(.is-active)::after {
+    display: none;
+  }
+
+  .admin-version-panel {
+    display: grid;
+  }
+
+  .admin-grid,
+  .management-split,
+  .admin-data-management-layout,
+  .admin-result-management-layout,
+  .admin-team-management-layout {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .admin-result-management-layout .admin-result-publish-panel,
+  .admin-result-management-layout .admin-leaderboard-snapshot-panel {
+    grid-column: 1 / -1;
+  }
+
+  .admin-result-publish-body {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-result-flow {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-screen-route-head,
+  .admin-screen-route-card {
+    grid-template-columns: minmax(140px, 1fr) minmax(82px, 0.36fr) minmax(214px, auto);
+  }
+
+  .admin-screen-route-table .admin-control-actions {
+    grid-template-columns: repeat(3, minmax(58px, max-content));
+  }
+
+  .admin-team-management-layout .admin-team-control-stack {
+    grid-column: span 5;
+  }
+
+  .admin-team-management-layout .admin-team-roster-panel {
+    grid-column: span 7;
+  }
+}
+
+@media (max-width: 980px) {
+  .admin-grid,
+  .management-split,
+  .admin-data-management-layout,
+  .admin-result-management-layout,
+  .admin-team-management-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-flow-column-primary,
+  .admin-flow-column-secondary,
+  .admin-management-view[data-admin-view-panel="screen"] .management-split > .panel:first-child,
+  .admin-management-view[data-admin-view-panel="screen"] .management-split > .panel:last-child,
+  .admin-data-management-layout .admin-vote-management-stack,
+  .admin-data-management-layout .admin-work-management-stack,
+  .admin-result-management-layout .admin-result-publish-panel,
+  .admin-result-management-layout .admin-leaderboard-snapshot-panel,
+  .admin-team-management-layout .admin-team-control-stack,
+  .admin-team-management-layout .admin-team-roster-panel {
+    grid-column: 1;
   }
 }

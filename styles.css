@@ -170,13 +170,13 @@ button:disabled {
   pointer-events: auto;
 }
 
-.app-shell[data-view="welcome"] > .welcome-stage {
+.app-shell[data-view="welcome"] > :is(.welcome-stage) {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
 }
 
-.app-shell.view-welcome > .welcome-stage {
+.app-shell.view-welcome > :is(.welcome-stage) {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
@@ -201,7 +201,6 @@ button:disabled {
 .skip-intro-button,
 .enter-button,
 .discover-button,
-.welcome-enter-button,
 .discover-menu button,
 .brand-chip,
 .cohort-mark,
@@ -239,7 +238,6 @@ button:disabled {
 .skip-intro-button:hover,
 .enter-button:hover,
 .discover-button:hover,
-.welcome-enter-button:hover,
 .discover-menu button:hover,
 .brand-chip:hover,
 .cohort-mark:hover,
@@ -527,7 +525,7 @@ button:disabled {
 }
 
 .landing-title-cn {
-  color: #eafff8;
+  color: var(--text);
   font-size: clamp(58px, 6.8vw, 112px);
   font-weight: 950;
   letter-spacing: -0.015em;
@@ -811,362 +809,75 @@ button:disabled {
   display: grid;
   place-items: center;
   background:
-    radial-gradient(circle at 50% 34%, rgba(40, 255, 200, 0.2), transparent 28%),
-    radial-gradient(circle at 50% 74%, rgba(167, 255, 79, 0.11), transparent 27%),
-    linear-gradient(180deg, rgba(2, 18, 20, 0.82), rgba(2, 8, 14, 0.97)),
+    linear-gradient(180deg, rgba(2, 8, 14, 0.08), rgba(2, 8, 14, 0.88)),
     var(--void);
 }
 
 .welcome-rain {
   z-index: 1;
-  opacity: 0.54;
+  opacity: 0.58;
   mix-blend-mode: screen;
 }
 
-.welcome-stage .stage-vignette {
-  z-index: 2;
-  background:
-    linear-gradient(90deg, rgba(2, 8, 14, 0.9), transparent 22%, transparent 78%, rgba(2, 8, 14, 0.9)),
-    linear-gradient(180deg, rgba(2, 8, 14, 0.26), transparent 42%, rgba(2, 8, 14, 0.92));
-}
-
-.welcome-signal-field {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.welcome-signal-field::before {
-  content: "0101  JOINCARE  AI  2026  AGENT  PROMPT  DATA  FUTURE  TEAM";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: clamp(120px, 20vh, 190px);
-  padding-top: 20px;
-  color: rgba(103, 255, 213, 0.18);
-  font-family: var(--pixel);
-  font-size: clamp(9px, 0.85vw, 13px);
-  letter-spacing: 0.18em;
-  text-align: center;
-  background:
-    repeating-linear-gradient(90deg, transparent 0 26px, rgba(40, 255, 200, 0.24) 27px 29px, transparent 30px 56px);
-  mask-image: linear-gradient(180deg, black, transparent);
-}
-
-.welcome-signal-field::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    repeating-linear-gradient(180deg, rgba(234, 255, 248, 0.055) 0 1px, transparent 1px 10px),
-    linear-gradient(90deg, transparent, rgba(40, 255, 200, 0.08), transparent);
-  opacity: 0.46;
-}
-
-.welcome-hud {
-  position: absolute;
-  left: clamp(18px, 3vw, 44px);
-  right: clamp(18px, 3vw, 44px);
-  z-index: 6;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  color: rgba(213, 255, 244, 0.66);
-  font-family: var(--nav-pixel);
-  font-size: clamp(7px, 0.58vw, 9.5px);
-  line-height: 1.45;
-  text-transform: uppercase;
-  text-shadow: 0 0 10px rgba(40, 255, 200, 0.2);
-}
-
-.welcome-hud strong {
-  color: var(--neon-2);
-  font-weight: 400;
-}
-
-.welcome-hud-top {
-  top: clamp(12px, 1.8vw, 24px);
-}
-
-.welcome-hud-bottom {
-  bottom: clamp(18px, 2.4vw, 34px);
-}
-
-.welcome-terminal {
+.welcome-ready-panel {
   position: relative;
   z-index: 4;
-  width: min(1180px, calc(100vw - clamp(120px, 14vw, 280px)));
-  border: 1px solid rgba(103, 255, 213, 0.18);
-  border-top: 1px solid rgba(103, 255, 213, 0.35);
-  border-radius: var(--radius);
-  background: radial-gradient(circle at 50% 0%, rgba(40, 255, 200, 0.12) 0%, rgba(4, 18, 16, 0.5) 75%);
-  box-shadow:
-    0 30px 60px rgba(0, 0, 0, 0.65),
-    inset 0 1px 0 rgba(103, 255, 213, 0.15),
-    0 0 32px rgba(40, 255, 200, 0.08);
-  overflow: hidden;
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  animation: welcomeTerminalIn 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  display: grid;
+  place-items: center;
+  width: min(1080px, calc(100vw - clamp(32px, 8vw, 180px)));
+  min-height: min(420px, 58vh);
+  text-align: center;
 }
 
-.welcome-terminal::before {
-  content: "";
+.welcome-ready-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  padding: clamp(10px, 2vw, 24px) clamp(12px, 3vw, 34px);
+  background: transparent;
+  color: var(--text);
+  font-family: var(--display);
+  font-size: clamp(54px, 7.4vw, 128px);
+  font-style: italic;
+  font-weight: 900;
+  line-height: 0.92;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: none;
+  text-shadow:
+    0 0 5px rgba(234, 255, 248, 0.72),
+    0 0 16px rgba(40, 255, 200, 0.5),
+    0 0 42px rgba(40, 255, 200, 0.24);
+  transform: skewX(-8deg);
+  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: visible;
+}
+
+.welcome-ready-button::before {
+  content: attr(data-text);
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.04), transparent),
-    radial-gradient(circle at 50% 0%, rgba(40, 255, 200, 0.16), transparent 38%);
-  opacity: 0.46;
+  display: grid;
+  place-items: center;
+  color: rgba(40, 255, 200, 0.24);
+  filter: blur(2px);
+  text-shadow:
+    0 0 18px rgba(40, 255, 200, 0.36),
+    0 0 48px rgba(40, 255, 200, 0.22);
+  transform: translate(0.04em, 0.03em);
   pointer-events: none;
 }
 
-.welcome-terminal-chrome {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-  min-height: 34px;
-  border-bottom: 1px solid rgba(103, 255, 213, 0.12);
-  background: rgba(255, 255, 255, 0.02);
-  padding: 8px 14px;
-  color: rgba(103, 255, 213, 0.76);
-  font-family: var(--nav-pixel);
-  font-size: clamp(10px, 0.9vw, 12px);
-}
-
-.welcome-terminal-chrome > span:nth-child(2) {
-  justify-self: center;
-}
-
-.welcome-terminal-lights {
-  display: flex;
-  gap: 7px;
-}
-
-.welcome-terminal-lights span {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--neon);
-  box-shadow: 0 0 12px rgba(40, 255, 200, 0.9);
-}
-
-.welcome-terminal-lights span:nth-child(2) {
-  background: var(--neon-2);
-  box-shadow: 0 0 12px rgba(167, 255, 79, 0.72);
-}
-
-.welcome-terminal-lights span:nth-child(3) {
-  background: rgba(234, 255, 248, 0.62);
-  box-shadow: 0 0 12px rgba(234, 255, 248, 0.38);
-}
-
-.welcome-terminal-body {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  align-content: center;
-  justify-items: center;
-  min-height: min(720px, calc(100vh - 150px));
-  padding: clamp(40px, 5vh, 62px) clamp(44px, 5.4vw, 74px) clamp(38px, 4.8vh, 58px);
-  text-align: center;
-}
-
-.welcome-kicker {
-  margin: 0 0 16px;
-  color: rgba(167, 255, 79, 0.9);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: clamp(12.5px, 1vw, 15px);
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  line-height: 1.4;
-  text-transform: uppercase;
-}
-
-.welcome-terminal h2 {
-  margin: 0;
+.welcome-ready-button:hover,
+.welcome-ready-button:focus-visible {
+  outline: none;
   color: #ffffff;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: clamp(32px, 3.6vw, 46px);
-  font-weight: 800;
-  line-height: 1.25;
-  letter-spacing: -0.012em;
-  text-shadow:
-    0 0 12px rgba(255, 255, 255, 0.15),
-    0 0 36px rgba(40, 255, 200, 0.2);
-}
-
-.welcome-terminal h2 span {
-  display: block;
-  margin-top: 14px;
-  color: var(--neon-2);
-  font-family: var(--body);
-  font-size: clamp(20px, 2.1vw, 27px);
-  font-weight: 900;
-  line-height: 1.35;
-  text-shadow: 0 0 18px rgba(167, 255, 79, 0.42);
-}
-
-.welcome-terminal .welcome-brief-copy {
-  display: grid;
-  gap: clamp(8px, 1.2vh, 14px);
-  width: min(780px, 100%);
-  margin: 0 auto clamp(24px, 3.2vh, 38px);
-  color: #eafff8;
-  font-family: var(--body);
-  font-size: clamp(22px, 2.05vw, 32px);
-  font-weight: 850;
-  line-height: 1.55;
-  letter-spacing: 0;
-  text-align: center;
-  text-shadow:
-    0 0 18px rgba(234, 255, 248, 0.14),
-    0 0 34px rgba(40, 255, 200, 0.16);
-}
-
-.welcome-terminal .welcome-brief-copy span {
-  display: block;
-  margin: 0;
-  color: inherit;
-  font: inherit;
-  line-height: inherit;
-  letter-spacing: inherit;
-  text-shadow: inherit;
-}
-
-.welcome-terminal .welcome-brief-copy span:first-child {
-  color: #ffffff;
-  font-size: clamp(26px, 2.55vw, 40px);
-  font-weight: 900;
-}
-
-.welcome-boot-lines {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  width: 100%;
-  max-width: 980px;
-  margin: clamp(26px, 3vh, 34px) 0 clamp(22px, 2.8vh, 32px);
-}
-
-.welcome-boot-lines section {
-  display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(260px, 0.72fr);
-  gap: clamp(18px, 3vw, 40px);
-  align-items: center;
-  min-height: 0;
-  border-left: 2px solid var(--neon);
-  border-radius: 0;
-  padding: 12px 0 12px 20px;
-  background: linear-gradient(90deg, rgba(40, 255, 200, 0.04) 0%, transparent 80%);
-  color: rgba(255, 255, 255, 0.95);
-  line-height: 1.45;
-  transition: all 200ms ease;
-}
-
-.welcome-boot-lines section:hover {
-  background: linear-gradient(90deg, rgba(40, 255, 200, 0.08) 0%, transparent 90%);
-  border-left-color: var(--neon-2);
-}
-
-.welcome-boot-lines strong {
-  display: block;
-  color: #ffffff;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: clamp(15px, 1.15vw, 18.5px);
-  font-weight: 500;
-  line-height: 1.45;
-}
-
-.welcome-boot-lines strong::before {
-  content: "> ";
-  color: var(--neon-2);
-  font-family: var(--pixel);
-  font-weight: normal;
-}
-
-.welcome-boot-lines span {
-  display: block;
-  margin-top: 0;
-  color: rgba(103, 255, 213, 0.72);
-  font-family: var(--body);
-  font-size: clamp(14.5px, 1.1vw, 18px);
-  line-height: 1.45;
-}
-
-.welcome-enter-button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-  width: min(440px, 100%);
-  min-height: clamp(74px, 7vh, 92px);
-  margin: clamp(16px, 2.2vh, 28px) auto 0;
-  border: 1px solid rgba(167, 255, 79, 0.42);
-  border-radius: 999px;
-  padding: clamp(13px, 1.7vw, 17px) clamp(30px, 4vw, 46px);
-  background: linear-gradient(180deg, rgba(167, 255, 79, 0.15) 0%, rgba(167, 255, 79, 0.04) 100%);
-  color: #eafff8;
-  cursor: pointer;
-  box-shadow:
-    0 8px 20px rgba(0, 0, 0, 0.35),
-    0 0 20px rgba(167, 255, 79, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
-  text-align: center;
-}
-
-.welcome-enter-button:hover,
-.welcome-enter-button:focus-visible {
-  background: linear-gradient(180deg, rgba(167, 255, 79, 0.26) 0%, rgba(167, 255, 79, 0.08) 100%);
-  border-color: rgba(167, 255, 79, 0.9);
-  box-shadow:
-    0 12px 28px rgba(0, 0, 0, 0.45),
-    0 0 32px rgba(167, 255, 79, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  transform: translateY(-2px) scale(1.015);
-}
-
-.welcome-enter-button strong {
-  display: block;
-  color: #ffffff;
-  font-family: var(--pixel);
-  font-size: clamp(19px, 1.75vw, 27px);
-  line-height: 1.25;
-  letter-spacing: 0.06em;
-  text-shadow: 0 0 12px rgba(167, 255, 79, 0.5);
-}
-
-.welcome-enter-button span {
-  display: block;
-  margin-top: 0;
-  color: rgba(255, 255, 255, 0.82);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: clamp(13px, 1.05vw, 16px);
-  font-weight: 500;
-  line-height: 1.45;
-  text-align: center;
-}
-
-@keyframes welcomeTerminalIn {
-  0% {
-    opacity: 0;
-    transform: translateY(22px) scale(0.985);
-    filter: blur(4px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-  }
+  transform: skewX(-8deg) translateY(-2px) scale(1.01);
 }
 
 .home-stage {
@@ -3046,6 +2757,7 @@ button:disabled {
   font-family: var(--nav-pixel);
   font-size: clamp(8px, 0.64vw, 11px);
   letter-spacing: 0.08em;
+  cursor: pointer;
   box-shadow:
     inset 0 0 20px rgba(40, 255, 200, 0.1),
     0 0 24px rgba(40, 255, 200, 0.12);
@@ -5187,23 +4899,6 @@ button:disabled {
     flex-wrap: wrap;
   }
 
-  .welcome-terminal {
-    max-height: calc(100vh - 108px);
-  }
-
-  .welcome-terminal-body {
-    min-height: auto;
-    overflow-y: auto;
-  }
-
-  .welcome-boot-lines {
-    grid-template-columns: 1fr;
-  }
-
-  .welcome-boot-lines section {
-    min-height: 0;
-  }
-
   .photo-wall-wrap {
     width: calc(100vw - 28px);
     height: 46vh;
@@ -5859,48 +5554,18 @@ button:disabled {
 
   .enter-button,
   .discover-button,
-  .welcome-enter-button {
+  .welcome-ready-button {
     min-width: min(260px, 90vw);
   }
 
-  .welcome-hud {
-    font-size: 7px;
-  }
-
-  .welcome-hud-bottom {
-    display: none;
-  }
-
-  .welcome-terminal {
+  .welcome-ready-panel {
     width: calc(100vw - 28px);
-    max-height: calc(100vh - 82px);
+    min-height: min(360px, 58vh);
   }
 
-  .welcome-terminal-chrome {
-    grid-template-columns: auto 1fr;
-  }
-
-  .welcome-terminal-chrome > span:last-child {
-    display: none;
-  }
-
-  .welcome-terminal h2 {
-    font-size: clamp(24px, 7vw, 34px);
-  }
-
-  .welcome-terminal .welcome-brief-copy {
-    gap: 7px;
-    margin-bottom: 18px;
-    font-size: clamp(18px, 4.8vw, 24px);
-    line-height: 1.55;
-  }
-
-  .welcome-terminal .welcome-brief-copy span:first-child {
-    font-size: clamp(22px, 5.8vw, 30px);
-  }
-
-  .welcome-mission-lock strong {
-    font-size: clamp(20px, 6.5vw, 30px);
+  .welcome-ready-button {
+    font-size: clamp(40px, 13vw, 72px);
+    letter-spacing: 0.035em;
   }
 
   .profile-console {
@@ -5991,33 +5656,12 @@ button:disabled {
 
 /* Responsive fixes for shorter screen heights (preventing vertical overflow cuts) */
 @media (max-height: 780px) {
-  .welcome-terminal {
-    max-height: calc(100vh - 82px);
+  .welcome-ready-panel {
+    min-height: min(320px, 56vh);
   }
-  .welcome-terminal-body {
-    min-height: auto;
-    padding-top: 17px;
-    padding-bottom: 18px;
-  }
-  .welcome-boot-lines {
-    margin: 12px 0;
-  }
-  .welcome-boot-lines section {
-    min-height: 0;
-    padding-top: 4px;
-    padding-bottom: 4px;
-  }
-  .welcome-terminal .welcome-brief-copy {
-    gap: 6px;
-    margin-bottom: 14px;
-    font-size: clamp(18px, 1.8vw, 26px);
-  }
-  .welcome-terminal .welcome-brief-copy span:first-child {
-    font-size: clamp(22px, 2.2vw, 32px);
-  }
-  .welcome-enter-button {
-    min-height: 66px;
-    margin-top: 11px;
+  .welcome-ready-button {
+    padding-top: clamp(18px, 3.2vw, 36px);
+    padding-bottom: clamp(18px, 3.2vw, 36px);
   }
   .draw-card {
     width: min(20vw, 240px);

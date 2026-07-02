@@ -469,6 +469,8 @@ let countdownTimer = null;
 let countdownStartedAt = null;
 let countdownDurationMs = 36 * 60 * 60 * 1000;
 let countdownLoadRequestId = 0;
+let countdownStartRequestPending = false;
+let countdownStartFeedback = "";
 let roadshowTimer = null;
 let roadshowState = {
   currentTeamId: "marketing",
@@ -486,6 +488,10 @@ let voteResultsState = {
   status: "voting",
   windowLabel: "投票窗口开启中",
   updatedAt: "",
+};
+let resultSnapshotState = {
+  published: false,
+  snapshot: null,
 };
 let voteResultsLoadRequestId = 0;
 
@@ -1225,6 +1231,9 @@ function applyCountdownState(state = {}) {
   countdownDurationMs = Number.isFinite(nextDurationMs) && nextDurationMs > 0
     ? nextDurationMs
     : COUNTDOWN_DURATION_MS;
+  if (countdownStartedAt) {
+    countdownStartFeedback = "";
+  }
 
   return {
     startedAt: countdownStartedAt,
@@ -1260,6 +1269,37 @@ async function loadCountdownState() {
   }
 }
 
+async function handleCountdownStart() {
+  if (countdownStartRequestPending) {
+    return;
+  }
+  if (readCountdownStartedAt()) {
+    startCountdownClock();
+    return;
+  }
+
+  countdownStartRequestPending = true;
+  countdownStartFeedback = "";
+  renderCountdownClock();
+
+  try {
+    applyCountdownState(await window.AppData.startMissionCountdown({
+      storageKey: COUNTDOWN_STORAGE_KEY,
+      durationMs: countdownDurationMs,
+      requireBackend: true,
+    }));
+  } catch (error) {
+    console.warn("Mission countdown failed to start.", error);
+    countdownStartFeedback = "SYNC FAILED - RETRY";
+  } finally {
+    countdownStartRequestPending = false;
+    renderCountdownClock();
+    if (readCountdownStartedAt()) {
+      startCountdownClock();
+    }
+  }
+}
+
 function renderCountdownClock() {
   const startedAt = readCountdownStartedAt();
 
@@ -1269,10 +1309,16 @@ function renderCountdownClock() {
     if (countdownMinutes) countdownMinutes.textContent = readyTimer.minutes;
     if (countdownSeconds) countdownSeconds.textContent = readyTimer.seconds;
     if (countdownProgress) countdownProgress.style.transform = "scaleX(0)";
-    if (countdownStatus) countdownStatus.textContent = "WAITING FOR ADMIN";
+    if (countdownStatus) {
+      countdownStatus.textContent = countdownStartRequestPending
+        ? "SYNCING TIMER"
+        : countdownStartFeedback || "WAITING FOR ADMIN";
+    }
     if (countdownStartButton) {
-      countdownStartButton.disabled = true;
-      countdownStartButton.textContent = "ADMIN CONTROLLED";
+      countdownStartButton.disabled = countdownStartRequestPending;
+      countdownStartButton.textContent = countdownStartRequestPending
+        ? "SYNCING TIMER"
+        : "ADMIN CONTROLLED";
     }
     return;
   }
@@ -1553,12 +1599,25 @@ function applyVoteResultsState(payload = {}) {
   return { ...voteResultsState };
 }
 
+function applyResultSnapshotState(payload = {}) {
+  resultSnapshotState = {
+    published: Boolean(payload.published),
+    snapshot: payload.snapshot || null,
+  };
+
+  return { ...resultSnapshotState };
+}
+
 function getVoteRanking() {
   return window.AppLogic.computeVoteRanking(voteResultsState.results, voteResultsState.pointScale);
 }
 
-function getFinalResults() {
-  return window.AppLogic.computeFinalResults(voteResultsState.results, voteResultsState.pointScale);
+function getFinalResultDisplay() {
+  return window.AppLogic.resolveDisplayFinalResults({
+    voteResults: voteResultsState.results,
+    pointScale: voteResultsState.pointScale,
+    resultSnapshot: resultSnapshotState.snapshot,
+  });
 }
 
 async function loadVoteResultsState() {
@@ -1567,6 +1626,15 @@ async function loadVoteResultsState() {
   } catch (error) {
     console.warn("Vote results failed to load.", error);
     return applyVoteResultsState(voteResultsState);
+  }
+}
+
+async function loadResultSnapshotState() {
+  try {
+    return applyResultSnapshotState(await window.AppData.loadLatestResultSnapshot({ published: false, snapshot: null }));
+  } catch (error) {
+    console.warn("Final result snapshot failed to load.", error);
+    return applyResultSnapshotState(resultSnapshotState);
   }
 }
 
@@ -1670,9 +1738,10 @@ function renderVoteResult() {
 }
 
 function renderFinalResult() {
-  const finalResults = getFinalResults();
+  const finalResultDisplay = getFinalResultDisplay();
+  const finalResults = finalResultDisplay.results;
   const champion = finalResults[0] || {};
-  const scaleText = voteResultsState.pointScale.join(" / ");
+  const scaleText = finalResultDisplay.pointScale.join(" / ");
 
   if (finalResultPointScale) finalResultPointScale.textContent = scaleText;
 
@@ -1761,7 +1830,10 @@ function renderFinalResult() {
 
 async function syncVoteResults() {
   const requestId = ++voteResultsLoadRequestId;
-  await loadVoteResultsState();
+  await Promise.all([
+    loadVoteResultsState(),
+    loadResultSnapshotState(),
+  ]);
   if (requestId !== voteResultsLoadRequestId) {
     return;
   }
@@ -2178,6 +2250,8 @@ function bindEvents() {
       discoverButton.setAttribute("aria-expanded", String(isOpen));
     });
   }
+
+  countdownStartButton?.addEventListener("click", handleCountdownStart);
 
   photoWall.addEventListener("pointermove", (event) => {
     updateDock(event.clientX);

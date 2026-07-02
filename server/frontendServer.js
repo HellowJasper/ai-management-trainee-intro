@@ -4,7 +4,7 @@ const { serveStatic } = require("./index");
 
 const DEFAULT_PUBLIC_ROOT = path.join(__dirname, "..");
 const DEFAULT_PORT = 5174;
-const DEFAULT_API_BASE_URL = "http://localhost:63779";
+const DEFAULT_API_BASE_URL = "http://localhost:5173";
 
 function sendRuntimeConfig(response, apiBaseUrl) {
   const normalizedApiBaseUrl = String(apiBaseUrl || "").trim().replace(/\/+$/, "");

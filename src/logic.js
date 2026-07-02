@@ -349,11 +349,12 @@
     const byRole = {
       player: [],
       judge: [{ key: "judge", label: "评委评分" }],
-      public: [{ key: "vote", label: "投票" }],
+      public: [],
       admin: [{ key: "admin", label: "管理后台", href: "./admin.html" }],
     };
 
-    return [...shared.slice(0, 3), ...teamNav, ...shared.slice(3), ...(byRole[key] || []), { key: "result", label: "排行榜" }];
+    const resultNav = [{ key: "result", label: "排行榜" }];
+    return [...shared.slice(0, 3), ...teamNav, ...shared.slice(3), ...(byRole[key] || []), ...resultNav];
   }
 
   function getRoleWorkbenchModel({
@@ -470,10 +471,10 @@
           {
             label: "投票状态",
             value: votedTeamName ? `已投 ${votedTeamName}` : "尚未投票",
-            sub: votedTeamName ? "一人一票，投票已锁定" : "前往作品展厅或投票页完成",
+            sub: votedTeamName ? "一人一票，投票已锁定" : "前往作品展厅完成投票",
             icon: "vote",
             accent: "#6ad7ff",
-            nav: "vote",
+            nav: "gallery",
           },
           {
             label: "作品展厅",
@@ -493,9 +494,7 @@
           },
         ],
         quickEntries: [
-          { nav: "vote", title: "投票入口", sub: "查看投票状态" },
           { nav: "gallery", title: "作品展厅", sub: "查看作品详情" },
-          { nav: "result", title: "排行榜", sub: "查看综合结果" },
           { nav: "schedule", title: "赛事指南", sub: "查看赛事机制与规则" },
         ],
       },
@@ -683,6 +682,47 @@
       });
   }
 
+  function resolveDisplayFinalResults({
+    voteResults = [],
+    pointScale = [],
+    resultSnapshot = null,
+  } = {}) {
+    const snapshotResults = Array.isArray(resultSnapshot?.results) ? resultSnapshot.results : [];
+    if (snapshotResults.length) {
+      const snapshotPointScale = Array.isArray(resultSnapshot?.pointScale) && resultSnapshot.pointScale.length
+        ? resultSnapshot.pointScale
+        : pointScale;
+      return {
+        source: "snapshot",
+        pointScale: snapshotPointScale,
+        results: snapshotResults.map((team, index) => {
+          const rank = Number(team?.rank);
+          const votePoints = Number(team?.votePoints ?? team?.votePoint ?? 0);
+          const expertScore = getExpertScoreValue(team?.expertScore ?? team?.expert);
+          const rawTotalScore = Number(team?.totalScore ?? team?.total ?? team?.score);
+          const totalScore = Number.isFinite(rawTotalScore)
+            ? rawTotalScore
+            : Number((expertScore * 0.7 + votePoints * 0.3).toFixed(2));
+
+          return {
+            ...team,
+            rank: Number.isFinite(rank) && rank > 0 ? rank : index + 1,
+            votePoints: Number.isFinite(votePoints) ? votePoints : 0,
+            expertScore,
+            totalScore,
+            isChampion: Boolean(team?.isChampion) || index === 0,
+          };
+        }),
+      };
+    }
+
+    return {
+      source: "computed",
+      pointScale,
+      results: computeFinalResults(voteResults, pointScale),
+    };
+  }
+
   function resolveWelcomeEntryTarget() {
     return "wall";
   }
@@ -848,6 +888,7 @@
     computePhotoWallMetrics,
     computeVoteRanking,
     computeFinalResults,
+    resolveDisplayFinalResults,
     getFeishuLoginUiState,
     getIntroTiming,
     getMissionCountdownState,

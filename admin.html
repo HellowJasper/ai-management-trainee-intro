@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI 星锐黑客松 管理后台</title>
-    <link rel="stylesheet" href="./admin.css?v=20260630-prestart-target-time" />
+    <link rel="stylesheet" href="./admin.css?v=20260702-admin-ops-layout" />
   </head>
   <body>
     <main class="admin-shell">
@@ -29,10 +29,6 @@
             <span class="nav-icon">▣</span>
             大屏控制
           </button>
-          <button type="button" data-admin-nav="pages" aria-pressed="false">
-            <span class="nav-icon">▤</span>
-            页面管理
-          </button>
           <button type="button" data-admin-nav="content" aria-pressed="false">
             <span class="nav-icon">✧</span>
             内容管理
@@ -40,6 +36,10 @@
           <button type="button" data-admin-nav="data" aria-pressed="false">
             <span class="nav-icon">⌘</span>
             数据与投票
+          </button>
+          <button type="button" data-admin-nav="results" aria-pressed="false">
+            <span class="nav-icon">#</span>
+            排行榜
           </button>
           <button type="button" data-admin-nav="teams" aria-pressed="false">
             <span class="nav-icon">♙</span>
@@ -102,6 +102,7 @@
           </div>
         </header>
 
+        <div class="admin-main-scroll" id="adminMainScroll">
         <section class="admin-view-panel admin-management-view" data-admin-view-panel="dashboard" aria-labelledby="dashboardTitle">
           <div class="management-heading">
             <div>
@@ -312,18 +313,6 @@
               </div>
             </section>
           </div>
-        </section>
-
-        <section class="admin-view-panel admin-management-view" data-admin-view-panel="pages" aria-labelledby="pageManagerTitle">
-          <div class="management-heading">
-            <div>
-              <p>PAGE_MANAGER</p>
-              <h2 id="pageManagerTitle">页面管理</h2>
-            </div>
-            <span>前端静态页面</span>
-          </div>
-
-          <div class="admin-route-grid" id="adminPageManager"></div>
         </section>
 
         <section class="admin-view-panel admin-management-view" data-admin-view-panel="content" aria-labelledby="contentManagerTitle">
@@ -567,15 +556,107 @@
                 </header>
                 <div class="admin-work-review-list" id="adminWorkReviewList"></div>
               </section>
-
-              <section class="panel admin-wide-panel admin-result-snapshot-panel" id="adminResultSnapshotPanel" aria-label="最新结果快照">
-                <header>
-                  <span>FINAL SNAPSHOT</span>
-                  <small id="adminResultSnapshotStatus">等待发布</small>
-                </header>
-                <div class="admin-result-snapshot" id="adminResultSnapshot"></div>
-              </section>
             </div>
+          </div>
+        </section>
+
+        <section class="admin-view-panel admin-management-view admin-result-management-view" data-admin-view-panel="results" aria-labelledby="adminLeaderboardTitle">
+          <div class="management-heading">
+            <div>
+              <p>RESULT_CENTER</p>
+              <h2 id="adminLeaderboardTitle">排行榜与结果发布</h2>
+            </div>
+            <div class="admin-result-action-grid" aria-label="排行榜相关页面">
+              <a href="/site.html#result" target="_blank" rel="noreferrer">前台排行榜</a>
+              <a href="/index.html?stage=result" target="_blank" rel="noreferrer">大屏结果页</a>
+              <a href="/index.html?stage=final" target="_blank" rel="noreferrer">冠军展示</a>
+              <button type="button" data-admin-export="results">导出结果</button>
+            </div>
+          </div>
+
+          <div class="admin-result-management-layout">
+            <section class="panel admin-wide-panel admin-result-publish-panel" aria-labelledby="adminResultPublishTitle">
+              <header class="wide-panel-heading">
+                <div>
+                  <span>RESULT_PUBLISH</span>
+                  <strong id="adminResultPublishTitle">发布最终排行</strong>
+                </div>
+                <small id="adminResultPublishStatus">等待发布</small>
+              </header>
+
+              <div class="admin-result-publish-body">
+                <div class="admin-result-publish-state">
+                  <span>当前发布状态</span>
+                  <strong id="adminResultPublishState">未发布</strong>
+                  <p>这页就是最终收口台。按顺序完成三步后，前台排行榜和大屏结果页才会读取正式快照。</p>
+                </div>
+
+                <div class="admin-result-flow" aria-label="最终发布三步">
+                  <article class="admin-result-flow-step" data-result-flow-step="vote">
+                    <div class="admin-result-step-head">
+                      <span>01</span>
+                      <div>
+                        <strong>关闭投票</strong>
+                        <small>停止大众投票入口</small>
+                      </div>
+                    </div>
+                    <b id="adminResultFlowVoteState">等待同步</b>
+                    <p id="adminResultFlowVoteHint">投票关闭后，观众不能继续投票或取消投票。</p>
+                    <div class="admin-result-step-meta">
+                      <span id="adminResultPublishVoteStatus">等待同步</span>
+                      <span id="adminResultPublishVoteTotal">0 票</span>
+                    </div>
+                    <button class="admin-result-step-action" type="button" data-vote-window-status="closed">关闭投票</button>
+                  </article>
+
+                  <article class="admin-result-flow-step" data-result-flow-step="judge">
+                    <div class="admin-result-step-head">
+                      <span>02</span>
+                      <div>
+                        <strong>专家评分状态</strong>
+                        <small>可选：锁定已提交评分</small>
+                      </div>
+                    </div>
+                    <b id="adminResultFlowScoreState">等待评委提交</b>
+                    <p id="adminResultFlowScoreHint">管理员可直接发布结果；如需冻结专家评分，可先锁定已提交评分。</p>
+                    <div class="admin-result-step-meta">
+                      <span id="adminResultPublishScoreCoverage">0/0</span>
+                      <span id="adminResultPublishScoreStatus">等待评委提交</span>
+                    </div>
+                    <button class="admin-result-step-action" type="button" data-lock-judge-scores disabled>锁定专家评分</button>
+                  </article>
+
+                  <article class="admin-result-flow-step" data-result-flow-step="publish">
+                    <div class="admin-result-step-head">
+                      <span>03</span>
+                      <div>
+                        <strong>发布排行榜</strong>
+                        <small>生成最终结果快照</small>
+                      </div>
+                    </div>
+                    <b id="adminResultFlowSnapshotState">快照未生成</b>
+                    <p id="adminResultFlowSnapshotHint">关闭投票后即可发布，系统会固定票数、当前专家评分、综合分和排名。</p>
+                    <div class="admin-result-step-meta">
+                      <span>作品审核</span>
+                      <span id="adminResultPublishWorkStatus">0/0</span>
+                    </div>
+                    <label class="confirm-check admin-result-confirm">
+                      <input type="checkbox" id="confirmResultPublishAction" />
+                      <span>我已确认现场口径，可以发布最终排行榜</span>
+                    </label>
+                    <button class="danger-action danger-red admin-result-primary-action" type="button" data-result-publish disabled>发布排行结果</button>
+                  </article>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel admin-wide-panel admin-result-snapshot-panel admin-leaderboard-snapshot-panel" aria-label="排行榜最新快照">
+              <header>
+                <span>LEADERBOARD SNAPSHOT</span>
+                <small id="adminLeaderboardSnapshotStatus" data-result-snapshot-status>等待发布</small>
+              </header>
+              <div class="admin-result-snapshot" id="adminLeaderboardSnapshot" data-result-snapshot></div>
+            </section>
           </div>
         </section>
 
@@ -837,11 +918,12 @@
             </section>
           </div>
         </section>
+        </div>
       </section>
     </main>
 
     <script src="./runtime-config.js?v=20260624-split"></script>
     <script src="./src/data.js?v=20260630-prestart-separate-timer"></script>
-    <script src="./src/admin.js?v=20260630-reset-flow-direct"></script>
+    <script src="./src/admin.js?v=20260702-result-publish-api5173"></script>
   </body>
 </html>

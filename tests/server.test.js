@@ -944,6 +944,23 @@ test("frontend server serves static files and runtime API config separately from
   assert.equal(apiResponse.status, 404);
 });
 
+test("frontend server default runtime API config points to the local backend port", async (t) => {
+  const publicRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-web-default-api-"));
+  await fs.writeFile(path.join(publicRoot, "index.html"), "<!doctype html><title>web</title>");
+  const server = createFrontendServer({ publicRoot });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const configResponse = await fetch(`${baseUrl}/runtime-config.js`);
+  const config = await configResponse.text();
+
+  assert.equal(configResponse.status, 200);
+  assert.match(config, /JOINCARE_API_BASE_URL/);
+  assert.match(config, /http:\/\/localhost:5173/);
+  assert.doesNotMatch(config, /http:\/\/localhost:63779/);
+});
+
 test("API returns 404 for missing trainees", async (t) => {
   const { publicRoot, repository } = await createTempRepository([]);
   const server = createServer({ publicRoot, repository });
@@ -2769,7 +2786,7 @@ test("API lists vote results with the confirmed ranking point scale", async (t) 
   );
 });
 
-test("admin result publish API requires a closed vote window and locked judge scores", async (t) => {
+test("admin result publish API requires an ended vote window but not locked judge scores", async (t) => {
   const snapshotsFile = await createTempJsonFile("ai-result-guard-snapshots-", "result-snapshots.json", {
     snapshots: [],
   });
@@ -2821,30 +2838,32 @@ test("admin result publish API requires a closed vote window and locked judge sc
   assert.match(votingPayload.error.message, /vote window/i);
 
   voteState.status = "closed";
-  const unlockedResponse = await fetch(`${baseUrl}/api/admin/results/publish`, {
+  const unlockedPublishResponse = await fetch(`${baseUrl}/api/admin/results/publish`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ actor: "admin-001" }),
   });
-  const unlockedPayload = await unlockedResponse.json();
-  assert.equal(unlockedResponse.status, 409);
-  assert.match(unlockedPayload.error.message, /locked/i);
+  const published = await unlockedPublishResponse.json();
 
-  judgeState.records["judge-001"].marketing.status = "locked";
-  judgeState.records["judge-001"].pharma.status = "locked";
-  const publishResponse = await fetch(`${baseUrl}/api/admin/results/publish`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ actor: "admin-001" }),
-  });
-  const published = await publishResponse.json();
-
-  assert.equal(publishResponse.status, 201);
+  assert.equal(unlockedPublishResponse.status, 201);
   assert.equal(published.status, "published");
   assert.equal(published.results[0].id, "marketing");
+  assert.equal(published.source.judge.records["judge-001"].marketing.status, "submitted");
+
+  voteState.status = "published";
+  const recoveryResponse = await fetch(`${baseUrl}/api/admin/results/publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actor: "admin-001" }),
+  });
+  const recovered = await recoveryResponse.json();
+
+  assert.equal(recoveryResponse.status, 201);
+  assert.equal(recovered.status, "published");
+  assert.equal(recovered.results[0].id, "marketing");
 });
 
-test("admin result publish API rejects when an active judge has no locked scores", async (t) => {
+test("admin result publish API allows publishing when an active judge has no locked scores", async (t) => {
   const snapshotsFile = await createTempJsonFile("ai-result-missing-judge-snapshots-", "result-snapshots.json", {
     snapshots: [],
   });
@@ -2901,8 +2920,11 @@ test("admin result publish API rejects when an active judge has no locked scores
   });
   const payload = await response.json();
 
-  assert.equal(response.status, 409);
-  assert.match(payload.error.message, /all judge scores to be locked/i);
+  assert.equal(response.status, 201);
+  assert.equal(payload.status, "published");
+  assert.equal(payload.results[0].id, "marketing");
+  assert.equal(payload.source.judge.records["judge-001"].marketing.status, "locked");
+  assert.equal(payload.source.judge.records["judge-002"], undefined);
 });
 
 test("admin result publish API creates a final result snapshot", async (t) => {
@@ -3022,7 +3044,7 @@ test("admin / screen / big-screen pages require an admin session", async (t) => 
   assert.match(response.headers.get("content-type"), /text\/html/);
   assert.match(html, /AI 星锐黑客松 管理后台/);
   assert.match(html, /id="stageRows"/);
-  assert.match(html, /src="\.\/src\/admin\.js\?v=20260630-reset-flow-direct"/);
+  assert.match(html, /src="\.\/src\/admin\.js\?v=20260702-result-publish-api5173"/);
 });
 
 test("root serves the user site for everyone; big screen stays admin-only", async (t) => {
