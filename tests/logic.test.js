@@ -816,11 +816,6 @@ test("official site schedule status reads the synchronized backend stage timer",
   assert.ok(renderScheduleBody, "renderSchedule should exist");
   assert.ok(applySiteStageStateBody, "applySiteStageState should exist");
   assert.ok(timerRemainingSecondsBody, "timerRemainingSeconds should exist");
-  assert.match(renderScheduleBody[1], /const phaseInfo = resolveHomePhase\(CURRENT_STAGE_ID\)/);
-  assert.match(renderScheduleBody[1], /\$\{esc\(phaseInfo\.phase\)\}/);
-  assert.match(renderScheduleBody[1], /\$\{esc\(phaseInfo\.label\)\}/);
-  assert.match(renderScheduleBody[1], /\$\{countdownAttrs\(\)\}/);
-  assert.match(siteCss, /\.schedule-count\s*\{[\s\S]*align-items:\s*flex-start/);
   assert.match(siteJs, /const PRESTART_COUNTDOWN_STAGE_ID = "prestart"/);
   assert.match(siteJs, /const MISSION_COUNTDOWN_STAGE_IDS = new Set\(\["opening", "icebreaker", "speech", "tracks", "team"\]\)/);
   assert.match(siteJs, /const DISPLAY_PARTICIPANT_COUNT = 20/);
@@ -846,7 +841,7 @@ test("official site countdown stays paused until the backend timer starts", () =
   assert.match(siteJs, /MISSION_COUNTDOWN_STAGE_IDS\.has\(CURRENT_STAGE_ID\)[\s\S]*?timers\.missionCountdown\?\.startedAt/);
   assert.match(countdownAttrsBody, /data-paused="\$\{isCountdownPaused\(\) \? "true" : "false"\}"/);
   assert.match(tickBody, /if \(el\.dataset\.paused === "true"\) return;/);
-  assert.ok(countdownAttrUses.length >= 3, "home, mobile home, and schedule countdowns should share paused countdown attributes");
+  assert.ok(countdownAttrUses.length >= 2, "home and mobile home countdowns should share paused countdown attributes");
 });
 
 test("admin topbar quick menus expose real links and session actions", () => {
@@ -1022,7 +1017,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260630-prestart-phase-copy/);
+  assert.match(siteHtml, /site\.js\?v=20260701-mobile-me-tabs/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -1041,7 +1036,7 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
   assert.match(siteHtml, /site\.css\?v=20260630-mobile-home-countdown-card/);
-  assert.match(siteHtml, /site\.js\?v=20260630-prestart-phase-copy/);
+  assert.match(siteHtml, /site\.js\?v=20260701-mobile-me-tabs/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
