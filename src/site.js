@@ -159,6 +159,9 @@
   function isAuthenticatedSession() {
     return Boolean(currentRole() && hasBackendSession());
   }
+  function needsBackendRoleSelection() {
+    return Boolean(SITE_STATE && SITE_STATE.me && SITE_STATE.me.authenticated && SITE_STATE.me.user && !SITE_STATE.me.role && Array.isArray(SITE_STATE.me.roles) && SITE_STATE.me.roles.length > 1);
+  }
   function canUseVoteAction() {
     return hasBackendSession() && rolePermissions(currentRole()).canVote;
   }
@@ -935,6 +938,13 @@
 
   function showAuthGate(target, { force = false } = {}) {
     if (isAuthenticatedSession()) return true;
+    if (needsBackendRoleSelection()) {
+      pendingAuthTarget = target && target !== "entry" ? target : pendingAuthTarget;
+      root.localStorage.removeItem(ROLE_KEY);
+      closeAuthGate({ force: true });
+      showRolePicker(SITE_STATE.me.roles || []);
+      return false;
+    }
     pendingAuthTarget = target && target !== "entry" ? target : pendingAuthTarget;
     const forced = Boolean(force);
     let gate = doc.getElementById("authGate");
@@ -962,10 +972,18 @@
     if (gate && gate.dataset.forced === "true" && !force) return;
     if (gate) gate.classList.remove("show");
   }
-  function enforceEntryAuth() {
-    if (isAuthenticatedSession()) return true;
+  function showForcedEntryAuthGate() {
     showAuthGate(root.location.hash.slice(1) || "home", { force: true });
     return false;
+  }
+  function enforceEntryAuth() {
+    if (isAuthenticatedSession()) return true;
+    if (needsBackendRoleSelection()) {
+      closeAuthGate({ force: true });
+      showRolePicker(SITE_STATE.me.roles || []);
+      return false;
+    }
+    return showForcedEntryAuthGate();
   }
   function requireAuth(target) {
     if (isAuthenticatedSession()) return true;
@@ -1063,9 +1081,10 @@
     } catch (e) { /* 存储不可用时忽略 */ }
   }
 
-  function finalizeLogin(role, session, redirectPath) {
+  async function finalizeLogin(role, session, redirectPath) {
     storeSession({ ...session, role });
     setRole(role, session);
+    await loadSiteState();
     renderNavLinks();
     renderMobileTabbar();
     refreshRoleChrome();
@@ -1117,7 +1136,7 @@
         showRolePicker(res.roles || [], res.redirectPath);
         return true;
       }
-      finalizeLogin(res.role, res, res.redirectPath);
+      await finalizeLogin(res.role, res, res.redirectPath);
       return true;
     } catch (e) {
       toast("飞书登录失败：" + (e && e.message ? e.message : "请重试"));
@@ -1195,7 +1214,7 @@
   function showRolePicker(roles, redirectPath) {
     closeRolePicker();
     const list = (roles || []).filter((r) => VALID_ROLES.includes(r));
-    if (!list.length) { finalizeLogin("public", { roles: ["public"] }, redirectPath); return; }
+    if (!list.length) { void finalizeLogin("public", { roles: ["public"] }, redirectPath); return; }
     const overlay = doc.createElement("div");
     overlay.id = "siteRolePicker";
     overlay.className = "role-picker-overlay";
@@ -1215,7 +1234,7 @@
       btn.disabled = true;
       try {
         const res = await SiteRoleApi.setCurrentRole(role);
-        if (res && res.role) { finalizeLogin(res.role, res, redirectPath); return; }
+        if (res && res.role) { await finalizeLogin(res.role, res, redirectPath); return; }
         toast("角色选择失败，请重试");
         btn.disabled = false;
       } catch (err) {

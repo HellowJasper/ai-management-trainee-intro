@@ -87,3 +87,10 @@ test("auth session factory keeps JSON default and switches to Redis when configu
   assert.equal(redisRepository.ttlSeconds, 120);
   assert.equal(redisRepository.keyPrefix, "joincare:test:");
 });
+
+test("Redis auth session default ttl matches the six hour mobile login window", () => {
+  const redisClient = createFakeRedisClient();
+  const repository = createRedisAuthSessionRepository({ redisClient });
+
+  assert.equal(repository.ttlSeconds, 21600);
+});

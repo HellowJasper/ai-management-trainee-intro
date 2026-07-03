@@ -13,6 +13,7 @@ const { getRolePermissions } = require("../src/logic");
 const DEFAULT_PUBLIC_ROOT = path.join(__dirname, "..");
 const DEFAULT_PORT = 5173;
 const SESSION_COOKIE_NAME = "joincare_session";
+const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 6;
 const DEFAULT_DEV_CORS_ORIGINS = new Set([
   "http://localhost:5174",
   "http://127.0.0.1:5174",
@@ -281,8 +282,15 @@ function getSessionIdFromRequest(request) {
   return parseCookies(request.headers.cookie || "")[SESSION_COOKIE_NAME] || "";
 }
 
+function normalizeSessionTtlSeconds(value = process.env.SESSION_TTL_SECONDS) {
+  const ttl = Number(value);
+  return Number.isFinite(ttl) && ttl > 0 ? Math.floor(ttl) : DEFAULT_SESSION_TTL_SECONDS;
+}
+
+const SESSION_TTL_SECONDS = normalizeSessionTtlSeconds();
+
 function buildSessionCookie(sessionId) {
-  return `${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionId)}; Path=/; HttpOnly; SameSite=Lax`;
+  return `${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionId)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_TTL_SECONDS}`;
 }
 
 function buildExpiredSessionCookie() {

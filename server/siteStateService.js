@@ -32,6 +32,7 @@ function normalizeSession(session) {
       role: "public",
       roles: ["public"],
       permissions: getRolePermissions("public"),
+      needsRoleSelection: false,
       source: "anonymous-public",
     };
   }
@@ -47,6 +48,7 @@ function normalizeSession(session) {
     role: role || null,
     roles,
     permissions,
+    needsRoleSelection: !role && roles.length > 1,
     source: session.source || "session",
   };
 }

@@ -3,6 +3,7 @@ const { createHttpError } = require("./traineeRepository");
 const { getRolePermissions } = require("../src/logic");
 
 const VALID_ROLES = new Set(["player", "judge", "public", "admin"]);
+const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 6;
 
 function normalizeRole(role) {
   const cleanRole = String(role || "").trim();
@@ -28,6 +29,25 @@ function createSessionId() {
   return crypto.randomBytes(24).toString("hex");
 }
 
+function normalizeTtlSeconds(value) {
+  const ttl = Number(value);
+  return Number.isFinite(ttl) && ttl > 0 ? Math.floor(ttl) : DEFAULT_SESSION_TTL_SECONDS;
+}
+
+function createExpiresAt(nowIso, ttlSeconds) {
+  const baseMs = Date.parse(nowIso);
+  return new Date(baseMs + ttlSeconds * 1000).toISOString();
+}
+
+function isSessionExpired(session = {}) {
+  const expiresAt = Date.parse(session.expiresAt || "");
+  if (Number.isFinite(expiresAt)) {
+    return expiresAt <= Date.now();
+  }
+  const createdAt = Date.parse(session.createdAt || session.updatedAt || "");
+  return Number.isFinite(createdAt) && createdAt + DEFAULT_SESSION_TTL_SECONDS * 1000 <= Date.now();
+}
+
 function parseSessionJson(value) {
   if (value && typeof value === "object" && !Buffer.isBuffer(value)) {
     return value;
@@ -45,10 +65,11 @@ function parseSessionJson(value) {
 // Supports a "pending" session: when the user has multiple roles, the session is
 // created with an empty currentRole (role="") + the full roles list, and the
 // frontend picks one via updateSession. Permissions are empty until a role is set.
-function createMysqlAuthSessionRepository(pool) {
+function createMysqlAuthSessionRepository(pool, { ttlSeconds = process.env.SESSION_TTL_SECONDS } = {}) {
   if (!pool || typeof pool.execute !== "function") {
     throw new Error("A mysql2-compatible pool with execute(sql, params) is required.");
   }
+  const resolvedTtlSeconds = normalizeTtlSeconds(ttlSeconds);
 
   async function persist(session) {
     await pool.execute(
@@ -86,6 +107,7 @@ function createMysqlAuthSessionRepository(pool) {
       permissions: role ? getRolePermissions(role) : {},
       createdAt: now,
       updatedAt: now,
+      expiresAt: createExpiresAt(now, resolvedTtlSeconds),
       source: payload.source || "local-dev",
     };
 
@@ -108,6 +130,10 @@ function createMysqlAuthSessionRepository(pool) {
     }
 
     const session = parseSessionJson(rows[0].session_json);
+    if (isSessionExpired(session)) {
+      await deleteSession(cleanSessionId);
+      return null;
+    }
     if (session && session.role && !session.permissions) {
       session.permissions = getRolePermissions(session.role);
     }

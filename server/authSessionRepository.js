@@ -6,6 +6,7 @@ const { getRolePermissions } = require("../src/logic");
 
 const DEFAULT_DATA_PATH = path.join(__dirname, "../data/sessions.json");
 const VALID_ROLES = new Set(["player", "judge", "public", "admin"]);
+const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 6;
 
 function normalizeState(payload = {}) {
   return {
@@ -34,8 +35,28 @@ function createSessionId() {
   return crypto.randomBytes(24).toString("hex");
 }
 
-function createAuthSessionRepository(dataPath = DEFAULT_DATA_PATH) {
+function normalizeTtlSeconds(value) {
+  const ttl = Number(value);
+  return Number.isFinite(ttl) && ttl > 0 ? Math.floor(ttl) : DEFAULT_SESSION_TTL_SECONDS;
+}
+
+function createExpiresAt(nowIso, ttlSeconds) {
+  const baseMs = Date.parse(nowIso);
+  return new Date(baseMs + ttlSeconds * 1000).toISOString();
+}
+
+function isSessionExpired(session = {}) {
+  const expiresAt = Date.parse(session.expiresAt || "");
+  if (Number.isFinite(expiresAt)) {
+    return expiresAt <= Date.now();
+  }
+  const createdAt = Date.parse(session.createdAt || session.updatedAt || "");
+  return Number.isFinite(createdAt) && createdAt + DEFAULT_SESSION_TTL_SECONDS * 1000 <= Date.now();
+}
+
+function createAuthSessionRepository(dataPath = DEFAULT_DATA_PATH, { ttlSeconds = process.env.SESSION_TTL_SECONDS } = {}) {
   const resolvedDataPath = path.resolve(dataPath);
+  const resolvedTtlSeconds = normalizeTtlSeconds(ttlSeconds);
 
   async function writeState(state) {
     await fs.mkdir(path.dirname(resolvedDataPath), { recursive: true });
@@ -81,6 +102,7 @@ function createAuthSessionRepository(dataPath = DEFAULT_DATA_PATH) {
       permissions: role ? getRolePermissions(role) : {},
       createdAt: now,
       updatedAt: now,
+      expiresAt: createExpiresAt(now, resolvedTtlSeconds),
       source: payload.source || "local-dev",
     };
     const state = await readState();
@@ -103,7 +125,20 @@ function createAuthSessionRepository(dataPath = DEFAULT_DATA_PATH) {
     }
 
     const state = await readState();
-    return state.sessions[cleanSessionId] || null;
+    const session = state.sessions[cleanSessionId] || null;
+    if (!session) {
+      return null;
+    }
+    if (isSessionExpired(session)) {
+      const sessions = { ...state.sessions };
+      delete sessions[cleanSessionId];
+      await writeState({
+        updatedAt: new Date().toISOString(),
+        sessions,
+      });
+      return null;
+    }
+    return session;
   }
 
   async function updateSession(sessionId, patch = {}) {

@@ -1059,8 +1059,8 @@ test("official site home stays a navigable site dashboard instead of the index l
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
   const renderHomeBody = siteJs.match(/function renderHome\(\) \{([\s\S]*?)\n  function renderPeople\(\)/)?.[1] || "";
 
-  assert.match(siteHtml, /src\/site\.css\?v=20260703-force-feishu-login/);
-  assert.match(siteHtml, /src\/site\.js\?v=20260703-force-feishu-login/);
+  assert.match(siteHtml, /src\/site\.css\?v=20260703-auth-role-selection/);
+  assert.match(siteHtml, /src\/site\.js\?v=20260703-auth-role-selection/);
   assert.match(renderHomeBody, /<span class="hero-kicker"><span class="hero-kicker-live"><span class="live-dot"><\/span>LIVE<\/span><span class="hero-kicker-name">AI_INNOVATION_HACKATHON_2026<\/span><\/span>/);
   assert.match(renderHomeBody, /<h1 class="hero-title">AI创新黑客松<\/h1>/);
   assert.match(renderHomeBody, /<p class="hero-slogan">36小时 · 让想法落地，让创新发生<\/p>/);
@@ -1084,7 +1084,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260703-force-feishu-login/);
+  assert.match(siteHtml, /site\.js\?v=20260703-auth-role-selection/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -1126,7 +1126,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260703-force-feishu-login/);
+  assert.match(siteHtml, /site\.js\?v=20260703-auth-role-selection/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -1144,8 +1144,8 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.css\?v=20260703-force-feishu-login/);
-  assert.match(siteHtml, /site\.js\?v=20260703-force-feishu-login/);
+  assert.match(siteHtml, /site\.css\?v=20260703-auth-role-selection/);
+  assert.match(siteHtml, /site\.js\?v=20260703-auth-role-selection/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -2280,7 +2280,7 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260703-force-feishu-login/);
+  assert.match(html, /src\/site\.css\?v=20260703-auth-role-selection/);
   assert.match(siteCss, /--site-detail-console-width:\s*calc\(min\(80vw,\s*1260px\) - 24px\)/);
   assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*max\(3vw,\s*calc\(100dvw - var\(--site-detail-console-width\) - var\(--site-detail-card-width\) - 40px\)\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*auto/);
@@ -2646,8 +2646,41 @@ test("official site forces Feishu login on desktop and mobile entry", () => {
   assert.match(siteJs, /closeAuthGate\(\{ force: true \}\)/);
   assert.match(siteCss, /\.auth-gate\.is-forced/);
   assert.match(siteCss, /\.auth-required-note/);
-  assert.match(html, /src\/site\.css\?v=20260703-force-feishu-login/);
-  assert.match(html, /src\/site\.js\?v=20260703-force-feishu-login/);
+  assert.match(html, /src\/site\.css\?v=20260703-auth-role-selection/);
+  assert.match(html, /src\/site\.js\?v=20260703-auth-role-selection/);
+});
+
+test("official site refreshes backend session before leaving the Feishu login gate", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const finalizeStart = siteJs.indexOf("async function finalizeLogin(");
+  const finalizeEnd = siteJs.indexOf("\n  // 发起飞书登录", finalizeStart);
+  const finalizeBody = siteJs.slice(finalizeStart, finalizeEnd);
+
+  assert.ok(finalizeStart > 0, "finalizeLogin should be async so callers can wait for backend session refresh");
+  assert.match(finalizeBody, /await loadSiteState\(\);/);
+  assert.match(finalizeBody, /await loadSiteState\(\);[\s\S]*closeAuthGate\(\{ force: true \}\);[\s\S]*go\(target\);/);
+  assert.match(siteJs, /await finalizeLogin\(res\.role,\s*res,\s*res\.redirectPath\)/);
+});
+
+test("official site shows role picker instead of Feishu gate for pending role sessions", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const enforceStart = siteJs.indexOf("function enforceEntryAuth()");
+  const enforceEnd = siteJs.indexOf("\n  function requireAuth", enforceStart);
+  const enforceBody = siteJs.slice(enforceStart, enforceEnd);
+
+  assert.match(siteJs, /function needsBackendRoleSelection\(/);
+  assert.match(enforceBody, /if \(needsBackendRoleSelection\(\)\) \{[\s\S]*showRolePicker\(SITE_STATE\.me\.roles \|\| \[\]\);[\s\S]*return false;[\s\S]*\}/);
+  assert.doesNotMatch(enforceBody, /needsBackendRoleSelection\(\)[\s\S]*showAuthGate/);
+});
+
+test("mobile official site keeps a visible account entry for logout", () => {
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+
+  assert.doesNotMatch(siteCss, /\.nav-login,\s*\.nav-phase\s*\{\s*display:\s*none;\s*\}/);
+  assert.doesNotMatch(siteCss, /\.nav-links,\s*\.nav-links\.open,\s*\.nav-actions,\s*\.nav-burger\s*\{\s*display:\s*none\s*!important;\s*\}/);
+  assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.nav-actions\s*\{[\s\S]*display:\s*flex/s);
+  assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.nav-login\s*\{[\s\S]*display:\s*inline-flex/s);
+  assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.nav-user-menu\s*\{/s);
 });
 
 test("mobile result route does not fall back to the gallery tab highlight", () => {
@@ -2664,11 +2697,11 @@ test("official site cache keys are bumped after navigation and detail layout pol
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
-  assert.match(html, /src\/site\.css\?v=20260703-force-feishu-login/);
+  assert.match(html, /src\/site\.css\?v=20260703-auth-role-selection/);
   assert.match(html, /src\/logic\.js\?v=20260703-judge-no-quick/);
   assert.match(html, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(html, /src\/screen-data\.js\?v=20260703-slogan-copy/);
-  assert.match(html, /src\/site\.js\?v=20260703-force-feishu-login/);
+  assert.match(html, /src\/site\.js\?v=20260703-auth-role-selection/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {

@@ -747,6 +747,7 @@ test("site bootstrap API keeps role-selection sessions from inheriting public vo
   assert.equal(response.status, 200);
   assert.equal(payload.me.authenticated, true);
   assert.equal(payload.me.role, null);
+  assert.equal(payload.me.needsRoleSelection, true);
   assert.deepEqual(payload.me.permissions, {});
   assert.equal(payload.vote.myVoteTeamId, null);
 });
@@ -1372,6 +1373,7 @@ test("auth APIs create local role sessions and resolve /api/me from cookie", asy
   assert.equal(login.role, "judge");
   assert.equal(login.permissions.canScore, true);
   assert.match(setCookie, /joincare_session=/);
+  assert.match(setCookie, /Max-Age=21600/);
 
   const cookie = setCookie.split(";")[0];
   const meResponse = await fetch(`${baseUrl}/api/me`, {
@@ -1401,6 +1403,37 @@ test("auth APIs create local role sessions and resolve /api/me from cookie", asy
   assert.equal(afterLogoutResponse.status, 200);
   assert.equal(afterLogout.role, null);
   assert.deepEqual(afterLogout.permissions, []);
+});
+
+test("auth sessions expire after six hours and require login again", async (t) => {
+  const { dataPath, publicRoot } = await createTempJsonFile("ai-auth-expiry-", "sessions.json", {
+    sessions: {},
+  });
+  const authSessionRepository = createAuthSessionRepository(dataPath);
+  const session = await authSessionRepository.createSession({
+    role: "public",
+    roles: ["public"],
+    userId: "public-expired",
+    name: "过期观众",
+  });
+
+  const state = JSON.parse(await fs.readFile(dataPath, "utf8"));
+  state.sessions[session.id].expiresAt = new Date(Date.now() - 1000).toISOString();
+  await fs.writeFile(dataPath, `${JSON.stringify(state, null, 2)}\n`);
+
+  const server = createServer({ publicRoot, authSessionRepository });
+  const baseUrl = await listen(server);
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const meResponse = await fetch(`${baseUrl}/api/me`, {
+    headers: { Cookie: `joincare_session=${session.id}` },
+  });
+  const me = await meResponse.json();
+
+  assert.equal(meResponse.status, 200);
+  assert.equal(me.role, null);
+  assert.equal(me.user, null);
+  assert.deepEqual(me.roles, []);
 });
 
 test("strict auth rejects local role login sessions from request payloads", async (t) => {

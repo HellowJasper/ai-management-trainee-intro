@@ -656,7 +656,8 @@
   .nav-links { position: absolute; top: 68px; left: 0; right: 0; flex-direction: column; gap: 0; background: rgba(4, 12, 16, 0.96); padding: 8px; display: none; border-bottom: 1px solid var(--line); }
   .nav-links.open { display: flex; }
   .nav-burger { display: block; }
-  .nav-login, .nav-phase { display: none; }
+  .nav-phase { display: none; }
+  .nav-login { display: inline-flex; }
   .entry-grid, .mech2-grid, .tk2-grid, .hw-grid, .gl2-grid, .flow-row, .dash-grid, .team-grid, .timeline-grid, .quick-grid, .judge-input-grid, .score-note ul, .score-dim-grid, .workspace-form, .workspace-preview-shots, .workspace-roster { grid-template-columns: 1fr; }
   .mech2 b { white-space: normal; }
   .flow-step b { white-space: normal; }
@@ -1540,7 +1541,52 @@
     line-height: 1;
     letter-spacing: 0.01em;
   }
-  .nav-links, .nav-links.open, .nav-actions, .nav-burger { display: none !important; }
+  .nav-links, .nav-links.open, .nav-burger { display: none !important; }
+  .nav-actions {
+    display: flex;
+    min-width: auto;
+    margin-left: auto;
+    gap: 0;
+    flex: 0 0 auto;
+  }
+  .nav-login {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 126px;
+    min-height: 36px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    line-height: 1;
+  }
+  .nav-login:not(.is-user) {
+    width: 48px;
+    padding: 0;
+  }
+  .nav-login.is-user {
+    max-width: 128px;
+    padding: 3px 10px 3px 3px;
+    gap: 7px;
+  }
+  .nav-login.is-user .nav-ava {
+    width: 28px;
+    height: 28px;
+  }
+  .nav-login-meta b {
+    max-width: 74px;
+    font-size: 12px;
+  }
+  .nav-login-meta i {
+    font-size: 9px;
+  }
+  .nav-user-menu {
+    position: fixed;
+    top: 64px;
+    right: 12px;
+    width: min(248px, calc(100vw - 24px));
+    z-index: 430;
+  }
 
   .site-main { min-height: calc(100vh - 58px); padding-bottom: 98px; }
   .site-body[data-view="gallery"] .site-main,

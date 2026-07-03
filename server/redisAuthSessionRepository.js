@@ -4,7 +4,7 @@ const { createHttpError } = require("./traineeRepository");
 const { getRolePermissions } = require("../src/logic");
 
 const DEFAULT_KEY_PREFIX = "joincare:session:";
-const DEFAULT_TTL_SECONDS = 60 * 60 * 12;
+const DEFAULT_TTL_SECONDS = 60 * 60 * 6;
 const VALID_ROLES = new Set(["player", "judge", "public", "admin"]);
 
 function createSessionId() {
@@ -30,6 +30,11 @@ function normalizeUser(payload = {}) {
 function normalizeTtlSeconds(value) {
   const ttl = Number(value);
   return Number.isFinite(ttl) && ttl > 0 ? Math.floor(ttl) : DEFAULT_TTL_SECONDS;
+}
+
+function createExpiresAt(nowIso, ttlSeconds) {
+  const baseMs = Date.parse(nowIso);
+  return new Date(baseMs + ttlSeconds * 1000).toISOString();
 }
 
 function sessionKey(keyPrefix, sessionId) {
@@ -76,6 +81,7 @@ function createRedisAuthSessionRepository({
       permissions: getRolePermissions(role),
       createdAt: now,
       updatedAt: now,
+      expiresAt: createExpiresAt(now, resolvedTtlSeconds),
       source: payload.source || "local-dev",
     };
 
