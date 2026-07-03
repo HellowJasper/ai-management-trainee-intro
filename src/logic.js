@@ -454,12 +454,7 @@
             nav: "gallery",
           },
         ],
-        quickEntries: [
-          { nav: "judge", title: "待评作品", sub: "进入五维评分" },
-          { nav: "judge", title: "我的评分记录", sub: "查看本地评分草稿" },
-          { nav: "gallery", title: "作品展厅", sub: "浏览作品详情" },
-          { nav: "schedule", title: "赛事指南", sub: "查看路演安排" },
-        ],
+        quickEntries: [],
       },
       public: {
         eyebrow: "PUBLIC VOTE DESK",

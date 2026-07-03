@@ -150,9 +150,35 @@ function createAuthSessionRepository(dataPath = DEFAULT_DATA_PATH) {
     return true;
   }
 
+  async function deleteSessionsForUser(userId) {
+    const cleanUserId = String(userId || "").trim();
+    if (!cleanUserId) {
+      return 0;
+    }
+
+    const state = await readState();
+    const sessions = { ...state.sessions };
+    let deleted = 0;
+    Object.entries(state.sessions || {}).forEach(([sessionId, session]) => {
+      if (String(session?.user?.id || "").trim() === cleanUserId) {
+        delete sessions[sessionId];
+        deleted += 1;
+      }
+    });
+
+    if (deleted > 0) {
+      await writeState({
+        updatedAt: new Date().toISOString(),
+        sessions,
+      });
+    }
+    return deleted;
+  }
+
   return {
     createSession,
     deleteSession,
+    deleteSessionsForUser,
     getSession,
     updateSession,
   };

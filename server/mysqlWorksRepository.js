@@ -98,6 +98,12 @@ function rowToWork(row = {}) {
   });
 }
 
+function assertPlayerMutableWork(work = {}) {
+  if (String(work.status || "").trim() === "published") {
+    throw createHttpError(409, "Published work cannot be updated or withdrawn by players.");
+  }
+}
+
 function createMysqlWorksRepository(pool) {
   if (!pool || typeof pool.execute !== "function") {
     throw new Error("A mysql2-compatible pool with execute(sql, params) is required.");
@@ -143,6 +149,19 @@ function createMysqlWorksRepository(pool) {
     return rowToWork(rows[0]);
   }
 
+  async function findWork(teamId) {
+    const cleanTeamId = normalizeId(teamId);
+    const [rows] = await pool.execute(
+      `SELECT ${selectColumns}
+       FROM works
+       WHERE id = ? OR team_id = ?
+       LIMIT 1`,
+      [cleanTeamId, cleanTeamId],
+    );
+
+    return rows[0] ? rowToWork(rows[0]) : null;
+  }
+
   async function submitWork(payload = {}) {
     const teamId = normalizeId(payload.teamId || payload.id);
     if (!teamId) {
@@ -152,6 +171,11 @@ function createMysqlWorksRepository(pool) {
     const project = String(payload.project || payload.title || "").trim();
     if (!project) {
       throw createHttpError(400, "project is required.");
+    }
+
+    const existing = await findWork(teamId);
+    if (existing) {
+      assertPlayerMutableWork(existing);
     }
 
     const updatedAt = new Date().toISOString();
@@ -216,7 +240,8 @@ function createMysqlWorksRepository(pool) {
       throw createHttpError(400, "teamId is required.");
     }
 
-    await getWork(cleanTeamId);
+    const existing = await getWork(cleanTeamId);
+    assertPlayerMutableWork(existing);
 
     const [result] = await pool.execute(
       `UPDATE works SET

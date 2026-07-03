@@ -1,6 +1,7 @@
 const { computeFinalResults } = require("../src/logic");
 const { createHttpError } = require("./traineeRepository");
 const {
+  buildJudgeProgress,
   effectiveRecordsForTeam,
   normalizeRecord,
   normalizeState,
@@ -73,25 +74,54 @@ function buildFinalResultSource({ voteState = {}, judgeState = {} } = {}) {
   };
 }
 
-function assertFinalResultPublishable({ voteState = {} } = {}) {
+function filterVoteStateByTeamIds(voteState = {}, teamIds = []) {
+  const scopedTeamIds = new Set((Array.isArray(teamIds) ? teamIds : [])
+    .map((teamId) => String(teamId || "").trim())
+    .filter(Boolean));
+  if (!scopedTeamIds.size) {
+    return {
+      ...voteState,
+      results: [],
+    };
+  }
+
+  return {
+    ...voteState,
+    results: (Array.isArray(voteState.results) ? voteState.results : [])
+      .filter((team) => scopedTeamIds.has(String(team?.id || "").trim())),
+  };
+}
+
+function assertFinalResultPublishable({ voteState = {}, judgeState = {}, teamIds = [] } = {}) {
   const voteStatus = String(voteState.status || "").trim().toLowerCase();
   if (!["closed", "published"].includes(voteStatus)) {
     throw createHttpError(409, "Final results can only be published after the vote window is closed.");
   }
 
-  const teamIds = (Array.isArray(voteState.results) ? voteState.results : [])
+  const scopedVoteState = filterVoteStateByTeamIds(voteState, teamIds);
+  const rankedTeamIds = (Array.isArray(scopedVoteState.results) ? scopedVoteState.results : [])
     .map((team) => String(team?.id || "").trim())
     .filter(Boolean);
-  if (!teamIds.length) {
-    throw createHttpError(409, "Final results require at least one ranked team.");
+  if (!rankedTeamIds.length) {
+    throw createHttpError(409, "Final results require at least one published ranked team.");
+  }
+
+  const progress = buildJudgeProgress({
+    state: judgeState,
+    teamIds: rankedTeamIds,
+    judges: Array.isArray(judgeState.judges) ? judgeState.judges : [],
+  });
+  if (!progress.locked) {
+    throw createHttpError(409, "Final results require locked judge scores before publishing.");
   }
 }
 
-function buildFinalResultSnapshot({ voteState = {}, judgeState = {}, publishedBy = "admin" } = {}) {
+function buildFinalResultSnapshot({ voteState = {}, judgeState = {}, teamIds = [], publishedBy = "admin" } = {}) {
   const pointScale = Array.isArray(voteState.pointScale) && voteState.pointScale.length
     ? voteState.pointScale
     : [100, 85, 70, 55, 40];
-  const sourceResults = Array.isArray(voteState.results) ? voteState.results : [];
+  const scopedVoteState = filterVoteStateByTeamIds(voteState, teamIds);
+  const sourceResults = Array.isArray(scopedVoteState.results) ? scopedVoteState.results : [];
   const resultsWithJudgeScores = sourceResults.map((team) => {
     const judgeExpertScores = getExpertScoresForTeam(judgeState, team.id);
     return {
@@ -103,7 +133,7 @@ function buildFinalResultSnapshot({ voteState = {}, judgeState = {}, publishedBy
   return {
     pointScale,
     results: computeFinalResults(resultsWithJudgeScores, pointScale),
-    source: buildFinalResultSource({ voteState, judgeState }),
+    source: buildFinalResultSource({ voteState: scopedVoteState, judgeState }),
     publishedBy,
   };
 }

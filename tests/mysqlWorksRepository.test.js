@@ -150,19 +150,6 @@ test("MySQL works repository preserves submit, list, detail, and review status c
   assert.equal(detail.project, "全域内容生成引擎");
   assert.deepEqual(detail.screenshots, ["screen-a.png"]);
 
-  const reviewed = await repository.updateStatus("marketing", {
-    status: "published",
-    reviewerId: "admin-a",
-    reviewNote: "可以展示",
-  });
-  assert.equal(reviewed.accepted, true);
-  assert.equal(reviewed.work.status, "published");
-  assert.equal(reviewed.work.reviewedBy, "admin-a");
-  assert.equal(reviewed.work.reviewNote, "可以展示");
-  const updateCall = pool.calls.find((call) => call.sql.includes("UPDATE works SET"));
-  assert.match(updateCall.params[2], /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
-  assert.doesNotMatch(updateCall.params[2], /[TZ]/);
-
   const withdrawn = await repository.withdrawWork({ teamId: "marketing" });
   assert.equal(withdrawn.accepted, true);
   assert.equal(withdrawn.work.status, "draft");
@@ -172,9 +159,27 @@ test("MySQL works repository preserves submit, list, detail, and review status c
 
   const withdrawCall = pool.calls.find((call) => call.sql.includes("status = 'draft'"));
   assert.deepEqual(withdrawCall.params, ["marketing", "marketing"]);
-  const publishedAfterWithdraw = await repository.listWorks({ status: "published" });
-  assert.equal(publishedAfterWithdraw.length, 1);
-  assert.equal(publishedAfterWithdraw[0].teamId, "pharma");
+
+  const reviewed = await repository.updateStatus("marketing", {
+    status: "published",
+    reviewerId: "admin-a",
+    reviewNote: "可以展示",
+  });
+  assert.equal(reviewed.accepted, true);
+  assert.equal(reviewed.work.status, "published");
+  assert.equal(reviewed.work.reviewedBy, "admin-a");
+  assert.equal(reviewed.work.reviewNote, "可以展示");
+  const updateCall = pool.calls.find((call) => call.sql.includes("reviewed_by = ?"));
+  assert.match(updateCall.params[2], /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+  assert.doesNotMatch(updateCall.params[2], /[TZ]/);
+
+  await assert.rejects(
+    () => repository.withdrawWork({ teamId: "marketing" }),
+    /Published work cannot be updated or withdrawn by players/,
+  );
+  const publishedAfterReview = await repository.listWorks({ status: "published" });
+  assert.equal(publishedAfterReview.length, 2);
+  assert.deepEqual(publishedAfterReview.map((work) => work.teamId).sort(), ["marketing", "pharma"]);
 });
 
 test("repository factory wires the MySQL works repository", async () => {

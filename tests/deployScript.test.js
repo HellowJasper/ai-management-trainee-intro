@@ -30,3 +30,11 @@ test("deploy script passes server runtime secrets into the container", () => {
   assert.match(script, /ENV_FILE_ARGS="--env-file \\\$RUNTIME_ENV_FILE"/);
   assert.match(script, /docker run[\s\S]*\\\$ENV_FILE_ARGS[\s\S]*-e DATA_BACKEND=mysql/);
 });
+
+test("deploy script persists uploaded assets outside the container", () => {
+  const script = fs.readFileSync(path.join(__dirname, "../deploy_to_88.sh"), "utf8");
+
+  assert.match(script, /UPLOADS_HOST_DIR="\/root\/ai-intro-uploads"/);
+  assert.match(script, /mkdir -p "\\\$UPLOADS_HOST_DIR"/);
+  assert.match(script, /-v "\\\$UPLOADS_HOST_DIR:\/app\/assets\/uploads"/);
+});

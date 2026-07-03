@@ -158,6 +158,11 @@
   function canUseVoteAction() {
     return hasBackendSession() && rolePermissions(currentRole()).canVote;
   }
+  function isJudgeScoringLockedForTeam(teamId) {
+    const record = JUDGE_REMOTE_STATE?.teams?.[teamId] || {};
+    const status = String(record.status || "").trim().toLowerCase();
+    return status === "locked";
+  }
   function clearStoredRole() {
     root.localStorage.removeItem(ROLE_KEY);
     root.localStorage.removeItem(SESSION_KEY);
@@ -879,7 +884,7 @@
   };
   function getHomeActions(role) {
     return [
-      { nav: "schedule", title: "启航时刻", en: "KICKOFF", sub: "总裁致辞·认识组织·认识彼此", icon: "calendar", accent: "#6ad7ff", rgb: "106,215,255" },
+      { nav: "schedule", title: "启航时刻", en: "KICKOFF", sub: "认识组织·认识彼此", icon: "calendar", accent: "#6ad7ff", rgb: "106,215,255" },
       { nav: "tracks", title: "挑战发布", en: "CHALLENGE BRIEFING", sub: "五大业务赛道发布挑战课题", icon: "doc", accent: "#c79bff", rgb: "199,155,255" },
       { nav: "team", title: "自由组队", en: "TEAM FORMATION", sub: "选择感兴趣的赛题，组建战队", icon: "team", accent: "var(--neon-2)", rgb: "167,255,79" },
       { nav: "schedule", title: "方案共创", en: "SOLUTION DESIGN", sub: "洞察业务需求，探索解决方案方向", icon: "bulb", accent: "var(--warning)", rgb: "246,255,129" },
@@ -1186,7 +1191,7 @@
     return `<section class="mobile-home">
       <div class="mh-hero">
         <h1>AI创新黑客松</h1>
-        <p class="mh-slogan">36小时，用 AI 把创意照进现实</p>
+        <p class="mh-slogan">36小时 · 让想法落地，让创新发生</p>
         <p class="mh-intro">五大真实业务挑战，五支战队，从业务场景出发，用 AI 解决真实问题，认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。</p>
         <div class="mh-live">
           <div class="mh-live-status">
@@ -1649,7 +1654,7 @@
       return card + arrow;
     }).join("");
     const mech = D.mechanism.map((c) => `<div class="mech2 glass" style="--accent:${c.accent};--rgb:${c.rgb}"><div class="m2-top"><span>${esc(c.label)}<i>${esc(c.en)}</i></span>${ICON(c.icon, c.accent)}</div><b>${esc(c.headline)}</b><span class="m2-sub">${esc(c.sub)}</span></div>`).join("");
-    return `${pageHead("大赛介绍与全流程", "36小时，用 AI 把创意照进现实", "ABOUT")}
+    return `${pageHead("大赛介绍与全流程", "36小时 · 让想法落地，让创新发生", "ABOUT")}
     <section class="container sec"><div class="sec-cap"><span></span>赛事全景 · HACKATHON OVERVIEW</div><div class="flow-row">${days}</div></section>
     <section class="container sec"><div class="sec-cap"><span></span>赛事机制</div><div class="mech2-grid">${mech}</div></section>`;
   }
@@ -1687,7 +1692,11 @@
       return `<a class="quick-link" ${attr}><b>${esc(entry.title)}</b><span>${esc(entry.sub)}</span><i>➔</i></a>`;
     };
     const cards = safeModel.statusCards.map(cardToLink).join("");
-    const quick = safeModel.quickEntries.map(quickToLink).join("");
+    const quickEntries = Array.isArray(safeModel.quickEntries) ? safeModel.quickEntries : [];
+    const quick = quickEntries.map(quickToLink).join("");
+    const quickPanel = quickEntries.length
+      ? `<div class="quick-panel glass"><div class="sec-cap"><span></span>快捷入口</div><div class="quick-grid">${quick}</div></div>`
+      : "";
     const chips = safeModel.chips.map((chip, index) => `<span class="status-chip ${index === 0 ? "on" : ""}">${esc(chip)}</span>`).join("");
 
     return `${pageHead(safeModel.title, safeModel.subtitle, safeModel.eyebrow)}
@@ -1701,7 +1710,7 @@
         <div class="status-strip">${chips}</div>
       </div>
       <div class="dash-grid">${cards}</div>
-      <div class="quick-panel glass"><div class="sec-cap"><span></span>快捷入口</div><div class="quick-grid">${quick}</div></div>
+      ${quickPanel}
     </section>`;
   }
 
@@ -1714,7 +1723,7 @@
     const journeyOrder = isMobileView() ? chronologicalOrder : snakeOrder;
     const actionCards = journeyOrder.map((sourceIndex, gridIndex) => entryCard(journeyCards[sourceIndex], gridIndex, { hideEnglish: true })).join("");
     const mechanismBriefs = {
-      format: { headline: "五大业务赛道开放命题", sub: "围绕真实场景自由发现问题" },
+      format: { headline: "五大业务赛道开放命题", sub: "围绕真实业务场景，探索创新方案" },
       delivery: { headline: "真实可运行方案", sub: "提交作品与现场展示" },
       scoring: { headline: "五维评审 + 全员投票", sub: "专家评审 70% + 大众投票 30%" },
       prize: { headline: "Grand Prize 冠军团队", sub: "最终评选一支冠军团队" },
@@ -1851,13 +1860,14 @@
     if (message === "teamId is required.") return "缺少队伍信息，请重新进入队伍工作台";
     if (message === "Authentication required.") return "登录已失效，请重新登录后再提交作品";
     if (message.includes("Required permission: canSubmitWork")) return "当前账号没有作品提交权限，请切换为参赛选手后再提交";
+    if (message.includes("Published work cannot be updated")) return "作品已发布，不能直接修改；如需更新请联系管理员退回后重新提交";
     return message ? `作品提交失败：${message}` : "作品提交失败，请稍后重试";
   }
 
   function getWorkSubmitActionLabel(status) {
     if (status === "submitted") return "更新提交";
     if (status === "reviewing") return "更新提交";
-    if (status === "published") return "提交更新";
+    if (status === "published") return "已发布";
     if (status === "rejected") return "重新提交";
     return "提交作品";
   }
@@ -1868,6 +1878,7 @@
     if (message.includes("was not found")) return "当前作品还没有提交，无需撤销";
     if (message === "Authentication required.") return "登录已失效，请重新登录后再撤销提交";
     if (message.includes("Required permission: canSubmitWork")) return "当前账号没有撤销权限，请切换为参赛选手后再操作";
+    if (message.includes("Published work cannot be updated")) return "作品已发布，不能直接撤销；如需调整请联系管理员退回";
     return message ? `作品撤销失败：${message}` : "作品撤销失败，请稍后重试";
   }
 
@@ -2056,10 +2067,13 @@
     const editHint = canEdit
       ? "你是当前队长，可提交作品信息；提交后会写入后端作品表，并等待管理员审核。"
       : leaderId ? "当前身份为队友，可查看职责与作品预览；作品提交内容仅队长可编辑。" : "当前队伍尚未绑定真实队长账号，请联系管理员在后台维护后再提交作品。";
-    const canWithdrawSubmission = canEdit && ["submitted", "reviewing", "published"].includes(submissionStatus);
+    const isPublishedSubmission = submissionStatus === "published";
+    const canWithdrawSubmission = canEdit && ["submitted", "reviewing"].includes(submissionStatus);
     const submitActionLabel = getWorkSubmitActionLabel(submissionStatus);
     const joinAction = canEdit
-      ? `<button class="btn-primary" type="button" data-submit-work="${team.id}">${submitActionLabel}</button>${canWithdrawSubmission ? `<button class="btn-ghost" type="button" data-withdraw-work="${team.id}">撤销提交</button>` : ""}`
+      ? isPublishedSubmission
+        ? `<button class="btn-primary" type="button" disabled>${submitActionLabel}</button>`
+        : `<button class="btn-primary" type="button" data-submit-work="${team.id}">${submitActionLabel}</button>${canWithdrawSubmission ? `<button class="btn-ghost" type="button" data-withdraw-work="${team.id}">撤销提交</button>` : ""}`
       : `<button class="btn-primary" type="button" disabled>仅队长可提交</button>`;
 
     return `${pageHead("队伍工作台 / 作品提交", "维护队伍名称、作品资料与发布预览；作品展厅只展示审核发布后的内容", "WORKSPACE")}
@@ -2159,7 +2173,8 @@
   function renderJudge() {
     const draft = readJson(JUDGE_KEY, {});
     const head = D.dimensions.map((d) => `<span>${esc(d.label)}<i>${d.weight}%</i></span>`).join("");
-    const rows = D.teams.map((t) => {
+    const scoreTeams = D.teams.filter(isPublishedWorkTeam);
+    const rows = scoreTeams.map((t) => {
       const projectName = displayWorkProjectName(t);
       const canBrowseWork = canViewWorkTeam(t);
       const inputs = D.dimensions.map((d, i) => {
@@ -2179,12 +2194,13 @@
         <div class="judge-input-grid">${inputs}</div>
       </article>`;
     }).join("");
+    const empty = scoreTeams.length ? "" : `<div class="gl2-empty glass"><b>暂无已发布作品</b><span>管理员发布作品后，评委评分表会在这里出现。</span></div>`;
 
     return `${pageHead("评委评分", "五维评分接入后端暂存与正式提交；提交后不可修改，管理员锁定后进入最终核算。", "JUDGE")}
     <section class="container sec judge-board">
       <div class="judge-toolbar glass"><div><span class="status-chip on">专家评分</span><h2>评委评分表</h2><p>输入 0-100 分完成五维评分；暂存评分不计入结果，正式提交后进入后台评审进度。</p></div><div class="judge-actions"><span class="judge-sync-status" data-judge-status>等待同步</span><button class="judge-save" data-judge-save>暂存评分</button><button class="judge-save judge-submit" data-judge-submit>正式提交</button></div></div>
       <div class="judge-head"><span class="judge-head-spacer" aria-hidden="true"></span><div class="judge-head-grid">${head}</div></div>
-      <div class="judge-list">${rows}</div>
+      <div class="judge-list">${rows}${empty}</div>
     </section>`;
   }
 
@@ -2251,6 +2267,7 @@
     const voted = canVote ? votedTeam() : "";
     const voteWindowOpen = isVoteWindowOpen();
     const isVoted = voted === t.id;
+    const judgeScoringLocked = permissions.canScore && isJudgeScoringLockedForTeam(t.id);
     const L = teamLinks(t);
     const workDocUrl = String(t.work?.docUrl || "").trim();
     const docHref = workDocUrl || L.page;
@@ -2263,6 +2280,10 @@
     const stack = (t.stack || []).map((s) => `<span>${esc(s)}</span>`).join("");
     const voteBtn = !hasBackendSession()
       ? `<button class="btn-primary" data-auth-vote="${t.id}">登录后投票</button>`
+      : permissions.canScore
+        ? judgeScoringLocked
+          ? `<button class="btn-primary dim" disabled>评分已关闭</button>`
+          : `<button class="btn-primary" type="button" data-nav="judge">去评分</button>`
       : !permissions.canVote
         ? `<button class="btn-primary dim" disabled>当前身份不可投票</button>`
         : voted
@@ -2297,7 +2318,7 @@
     <section class="container sec wk-grid">
       <div class="wk-main">
         <div class="sec-cap"><span></span>作品预览 · 轮播</div>
-        <div class="wk-carousel" id="wkCarousel" style="--accent:${t.accent};--rgb:${t.rgb}"><div class="wkc-viewport"><div class="wkc-track">${slideEls}</div></div><button class="wkc-arrow prev" data-cdir="-1" aria-label="上一张">‹</button><button class="wkc-arrow next" data-cdir="1" aria-label="下一张">›</button><div class="wkc-foot"><div class="wkc-dots">${dotEls}</div><span class="wkc-hint">＋ 提交作品时可上传多张截图</span></div></div>
+        <div class="wk-carousel" id="wkCarousel" style="--accent:${t.accent};--rgb:${t.rgb}"><div class="wkc-viewport"><div class="wkc-track">${slideEls}</div></div><button class="wkc-arrow prev" data-cdir="-1" aria-label="上一张">‹</button><button class="wkc-arrow next" data-cdir="1" aria-label="下一张">›</button><div class="wkc-foot"><div class="wkc-dots">${dotEls}</div></div></div>
         <div class="sec-cap"><span></span>作品介绍</div>
         <p class="wk-desc">该作品聚焦「${esc(t.track)}」赛道的真实业务痛点，构建可运行系统：${esc(t.pitch || "")}。完整介绍、功能说明与使用方式见飞书作品页文档。</p>
         <div class="sec-cap"><span></span>技术栈</div>
@@ -2580,6 +2601,7 @@
     if (safeReturnView) root.sessionStorage.setItem("joincare_work_return_view", safeReturnView);
     else root.sessionStorage.removeItem("joincare_work_return_view");
     if (push !== false) history.pushState(null, "", `#work-${id}`);
+    refreshJudgeStateForWorkDetail(id, safeReturnView);
   }
   function showTeamWorkspace(id, push) {
     const team = getTeam(id);
@@ -2963,6 +2985,24 @@
     }
   }
 
+  async function refreshJudgeStateForWorkDetail(teamId, returnView) {
+    if (!rolePermissions(currentRole()).canScore || !SiteRoleApi.loadMyJudgeScores) return;
+    const wasLocked = isJudgeScoringLockedForTeam(teamId);
+    try {
+      const payload = await SiteRoleApi.loadMyJudgeScores();
+      applyJudgeRemoteState(payload);
+    } catch (error) {
+      console.warn("Judge score detail state load failed.", error);
+      return;
+    }
+    if (wasLocked === isJudgeScoringLockedForTeam(teamId)) return;
+    if (location.hash.slice(1) !== `work-${teamId}`) return;
+    const safeReturnView = returnView === "judge" ? "judge" : "";
+    main.innerHTML = renderWork(teamId, safeReturnView);
+    setActive(safeReturnView || "gallery");
+    setupCarousel();
+  }
+
   function setupJudgePage() {
     doc.querySelectorAll("[data-score]").forEach(updateJudgeScoreInput);
     loadJudgeScoresIntoPage();
@@ -2972,6 +3012,7 @@
     const draft = {};
     const teamIds = [];
     let hasIncomplete = false;
+    let hasOutOfRange = false;
     doc.querySelectorAll("[data-judge-row]").forEach((row) => {
       const teamId = row.dataset.judgeRow;
       if (!teamId) return;
@@ -2996,19 +3037,27 @@
         if (input.dataset.scoreTouched !== "true") return;
         const [, dim] = String(input.dataset.score || "").split(":");
         if (!dim) return;
-        const value = input.value === "" ? "" : Math.max(0, Math.min(100, +input.value || 0));
+        const rawValue = String(input.value || "").trim();
+        const numericValue = Number(rawValue);
+        const value = rawValue === "" ? "" : numericValue;
+        if (rawValue !== "" && (!Number.isFinite(numericValue) || numericValue < 0 || numericValue > 100)) {
+          hasOutOfRange = true;
+        }
         if (!draft[teamId]) draft[teamId] = {};
         draft[teamId][dim] = value;
-        input.value = value;
         updateJudgeScoreInput(input);
       });
     });
-    return { scores: draft, teamIds: Array.from(new Set(teamIds)), hasIncomplete };
+    return { scores: draft, teamIds: Array.from(new Set(teamIds)), hasIncomplete, hasOutOfRange };
   }
 
   async function saveJudgeDraft() {
     if (!requireRole("judge", (p) => p.canScore, "只有专家评委可以保存评分")) return;
     const payload = collectJudgeScorePayload({ editableOnly: true });
+    if (payload.hasOutOfRange) {
+      toast("评分必须在 0-100 之间");
+      return;
+    }
     if (!payload.teamIds.length) {
       toast("请先调整至少一个评分维度");
       return;
@@ -3031,6 +3080,7 @@
     if (message.includes("already been submitted")) return "评分已提交，不能重复提交";
     if (message.includes("is locked")) return "评分已锁定，不能修改";
     if (message.includes("is missing judge score dimensions")) return "请补齐所有评分维度后再提交";
+    if (message.includes("between 0 and 100")) return "评分必须在 0-100 之间";
     if (error && (error.status === 401 || error.status === 403)) return "当前账号没有评委评分权限";
     if (error && error.status === 409) return "评分提交冲突，请刷新后重试";
     return "评分提交失败，请稍后重试";
@@ -3041,6 +3091,10 @@
     const payload = collectJudgeScorePayload({ editableOnly: true, requireCompleteRows: true });
     if (payload.hasIncomplete) {
       toast("请先完成所有未提交队伍的五维评分，再正式提交");
+      return;
+    }
+    if (payload.hasOutOfRange) {
+      toast("评分必须在 0-100 之间");
       return;
     }
     if (!payload.teamIds.length) {
@@ -3079,17 +3133,20 @@
     const rawValue = String(input.value || "").trim();
     const numericValue = Number(rawValue);
     const hasNumericValue = rawValue !== "" && Number.isFinite(numericValue);
+    const inRange = hasNumericValue && numericValue >= 0 && numericValue <= 100;
     let touched = input.dataset.scoreTouched === "true" && hasNumericValue;
     if (markTouched) {
       touched = hasNumericValue;
       input.dataset.scoreTouched = touched ? "true" : "false";
     }
-    const value = hasNumericValue ? Math.max(0, Math.min(100, Math.round(numericValue))) : "";
-    if (hasNumericValue && String(value) !== rawValue) input.value = String(value);
+    const value = hasNumericValue ? numericValue : "";
     if (!hasNumericValue) input.dataset.scoreTouched = "false";
     const card = input.closest(".judge-score-card");
-    if (card) card.classList.toggle("is-empty", !touched);
-    if (markTouched) persistJudgeScoreDraft(input, value, touched);
+    if (card) {
+      card.classList.toggle("is-empty", !touched);
+      card.classList.toggle("is-invalid", touched && !inRange);
+    }
+    if (markTouched) persistJudgeScoreDraft(input, value, touched && inRange);
     const output = doc.querySelector(`[data-score-value="${scoreKey}"]`);
     if (output) output.textContent = touched ? value : "未评分";
   }
@@ -3283,7 +3340,11 @@
 
     const submission = getWorkSubmission(team);
     const status = submission.status || "not_submitted";
-    if (!["submitted", "reviewing", "published"].includes(status)) {
+    if (status === "published") {
+      toast("作品已发布，不能直接撤销；如需调整请联系管理员退回");
+      return;
+    }
+    if (!["submitted", "reviewing"].includes(status)) {
       toast("当前作品还没有提交，无需撤销");
       return;
     }

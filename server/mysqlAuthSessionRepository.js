@@ -143,9 +143,23 @@ function createMysqlAuthSessionRepository(pool) {
     return result.affectedRows > 0;
   }
 
+  async function deleteSessionsForUser(userId) {
+    const cleanUserId = String(userId || "").trim();
+    if (!cleanUserId) {
+      return 0;
+    }
+
+    const [result] = await pool.execute(
+      "DELETE FROM auth_sessions WHERE user_id = ?",
+      [cleanUserId],
+    );
+    return result.affectedRows || 0;
+  }
+
   return {
     createSession,
     deleteSession,
+    deleteSessionsForUser,
     getSession,
     updateSession,
   };

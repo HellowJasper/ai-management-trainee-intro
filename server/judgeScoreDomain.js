@@ -39,8 +39,11 @@ function normalizeScoreValue(value) {
   if (!Number.isFinite(score)) {
     throw createHttpError(400, "Judge score values must be numbers.");
   }
+  if (score < 0 || score > 100) {
+    throw createHttpError(400, "Judge score values must be between 0 and 100.");
+  }
 
-  return Math.max(0, Math.min(100, score));
+  return score;
 }
 
 function normalizeDimensionKey(key) {

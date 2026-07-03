@@ -1058,7 +1058,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260702-mobile-result-tab/);
+  assert.match(siteHtml, /site\.js\?v=20260703-remove-work-upload-hint/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -1100,7 +1100,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260702-mobile-result-tab/);
+  assert.match(siteHtml, /site\.js\?v=20260703-remove-work-upload-hint/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -1119,7 +1119,7 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
   assert.match(siteHtml, /site\.css\?v=20260702-team-palette-sync/);
-  assert.match(siteHtml, /site\.js\?v=20260702-mobile-result-tab/);
+  assert.match(siteHtml, /site\.js\?v=20260703-remove-work-upload-hint/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -1244,6 +1244,28 @@ test("official site work detail opens the submitted Feishu document URL", () => 
   assert.doesNotMatch(renderWorkBody, /<a class="wk-doc" href="\$\{L\.page\}"/);
 });
 
+test("judge work detail routes scoring action and respects locked scoring state", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const renderWorkStart = siteJs.indexOf("function renderWork(id");
+  const renderWorkEnd = siteJs.indexOf("\n  function setupCarousel", renderWorkStart);
+  const renderWorkBody = siteJs.slice(renderWorkStart, renderWorkEnd);
+
+  assert.match(siteJs, /function isJudgeScoringLockedForTeam\(teamId\)/);
+  assert.match(renderWorkBody, /const judgeScoringLocked = permissions\.canScore && isJudgeScoringLockedForTeam\(t\.id\);/);
+  assert.match(renderWorkBody, /permissions\.canScore\s*\?\s*judgeScoringLocked\s*\?\s*`<button class="btn-primary dim" disabled>评分已关闭<\/button>`\s*:\s*`<button class="btn-primary" type="button" data-nav="judge">去评分<\/button>`/);
+  assert.ok(renderWorkBody.indexOf("permissions.canScore") < renderWorkBody.indexOf("!permissions.canVote"));
+});
+
+test("work detail carousel omits the screenshot upload hint", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const renderWorkStart = siteJs.indexOf("function renderWork(id");
+  const renderWorkEnd = siteJs.indexOf("\n  function setupCarousel", renderWorkStart);
+  const renderWorkBody = siteJs.slice(renderWorkStart, renderWorkEnd);
+
+  assert.match(renderWorkBody, /class="wkc-foot"><div class="wkc-dots">\$\{dotEls\}<\/div><\/div>/);
+  assert.doesNotMatch(renderWorkBody, /wkc-hint|提交作品时可上传多张截图/);
+});
+
 test("role permissions reserve team joining, voting, judging, and admin control for the right roles", () => {
   assert.deepEqual(getRolePermissions("player"), {
     canJoinTeam: true,
@@ -1310,6 +1332,30 @@ test("judge role does not expose team progress entry points on PC", () => {
   assert.ok(!model.quickEntries.some((entry) => entry.nav === "team"));
   assert.doesNotMatch(modelText, /组队只读|组队进度|查看各赛道名额/);
   assert.match(siteJs, /if \(v\.key === "team" && !rolePermissions\(currentRole\(\)\)\.canViewTeamProgress\)/);
+});
+
+test("judge my page has no quick entries on any endpoint", () => {
+  const model = getRoleWorkbenchModel({
+    role: "judge",
+    scoredTeams: 1,
+    totalTeams: 5,
+  });
+  const quickText = JSON.stringify(model.quickEntries);
+
+  assert.deepEqual(model.quickEntries, []);
+  assert.doesNotMatch(quickText, /待评作品|我的评分记录|进入五维评分|查看本地评分草稿|作品展厅|赛事指南|浏览作品详情|查看路演安排/);
+  assert.ok(getRolePermissions("judge").canScore);
+  assert.ok(model.statusCards.some((card) => card.nav === "judge" && card.label === "待评作品"));
+});
+
+test("my page hides the quick panel when there are no quick entries", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const renderMeBody = siteJs.match(/function renderMe\(\) \{([\s\S]*?)\n  function renderSchedule/)?.[1] || "";
+
+  assert.match(renderMeBody, /const quickEntries = Array\.isArray\(safeModel\.quickEntries\) \? safeModel\.quickEntries : \[\];/);
+  assert.match(renderMeBody, /const quickPanel = quickEntries\.length/);
+  assert.match(renderMeBody, /<div class="dash-grid">\$\{cards\}<\/div>\s*\$\{quickPanel\}/);
+  assert.doesNotMatch(renderMeBody, /<div class="dash-grid">\$\{cards\}<\/div>\s*<div class="quick-panel glass">/);
 });
 
 test("public role does not expose team progress entry points on PC", () => {
@@ -1607,8 +1653,11 @@ test("team workspace supports updating and withdrawing work submissions", () => 
   assert.match(siteJs, /data-withdraw-work="\$\{team\.id\}"/);
   assert.match(siteJs, /function getWorkSubmitActionLabel\(status\)/);
   assert.match(siteJs, /if \(status === "submitted"\) return "更新提交";/);
-  assert.match(siteJs, /if \(status === "published"\) return "提交更新";/);
+  assert.match(siteJs, /if \(status === "published"\) return "已发布";/);
+  assert.match(siteJs, /const canWithdrawSubmission = canEdit && \["submitted", "reviewing"\]\.includes\(submissionStatus\);/);
+  assert.doesNotMatch(siteJs, /\["submitted", "reviewing", "published"\]\.includes\(submissionStatus\)/);
   assert.match(siteJs, /async function withdrawTeamWork\(teamId\)/);
+  assert.match(siteJs, /作品已发布，不能直接撤销/);
   assert.match(siteJs, /toast\(`「\$\{submission\.teamName \|\| team\.name\}」作品已撤销提交`\)/);
 });
 
@@ -1974,8 +2023,8 @@ test("schedule journey follows the snake arrow order", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
   assert.match(siteJs, /赛事旅程\s*·\s*EVENT JOURNEY/);
-  assert.match(siteJs, /sub:\s*"总裁致辞·认识组织·认识彼此"/);
-  assert.doesNotMatch(siteJs, /sub:\s*"总裁致辞·认识彼此·认识组织"/);
+  assert.match(siteJs, /sub:\s*"认识组织·认识彼此"/);
+  assert.doesNotMatch(siteJs, /总裁致辞/);
   assert.match(siteJs, /const snakeOrder = \[0, 1, 2, 3, 7, 6, 5, 4\]/);
   assert.match(siteJs, /const journeyOrder = isMobileView\(\) \? chronologicalOrder : snakeOrder/);
 });
@@ -1993,7 +2042,7 @@ test("mobile home focuses on the stage countdown without shortcut cards", () => 
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
   const renderMobileHomeBody = siteJs.match(/function renderMobileHome\(totalVotes\) \{([\s\S]*?)\n  \}/)?.[1] || "";
 
-  assert.match(renderMobileHomeBody, /class="mh-slogan">36小时，用 AI 把创意照进现实/);
+  assert.match(renderMobileHomeBody, /class="mh-slogan">36小时 · 让想法落地，让创新发生/);
   assert.match(renderMobileHomeBody, /五大真实业务挑战，五支战队，从业务场景出发，用 AI 解决真实问题，认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。/);
   assert.match(renderMobileHomeBody, /class="mh-chip"><span class="live-dot"><\/span>当前阶段/);
   assert.match(renderMobileHomeBody, /class="mh-chip">\$\{esc\(phaseInfo\.label\)\}/);
@@ -2070,7 +2119,7 @@ test("schedule mechanism section uses briefing cards and separate evaluation cri
   assert.match(siteJs, /class="sec-cap"><span><\/span>赛事机制 · EVENT FORMAT<\/div>\s*<div class="mech2-grid"/);
   assert.doesNotMatch(siteJs, /class="schedule-section-heading"/);
   assert.match(siteJs, /五大业务赛道开放命题/);
-  assert.match(siteJs, /围绕真实场景自由发现问题/);
+  assert.match(siteJs, /围绕真实业务场景，探索创新方案/);
   assert.match(siteJs, /真实可运行方案/);
   assert.match(siteJs, /提交作品与现场展示/);
   assert.match(siteJs, /专家评审 70% \+ 大众投票 30%/);
@@ -2203,7 +2252,7 @@ test("mobile site opens on event home and uses a natural swipe-card browser", ()
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
   assert.match(siteJs, /function renderMobileHome\(/);
-  assert.match(siteJs, /36小时，用 AI 把创意照进现实/);
+  assert.match(siteJs, /36小时 · 让想法落地，让创新发生/);
   assert.match(siteJs, /class="mh-slogan"/);
   assert.match(siteJs, /class="mh-intro"/);
   assert.match(siteJs, /当前阶段/);
@@ -2320,7 +2369,7 @@ test("judge scoring uses manual numeric input only", () => {
 
   assert.match(siteJs, /function updateJudgeScoreInput\(/);
   assert.match(siteJs, /function persistJudgeScoreDraft\(/);
-  assert.match(siteJs, /if \(markTouched\) persistJudgeScoreDraft\(input, value, touched\)/);
+  assert.match(siteJs, /if \(markTouched\) persistJudgeScoreDraft\(input, value, touched && inRange\)/);
   assert.match(siteJs, /class="judge-score-control"/);
   assert.match(siteJs, /<em class="judge-score-title">\$\{esc\(d\.label\)\}<\/em><i class="judge-score-weight">占比 \$\{esc\(d\.weight\)\}%<\/i><b data-score-value/);
   assert.match(siteJs, /<em>\$\{esc\(projectName\)\}<\/em><small data-judge-row-status/);
@@ -2401,7 +2450,28 @@ test("judge formal submit uses the shared confirm dialog and preserves backend e
   assert.match(siteJs, /function getJudgeSubmitErrorMessage\(error\)/);
   assert.match(siteJs, /already been submitted/);
   assert.match(siteJs, /is missing judge score dimensions/);
+  assert.match(siteJs, /between 0 and 100/);
   assert.match(siteJs, /评分已提交，不能重复提交/);
+  assert.match(siteJs, /评分必须在 0-100 之间/);
+});
+
+test("judge scoring keeps out-of-range values explicit instead of silently clamping them", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /hasOutOfRange/);
+  assert.doesNotMatch(siteJs, /Math\.max\(0,\s*Math\.min\(100,\s*\+input\.value/);
+  assert.doesNotMatch(siteJs, /Math\.max\(0,\s*Math\.min\(100,\s*Math\.round\(numericValue\)\)/);
+});
+
+test("judge scoring page only renders published work teams", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const renderJudgeStart = siteJs.indexOf("function renderJudge()");
+  const renderJudgeEnd = siteJs.indexOf("\n  /* ---- 赛道", renderJudgeStart);
+  const renderJudgeBody = siteJs.slice(renderJudgeStart, renderJudgeEnd);
+
+  assert.match(renderJudgeBody, /const scoreTeams = D\.teams\.filter\(isPublishedWorkTeam\)/);
+  assert.match(renderJudgeBody, /const rows = scoreTeams\.map\(\(t\) =>/);
+  assert.doesNotMatch(renderJudgeBody, /const rows = D\.teams\.map/);
 });
 
 test("judge scoring desktop header and score cards share the same five-column grid", () => {
@@ -2475,10 +2545,10 @@ test("official site cache keys are bumped after navigation and detail layout pol
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
   assert.match(html, /src\/site\.css\?v=20260702-team-palette-sync/);
-  assert.match(html, /src\/logic\.js\?v=20260702-public-result-nav/);
+  assert.match(html, /src\/logic\.js\?v=20260703-judge-no-quick/);
   assert.match(html, /src\/data\.js\?v=20260630-prestart-separate-timer/);
-  assert.match(html, /src\/screen-data\.js\?v=20260702-team-palette-sync/);
-  assert.match(html, /src\/site\.js\?v=20260702-mobile-result-tab/);
+  assert.match(html, /src\/screen-data\.js\?v=20260703-slogan-copy/);
+  assert.match(html, /src\/site\.js\?v=20260703-remove-work-upload-hint/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
@@ -3083,18 +3153,29 @@ test("admin console exposes all primary sidebar sections as real views", () => {
   assert.match(adminJs, /function renderSystemSettings/);
 });
 
+test("admin console allows natural document scrolling on mobile", () => {
+  const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+
+  assert.match(html, /admin\.css\?v=20260703-admin-mobile-scroll/);
+  assert.match(css, /@media \(max-width:\s*980px\)[\s\S]*html,\s*\n\s*body\s*\{[\s\S]*overflow-y:\s*auto/);
+  assert.match(css, /@media \(max-width:\s*980px\)[\s\S]*\.admin-shell\s*\{[\s\S]*height:\s*auto/);
+  assert.match(css, /@media \(max-width:\s*980px\)[\s\S]*\.admin-workspace\s*\{[\s\S]*overflow:\s*visible/);
+  assert.match(css, /@media \(max-width:\s*980px\)[\s\S]*\.admin-main-scroll\s*\{[\s\S]*overflow:\s*visible/);
+});
+
 test("admin and big screen cache keys stay current", () => {
   const adminHtml = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
   const indexHtml = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
   const screenHtml = fs.readFileSync(path.join(__dirname, "../screen.html"), "utf8");
 
-  assert.match(adminHtml, /admin\.css\?v=20260702-admin-ops-layout/);
+  assert.match(adminHtml, /admin\.css\?v=20260703-admin-mobile-scroll/);
   assert.match(adminHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(adminHtml, /src\/admin\.js\?v=20260702-result-publish-api5173/);
   assert.match(indexHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(indexHtml, /src\/logic\.js\?v=20260702-final-snapshot-source/);
   assert.match(indexHtml, /src\/app\.js\?v=20260702-final-snapshot-source/);
-  assert.match(screenHtml, /src\/screen-data\.js\?v=20260702-team-palette-sync/);
+  assert.match(screenHtml, /src\/screen-data\.js\?v=20260703-slogan-copy/);
 });
 
 test("landing stage starts with its main CTA visible and clickable", () => {
@@ -3128,7 +3209,7 @@ test("landing hero uses the merged two-line cinematic hierarchy", () => {
   assert.doesNotMatch(html, /AI创新黑客松大赛2026/);
   assert.doesNotMatch(html, /AI Innovation Hackathon 2026<\/span>/);
   assert.match(html, /<span class="landing-title-cn">AI创新黑客松<\/span>/);
-  assert.match(html, /<span class="landing-title-sub">36小时，用 AI 把创意照进现实<\/span>/);
+  assert.match(html, /<span class="landing-title-sub">36小时 · 让想法落地，让创新发生<\/span>/);
   assert.match(html, /<button class="enter-button" type="button" id="enterButton"[^>]*>解锁任务<\/button>/);
   assert.match(logoBlock, /top:\s*23%/);
   assert.match(logoBlock, /width:\s*min\(28vw,\s*440px\)/);

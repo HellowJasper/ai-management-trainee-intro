@@ -507,8 +507,42 @@ async function routeApi(
   }
 
   async function listScoredTeamIds() {
-    const teams = await teamRepository.listTeams();
-    return teams.map((team) => String(team.id || "").trim()).filter(Boolean);
+    const works = normalizeRouteArrayPayload(await worksRepository.listWorks({ status: "published" }), "works");
+    return Array.from(new Set(works
+      .map((work) => String(work.teamId || work.id || "").trim())
+      .filter(Boolean)));
+  }
+
+  function scopeJudgeScorePayloadToTeams(payload = {}, teamIds = []) {
+    const scopedTeamIds = new Set(teamIds.map((teamId) => String(teamId || "").trim()).filter(Boolean));
+    if (!scopedTeamIds.size) {
+      throw createStatusError(409, "Judge scoring requires at least one published work.");
+    }
+
+    const requestedTeamIds = Array.isArray(payload.teamIds) && payload.teamIds.length
+      ? payload.teamIds.map((teamId) => String(teamId || "").trim()).filter(Boolean)
+      : Array.from(scopedTeamIds);
+    payload.teamIds = requestedTeamIds.filter((teamId) => scopedTeamIds.has(teamId));
+    if (!payload.teamIds.length) {
+      throw createStatusError(409, "Judge scores must target published works.");
+    }
+
+    if (payload.scores && typeof payload.scores === "object") {
+      payload.scores = payload.teamIds.reduce((scores, teamId) => {
+        if (Object.prototype.hasOwnProperty.call(payload.scores, teamId)) {
+          scores[teamId] = payload.scores[teamId];
+        }
+        return scores;
+      }, {});
+    }
+    if (payload.comments && typeof payload.comments === "object") {
+      payload.comments = payload.teamIds.reduce((comments, teamId) => {
+        if (Object.prototype.hasOwnProperty.call(payload.comments, teamId)) {
+          comments[teamId] = payload.comments[teamId];
+        }
+        return comments;
+      }, {});
+    }
   }
 
   async function recordAuditSafe(entry) {
@@ -547,6 +581,7 @@ async function routeApi(
     const session = await enforcePermission(request, response, "canSubmitWork");
     if (!session) return true;
     const payload = await readJsonBody(request, 12 * 1024 * 1024);
+    await enforceJoinedTeamWork(session, payload.teamId);
     const result = await saveWorkAssetUpload(payload, publicRoot);
     await recordAuditSafe({
       actor: session.user?.id || "player",
@@ -906,6 +941,9 @@ async function routeApi(
       payload.source = session.user.id;
     }
     const user = await userRoleRepository.upsertUser(payload);
+    if (authSessionRepository && typeof authSessionRepository.deleteSessionsForUser === "function") {
+      await authSessionRepository.deleteSessionsForUser(user.id);
+    }
     await auditLogRepository.record({
       actor: payload.actor || payload.source || "admin",
       action: "user.roles.updated",
@@ -1096,9 +1134,7 @@ async function routeApi(
     if (authEnforcement === "strict" || session.user?.id) {
       payload.judgeId = session.user.id;
     }
-    if (!Array.isArray(payload.teamIds) || !payload.teamIds.length) {
-      payload.teamIds = await listScoredTeamIds();
-    }
+    scopeJudgeScorePayloadToTeams(payload, await listScoredTeamIds());
     const result = await judgeScoresRepository.submitScores(payload);
     await recordAuditSafe({
       actor: payload.judgeId || "judge",
@@ -1132,8 +1168,12 @@ async function routeApi(
   if (url.pathname === "/api/admin/judge/lock" && request.method === "POST") {
     const session = await enforcePermission(request, response, "canAdmin");
     if (!session) return true;
+    const teamIds = await listScoredTeamIds();
+    if (!teamIds.length) {
+      throw createStatusError(409, "Judge scoring requires at least one published work.");
+    }
     const result = await judgeScoresRepository.lockScores({
-      teamIds: await listScoredTeamIds(),
+      teamIds,
       judges: await listJudgeUsers(),
     });
     await recordAuditSafe({
@@ -1264,15 +1304,17 @@ async function routeApi(
     if (authEnforcement === "strict") {
       payload.actor = session.user.id;
     }
-    const [voteState, judgeState, judges] = await Promise.all([
+    const [voteState, judgeState, judges, scoredTeamIds] = await Promise.all([
       voteResultsRepository.listVoteResults(),
       judgeScoresRepository.readState(),
       listJudgeUsers(),
+      listScoredTeamIds(),
     ]);
-    assertFinalResultPublishable({ voteState, judgeState: { ...judgeState, judges } });
+    assertFinalResultPublishable({ voteState, judgeState: { ...judgeState, judges }, teamIds: scoredTeamIds });
     const snapshotPayload = buildFinalResultSnapshot({
       voteState,
       judgeState,
+      teamIds: scoredTeamIds,
       publishedBy: payload.actor || payload.publishedBy || "admin",
     });
     const snapshot = await resultSnapshotRepository.publishSnapshot(snapshotPayload);

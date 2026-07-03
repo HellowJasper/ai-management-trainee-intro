@@ -5313,3 +5313,32 @@ body {
     grid-column: 1;
   }
 }
+
+@media (max-width: 980px) {
+  html,
+  body {
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  body {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-shell {
+    min-height: 100dvh;
+    height: auto;
+    grid-template-rows: auto auto;
+  }
+
+  .admin-workspace {
+    height: auto;
+    overflow: visible;
+  }
+
+  .admin-main-scroll {
+    overflow: visible;
+    scrollbar-gutter: auto;
+  }
+}

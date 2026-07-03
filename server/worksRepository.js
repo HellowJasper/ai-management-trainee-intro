@@ -20,6 +20,12 @@ function splitTags(value) {
     .filter(Boolean);
 }
 
+function assertPlayerMutableWork(work = {}) {
+  if (String(work.status || "").trim() === "published") {
+    throw createHttpError(409, "Published work cannot be updated or withdrawn by players.");
+  }
+}
+
 function normalizeWork(work = {}) {
   const teamId = normalizeId(work.teamId || work.id);
 
@@ -109,6 +115,10 @@ function createWorksRepository(dataPath = DEFAULT_DATA_PATH) {
     }
 
     const state = await readState();
+    const existing = state.works.find((item) => item.id === teamId || item.teamId === teamId);
+    if (existing) {
+      assertPlayerMutableWork(existing);
+    }
     const updatedAt = new Date().toISOString();
     const work = normalizeWork({
       ...payload,
@@ -140,6 +150,7 @@ function createWorksRepository(dataPath = DEFAULT_DATA_PATH) {
     if (index === -1) {
       throw createHttpError(404, `Work ${teamId} was not found.`);
     }
+    assertPlayerMutableWork(state.works[index]);
 
     const withdrawnAt = new Date().toISOString();
     const work = normalizeWork({

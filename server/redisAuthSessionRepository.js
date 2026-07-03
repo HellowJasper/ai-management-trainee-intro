@@ -117,10 +117,47 @@ function createRedisAuthSessionRepository({
     return Number(deleted) > 0;
   }
 
+  async function deleteSessionsForUser(userId) {
+    const cleanUserId = String(userId || "").trim();
+    if (!cleanUserId) {
+      return 0;
+    }
+
+    await ensureRedisClientConnected(redisClient);
+
+    const pattern = `${resolvedKeyPrefix}*`;
+    const keys = [];
+    if (typeof redisClient.scanIterator === "function") {
+      for await (const key of redisClient.scanIterator({ MATCH: pattern })) {
+        keys.push(key);
+      }
+    } else if (typeof redisClient.keys === "function") {
+      keys.push(...await redisClient.keys(pattern));
+    }
+
+    let deleted = 0;
+    for (const key of keys) {
+      const raw = await redisClient.get(key);
+      if (!raw) {
+        continue;
+      }
+      try {
+        const session = JSON.parse(raw);
+        if (String(session?.user?.id || "").trim() === cleanUserId) {
+          deleted += Number(await redisClient.del(key)) > 0 ? 1 : 0;
+        }
+      } catch {
+        // Malformed session payloads cannot be matched safely.
+      }
+    }
+    return deleted;
+  }
+
   return {
     backend: "redis",
     createSession,
     deleteSession,
+    deleteSessionsForUser,
     getSession,
     keyPrefix: resolvedKeyPrefix,
     ttlSeconds: resolvedTtlSeconds,
