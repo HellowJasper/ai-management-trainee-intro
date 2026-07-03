@@ -1023,8 +1023,11 @@ test("official site normalizes team track order and uppercase English labels", (
 test("official site keeps backend team cards when bootstrap is unavailable", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const loadSiteStateBody = siteJs.match(/async function loadSiteState\(\) \{([\s\S]*?)\n  \}/)?.[1] || "";
+  const fallbackTeamsBody = siteJs.match(/async function loadFallbackTeams\(\) \{([\s\S]*?)\n  \}/)?.[1] || "";
 
-  assert.match(loadSiteStateBody, /typeof AppData\.loadTeams === "function" \? await AppData\.loadTeams\(STATIC_TEAMS\) : \[\]/);
+  assert.match(fallbackTeamsBody, /try \{[\s\S]*return typeof AppData\.loadTeams === "function" \? await AppData\.loadTeams\(STATIC_TEAMS\) : \[\];/);
+  assert.match(fallbackTeamsBody, /catch \(error\) \{[\s\S]*console\.warn\("Failed to load fallback teams\.", error\);[\s\S]*return \[\];/);
+  assert.match(loadSiteStateBody, /const teams = await loadFallbackTeams\(\);/);
   assert.doesNotMatch(loadSiteStateBody, /applySiteState\(\{ trainees: \[\], teams: \[\], works: \[\]/);
 });
 
@@ -1055,7 +1058,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260702-team-palette-sync/);
+  assert.match(siteHtml, /site\.js\?v=20260702-mobile-result-tab/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -1097,7 +1100,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260702-team-palette-sync/);
+  assert.match(siteHtml, /site\.js\?v=20260702-mobile-result-tab/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -1116,7 +1119,7 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
   assert.match(siteHtml, /site\.css\?v=20260702-team-palette-sync/);
-  assert.match(siteHtml, /site\.js\?v=20260702-team-palette-sync/);
+  assert.match(siteHtml, /site\.js\?v=20260702-mobile-result-tab/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -2151,10 +2154,16 @@ test("official site includes a mobile app shell with bottom tab navigation", () 
   assert.match(siteJs, /const MOBILE_TABS_ADMIN = \[\s*\{ key: "home", label: "首页", icon: "target" \},\s*\{ key: "people", label: "新生看板", icon: "user" \}/);
   assert.match(siteJs, /const MOBILE_TABS = \[[\s\S]*\{ key: "me", label: "我的", icon: "team" \}/);
   assert.match(siteJs, /const MOBILE_TABS_PUBLIC = \[[\s\S]*\{ key: "me", label: "我的", icon: "team" \}/);
+  const defaultTabsBlock = siteJs.match(/const MOBILE_TABS = \[[\s\S]*?\n  \];/)?.[0] || "";
+  const playerTabsBlock = siteJs.match(/const MOBILE_TABS_PLAYER = \[[\s\S]*?\n  \];/)?.[0] || "";
   const publicTabsBlock = siteJs.match(/const MOBILE_TABS_PUBLIC = \[[\s\S]*?\n  \];/)?.[0] || "";
+  const judgeTabsBlock = siteJs.match(/const MOBILE_TABS_JUDGE = \[[\s\S]*?\n  \];/)?.[0] || "";
+  assert.match(defaultTabsBlock, /key:\s*"result"[\s\S]*label:\s*"排行榜"/);
+  assert.match(playerTabsBlock, /key:\s*"result"[\s\S]*label:\s*"排行榜"/);
   assert.match(publicTabsBlock, /key:\s*"result"[\s\S]*label:\s*"排行榜"/);
+  assert.match(judgeTabsBlock, /key:\s*"result"[\s\S]*label:\s*"排行榜"/);
   assert.doesNotMatch(publicTabsBlock, /key:\s*"vote"|label:\s*"投票"/);
-  assert.match(siteJs, /const MOBILE_TABS_JUDGE = \[[\s\S]*\{ key: "judge", label: "评分", icon: "scale" \},\s*\{ key: "me", label: "我的", icon: "user" \}/);
+  assert.match(siteJs, /const MOBILE_TABS_JUDGE = \[[\s\S]*\{ key: "judge", label: "评分", icon: "scale" \},[\s\S]*\{ key: "result", label: "排行榜", icon: "trophy" \},[\s\S]*\{ key: "me", label: "我的", icon: "user" \}/);
   assert.match(siteJs, /mobileTabbar\.style\.setProperty\("--mobile-tab-count", tabs\.length\)/);
   assert.match(siteJs, /mobileTabbar\.innerHTML/);
   assert.match(siteJs, /mobileTabbar\.querySelectorAll\("a"\)/);
@@ -2469,7 +2478,7 @@ test("official site cache keys are bumped after navigation and detail layout pol
   assert.match(html, /src\/logic\.js\?v=20260702-public-result-nav/);
   assert.match(html, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(html, /src\/screen-data\.js\?v=20260702-team-palette-sync/);
-  assert.match(html, /src\/site\.js\?v=20260702-team-palette-sync/);
+  assert.match(html, /src\/site\.js\?v=20260702-mobile-result-tab/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {

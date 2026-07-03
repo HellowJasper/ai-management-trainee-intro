@@ -377,9 +377,17 @@
     applySiteStageState(state);
     updateSiteStats();
   }
+  async function loadFallbackTeams() {
+    try {
+      return typeof AppData.loadTeams === "function" ? await AppData.loadTeams(STATIC_TEAMS) : [];
+    } catch (error) {
+      console.warn("Failed to load fallback teams.", error);
+      return [];
+    }
+  }
   async function loadSiteState() {
     if (!AppData || typeof AppData.loadSiteBootstrap !== "function") {
-      const teams = typeof AppData.loadTeams === "function" ? await AppData.loadTeams(STATIC_TEAMS) : [];
+      const teams = await loadFallbackTeams();
       applySiteState({ trainees: [], teams, works: [], vote: { results: [] }, result: { published: false, snapshot: null } });
       SITE_STATE_ERROR = "观众端真实数据接口未加载";
       return null;
@@ -391,7 +399,7 @@
       return state;
     } catch (error) {
       console.warn("Failed to load site bootstrap state.", error);
-      const teams = typeof AppData.loadTeams === "function" ? await AppData.loadTeams(STATIC_TEAMS) : [];
+      const teams = await loadFallbackTeams();
       applySiteState({ trainees: [], teams, works: [], vote: { results: [] }, result: { published: false, snapshot: null } });
       SITE_STATE_ERROR = "无法连接观众端真实数据接口，请稍后重试";
       return null;
@@ -2438,6 +2446,7 @@
     { key: "people", label: "新生看板", icon: "user" },
     { key: "schedule", label: "赛事指南", icon: "calendar" },
     { key: "gallery", label: "作品", icon: "doc" },
+    { key: "result", label: "排行榜", icon: "trophy" },
     { key: "me", label: "我的", icon: "team" },
   ];
   const MOBILE_TABS_PLAYER = [
@@ -2446,6 +2455,7 @@
     { key: "schedule", label: "赛事指南", icon: "calendar" },
     { key: "team", label: "组队", icon: "team" },
     { key: "gallery", label: "作品", icon: "doc" },
+    { key: "result", label: "排行榜", icon: "trophy" },
     { key: "me", label: "我的", icon: "user" },
   ];
   const MOBILE_TABS_PUBLIC = [
@@ -2461,6 +2471,7 @@
     { key: "schedule", label: "赛事指南", icon: "calendar" },
     { key: "gallery", label: "作品", icon: "doc" },
     { key: "judge", label: "评分", icon: "scale" },
+    { key: "result", label: "排行榜", icon: "trophy" },
     { key: "me", label: "我的", icon: "user" },
   ];
   const MOBILE_TABS_ADMIN = [
