@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
-const { seedMysqlFromJson } = require("../server/mysqlSeedImporter");
+const { seedMysqlFromJson, seedMysqlUsersFromJson } = require("../server/mysqlSeedImporter");
 
 async function writeJson(dataDir, filename, payload) {
   await fs.writeFile(path.join(dataDir, filename), `${JSON.stringify(payload, null, 2)}\n`);
@@ -139,6 +139,45 @@ test("mysql seed importer loads current JSON fixtures into relational tables", a
   assert.match(sqlText, /INSERT INTO works/);
   assert.ok(executed.some((item) => item.params.includes("jasper")));
   assert.ok(executed.some((item) => item.params.includes("marketing")));
+});
+
+test("mysql user-only seed importer only writes users and role assignments", async () => {
+  const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "ai-mysql-seed-users-"));
+  await writeJson(dataDir, "user-roles.json", {
+    users: [
+      {
+        id: "jkynewuser",
+        name: "新增用户",
+        department: "AI创新部",
+        openId: "ou_new",
+        roles: ["public", "player"],
+      },
+    ],
+  });
+  await writeJson(dataDir, "teams.json", [{ id: "marketing", name: "营销" }]);
+  await writeJson(dataDir, "vote-results.json", { status: "voting", results: [{ id: "marketing", votes: 9 }] });
+  await writeJson(dataDir, "works.json", { works: [{ id: "work-marketing", teamId: "marketing" }] });
+
+  const executed = [];
+  const pool = {
+    async execute(sql, params = []) {
+      executed.push({ sql, params });
+      return [{ affectedRows: 1 }, []];
+    },
+  };
+
+  const result = await seedMysqlUsersFromJson({ dataDir, pool });
+  const sqlText = executed.map((item) => item.sql).join("\n");
+
+  assert.deepEqual(result, { users: 1, roleAssignments: 2 });
+  assert.match(sqlText, /INSERT INTO users/);
+  assert.match(sqlText, /UPDATE role_assignments SET status = 'disabled'/);
+  assert.match(sqlText, /INSERT INTO role_assignments/);
+  assert.doesNotMatch(sqlText, /INSERT INTO teams/);
+  assert.doesNotMatch(sqlText, /INSERT INTO team_members/);
+  assert.doesNotMatch(sqlText, /INSERT INTO vote_windows/);
+  assert.doesNotMatch(sqlText, /INSERT INTO votes/);
+  assert.doesNotMatch(sqlText, /INSERT INTO works/);
 });
 
 test("mysql seed importer clears previous seed votes before importing aggregate vote counts", async () => {

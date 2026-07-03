@@ -192,6 +192,10 @@ async function seedUsers(pool, users) {
     userCount += 1;
 
     const roles = Array.from(new Set(asArray(user.roles || user.role, "roles").map(clean).filter(Boolean)));
+    await pool.execute(
+      "UPDATE role_assignments SET status = 'disabled', updated_at = CURRENT_TIMESTAMP WHERE user_id = ?",
+      [userId],
+    );
     for (const role of roles) {
       await pool.execute(
         `INSERT INTO role_assignments (user_id, role, source, status)
@@ -207,6 +211,20 @@ async function seedUsers(pool, users) {
   }
 
   return { users: userCount, roleAssignments: roleCount };
+}
+
+async function seedMysqlUsersFromJson({ dataDir = DEFAULT_DATA_DIR, pool, createPool = createMysqlPool } = {}) {
+  const userRolesPayload = await readJsonFile(dataDir, "user-roles.json", { users: [] });
+  const activePool = pool || createPool();
+  const ownsPool = !pool;
+
+  try {
+    return seedUsers(activePool, asArray(userRolesPayload, "users"));
+  } finally {
+    if (ownsPool && activePool && typeof activePool.end === "function") {
+      await activePool.end();
+    }
+  }
 }
 
 async function seedEventStages(pool, state) {
@@ -498,7 +516,18 @@ async function seedMysqlFromJson({ dataDir = DEFAULT_DATA_DIR, pool, createPool 
 
 if (require.main === module) {
   require("./loadEnv").loadEnv();
-  seedMysqlFromJson()
+  const args = process.argv.slice(2);
+  const onlyIndex = args.findIndex((arg) => arg === "--only" || arg.startsWith("--only="));
+  const only = onlyIndex >= 0
+    ? (args[onlyIndex].includes("=") ? args[onlyIndex].split("=").slice(1).join("=") : args[onlyIndex + 1])
+    : "";
+  const dataDirIndex = args.findIndex((arg) => arg === "--data-dir" || arg.startsWith("--data-dir="));
+  const dataDir = dataDirIndex >= 0
+    ? (args[dataDirIndex].includes("=") ? args[dataDirIndex].split("=").slice(1).join("=") : args[dataDirIndex + 1])
+    : DEFAULT_DATA_DIR;
+  const runner = only === "users" ? seedMysqlUsersFromJson : seedMysqlFromJson;
+
+  runner({ dataDir })
     .then((result) => {
       console.log(JSON.stringify(result, null, 2));
     })
@@ -510,4 +539,5 @@ if (require.main === module) {
 
 module.exports = {
   seedMysqlFromJson,
+  seedMysqlUsersFromJson,
 };

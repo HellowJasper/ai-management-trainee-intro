@@ -3,6 +3,8 @@
     "start": "node server/index.js",
     "dev": "node server/index.js",
     "test": "node --test",
+    "db:seed": "node server/mysqlSeedImporter.js",
+    "db:seed:users": "node server/mysqlSeedImporter.js --only users",
     "db:reset:prelaunch": "node scripts/reset-hackathon-state.js --dry-run",
     "db:reset:prelaunch:dry-run": "node scripts/reset-hackathon-state.js --dry-run",
     "db:reset:prelaunch:execute": "node scripts/reset-hackathon-state.js --execute"
