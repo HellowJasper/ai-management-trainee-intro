@@ -53,6 +53,7 @@
   const WORK_SCREENSHOT_LIMIT = 3;
   const WORK_SCREENSHOT_MAX_BYTES = 8 * 1024 * 1024;
   const SITE_STATE_POLL_MS = 5000;
+  const RETURN_SCROLL_PREFIX = "joincare_return_scroll_";
   let TRAINEES = [];
   let MOBILE_TRAINEE_INDEX = 0;
   let MOBILE_TRAINEE_DETAIL = false;
@@ -523,7 +524,6 @@
       vote: {
         status: vote.status || "",
         windowLabel: vote.windowLabel || "",
-        updatedAt: vote.updatedAt || "",
         myVoteTeamId: vote.myVoteTeamId || "",
         votersCount: vote.votersCount || 0,
         pointScale: normalizeList(vote.pointScale),
@@ -546,6 +546,38 @@
         teamId: me.teamId || "",
         userId: me.user?.id || me.user?.userId || "",
       },
+    });
+  }
+
+  function createJudgeViewSignature(state = SITE_STATE) {
+    const me = state?.me || {};
+    const localRole = currentRole() || "";
+    const publishedTeams = D.teams.filter(isPublishedWorkTeam).map((team) => [
+      team.id || "",
+      team.trackCode || "",
+      team.name || "",
+      team.track || team.trackName || team.nameEn || "",
+      team.project || "",
+      team.pitch || "",
+      team.accent || "",
+      team.rgb || "",
+      team.work?.status || "",
+      sitePersonSignatureToken(team.advisor || {}),
+      normalizeList(team.members).map(sitePersonSignatureToken),
+    ]);
+
+    return JSON.stringify({
+      view: "judge",
+      localRole,
+      authenticated: Boolean(me.authenticated),
+      role: me.role || "",
+      userId: me.user?.id || me.user?.userId || "",
+      dimensions: normalizeList(D.dimensions).map((item, index) => [
+        item.key || SCORE_DIMENSION_KEYS[index] || "",
+        item.label || "",
+        item.weight || "",
+      ]),
+      publishedTeams,
     });
   }
 
@@ -611,6 +643,9 @@
 
   function createVisibleSiteStateSignature(state = SITE_STATE) {
     const currentViewKey = resolveCurrentViewKey();
+    if (currentViewKey === "judge") {
+      return createJudgeViewSignature(state);
+    }
     if (currentViewKey === "result") {
       return createResultViewSignature(state);
     }
@@ -1192,7 +1227,7 @@
       <div class="mh-hero">
         <h1>AI创新黑客松</h1>
         <p class="mh-slogan">36小时 · 让想法落地，让创新发生</p>
-        <p class="mh-intro">五大真实业务挑战，五支战队，从业务场景出发，用 AI 解决真实问题，认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。</p>
+        <p class="mh-intro">五大业务挑战 · 五支战队，用AI重塑业务场景。认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。</p>
         <div class="mh-live">
           <div class="mh-live-status">
             <span class="mh-chip"><span class="live-dot"></span>当前阶段</span>
@@ -1217,8 +1252,8 @@
     const permissions = rolePermissions(role);
     const totalVotes = D.teams.reduce((s, t) => s + t.votes, 0);
     const secondaryCta = permissions.canAdmin
-        ? `<a class="btn-ghost" href="./admin.html">进入管理后台 ➔</a>`
-        : `<a class="btn-ghost" data-nav="result">查看实时排行 ➔</a>`;
+      ? `<a class="btn-ghost" href="./admin.html">进入管理后台 ➔</a>`
+      : `<a class="btn-ghost" data-nav="result">查看实时排行 ➔</a>`;
     const days = D.flowDays.map((d, i) => {
       const timeSpan = d.time ? `<span class="fs-time">${esc(d.time)}</span>` : "";
       const card = `<div class="flow-step"><div class="fs-header"><div class="fs-ic">${ICON(d.icon, "var(--neon)")}</div><div class="fs-badge"><span>${esc(d.day)}</span><i>${esc(d.en)}</i></div></div><b>${esc(d.title)}</b><p>${d.lines.map(esc).join("<br>")}</p>${timeSpan}</div>`;
@@ -1235,7 +1270,7 @@
           <h1 class="hero-title">AI创新黑客松</h1>
         </div>
         <p class="hero-slogan">36小时 · 让想法落地，让创新发生</p>
-        <p class="hero-desc">五大真实业务挑战，五支战队，从业务场景出发，用AI解决真实问题。认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。</p>
+        <p class="hero-desc">五大业务挑战 · 五支战队，用AI重塑业务场景。认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。</p>
         <div class="hero-ctas"><a class="btn-primary" data-nav="gallery">进入作品展厅</a>${secondaryCta}</div>
       </div>
       <aside class="hero-panel glass">
@@ -1282,7 +1317,7 @@
 
     return `<section class="mobile-people-stage" id="mobilePeopleStage">
       <header class="mobile-people-head">
-        <span class="ph-en">Talent Profiles</span>
+        <span class="ph-en">TALENT PROFILES</span>
         <span class="mobile-card-index">${pad(MOBILE_TRAINEE_INDEX + 1)}/${pad(list.length)}</span>
       </header>
       <div class="mobile-swipe-deck-wrap" style="position: relative; width: 100%;">
@@ -1315,14 +1350,14 @@
     </section>`;
   }
   function renderMobileTraineeDetail(p, list) {
-    const tags = toolTags(p.aiPartners || p.favoriteAI).map((x) => `<span>${esc(shortText(x, 12))}</span>`).join("");
     const fields = [
-      ["专业背景", p.background],
-      ["AI 搭子", p.aiPartners],
-      ["AI 超能力", p.aiPower],
-      ["想让 AI 解决", p.aiProblem],
-      ["有趣事实", p.funFact],
-    ].filter((x) => x[1]).map(([label, value]) => `<section><span>${esc(label)}</span><p>${esc(value)}</p></section>`).join("");
+      ["#1 🎓 专业背景", p.background],
+      ["#2 🤖 我的AI搭子们", p.tools || p.aiPartners],
+      ["#3 🌟 我的本命AI搭子", p.favoriteTool || p.favoriteAI],
+      ["#4 💡 我最想让AI解决的问题", p.problem || p.aiProblem],
+      ["#5 ⚡️ 我的AI超能力", p.aiPower],
+      ["#6 🤣 一个有趣的事实", p.funFact],
+    ].filter((x) => x[1]).map(([label, value]) => `<section class="mobile-info-item"><span>${esc(label)}</span><p>${esc(value)}</p></section>`).join("");
     return `<section class="mobile-profile-detail" id="mobilePeopleStage">
       <header class="mobile-detail-head">
         <button type="button" data-mobile-detail-close aria-label="返回新人卡组">‹</button>
@@ -1340,10 +1375,11 @@
           <span>${esc(p.department || "")}</span>
           <h1>${esc(p.name)}</h1>
         </div>
-        <p>${esc(shortText(p.favoriteAI || p.aiPartners || p.aiPower, 88))}</p>
-        <div class="mobile-tool-tags">${tags}</div>
+        <section class="mobile-profile-info" aria-label="新人信息">
+          <span class="mobile-info-chip">INFO</span>
+          <div class="mobile-info-list">${fields}</div>
+        </section>
       </article>
-      <div class="mobile-back-fields">${fields}</div>
     </section>`;
   }
   function renderMobilePeopleIntoMain() {
@@ -2196,7 +2232,7 @@
     }).join("");
     const empty = scoreTeams.length ? "" : `<div class="gl2-empty glass"><b>暂无已发布作品</b><span>管理员发布作品后，评委评分表会在这里出现。</span></div>`;
 
-    return `${pageHead("评委评分", "五维评分接入后端暂存与正式提交；提交后不可修改，管理员锁定后进入最终核算。", "JUDGE")}
+    return `${pageHead("评委评分", "五维评分接入后端暂存与正式提交；提交后不可修改，管理员锁定后进入最终核算。", "EVALUATION")}
     <section class="container sec judge-board">
       <div class="judge-toolbar glass"><div><span class="status-chip on">专家评分</span><h2>评委评分表</h2><p>输入 0-100 分完成五维评分；暂存评分不计入结果，正式提交后进入后台评审进度。</p></div><div class="judge-actions"><span class="judge-sync-status" data-judge-status>等待同步</span><button class="judge-save" data-judge-save>暂存评分</button><button class="judge-save judge-submit" data-judge-submit>正式提交</button></div></div>
       <div class="judge-head"><span class="judge-head-spacer" aria-hidden="true"></span><div class="judge-head-grid">${head}</div></div>
@@ -2405,9 +2441,9 @@
   /* ---- 最终排行（仅公布后显示）-------------------------------------- */
   function renderResult(forcePreview) {
     const resultSubtitle = "创新与价值并重，共同见证最终荣誉的诞生";
-    const resultHead = (title, subtitle = resultSubtitle) => {
+    const resultHead = (title, subtitle = resultSubtitle, en = "RANKING") => {
       const overviewHtml = shouldShowResultVoteOverview() ? renderOverviewBanner() : "";
-      return `<section class="page-hero result-hero"><div class="container">${overviewHtml}<h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div></section>`;
+      return `<section class="page-hero result-hero"><div class="container">${overviewHtml}<span class="ph-en">${esc(en)}</span><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div></section>`;
     };
     const hasPublishedResult = Boolean(SITE_STATE?.result?.published && SITE_STATE.result.snapshot);
     if (!hasPublishedResult) {
@@ -2432,7 +2468,7 @@
       const delay = (t.rank - 1) * 120;
       const metaText = [t.track, t.project].filter(Boolean).map((item) => esc(item)).join(" · ");
       const metaHtml = metaText ? `<span class="rk-meta">${metaText}</span>` : "";
-      return `<div class="rk-row glass ${champ ? "champ" : ""}" style="--accent:${t.accent};--rgb:${t.rgb};--score-width:${scoreWidth}%;--rank-delay:${delay}ms"><span class="rk-no ${t.rank <= 3 ? "top" : ""}">${champ ? "🏆" : pad(t.rank)}</span><div class="rk-id"><b>${esc(t.name)}${champ ? '<i class="rk-crown">Grand Prize · 冠军战队</i>' : ""}</b>${metaHtml}</div><div class="rk-avas">${avas}</div><div class="rk-bar"><span class="meter" style="--accent:${t.accent};--rgb:${t.rgb}"><i></i></span></div><div class="rk-mini"><span>专家 ${t.expert}</span><span>赋分 ${t.votePoint}</span></div><span class="rk-total">${t.total}</span></div>`;
+      return `<div class="rk-row glass ${champ ? "champ" : ""}" style="--accent:${t.accent};--rgb:${t.rgb};--score-width:${scoreWidth}%;--rank-delay:${delay}ms"><span class="rk-no ${t.rank <= 3 ? "top" : ""}">${champ ? "🏆" : pad(t.rank)}</span><div class="rk-id"><b>${esc(t.name)}${champ ? '<i class="rk-crown">冠军战队</i>' : ""}</b>${metaHtml}</div><div class="rk-avas">${avas}</div><div class="rk-bar"><span class="meter" style="--accent:${t.accent};--rgb:${t.rgb}"><i></i></span></div><div class="rk-mini"><span>专家 ${t.expert}</span><span>赋分 ${t.votePoint}</span></div><span class="rk-total">${t.total}</span></div>`;
     }).join("");
     return `${resultHead("排行榜")}<section class="container sec result-sec"><div class="rk-list">${rows}</div></section>`;
   }
@@ -2468,7 +2504,7 @@
     { key: "home", label: "首页", icon: "target" },
     { key: "people", label: "新生看板", icon: "user" },
     { key: "schedule", label: "赛事指南", icon: "calendar" },
-    { key: "gallery", label: "作品", icon: "doc" },
+    { key: "gallery", label: "作品展厅", icon: "doc" },
     { key: "result", label: "排行榜", icon: "trophy" },
     { key: "me", label: "我的", icon: "team" },
   ];
@@ -2477,31 +2513,28 @@
     { key: "people", label: "新生看板", icon: "user" },
     { key: "schedule", label: "赛事指南", icon: "calendar" },
     { key: "team", label: "组队", icon: "team" },
-    { key: "gallery", label: "作品", icon: "doc" },
+    { key: "gallery", label: "作品展厅", icon: "doc" },
     { key: "result", label: "排行榜", icon: "trophy" },
-    { key: "me", label: "我的", icon: "user" },
   ];
   const MOBILE_TABS_PUBLIC = [
     { key: "home", label: "首页", icon: "target" },
     { key: "people", label: "新生看板", icon: "user" },
-    { key: "gallery", label: "作品", icon: "doc" },
+    { key: "gallery", label: "作品展厅", icon: "doc" },
     { key: "result", label: "排行榜", icon: "trophy" },
-    { key: "me", label: "我的", icon: "team" },
   ];
   const MOBILE_TABS_JUDGE = [
     { key: "home", label: "首页", icon: "target" },
     { key: "people", label: "新生看板", icon: "user" },
     { key: "schedule", label: "赛事指南", icon: "calendar" },
-    { key: "gallery", label: "作品", icon: "doc" },
+    { key: "gallery", label: "作品展厅", icon: "doc" },
     { key: "judge", label: "评分", icon: "scale" },
     { key: "result", label: "排行榜", icon: "trophy" },
-    { key: "me", label: "我的", icon: "user" },
   ];
   const MOBILE_TABS_ADMIN = [
     { key: "home", label: "首页", icon: "target" },
     { key: "people", label: "新生看板", icon: "user" },
     { key: "team", label: "组队", icon: "team" },
-    { key: "gallery", label: "作品", icon: "doc" },
+    { key: "gallery", label: "作品展厅", icon: "doc" },
     { key: "result", label: "排行榜", icon: "trophy" },
     { key: "me", label: "权限", icon: "lock" },
   ];
@@ -2553,6 +2586,37 @@
     mobileTabbar.innerHTML = tabs.map((v) => `<a data-nav="${v.key}" href="#${v.key}"><span aria-hidden="true">${ICON(v.icon, "currentColor")}</span><b>${esc(v.label)}</b></a>`).join("");
   }
 
+  function currentScrollTop() {
+    return root.scrollY || doc.documentElement.scrollTop || doc.body.scrollTop || 0;
+  }
+
+  function rememberReturnScroll(viewKey) {
+    const safeViewKey = String(viewKey || "").trim();
+    if (!safeViewKey) return;
+    try {
+      root.sessionStorage.setItem(`${RETURN_SCROLL_PREFIX}${safeViewKey}`, String(currentScrollTop()));
+    } catch (error) {
+      /* 浏览器隐私模式可能禁用 sessionStorage，忽略即可。 */
+    }
+  }
+
+  function restoreReturnScroll(viewKey) {
+    const safeViewKey = String(viewKey || "").trim();
+    if (!safeViewKey) return;
+    const key = `${RETURN_SCROLL_PREFIX}${safeViewKey}`;
+    let top = 0;
+    try {
+      top = Number(root.sessionStorage.getItem(key));
+      root.sessionStorage.removeItem(key);
+    } catch (error) {
+      return;
+    }
+    if (!Number.isFinite(top) || top <= 0) return;
+    const restore = () => root.scrollTo({ top, behavior: "auto" });
+    restore();
+    root.requestAnimationFrame(restore);
+  }
+
   function setActive(key) {
     navLinks.querySelectorAll("a").forEach((a) => a.classList.toggle("on", a.dataset.nav === key));
     if (mobileTabbar) {
@@ -2592,11 +2656,13 @@
     }
     if (v.key === "judge") {
       setupJudgePage();
+      restoreReturnScroll("judge");
     }
     if (push !== false && location.hash.slice(1) !== v.key) history.pushState(null, "", `#${v.key}`);
   }
   function showWork(id, push, returnView) {
     const safeReturnView = returnView === "judge" ? "judge" : "";
+    if (safeReturnView && push !== false) rememberReturnScroll(safeReturnView);
     main.innerHTML = renderWork(id, safeReturnView);
     setActive(safeReturnView || "gallery");
     setupCarousel();

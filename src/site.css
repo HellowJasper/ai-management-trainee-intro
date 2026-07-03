@@ -54,6 +54,7 @@
 .hero-kicker-live { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; }
 .hero-kicker-name { margin-left: auto; text-align: right; white-space: nowrap; }
 .hero-header-group { display: inline-flex; flex-direction: column; align-items: stretch; width: fit-content; margin: 0; }
+.hero-brand-mark { display: none; }
 .hero-title { margin: 22px 0 0; font-family: var(--display); font-size: clamp(48px, 7vw, 104px); font-weight: 900; line-height: 0.98; color: #eafff8; text-shadow: 0 0 26px rgba(40, 255, 200, 0.5), 0 0 64px rgba(40, 255, 200, 0.25); }
 .hero-slogan { margin: 16px 0 0; font-size: clamp(18px, 2vw, 30px); font-weight: 700; color: var(--neon-2); text-shadow: 0 0 16px rgba(167, 255, 79, 0.3); }
 .hero-desc { margin: 16px 0 0; font-size: clamp(14px, 1.1vw, 17px); line-height: 1.7; color: var(--text-soft); max-width: 560px; }
@@ -160,7 +161,7 @@
 
 /* ---- 子页头 ---- */
 .page-hero { padding: clamp(20px, 3vw, 40px) 0 0; }
-.ph-en { font-family: var(--nav-pixel); font-size: 11px; letter-spacing: 0.2em; color: var(--neon); }
+.ph-en { font-family: var(--nav-pixel); font-size: 11px; letter-spacing: 0.2em; color: var(--neon); text-transform: uppercase; text-shadow: 0 0 12px rgba(40, 255, 200, 0.28); }
 .page-hero h1 { margin: 10px 0 6px; font-family: var(--display); font-size: var(--site-heading-title-size); color: #eafff8; text-shadow: 0 0 24px rgba(40, 255, 200, 0.4); }
 .page-hero p { margin: 0; font-size: var(--site-heading-copy-size); color: var(--text-soft); }
 .result-hero-sep {
@@ -1948,11 +1949,12 @@
     justify-self: start;
     max-width: 100%;
     color: var(--neon);
-    font-family: var(--display);
-    font-size: 17px;
-    line-height: 1;
-    letter-spacing: 0.04em;
-    text-transform: none;
+    font-family: var(--nav-pixel);
+    font-size: clamp(10px, 3.05vw, 12px);
+    line-height: 1.25;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    text-shadow: 0 0 12px rgba(40, 255, 200, 0.3);
     white-space: nowrap;
   }
   .mobile-back-link {
@@ -2034,10 +2036,15 @@
     font-size: 13px;
   }
   .mobile-person-line {
+    display: block;
     margin: 11px 18px 0;
+    min-width: 0;
+    overflow: hidden;
     color: var(--text-soft);
     font-size: 13.5px;
-    line-height: 1.55;
+    line-height: 1.45;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .mobile-tool-tags {
     display: flex;
@@ -2257,7 +2264,7 @@
   .mobile-people-head {
     padding: 0;
   }
-  .mobile-people-head .ph-en { letter-spacing: 0.04em; }
+  .mobile-people-head .ph-en { letter-spacing: 0.2em; }
   .mobile-swipe-deck {
     --swipe-x: 0px;
     --swipe-rot: 0deg;
@@ -2268,10 +2275,11 @@
     perspective: 1100px;
   }
   .mobile-person-card {
+    --mobile-card-radius: 28px;
     position: absolute;
     inset: 0;
     overflow: hidden;
-    border-radius: 26px;
+    border-radius: var(--mobile-card-radius);
     border: 1px solid rgba(103, 255, 213, 0.22);
     background:
       radial-gradient(circle at 18% 12%, rgba(40, 255, 200, 0.18), transparent 34%),
@@ -2301,6 +2309,7 @@
     min-height: 302px;
     max-height: 366px;
     overflow: hidden;
+    border-radius: var(--mobile-card-radius);
     display: grid;
     place-items: center;
     padding: 10px 10px 0;
@@ -2313,6 +2322,7 @@
     height: 100%;
     min-height: 0;
     max-height: 100%;
+    border-radius: var(--mobile-card-radius);
     object-fit: contain;
     object-position: center center;
     display: block;
@@ -2748,7 +2758,7 @@
     min-height: 520px;
   }
   .mobile-person-card {
-    border-radius: 28px;
+    --mobile-card-radius: 28px;
   }
   .mobile-card-active {
     inset: 0 0 34px 0;
@@ -2852,6 +2862,7 @@
     display: grid;
     place-items: center;
     overflow: hidden;
+    border-radius: 22px;
     background:
       radial-gradient(circle at 50% 10%, rgba(40, 255, 200, 0.12), transparent 42%),
       rgba(255, 255, 255, 0.025);
@@ -2859,6 +2870,7 @@
   .mobile-detail-photo img {
     width: 100%;
     height: 100%;
+    border-radius: inherit;
     object-fit: contain;
     object-position: center center;
     display: block;
@@ -2887,14 +2899,57 @@
     font-style: normal;
     font-size: 13px;
   }
-  .mobile-detail-card > p {
-    margin: 12px 18px 0;
-    color: var(--text-soft);
-    font-size: 13.5px;
-    line-height: 1.6;
+  .mobile-profile-info {
+    margin: 14px 12px 14px;
+    padding: 12px;
+    border-radius: 18px;
+    border: 1px solid rgba(103, 255, 213, 0.24);
+    background:
+      linear-gradient(180deg, rgba(2, 18, 18, 0.74), rgba(2, 8, 14, 0.88)),
+      radial-gradient(circle at 10% 0%, rgba(40, 255, 200, 0.08), transparent 42%);
   }
-  .mobile-profile-detail .mobile-back-fields {
-    padding-bottom: 8px;
+  .mobile-info-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    padding: 0 12px;
+    border-radius: 9px;
+    border: 1px solid rgba(40, 255, 200, 0.42);
+    color: var(--neon);
+    font-family: var(--nav-pixel);
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+  .mobile-info-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .mobile-info-item {
+    padding: 12px 13px;
+    border-radius: 12px;
+    border: 1px solid rgba(40, 255, 200, 0.25);
+    background: rgba(2, 10, 14, 0.58);
+    box-shadow: inset 0 0 18px rgba(40, 255, 200, 0.035);
+  }
+  .mobile-info-item span {
+    display: block;
+    color: var(--neon);
+    font-size: 12px;
+    font-weight: 950;
+    line-height: 1.35;
+  }
+  .mobile-info-item p {
+    margin: 8px 0 0;
+    color: #dffaf1;
+    font-size: 13px;
+    font-weight: 760;
+    line-height: 1.62;
+    white-space: pre-line;
   }
 }
 
@@ -3564,13 +3619,13 @@
   }
 
   .mobile-person-line {
-    display: -webkit-box;
+    display: block;
     margin: 7px 16px 0;
     overflow: hidden;
     font-size: 12px;
     line-height: 1.38;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .mobile-tool-tags {

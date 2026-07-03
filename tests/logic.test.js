@@ -1053,12 +1053,38 @@ test("official site header uses compact team nav and balanced hero/brand copy", 
   assert.match(siteCss, /\.nav-brand small\s*\{[\s\S]*font-size:\s*9px/);
 });
 
+test("official site home stays a navigable site dashboard instead of the index landing", () => {
+  const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+  const renderHomeBody = siteJs.match(/function renderHome\(\) \{([\s\S]*?)\n  function renderPeople\(\)/)?.[1] || "";
+
+  assert.match(siteHtml, /src\/site\.css\?v=20260703-mobile-heading-kicker/);
+  assert.match(siteHtml, /src\/site\.js\?v=20260703-judge-evaluation-heading/);
+  assert.match(renderHomeBody, /<span class="hero-kicker"><span class="hero-kicker-live"><span class="live-dot"><\/span>LIVE<\/span><span class="hero-kicker-name">AI_INNOVATION_HACKATHON_2026<\/span><\/span>/);
+  assert.match(renderHomeBody, /<h1 class="hero-title">AI创新黑客松<\/h1>/);
+  assert.match(renderHomeBody, /<p class="hero-slogan">36小时 · 让想法落地，让创新发生<\/p>/);
+  assert.match(renderHomeBody, /<a class="btn-primary" data-nav="gallery">进入作品展厅<\/a>/);
+  assert.match(renderHomeBody, /<aside class="hero-panel glass">/);
+  assert.match(renderHomeBody, /secondaryCta/);
+  assert.doesNotMatch(renderHomeBody, /hero-brand-mark/);
+  assert.doesNotMatch(renderHomeBody, /data-text="AI 创新黑客松"/);
+  assert.doesNotMatch(renderHomeBody, /hero-title-text/);
+  assert.doesNotMatch(renderHomeBody, /data-nav="schedule">解锁任务/);
+  assert.doesNotMatch(siteCss, /\.site-body\[data-view="home"\]\s+\.site-nav\s*{\s*display:\s*none/);
+  assert.doesNotMatch(siteCss, /\.site-body\[data-view="home"\]\s+\.hero-kicker\s*{[\s\S]*display:\s*none/);
+  assert.doesNotMatch(siteCss, /\.site-body\[data-view="home"\]\s+\.hero-panel,\s*\n\s*\.site-body\[data-view="home"\]\s+\.hero-desc\s*{[\s\S]*display:\s*none/);
+  assert.doesNotMatch(siteCss, /\.site-body\[data-view="home"\]\s+\.hero-title::before/);
+  assert.doesNotMatch(siteCss, /\.site-body\[data-view="home"\]\s+\.hero-title::after/);
+  assert.match(siteCss, /\.hero-grid\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1\.08fr\) minmax\(360px,\s*0\.82fr\)/);
+});
+
 test("official site lets users leave teams and cancel their vote", () => {
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260703-mobile-rank-copy/);
+  assert.match(siteHtml, /site\.js\?v=20260703-judge-evaluation-heading/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -1100,7 +1126,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260703-mobile-rank-copy/);
+  assert.match(siteHtml, /site\.js\?v=20260703-judge-evaluation-heading/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -1118,8 +1144,8 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.css\?v=20260703-mobile-rank-copy/);
-  assert.match(siteHtml, /site\.js\?v=20260703-mobile-rank-copy/);
+  assert.match(siteHtml, /site\.css\?v=20260703-mobile-heading-kicker/);
+  assert.match(siteHtml, /site\.js\?v=20260703-judge-evaluation-heading/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -1135,8 +1161,6 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   assert.doesNotMatch(siteJs, /class="gl2-track2"/);
   assert.doesNotMatch(siteJs, /\$\{esc\(t\.trackCode\)\} PROJECT/);
   assert.doesNotMatch(siteCss, /\.site-body\[data-view="gallery"\] \.page-hero/);
-  assert.doesNotMatch(siteCss, /font-size:\s*clamp\(38px,\s*4\.7vw,\s*78px\)/);
-  assert.doesNotMatch(siteCss, /font-size:\s*clamp\(22px,\s*2vw,\s*34px\)/);
   assert.match(siteCss, /\.gl2-h \.gl2-project-name\s*\{[\s\S]*font-size:\s*clamp\(24px,\s*2\.3vw,\s*36px\)/);
 });
 
@@ -1189,8 +1213,6 @@ test("official site regular page headers match the talent profile title scale", 
   assert.doesNotMatch(siteCss, /\.people-head h1\s*\{[^}]*font-size:\s*34px/);
   assert.doesNotMatch(siteCss, /\.mobile-people-head h1\s*\{[^}]*font-size:\s*2[78]px/);
   assert.doesNotMatch(siteCss, /\.site-body\[data-view="gallery"\] \.page-hero/);
-  assert.doesNotMatch(siteCss, /font-size:\s*clamp\(38px,\s*4\.7vw,\s*78px\)/);
-  assert.doesNotMatch(siteCss, /font-size:\s*clamp\(22px,\s*2vw,\s*34px\)/);
   assert.doesNotMatch(siteCss, /\.site-body\[data-view="gallery"\] \.ph-en\s*\{/);
   assert.doesNotMatch(siteCss, /\.site-body\[data-view="gallery"\] \.page-hero h1\s*\{/);
 });
@@ -1416,6 +1438,20 @@ test("role navigation exposes role-specific operational entries", () => {
   assert.equal(publicNav.find((item) => item.key === "schedule").label, "赛事指南");
   assert.equal(publicNav.find((item) => item.key === "result").label, "排行榜");
   assert.ok(!publicNav.some((item) => item.label === "赛程" || item.label === "最终排行" || item.label === "投票"));
+});
+
+test("mobile bottom tabs hide the my entry for player, public, and judge roles", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const playerTabs = siteJs.slice(siteJs.indexOf("const MOBILE_TABS_PLAYER"), siteJs.indexOf("const MOBILE_TABS_PUBLIC"));
+  const publicTabs = siteJs.slice(siteJs.indexOf("const MOBILE_TABS_PUBLIC"), siteJs.indexOf("const MOBILE_TABS_JUDGE"));
+  const judgeTabs = siteJs.slice(siteJs.indexOf("const MOBILE_TABS_JUDGE"), siteJs.indexOf("const MOBILE_TABS_ADMIN"));
+
+  assert.doesNotMatch(playerTabs, /key:\s*"me"/);
+  assert.doesNotMatch(publicTabs, /key:\s*"me"/);
+  assert.doesNotMatch(judgeTabs, /key:\s*"me"/);
+  assert.match(siteJs, /if \(currentRole\(\) === "player"\) return MOBILE_TABS_PLAYER/);
+  assert.match(siteJs, /if \(currentRole\(\) === "judge"\) return MOBILE_TABS_JUDGE/);
+  assert.match(siteJs, /if \(currentRole\(\) === "public"\) return MOBILE_TABS_PUBLIC/);
 });
 
 test("team page keeps grouping focused on the team list and editable team names", () => {
@@ -2043,7 +2079,8 @@ test("mobile home focuses on the stage countdown without shortcut cards", () => 
   const renderMobileHomeBody = siteJs.match(/function renderMobileHome\(totalVotes\) \{([\s\S]*?)\n  \}/)?.[1] || "";
 
   assert.match(renderMobileHomeBody, /class="mh-slogan">36小时 · 让想法落地，让创新发生/);
-  assert.match(renderMobileHomeBody, /五大真实业务挑战，五支战队，从业务场景出发，用 AI 解决真实问题，认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。/);
+  assert.match(renderMobileHomeBody, /五大业务挑战 · 五支战队，用AI重塑业务场景。认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。/);
+  assert.doesNotMatch(renderMobileHomeBody, /五大真实业务挑战，五支战队，从业务场景出发，用 AI 解决真实问题，认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。/);
   assert.match(renderMobileHomeBody, /class="mh-chip"><span class="live-dot"><\/span>当前阶段/);
   assert.match(renderMobileHomeBody, /class="mh-chip">\$\{esc\(phaseInfo\.label\)\}/);
   assert.match(renderMobileHomeBody, /<b>\$\{esc\(phaseInfo\.phase\)\}<\/b>/);
@@ -2073,7 +2110,11 @@ test("desktop home hero uses the latest slogan and compact live badge", () => {
   const renderHomeBody = siteJs.match(/function renderHome\(\) \{([\s\S]*?)\n  function renderPeople\(\)/)?.[1] || "";
 
   assert.match(renderHomeBody, /class="hero-slogan">36小时 · 让想法落地，让创新发生<\/p>/);
+  assert.match(renderHomeBody, /class="hero-desc">五大业务挑战 · 五支战队，用AI重塑业务场景。认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。<\/p>/);
+  assert.doesNotMatch(renderHomeBody, /data-text="36小时/);
+  assert.doesNotMatch(renderHomeBody, /hero-title-text/);
   assert.doesNotMatch(renderHomeBody, /class="hero-slogan">36小时，用 AI 把创意照进现实<\/p>/);
+  assert.doesNotMatch(renderHomeBody, /五大真实业务挑战，五支战队，从业务场景出发，用AI解决真实问题。认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。/);
   assert.match(siteCss, /\.hero-kicker\s*\{[^}]*gap:\s*clamp\(10px,\s*1\.5vw,\s*24px\)/);
   assert.match(siteCss, /\.hero-kicker\s*\{[^}]*letter-spacing:\s*0\.1em/);
   assert.match(siteCss, /\.hero-kicker\s*\{[^}]*padding:\s*8px clamp\(12px,\s*1\.2vw,\s*20px\) 8px 14px/);
@@ -2089,6 +2130,8 @@ test("official site result page uses leaderboard copy and final award labels", (
   const renderResultBody = siteJs.slice(renderResultStart, renderResultEnd);
 
   assert.match(siteJs, /resultHead\("排行榜"\)/);
+  assert.match(siteJs, /const resultHead = \(title, subtitle = resultSubtitle, en = "RANKING"\)/);
+  assert.match(siteJs, /<span class="ph-en">\$\{esc\(en\)\}<\/span><h1>\$\{esc\(title\)\}<\/h1>/);
   assert.match(siteJs, /创新与价值并重，共同见证最终荣誉的诞生/);
   assert.match(siteJs, /function shouldShowResultVoteOverview\(\)/);
   assert.match(siteJs, /return !rolePermissions\(currentRole\(\)\)\.canScore/);
@@ -2105,7 +2148,8 @@ test("official site result page uses leaderboard copy and final award labels", (
   assert.doesNotMatch(siteJs, /综合得分 = 专家评审 70% \+ 大众投票赋分 30%/);
   assert.doesNotMatch(siteJs, /result-bridge/);
   assert.match(siteJs, /champ \? "🏆" : pad\(t\.rank\)/);
-  assert.match(siteJs, /Grand Prize · 冠军战队/);
+  assert.match(renderResultBody, /<i class="rk-crown">冠军战队<\/i>/);
+  assert.doesNotMatch(renderResultBody, /Grand Prize/);
   assert.match(siteJs, /const metaText = \[t\.track, t\.project\]\.filter\(Boolean\)\.map\(\(item\) => esc\(item\)\)\.join\(" · "\)/);
   assert.match(siteJs, /<span class="rk-meta">\$\{metaText\}<\/span>/);
   assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.rk-id \.rk-meta \{\s*display:\s*none;\s*\}/);
@@ -2205,17 +2249,24 @@ test("official site includes a mobile app shell with bottom tab navigation", () 
   assert.match(siteJs, /const MOBILE_TABS = \[/);
   assert.match(siteJs, /const MOBILE_TABS_ADMIN = \[\s*\{ key: "home", label: "首页", icon: "target" \},\s*\{ key: "people", label: "新生看板", icon: "user" \}/);
   assert.match(siteJs, /const MOBILE_TABS = \[[\s\S]*\{ key: "me", label: "我的", icon: "team" \}/);
-  assert.match(siteJs, /const MOBILE_TABS_PUBLIC = \[[\s\S]*\{ key: "me", label: "我的", icon: "team" \}/);
   const defaultTabsBlock = siteJs.match(/const MOBILE_TABS = \[[\s\S]*?\n  \];/)?.[0] || "";
   const playerTabsBlock = siteJs.match(/const MOBILE_TABS_PLAYER = \[[\s\S]*?\n  \];/)?.[0] || "";
   const publicTabsBlock = siteJs.match(/const MOBILE_TABS_PUBLIC = \[[\s\S]*?\n  \];/)?.[0] || "";
   const judgeTabsBlock = siteJs.match(/const MOBILE_TABS_JUDGE = \[[\s\S]*?\n  \];/)?.[0] || "";
+  const adminTabsBlock = siteJs.match(/const MOBILE_TABS_ADMIN = \[[\s\S]*?\n  \];/)?.[0] || "";
+  for (const block of [defaultTabsBlock, playerTabsBlock, publicTabsBlock, judgeTabsBlock, adminTabsBlock]) {
+    assert.match(block, /key:\s*"gallery"[\s\S]*label:\s*"作品展厅"/);
+    assert.doesNotMatch(block, /key:\s*"gallery"[\s\S]*label:\s*"作品"/);
+  }
   assert.match(defaultTabsBlock, /key:\s*"result"[\s\S]*label:\s*"排行榜"/);
   assert.match(playerTabsBlock, /key:\s*"result"[\s\S]*label:\s*"排行榜"/);
   assert.match(publicTabsBlock, /key:\s*"result"[\s\S]*label:\s*"排行榜"/);
   assert.match(judgeTabsBlock, /key:\s*"result"[\s\S]*label:\s*"排行榜"/);
   assert.doesNotMatch(publicTabsBlock, /key:\s*"vote"|label:\s*"投票"/);
-  assert.match(siteJs, /const MOBILE_TABS_JUDGE = \[[\s\S]*\{ key: "judge", label: "评分", icon: "scale" \},[\s\S]*\{ key: "result", label: "排行榜", icon: "trophy" \},[\s\S]*\{ key: "me", label: "我的", icon: "user" \}/);
+  assert.doesNotMatch(playerTabsBlock, /key:\s*"me"|label:\s*"我的"/);
+  assert.doesNotMatch(publicTabsBlock, /key:\s*"me"|label:\s*"我的"/);
+  assert.doesNotMatch(judgeTabsBlock, /key:\s*"me"|label:\s*"我的"/);
+  assert.match(siteJs, /const MOBILE_TABS_JUDGE = \[[\s\S]*\{ key: "judge", label: "评分", icon: "scale" \},[\s\S]*\{ key: "result", label: "排行榜", icon: "trophy" \}/);
   assert.match(siteJs, /mobileTabbar\.style\.setProperty\("--mobile-tab-count", tabs\.length\)/);
   assert.match(siteJs, /mobileTabbar\.innerHTML/);
   assert.match(siteJs, /mobileTabbar\.querySelectorAll\("a"\)/);
@@ -2229,7 +2280,7 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260703-mobile-rank-copy/);
+  assert.match(html, /src\/site\.css\?v=20260703-mobile-heading-kicker/);
   assert.match(siteCss, /--site-detail-console-width:\s*calc\(min\(80vw,\s*1260px\) - 24px\)/);
   assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*max\(3vw,\s*calc\(100dvw - var\(--site-detail-console-width\) - var\(--site-detail-card-width\) - 40px\)\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*auto/);
@@ -2253,6 +2304,7 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
 test("mobile site opens on event home and uses a natural swipe-card browser", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+  const mobileDetailBody = siteJs.match(/function renderMobileTraineeDetail\(p, list\) \{([\s\S]*?)\n  function renderMobilePeopleIntoMain/)?.[1] || "";
 
   assert.match(siteJs, /function renderMobileHome\(/);
   assert.match(siteJs, /36小时 · 让想法落地，让创新发生/);
@@ -2270,14 +2322,18 @@ test("mobile site opens on event home and uses a natural swipe-card browser", ()
   assert.doesNotMatch(siteJs, /参赛伙伴图鉴|认识这一届 AI 星锐|看懂比赛怎么进行|查看现场作品|class="mh-agenda"|class="mh-card/);
   assert.match(siteJs, /key: "people", label: "新生看板"/);
   assert.match(siteJs, /const MOBILE_TABS_PLAYER = \[\s*\{ key: "home", label: "首页", icon: "target" \},\s*\{ key: "people", label: "新生看板", icon: "user" \},\s*\{ key: "schedule", label: "赛事指南", icon: "calendar" \},\s*\{ key: "team", label: "组队", icon: "team" \}/);
-  assert.match(siteJs, /<span class="ph-en">Talent Profiles<\/span>/);
+  assert.match(siteJs, /<span class="ph-en">TALENT PROFILES<\/span>/);
   assert.match(siteJs, /\$\{pad\(MOBILE_TRAINEE_INDEX \+ 1\)\}\/\$\{pad\(list\.length\)\}/);
   assert.doesNotMatch(siteJs, /ROSTER CARDS|星锐卡组|<button class="mobile-back-link"/);
   assert.match(siteCss, /\.mobile-people-head\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\) auto/);
   const mobilePeopleLabelBlock = siteCss.match(/\.mobile-people-head \.ph-en\s*\{[^}]*\}/)?.[0] || "";
   const mobileCardIndexBlock = siteCss.match(/\.mobile-card-index\s*\{[^}]*\}/)?.[0] || "";
-  assert.match(mobilePeopleLabelBlock, /font-family:\s*var\(--display\)/);
-  assert.match(mobilePeopleLabelBlock, /font-size:\s*17px/);
+  assert.match(mobilePeopleLabelBlock, /font-family:\s*var\(--nav-pixel\)/);
+  assert.match(mobilePeopleLabelBlock, /font-size:\s*clamp\(10px,\s*3\.05vw,\s*12px\)/);
+  assert.match(mobilePeopleLabelBlock, /letter-spacing:\s*0\.2em/);
+  assert.match(mobilePeopleLabelBlock, /text-transform:\s*uppercase/);
+  assert.match(mobilePeopleLabelBlock, /text-shadow:\s*0 0 12px rgba\(40,\s*255,\s*200,\s*0\.3\)/);
+  assert.doesNotMatch(mobilePeopleLabelBlock, /font-family:\s*var\(--display\)/);
   assert.match(mobileCardIndexBlock, /font-size:\s*17px/);
   assert.doesNotMatch(mobilePeopleLabelBlock, /border:/);
   assert.doesNotMatch(mobilePeopleLabelBlock, /padding:/);
@@ -2287,7 +2343,12 @@ test("mobile site opens on event home and uses a natural swipe-card browser", ()
   assert.match(siteCss, /\.mobile-swipe-deck\s*\{[\s\S]*height:\s*clamp\(390px,\s*calc\(100svh - 208px\),\s*472px\)/);
   assert.match(siteCss, /\.mobile-card-photo-wrap\s*\{[\s\S]*flex:\s*0 0 clamp\(190px,\s*31svh,\s*246px\)/);
   assert.match(siteCss, /\.mobile-card-active \.mobile-card-photo\s*\{[\s\S]*width:\s*auto[\s\S]*max-width:\s*92%[\s\S]*object-position:\s*center bottom/);
-  assert.match(siteCss, /\.mobile-person-line\s*\{[\s\S]*-webkit-line-clamp:\s*2/);
+  const mobilePersonLineBlock = siteCss.match(/\.mobile-person-line\s*\{[^}]*\}/)?.[0] || "";
+  assert.match(mobilePersonLineBlock, /display:\s*block/);
+  assert.match(mobilePersonLineBlock, /overflow:\s*hidden/);
+  assert.match(mobilePersonLineBlock, /text-overflow:\s*ellipsis/);
+  assert.match(mobilePersonLineBlock, /white-space:\s*nowrap/);
+  assert.doesNotMatch(mobilePersonLineBlock, /-webkit-line-clamp/);
   assert.match(siteJs, /function renderMobilePeople\(/);
   assert.match(siteJs, /function renderMobileTraineeDetail\(/);
   assert.match(siteJs, /function setMobileTrainee\(/);
@@ -2309,6 +2370,23 @@ test("mobile site opens on event home and uses a natural swipe-card browser", ()
   assert.match(siteJs, /data-mobile-detail-close/);
   assert.match(siteJs, /mobile-card-photo/);
   assert.match(siteJs, /traineeLifeImage/);
+  assert.match(mobileDetailBody, /class="mobile-profile-info"/);
+  assert.match(mobileDetailBody, /class="mobile-info-chip">INFO<\/span>/);
+  assert.match(mobileDetailBody, /class="mobile-info-list"/);
+  assert.match(mobileDetailBody, /class="mobile-info-item"/);
+  assert.match(mobileDetailBody, /#1 🎓 专业背景/);
+  assert.match(mobileDetailBody, /#2 🤖 我的AI搭子们/);
+  assert.match(mobileDetailBody, /#3 🌟 我的本命AI搭子/);
+  assert.match(mobileDetailBody, /#4 💡 我最想让AI解决的问题/);
+  assert.match(mobileDetailBody, /#5 ⚡️ 我的AI超能力/);
+  assert.match(mobileDetailBody, /#6 🤣 一个有趣的事实/);
+  assert.doesNotMatch(mobileDetailBody, /class="mobile-tool-tags"/);
+  assert.doesNotMatch(mobileDetailBody, /shortText\(p\.favoriteAI \|\| p\.aiPartners \|\| p\.aiPower,\s*88\)/);
+  assert.match(siteCss, /\.mobile-profile-info\s*\{/);
+  assert.match(siteCss, /\.mobile-info-chip\s*\{/);
+  assert.match(siteCss, /\.mobile-info-list\s*\{/);
+  assert.match(siteCss, /\.mobile-info-item\s*\{/);
+  assert.match(siteCss, /\.mobile-info-item p\s*\{[\s\S]*white-space:\s*pre-line/);
   assert.match(siteJs, /root\.matchMedia\("\(max-width: 680px\)"\)/);
   assert.match(siteCss, /\.mobile-home/);
   assert.match(siteCss, /\.mobile-people-stage/);
@@ -2369,7 +2447,14 @@ test("mobile voting and judge scoring avoid heart cues and use manual score inpu
 test("judge scoring uses manual numeric input only", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+  const renderJudgeStart = siteJs.indexOf("function renderJudge()");
+  const renderJudgeEnd = siteJs.indexOf("\n  function renderTracks", renderJudgeStart);
+  const renderJudgeBody = renderJudgeStart >= 0 && renderJudgeEnd > renderJudgeStart
+    ? siteJs.slice(renderJudgeStart, renderJudgeEnd)
+    : "";
 
+  assert.match(renderJudgeBody, /pageHead\("评委评分",[\s\S]*"EVALUATION"\)/);
+  assert.doesNotMatch(renderJudgeBody, /pageHead\("评委评分",[\s\S]*"JUDGE"\)/);
   assert.match(siteJs, /function updateJudgeScoreInput\(/);
   assert.match(siteJs, /function persistJudgeScoreDraft\(/);
   assert.match(siteJs, /if \(markTouched\) persistJudgeScoreDraft\(input, value, touched && inRange\)/);
@@ -2440,6 +2525,28 @@ test("judge scoring work summary keeps the browse action fixed and mobile-safe",
   assert.match(mobileCss, /\.judge-row\s*\{[\s\S]*gap:\s*14px[\s\S]*padding:\s*16px/);
   assert.match(mobileCss, /\.judge-team\s*\{[\s\S]*grid-template-columns:\s*auto minmax\(0,\s*1fr\)[\s\S]*min-height:\s*0/);
   assert.match(mobileCss, /\.judge-team-browse\s*\{[\s\S]*position:\s*static[\s\S]*opacity:\s*1[\s\S]*transform:\s*none/);
+});
+
+test("judge work detail returns to the previous scoring scroll position", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /const RETURN_SCROLL_PREFIX = "joincare_return_scroll_"/);
+  assert.match(siteJs, /function rememberReturnScroll\(viewKey\)/);
+  assert.match(siteJs, /function restoreReturnScroll\(viewKey\)/);
+  assert.match(siteJs, /rememberReturnScroll\(safeReturnView\)/);
+  assert.match(siteJs, /if \(v\.key === "judge"\) \{[\s\S]*?setupJudgePage\(\);[\s\S]*?restoreReturnScroll\("judge"\);[\s\S]*?\}/);
+  assert.match(siteJs, /root\.sessionStorage\.removeItem\(key\)/);
+});
+
+test("judge polling signature ignores volatile vote timestamps", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const judgeSignature = siteJs.match(/function createJudgeViewSignature\(state = SITE_STATE\) \{([\s\S]*?)\n  function createVisibleSiteStateSignature/)?.[1] || "";
+
+  assert.match(siteJs, /function createJudgeViewSignature\(state = SITE_STATE\)/);
+  assert.match(siteJs, /if \(currentViewKey === "judge"\) \{\s*return createJudgeViewSignature\(state\);\s*\}/);
+  assert.match(judgeSignature, /view:\s*"judge"/);
+  assert.match(judgeSignature, /publishedTeams/);
+  assert.doesNotMatch(judgeSignature, /updatedAt/);
 });
 
 test("judge formal submit uses the shared confirm dialog and preserves backend errors", () => {
@@ -2547,11 +2654,11 @@ test("official site cache keys are bumped after navigation and detail layout pol
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
-  assert.match(html, /src\/site\.css\?v=20260703-mobile-rank-copy/);
+  assert.match(html, /src\/site\.css\?v=20260703-mobile-heading-kicker/);
   assert.match(html, /src\/logic\.js\?v=20260703-judge-no-quick/);
   assert.match(html, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(html, /src\/screen-data\.js\?v=20260703-slogan-copy/);
-  assert.match(html, /src\/site\.js\?v=20260703-mobile-rank-copy/);
+  assert.match(html, /src\/site\.js\?v=20260703-judge-evaluation-heading/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
@@ -3175,6 +3282,7 @@ test("admin and big screen cache keys stay current", () => {
   assert.match(adminHtml, /admin\.css\?v=20260703-admin-mobile-scroll/);
   assert.match(adminHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(adminHtml, /src\/admin\.js\?v=20260702-result-publish-api5173/);
+  assert.match(indexHtml, /styles\.css\?v=20260703-index-previous-style/);
   assert.match(indexHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(indexHtml, /src\/logic\.js\?v=20260702-final-snapshot-source/);
   assert.match(indexHtml, /src\/app\.js\?v=20260702-final-snapshot-source/);
@@ -3213,6 +3321,7 @@ test("landing hero uses the merged two-line cinematic hierarchy", () => {
   assert.doesNotMatch(html, /AI Innovation Hackathon 2026<\/span>/);
   assert.match(html, /<span class="landing-title-cn">AI创新黑客松<\/span>/);
   assert.match(html, /<span class="landing-title-sub">36小时 · 让想法落地，让创新发生<\/span>/);
+  assert.doesNotMatch(html, /data-text="AI创新黑客松"/);
   assert.match(html, /<button class="enter-button" type="button" id="enterButton"[^>]*>解锁任务<\/button>/);
   assert.match(logoBlock, /top:\s*23%/);
   assert.match(logoBlock, /width:\s*min\(28vw,\s*440px\)/);
@@ -3225,6 +3334,10 @@ test("landing hero uses the merged two-line cinematic hierarchy", () => {
   assert.match(css, /\.landing-title-cn\s*{[\s\S]*?font-size:\s*clamp\(58px,\s*6\.8vw,\s*112px\)/);
   assert.match(css, /\.landing-title-sub\s*{[\s\S]*?color:\s*var\(--neon-2\)/);
   assert.match(css, /\.landing-title-sub\s*{[\s\S]*?font-size:\s*clamp\(22px,\s*2\.45vw,\s*38px\)/);
+  assert.doesNotMatch(css, /\.landing-title-cn::before/);
+  assert.doesNotMatch(css, /\.landing-title-cn::after/);
+  assert.doesNotMatch(css, /\.landing-title-sub::before/);
+  assert.doesNotMatch(css, /\.landing-title-sub::after/);
   assert.match(css, /\.app-shell\.view-home \.landing-title\s*{[\s\S]*?animation:\s*none/);
   assert.match(css, /\.app-shell\.view-home \.landing-title\s*{[\s\S]*?opacity:\s*1/);
   assert.match(enterButtonBlock, /width:\s*clamp\(220px,\s*18vw,\s*292px\)/);
