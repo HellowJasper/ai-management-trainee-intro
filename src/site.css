@@ -1389,6 +1389,7 @@
 
   .rk-avas { display: none; }
   .rk-row { grid-template-columns: auto 1fr auto; }
+  .rk-id .rk-meta { display: none; }
 }
 
 /* 进场「进入官网」确认步 */

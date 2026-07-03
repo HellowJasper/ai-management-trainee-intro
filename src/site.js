@@ -2430,7 +2430,9 @@
       const avas = teamPeople(t).slice(0, 5).map((p) => avatar(p, 30)).join("");
       const scoreWidth = ((t.total / max) * 100).toFixed(2);
       const delay = (t.rank - 1) * 120;
-      return `<div class="rk-row glass ${champ ? "champ" : ""}" style="--accent:${t.accent};--rgb:${t.rgb};--score-width:${scoreWidth}%;--rank-delay:${delay}ms"><span class="rk-no ${t.rank <= 3 ? "top" : ""}">${champ ? "🏆" : pad(t.rank)}</span><div class="rk-id"><b>${esc(t.name)}${champ ? '<i class="rk-crown">Grand Prize · 冠军战队</i>' : ""}</b><span>${esc(t.track)} · ${esc(t.project)}</span></div><div class="rk-avas">${avas}</div><div class="rk-bar"><span class="meter" style="--accent:${t.accent};--rgb:${t.rgb}"><i></i></span></div><div class="rk-mini"><span>专家 ${t.expert}</span><span>赋分 ${t.votePoint}</span></div><span class="rk-total">${t.total}</span></div>`;
+      const metaText = [t.track, t.project].filter(Boolean).map((item) => esc(item)).join(" · ");
+      const metaHtml = metaText ? `<span class="rk-meta">${metaText}</span>` : "";
+      return `<div class="rk-row glass ${champ ? "champ" : ""}" style="--accent:${t.accent};--rgb:${t.rgb};--score-width:${scoreWidth}%;--rank-delay:${delay}ms"><span class="rk-no ${t.rank <= 3 ? "top" : ""}">${champ ? "🏆" : pad(t.rank)}</span><div class="rk-id"><b>${esc(t.name)}${champ ? '<i class="rk-crown">Grand Prize · 冠军战队</i>' : ""}</b>${metaHtml}</div><div class="rk-avas">${avas}</div><div class="rk-bar"><span class="meter" style="--accent:${t.accent};--rgb:${t.rgb}"><i></i></span></div><div class="rk-mini"><span>专家 ${t.expert}</span><span>赋分 ${t.votePoint}</span></div><span class="rk-total">${t.total}</span></div>`;
     }).join("");
     return `${resultHead("排行榜")}<section class="container sec result-sec"><div class="rk-list">${rows}</div></section>`;
   }

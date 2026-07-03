@@ -1058,7 +1058,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260703-guide-format-copy/);
+  assert.match(siteHtml, /site\.js\?v=20260703-mobile-rank-copy/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -1100,7 +1100,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260703-guide-format-copy/);
+  assert.match(siteHtml, /site\.js\?v=20260703-mobile-rank-copy/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -1118,8 +1118,8 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.css\?v=20260702-team-palette-sync/);
-  assert.match(siteHtml, /site\.js\?v=20260703-guide-format-copy/);
+  assert.match(siteHtml, /site\.css\?v=20260703-mobile-rank-copy/);
+  assert.match(siteHtml, /site\.js\?v=20260703-mobile-rank-copy/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -2106,7 +2106,10 @@ test("official site result page uses leaderboard copy and final award labels", (
   assert.doesNotMatch(siteJs, /result-bridge/);
   assert.match(siteJs, /champ \? "🏆" : pad\(t\.rank\)/);
   assert.match(siteJs, /Grand Prize · 冠军战队/);
-  assert.match(siteJs, /\$\{esc\(t\.track\)\} · \$\{esc\(t\.project\)\}/);
+  assert.match(siteJs, /const metaText = \[t\.track, t\.project\]\.filter\(Boolean\)\.map\(\(item\) => esc\(item\)\)\.join\(" · "\)/);
+  assert.match(siteJs, /<span class="rk-meta">\$\{metaText\}<\/span>/);
+  assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.rk-id \.rk-meta \{\s*display:\s*none;\s*\}/);
+  assert.doesNotMatch(siteJs, /\$\{esc\(t\.track\)\} · \$\{esc\(t\.project\)\}/);
   assert.doesNotMatch(siteJs, /\$\{esc\(t\.project\)\} · \$\{esc\(t\.track\)\}/);
   assert.doesNotMatch(siteCss, /\.result-bridge/);
   assert.match(siteCss, /\.result-hero-en/);
@@ -2226,7 +2229,7 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260702-team-palette-sync/);
+  assert.match(html, /src\/site\.css\?v=20260703-mobile-rank-copy/);
   assert.match(siteCss, /--site-detail-console-width:\s*calc\(min\(80vw,\s*1260px\) - 24px\)/);
   assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*max\(3vw,\s*calc\(100dvw - var\(--site-detail-console-width\) - var\(--site-detail-card-width\) - 40px\)\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*auto/);
@@ -2544,11 +2547,11 @@ test("official site cache keys are bumped after navigation and detail layout pol
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
-  assert.match(html, /src\/site\.css\?v=20260702-team-palette-sync/);
+  assert.match(html, /src\/site\.css\?v=20260703-mobile-rank-copy/);
   assert.match(html, /src\/logic\.js\?v=20260703-judge-no-quick/);
   assert.match(html, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(html, /src\/screen-data\.js\?v=20260703-slogan-copy/);
-  assert.match(html, /src\/site\.js\?v=20260703-guide-format-copy/);
+  assert.match(html, /src\/site\.js\?v=20260703-mobile-rank-copy/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
