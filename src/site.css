@@ -2189,6 +2189,7 @@
  *  v4：移动端滑卡重做 + 入口鉴权
  * ===================================================================== */
 .auth-gate { position: fixed; inset: 0; z-index: 180; display: none; place-items: center; padding: 18px; box-sizing: border-box; }
+.auth-gate.is-forced { z-index: 420; }
 .auth-gate.show { display: grid; }
 .auth-gate-backdrop { position: absolute; inset: 0; background: rgba(2, 8, 14, 0.76); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
 .auth-card { position: relative; z-index: 1; width: min(420px, 100%); padding: 24px; border-radius: 20px; }
@@ -2198,6 +2199,7 @@
 .auth-card p { margin: 0 0 18px; color: var(--text-soft); line-height: 1.6; }
 .auth-feishu { width: 100%; min-height: 52px; margin: 0 0 14px; border: 0; border-radius: 14px; color: var(--void); background: linear-gradient(180deg, var(--neon), #1fe0b0); font-size: 16px; font-weight: 900; cursor: pointer; box-shadow: 0 12px 28px rgba(40, 255, 200, 0.24); }
 .auth-feishu:hover { transform: translateY(-1px); box-shadow: 0 16px 34px rgba(40, 255, 200, 0.34); }
+.auth-required-note { display: block; color: var(--muted); font-size: 12px; line-height: 1.5; text-align: center; }
 .auth-role-grid { display: grid; gap: 10px; }
 .auth-role-grid button { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 58px; border-radius: 14px; border: 1px solid rgba(103, 255, 213, 0.18); background: rgba(255, 255, 255, 0.045); color: var(--text); padding: 12px 14px; text-align: left; }
 .auth-role-grid button:hover { border-color: rgba(40, 255, 200, 0.46); background: rgba(40, 255, 200, 0.09); }

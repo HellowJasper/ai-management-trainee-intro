@@ -156,6 +156,9 @@
     const role = currentRole();
     return Boolean(SITE_STATE && SITE_STATE.me && SITE_STATE.me.authenticated && SITE_STATE.me.user && role && SITE_STATE.me.role === role);
   }
+  function isAuthenticatedSession() {
+    return Boolean(currentRole() && hasBackendSession());
+  }
   function canUseVoteAction() {
     return hasBackendSession() && rolePermissions(currentRole()).canVote;
   }
@@ -930,9 +933,10 @@
     ];
   }
 
-  function showAuthGate(target) {
-    if (currentRole() && hasBackendSession()) return true;
+  function showAuthGate(target, { force = false } = {}) {
+    if (isAuthenticatedSession()) return true;
     pendingAuthTarget = target && target !== "entry" ? target : pendingAuthTarget;
+    const forced = Boolean(force);
     let gate = doc.getElementById("authGate");
     if (!gate) {
       gate = doc.createElement("div");
@@ -940,29 +944,38 @@
       gate.className = "auth-gate";
       doc.body.appendChild(gate);
     }
-    gate.innerHTML = `<div class="auth-gate-backdrop" data-auth-close></div><section class="auth-card glass" role="dialog" aria-modal="true" aria-labelledby="authGateTitle">
-      <button class="auth-close" type="button" aria-label="关闭登录弹窗" data-auth-close>×</button>
+    gate.dataset.forced = forced ? "true" : "false";
+    gate.classList.toggle("is-forced", forced);
+    gate.innerHTML = `<div class="auth-gate-backdrop"${forced ? "" : " data-auth-close"}></div><section class="auth-card glass" role="dialog" aria-modal="true" aria-labelledby="authGateTitle">
+      ${forced ? "" : '<button class="auth-close" type="button" aria-label="关闭登录弹窗" data-auth-close>×</button>'}
       <span class="ph-en">ENTRY AUTH</span>
       <h2 id="authGateTitle">飞书登录</h2>
-      <p>请使用飞书账号登录；登录后将按你被授予的角色进入，多个角色时可自行选择当前身份。</p>
+      <p>请先使用飞书账号登录；登录后将按你被授予的角色进入，未分配角色的公司用户默认进入观众视角。</p>
       <button class="auth-feishu" type="button" data-auth-feishu>飞书账号登录</button>
+      ${forced ? '<small class="auth-required-note">PC 与移动端访问官网均需先完成飞书登录。</small>' : ""}
     </section>`;
     gate.classList.add("show");
     return false;
   }
-  function closeAuthGate() {
+  function closeAuthGate({ force = false } = {}) {
     const gate = doc.getElementById("authGate");
+    if (gate && gate.dataset.forced === "true" && !force) return;
     if (gate) gate.classList.remove("show");
   }
+  function enforceEntryAuth() {
+    if (isAuthenticatedSession()) return true;
+    showAuthGate(root.location.hash.slice(1) || "home", { force: true });
+    return false;
+  }
   function requireAuth(target) {
-    if (currentRole() && hasBackendSession()) return true;
+    if (isAuthenticatedSession()) return true;
     if (currentRole() && !hasBackendSession()) {
       clearStoredRole();
       renderNavLinks();
       renderMobileTabbar();
       refreshRoleChrome();
     }
-    showAuthGate(target);
+    showAuthGate(target, { force: true });
     return false;
   }
   function requireRole(target, check, deniedMessage) {
@@ -1056,7 +1069,7 @@
     renderNavLinks();
     renderMobileTabbar();
     refreshRoleChrome();
-    closeAuthGate();
+    closeAuthGate({ force: true });
     closeRolePicker();
     toast(`已进入「${pickLabel(role)}」视角`);
     const target = (String(redirectPath || "").split("#")[1] || pendingAuthTarget || "me").trim() || "me";
@@ -1171,6 +1184,7 @@
     refreshRoleChrome();
     toast("已退出登录");
     go("home");
+    showAuthGate("home", { force: true });
   }
 
   // 多角色弹窗：让用户选择当前角色。
@@ -2631,10 +2645,10 @@
   function go(key, push) {
     const v = VIEWS.find((x) => x.key === key) || VIEWS[0];
     const protectedView = { me: true, vote: true, judge: true };
-    if (protectedView[v.key] && !currentRole()) {
+    if (protectedView[v.key] && !isAuthenticatedSession()) {
       main.innerHTML = renderHome();
       setActive("home");
-      showAuthGate(v.key);
+      showAuthGate(v.key, { force: true });
       return;
     }
     if (v.key === "team" && !rolePermissions(currentRole()).canViewTeamProgress) {
@@ -2647,7 +2661,8 @@
       if (push !== false && location.hash.slice(1) !== "me") history.pushState(null, "", "#me");
       return;
     }
-    closeAuthGate();
+    if (isAuthenticatedSession()) closeAuthGate({ force: true });
+    else closeAuthGate();
     main.innerHTML = v.render();
     setActive(v.key);
     if (v.key === "people") {
@@ -3476,7 +3491,7 @@
         renderNavLinks();
         renderMobileTabbar();
         refreshRoleChrome();
-        showAuthGate("me");
+        showAuthGate("me", { force: true });
         return;
       }
       if (mobileTrainee) {
@@ -3488,7 +3503,7 @@
       if (mobileDetailClose) { e.preventDefault(); closeMobileTraineeDetail(); return; }
       if (authVote) {
         e.preventDefault();
-        showAuthGate(root.location.hash.slice(1) || "gallery");
+        showAuthGate(root.location.hash.slice(1) || "gallery", { force: true });
         return;
       }
       if (galleryJudgeEntry) { e.preventDefault(); go("judge"); return; }
@@ -3627,7 +3642,8 @@
     siteStateSignature = createVisibleSiteStateSignature(initialSiteState || SITE_STATE);
     bind();
     route(false);
-    if (wantsAuthChooser()) showAuthGate("entry");
+    enforceEntryAuth();
+    if (wantsAuthChooser()) showAuthGate("entry", { force: true });
     if (authParams().get("denied")) showDeniedNotice();
     root.setInterval(tick, 1000);
     startSiteStatePolling();
