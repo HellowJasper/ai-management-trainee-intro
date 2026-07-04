@@ -5,6 +5,9 @@ const path = require("node:path");
 
 const cssPath = path.join(__dirname, "..", "src", "site.css");
 const siteJsPath = path.join(__dirname, "..", "src", "site.js");
+const landingAppJsPath = path.join(__dirname, "..", "src", "app.js");
+const landingHtmlPath = path.join(__dirname, "..", "index.html");
+const landingCssPath = path.join(__dirname, "..", "styles.css");
 
 function extractMediaBlock(css, query, contains) {
   let mediaIndex = css.indexOf(query);
@@ -103,4 +106,29 @@ test("schedule journey cards keep consistent desktop height", () => {
 
   assert.match(css, /\.schedule-board \.entry-grid\.four \.entry-card\s*\{[^}]*height:\s*clamp\(124px,\s*7vw,\s*142px\)/s);
   assert.match(css, /\.schedule-board \.entry-grid\.four \.entry-tx span\s*\{[^}]*-webkit-line-clamp:\s*2/s);
+});
+
+test("landing headline uses glitch text layers without decorative bars or subtitle backdrop", () => {
+  const html = fs.readFileSync(landingHtmlPath, "utf8");
+  const css = fs.readFileSync(landingCssPath, "utf8");
+  const appJs = fs.readFileSync(landingAppJsPath, "utf8");
+  const logoBlock = css.match(/\.landing-logo-container\s*{[\s\S]*?\n}/)?.[0] || "";
+
+  assert.match(html, /class="landing-title-cn"[^>]*data-text="AI创新黑客松"/);
+  assert.match(html, /class="landing-title-sub"[^>]*data-text="36小时 · 让想法落地，让创新发生"/);
+  assert.match(html, /styles\.css\?v=20260704-hero-group-down5/);
+  assert.match(html, /src\/app\.js\?v=20260704-logo-timed-glitch/);
+  assert.match(logoBlock, /top:\s*calc\(23% \+ 15px\)/);
+  assert.match(logoBlock, /width:\s*clamp\(240px,\s*20vw,\s*420px\)/);
+  assert.doesNotMatch(css, /\.landing-title::before/);
+  assert.match(css, /\.landing-title-cn::before,\s*\.landing-title-cn::after/s);
+  assert.match(css, /@keyframes landing-title-glitch-cyan/);
+  assert.match(css, /@keyframes landing-title-glitch-magenta/);
+  assert.match(css, /\.landing-title-sub\s*\{[^}]*background:\s*transparent/s);
+  assert.match(css, /\.landing-title-sub\s*\{[^}]*box-shadow:\s*none/s);
+  assert.match(css, /\.app-shell\.landing-glitch-ended \.landing-title-cn::before,\s*\.app-shell\.landing-glitch-ended \.landing-title-cn::after,\s*\.app-shell\.landing-glitch-ended \.landing-title-sub::before,\s*\.app-shell\.landing-glitch-ended \.landing-title-sub::after\s*\{[^}]*animation:\s*none;[^}]*opacity:\s*0/s);
+  assert.match(css, /@keyframes landing-subtitle-glitch/);
+  assert.match(appJs, /const LANDING_GLITCH_MS = 15 \* 1000/);
+  assert.match(appJs, /function startLandingGlitchWindow\(\)/);
+  assert.match(appJs, /appShell\.classList\.add\("landing-glitch-ended"\)/);
 });

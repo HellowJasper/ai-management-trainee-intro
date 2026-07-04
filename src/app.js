@@ -454,6 +454,8 @@ let appView = "intro";
 let profileMediaMode = "photo";
 let introTimer = null;
 let introExitTimer = null;
+let landingGlitchTimer = null;
+let landingGlitchStarted = false;
 let isIntroExiting = false;
 let lastAdminStageSyncKey = "";
 let adminPollTimer = null;
@@ -498,6 +500,7 @@ let voteResultsLoadRequestId = 0;
 const introTiming = window.AppLogic.getIntroTiming();
 const INTRO_HOLD_MS = introTiming.holdMs;
 const INTRO_EXIT_MS = introTiming.exitMs;
+const LANDING_GLITCH_MS = 15 * 1000;
 const COUNTDOWN_STORAGE_KEY = "joincare_mission_countdown_started_at_manual_v2";
 const COUNTDOWN_DURATION_MS = 36 * 60 * 60 * 1000;
 const ROADSHOW_STORAGE_KEY = "joincare_roadshow_timer_started_at_manual_v1";
@@ -636,6 +639,16 @@ function forceStagePaint(stage) {
   void stage.offsetHeight;
 }
 
+function startLandingGlitchWindow() {
+  if (landingGlitchStarted) return;
+  landingGlitchStarted = true;
+  window.clearTimeout(landingGlitchTimer);
+  appShell.classList.toggle("landing-glitch-ended", false);
+  landingGlitchTimer = window.setTimeout(() => {
+    appShell.classList.add("landing-glitch-ended");
+  }, LANDING_GLITCH_MS);
+}
+
 function syncStages(view) {
   setStageActive(viewStages.intro, view === "intro");
   setStageActive(viewStages.home, view === "home");
@@ -722,6 +735,7 @@ function startIntroExit(skipped = false) {
   forceStagePaint(landingStage);
   introStage.style.opacity = "0";
   landingStage.style.opacity = "1";
+  startLandingGlitchWindow();
 
   introExitTimer = window.setTimeout(() => {
     isIntroExiting = false;
@@ -774,6 +788,9 @@ function setView(view) {
   appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown", "view-roadshow", "view-vote", "view-vote-result", "view-final-result");
   appShell.classList.add(`view-${view}`);
   syncStages(view);
+  if (view === "home") {
+    startLandingGlitchWindow();
+  }
 
   if (view === "home" || view === "wall") {
     detailLayer.classList.remove("is-open");
@@ -2361,6 +2378,7 @@ function bindEvents() {
   });
 
   window.addEventListener("pagehide", () => {
+    window.clearTimeout(landingGlitchTimer);
     window.clearInterval(adminPollTimer);
     window.clearInterval(teamStatePollTimer);
     window.clearInterval(traineeProfilePollTimer);
