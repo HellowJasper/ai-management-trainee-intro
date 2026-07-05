@@ -130,6 +130,28 @@ function teamHasUser(team = {}, userId = "") {
     || members.some((member) => memberMatchesUser(member, userId));
 }
 
+function hasRealUserIdentity(member = {}) {
+  return Boolean(String(member?.userId || member?.id || "").trim());
+}
+
+function normalizeTeamRoster(team = {}) {
+  const members = Array.isArray(team.members) ? team.members : [];
+  if (hasRealUserIdentity(team.advisor)) {
+    return { ...team, members };
+  }
+
+  const advisorIndex = members.findIndex((member) => hasRealUserIdentity(member) && isAdvisorMember(member));
+  if (advisorIndex === -1) {
+    return { ...team, members };
+  }
+
+  return {
+    ...team,
+    advisor: normalizeAdvisor(members[advisorIndex], team),
+    members: members.filter((_, index) => index !== advisorIndex),
+  };
+}
+
 function assertUserCanMoveFromCurrentTeams(teams = [], userId = "", targetTeamId = "", options = {}) {
   teams.forEach((team) => {
     if (String(team.id || "").trim() === targetTeamId || !teamHasUser(team, userId)) {
@@ -164,7 +186,7 @@ function createTeamRepository(dataPath = DEFAULT_DATA_PATH) {
       throw createHttpError(500, "Team data must be an array.");
     }
 
-    return teams;
+    return teams.map(normalizeTeamRoster);
   }
 
   async function listTeams() {
@@ -332,6 +354,26 @@ function createTeamRepository(dataPath = DEFAULT_DATA_PATH) {
       role: duty || members[memberIndex].role || roleKey,
       updatedAt: new Date().toISOString(),
     };
+
+    if (roleKey === "advisor") {
+      const nextTeams = [...teams];
+      const nextMembers = members.filter((item) => !memberMatchesUser(item, userId));
+      const nextTeam = {
+        ...target,
+        advisor: normalizeAdvisor(member, target),
+        members: nextMembers,
+      };
+      nextTeams[targetIndex] = nextTeam;
+
+      await writeTeams(nextTeams);
+      return {
+        accepted: true,
+        team: nextTeam,
+        member: nextTeam.advisor,
+        teams: nextTeams,
+      };
+    }
+
     members[memberIndex] = member;
 
     const nextTeams = [...teams];

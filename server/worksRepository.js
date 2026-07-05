@@ -126,6 +126,9 @@ function createWorksRepository(dataPath = DEFAULT_DATA_PATH) {
       teamId,
       status: "submitted",
       submittedAt: payload.submittedAt || updatedAt,
+      reviewedAt: null,
+      reviewedBy: "",
+      reviewNote: "",
       updatedAt,
     });
     const nextWorks = state.works.filter((item) => item.id !== work.id);

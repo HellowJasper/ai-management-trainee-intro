@@ -358,6 +358,34 @@ test("work screenshot upload saves local images under the public work assets fol
   assert.deepEqual(savedFile, Buffer.from("iVBORw0KGgo=", "base64"));
 });
 
+test("work screenshot upload rejects image data that does not match the declared type", async (t) => {
+  const publicRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-work-upload-signature-"));
+  const server = createServer({ publicRoot });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/work-assets`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      teamId: "pharmaceuticals",
+      filename: "伪装截图.png",
+      dataUrl: `data:image/png;base64,${Buffer.from("not really a png").toString("base64")}`,
+    }),
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.match(payload.error.message, /image data/i);
+  await assert.rejects(
+    fs.access(path.join(publicRoot, "assets/uploads/works/pharmaceuticals")),
+    /ENOENT/,
+  );
+});
+
 test("work screenshot upload rejects writes to a team the player has not joined", async (t) => {
   const publicRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-work-upload-ownership-"));
   const sessionFile = await createTempJsonFile("ai-work-upload-ownership-auth-", "sessions.json", { sessions: {} });
@@ -397,6 +425,82 @@ test("work screenshot upload rejects writes to a team the player has not joined"
   assert.match(payload.error.message, /current user's joined team/i);
   await assert.rejects(
     fs.access(path.join(publicRoot, "assets/uploads/works/pharma")),
+    /ENOENT/,
+  );
+});
+
+test("strict work APIs require the current team leader", async (t) => {
+  const publicRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-work-leader-only-"));
+  const sessionFile = await createTempJsonFile("ai-work-leader-auth-", "sessions.json", { sessions: {} });
+  const teamsFile = await createTempJsonFile("ai-work-leader-teams-", "teams.json", [
+    {
+      id: "marketing",
+      name: "营销",
+      advisor: { userId: "leader-001", name: "队长", role: "队长" },
+      members: [{ userId: "member-001", name: "普通队员" }],
+    },
+  ]);
+  const worksFile = await createTempJsonFile("ai-work-leader-works-", "works.json", {
+    works: [
+      {
+        id: "marketing",
+        teamId: "marketing",
+        project: "已提交作品",
+        status: "submitted",
+      },
+    ],
+  });
+  const authSessionRepository = createAuthSessionRepository(sessionFile.dataPath);
+  const server = createServer({
+    publicRoot,
+    authSessionRepository,
+    teamRepository: createTeamRepository(teamsFile.dataPath),
+    worksRepository: createWorksRepository(worksFile.dataPath),
+    authEnforcement: "strict",
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const memberCookie = await createSessionCookie(authSessionRepository, "player", { userId: "member-001", name: "普通队员" });
+  const submitResponse = await fetch(`${baseUrl}/api/work/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: memberCookie },
+    body: JSON.stringify({
+      teamId: "marketing",
+      project: "队员绕过提交",
+    }),
+  });
+  const submitPayload = await submitResponse.json();
+
+  assert.equal(submitResponse.status, 403);
+  assert.match(submitPayload.error.message, /team leader/i);
+
+  const withdrawResponse = await fetch(`${baseUrl}/api/work/withdraw`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: memberCookie },
+    body: JSON.stringify({ teamId: "marketing" }),
+  });
+  const withdrawPayload = await withdrawResponse.json();
+
+  assert.equal(withdrawResponse.status, 403);
+  assert.match(withdrawPayload.error.message, /team leader/i);
+
+  const uploadResponse = await fetch(`${baseUrl}/api/work-assets`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: memberCookie },
+    body: JSON.stringify({
+      teamId: "marketing",
+      filename: "队员截图.png",
+      dataUrl: "data:image/png;base64,iVBORw0KGgo=",
+    }),
+  });
+  const uploadPayload = await uploadResponse.json();
+
+  assert.equal(uploadResponse.status, 403);
+  assert.match(uploadPayload.error.message, /team leader/i);
+  await assert.rejects(
+    fs.access(path.join(publicRoot, "assets/uploads/works/marketing")),
     /ENOENT/,
   );
 });
@@ -841,12 +945,12 @@ test("non-strict vote APIs still attach an existing session user to audience vot
 test("non-strict player write APIs still attach an existing session user", async (t) => {
   const teamsFile = await createTempJsonFile("ai-site-player-session-teams-", "teams.json", [
     {
-      id: "marketing",
-      name: "营销",
-      capacity: 3,
-      advisor: { userId: "leader-001", name: "队长 C", role: "队长" },
-      members: [],
-    },
+	      id: "marketing",
+	      name: "营销",
+	      capacity: 3,
+	      advisor: null,
+	      members: [],
+	    },
   ]);
   const worksFile = await createTempJsonFile("ai-site-player-session-works-", "works.json", { works: [] });
   const auditFile = await createTempJsonFile("ai-site-player-session-audit-", "audit-logs.json", { logs: [] });
@@ -887,17 +991,17 @@ test("non-strict player write APIs still attach an existing session user", async
     method: "POST",
     headers: { "Content-Type": "application/json", Cookie: cookie },
     body: JSON.stringify({
-      teamId: "marketing",
-      userId: "payload-spoof",
-      roleKey: "dev",
-      duty: "AI 开发",
-    }),
-  });
+	      teamId: "marketing",
+	      userId: "payload-spoof",
+	      roleKey: "advisor",
+	      duty: "队长",
+	    }),
+	  });
   const claimPayload = await claimResponse.json();
 
-  assert.equal(claimResponse.status, 200);
-  assert.equal(claimPayload.member.userId, "player-session");
-  assert.equal(claimPayload.member.roleKey, "dev");
+	  assert.equal(claimResponse.status, 200);
+	  assert.equal(claimPayload.member.userId, "player-session");
+	  assert.equal(claimPayload.member.roleKey, "advisor");
 
   const workResponse = await fetch(`${baseUrl}/api/work/submit`, {
     method: "POST",
@@ -929,6 +1033,77 @@ test("non-strict player write APIs still attach an existing session user", async
 
   const storedTeams = JSON.parse(await fs.readFile(teamsFile.dataPath, "utf8"));
   assert.equal(storedTeams[0].members.length, 0);
+});
+
+test("team role API promotes a joined player into the advisor slot", async (t) => {
+  const teamsFile = await createTempJsonFile("ai-team-advisor-claim-", "teams.json", [
+    {
+      id: "medicine",
+      name: "医学",
+      capacity: 5,
+      advisor: { name: "队长待确认", role: "队长" },
+      members: [
+        { userId: "player-001", name: "贾博深", department: "AI创新部", role: "队友" },
+      ],
+    },
+  ]);
+  const teamRepository = createTeamRepository(teamsFile.dataPath);
+  const server = createServer({ publicRoot: teamsFile.publicRoot, teamRepository });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/team/claim-role`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      teamId: "medicine",
+      userId: "player-001",
+      name: "贾博深",
+      roleKey: "advisor",
+      duty: "队长",
+    }),
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(payload.team.advisor.userId, "player-001");
+  assert.equal(payload.team.advisor.name, "贾博深");
+  assert.equal(payload.team.members.some((member) => member.userId === "player-001"), false);
+
+  const teamsResponse = await fetch(`${baseUrl}/api/teams`);
+  const teams = await teamsResponse.json();
+  assert.equal(teams[0].advisor.userId, "player-001");
+  assert.equal(teams[0].advisor.name, "贾博深");
+});
+
+test("team list API promotes legacy advisor-role members into the advisor slot", async (t) => {
+  const teamsFile = await createTempJsonFile("ai-team-legacy-advisor-", "teams.json", [
+    {
+      id: "medicine",
+      name: "医学",
+      capacity: 5,
+      advisor: { name: "队长待确认", role: "队长" },
+      members: [
+        { userId: "player-001", name: "贾博深", department: "AI创新部", roleKey: "advisor", duty: "队长", role: "队长" },
+        { userId: "player-002", name: "队友 A", roleKey: "dev", duty: "AI 开发" },
+      ],
+    },
+  ]);
+  const teamRepository = createTeamRepository(teamsFile.dataPath);
+  const server = createServer({ publicRoot: teamsFile.publicRoot, teamRepository });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/teams`);
+  const teams = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(teams[0].advisor.userId, "player-001");
+  assert.equal(teams[0].advisor.name, "贾博深");
+  assert.equal(teams[0].members.some((member) => member.userId === "player-001"), false);
+  assert.equal(teams[0].members[0].userId, "player-002");
 });
 
 test("server enables strict auth enforcement from AUTH_ENFORCEMENT", async (t) => {
@@ -1795,7 +1970,8 @@ test("strict auth enforcement protects vote, score, work, and admin write APIs",
     {
       id: "marketing",
       name: "营销",
-      members: [{ userId: "player-001", name: "选手 001" }],
+      advisor: { userId: "player-001", name: "选手 001", role: "队长" },
+      members: [],
     },
     {
       id: "functions",
@@ -1804,11 +1980,21 @@ test("strict auth enforcement protects vote, score, work, and admin write APIs",
     },
   ]);
   const authSessionRepository = createAuthSessionRepository(sessionFile.dataPath);
+  const worksRepository = createWorksRepository(worksFile.dataPath);
+  const strictWorksRepository = {
+    ...worksRepository,
+    async listWorks(options = {}) {
+      if (options.status === "published") {
+        return [{ id: "marketing", teamId: "marketing", project: "已发布投票作品", status: "published" }];
+      }
+      return worksRepository.listWorks(options);
+    },
+  };
   const server = createServer({
     publicRoot: votesFile.publicRoot,
     voteResultsRepository: createVoteResultsRepository(votesFile.dataPath),
     judgeScoresRepository: createJudgeScoresRepository(scoresFile.dataPath),
-    worksRepository: createWorksRepository(worksFile.dataPath),
+    worksRepository: strictWorksRepository,
     teamRepository: createTeamRepository(teamFile.dataPath),
     auditLogRepository: createAuditLogRepository(auditFile.dataPath),
     authSessionRepository,
@@ -2367,7 +2553,11 @@ test("vote APIs persist one vote per user and update ranked results", async (t) 
     ],
   });
   const voteResultsRepository = createVoteResultsRepository(dataPath);
-  const server = createServer({ publicRoot, voteResultsRepository });
+  const server = createServer({
+    publicRoot,
+    voteResultsRepository,
+    worksRepository: createPublishedWorksRepository(["marketing", "functions"]),
+  });
   const baseUrl = await listen(server);
 
   t.after(() => new Promise((resolve) => server.close(resolve)));
@@ -2409,6 +2599,47 @@ test("vote APIs persist one vote per user and update ranked results", async (t) 
   const stored = JSON.parse(await fs.readFile(dataPath, "utf8"));
   assert.equal(stored.results.find((team) => team.id === "functions").votes, 0);
   assert.deepEqual(stored.voters, {});
+});
+
+test("vote API rejects unpublished work targets for audience votes", async (t) => {
+  const { dataPath, publicRoot } = await createTempJsonFile("ai-votes-unpublished-target-", "vote-results.json", {
+    pointScale: [100, 85, 70, 55, 40],
+    status: "voting",
+    results: [
+      { id: "marketing", name: "营销", votes: 0 },
+      { id: "hidden", name: "未发布队伍", votes: 0 },
+    ],
+    voters: {},
+  });
+  const voteResultsRepository = createVoteResultsRepository(dataPath);
+  const server = createServer({
+    publicRoot,
+    voteResultsRepository,
+    worksRepository: createPublishedWorksRepository(["marketing"]),
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const hiddenResponse = await fetch(`${baseUrl}/api/vote/cast`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ teamId: "hidden", userId: "public-hidden" }),
+  });
+  const hiddenPayload = await hiddenResponse.json();
+
+  assert.equal(hiddenResponse.status, 409);
+  assert.match(hiddenPayload.error.message, /published work/i);
+
+  const allowedResponse = await fetch(`${baseUrl}/api/vote/cast`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ teamId: "marketing", userId: "public-visible" }),
+  });
+  const allowedPayload = await allowedResponse.json();
+
+  assert.equal(allowedResponse.status, 200);
+  assert.equal(allowedPayload.accepted, true);
 });
 
 test("admin vote window API closes voting and blocks later votes", async (t) => {
@@ -2468,11 +2699,12 @@ test("judge score API persists draft scores and reports received team ids", asyn
     logs: [],
   });
   const judgeScoresRepository = createJudgeScoresRepository(dataPath);
-  const server = createServer({
-    publicRoot,
-    judgeScoresRepository,
-    auditLogRepository: createAuditLogRepository(auditFile.dataPath),
-  });
+	  const server = createServer({
+	    publicRoot,
+	    judgeScoresRepository,
+	    worksRepository: createPublishedWorksRepository(["marketing", "functions"]),
+	    auditLogRepository: createAuditLogRepository(auditFile.dataPath),
+	  });
   const baseUrl = await listen(server);
 
   t.after(() => new Promise((resolve) => server.close(resolve)));
@@ -2497,7 +2729,46 @@ test("judge score API persists draft scores and reports received team ids", asyn
 
   const stored = JSON.parse(await fs.readFile(dataPath, "utf8"));
   assert.equal(stored.scores["judge-001"].marketing.innovation, 92);
-  assert.equal(stored.scores["judge-001"].functions.innovation, 86);
+	  assert.equal(stored.scores["judge-001"].functions.innovation, 86);
+	});
+
+test("judge draft API scopes scores to published works", async (t) => {
+  const { dataPath, publicRoot } = await createTempJsonFile("ai-scores-published-scope-", "judge-scores.json", {
+    scores: {},
+  });
+  const auditFile = await createTempJsonFile("ai-scores-published-scope-audit-", "audit-logs.json", {
+    logs: [],
+  });
+  const judgeScoresRepository = createJudgeScoresRepository(dataPath);
+  const server = createServer({
+    publicRoot,
+    judgeScoresRepository,
+    worksRepository: createPublishedWorksRepository(["marketing"]),
+    auditLogRepository: createAuditLogRepository(auditFile.dataPath),
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/judge/scores`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      judgeId: "judge-001",
+      scores: {
+        marketing: { innovation: 92, business: 88 },
+        hidden: { innovation: 50 },
+      },
+    }),
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(payload.receivedTeamIds, ["marketing"]);
+
+  const stored = JSON.parse(await fs.readFile(dataPath, "utf8"));
+  assert.equal(stored.scores["judge-001"].marketing.innovation, 92);
+  assert.equal(stored.scores["judge-001"].hidden, undefined);
 });
 
 test("judge score API rejects score values outside the 0 to 100 range", async (t) => {
@@ -2508,11 +2779,12 @@ test("judge score API rejects score values outside the 0 to 100 range", async (t
     logs: [],
   });
   const judgeScoresRepository = createJudgeScoresRepository(dataPath);
-  const server = createServer({
-    publicRoot,
-    judgeScoresRepository,
-    auditLogRepository: createAuditLogRepository(auditFile.dataPath),
-  });
+	  const server = createServer({
+	    publicRoot,
+	    judgeScoresRepository,
+	    worksRepository: createPublishedWorksRepository(["marketing"]),
+	    auditLogRepository: createAuditLogRepository(auditFile.dataPath),
+	  });
   const baseUrl = await listen(server);
 
   t.after(() => new Promise((resolve) => server.close(resolve)));
@@ -2775,6 +3047,56 @@ test("work submissions reject unsafe delivery URLs", async (t) => {
   assert.deepEqual(stored.works, []);
 });
 
+test("resubmitting rejected work clears stale review metadata", async (t) => {
+  const { dataPath, publicRoot } = await createTempJsonFile("ai-works-clear-review-", "works.json", {
+    works: [
+      {
+        id: "marketing",
+        teamId: "marketing",
+        teamName: "营销",
+        project: "旧版作品",
+        pitch: "需要修改",
+        status: "rejected",
+        reviewedAt: "2026-07-05T01:00:00.000Z",
+        reviewedBy: "admin-001",
+        reviewNote: "请补充截图",
+      },
+    ],
+  });
+  const worksRepository = createWorksRepository(dataPath);
+  const server = createServer({ publicRoot, worksRepository });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/work/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      teamId: "marketing",
+      teamName: "营销",
+      project: "修改后作品",
+      pitch: "已经补充完整",
+      reviewedAt: "2026-07-05T01:00:00.000Z",
+      reviewedBy: "admin-001",
+      reviewNote: "请补充截图",
+    }),
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 201);
+  assert.equal(payload.work.status, "submitted");
+  assert.equal(payload.work.reviewedAt, null);
+  assert.equal(payload.work.reviewedBy, "");
+  assert.equal(payload.work.reviewNote, "");
+
+  const stored = JSON.parse(await fs.readFile(dataPath, "utf8"));
+  assert.equal(stored.works[0].status, "submitted");
+  assert.equal(stored.works[0].reviewedAt, null);
+  assert.equal(stored.works[0].reviewedBy, "");
+  assert.equal(stored.works[0].reviewNote, "");
+});
+
 test("work submissions can be updated and withdrawn before publication", async (t) => {
   const { dataPath, publicRoot } = await createTempJsonFile("ai-works-withdraw-", "works.json", {
     works: [],
@@ -3008,6 +3330,10 @@ test("API lists vote results with the confirmed ranking point scale", async (t) 
     async listVoteResults() {
       return {
         pointScale: [100, 85, 70, 55, 40],
+        voters: {
+          "public-001": "marketing",
+          "public-002": "pharma",
+        },
         results: [
           { id: "pharma", name: "药学", votes: 148 },
           { id: "medicine", name: "医学", votes: 121 },
@@ -3028,6 +3354,8 @@ test("API lists vote results with the confirmed ranking point scale", async (t) 
 
   assert.equal(response.status, 200);
   assert.deepEqual(payload.pointScale, [100, 85, 70, 55, 40]);
+  assert.equal(payload.voters, undefined);
+  assert.equal(payload.votersCount, 2);
   assert.equal(payload.results.length, 5);
   assert.deepEqual(
     payload.results.map((team) => team.id),
@@ -3049,6 +3377,14 @@ function createPublishedWorksRepository(teamIds = []) {
   };
 }
 
+function createStaticUserRoleRepository(users = []) {
+  return {
+    async listUsers() {
+      return { users };
+    },
+  };
+}
+
 test("admin result publish API requires an ended vote window and locked judge scores", async (t) => {
   const snapshotsFile = await createTempJsonFile("ai-result-guard-snapshots-", "result-snapshots.json", {
     snapshots: [],
@@ -3066,12 +3402,13 @@ test("admin result publish API requires an ended vote window and locked judge sc
   };
   const judgeState = {
     records: {
-      "judge-001": {
-        marketing: { status: "submitted", totalScore: 93 },
-        pharma: { status: "submitted", totalScore: 90 },
-      },
-    },
-  };
+	      "judge-001": {
+	        marketing: { status: "submitted", totalScore: 93 },
+	        pharma: { status: "submitted", totalScore: 90 },
+	        hidden: { status: "locked", totalScore: 60 },
+	      },
+	    },
+	  };
   const server = createServer({
     publicRoot: snapshotsFile.publicRoot,
     voteResultsRepository: {
@@ -3085,6 +3422,9 @@ test("admin result publish API requires an ended vote window and locked judge sc
       },
     },
     worksRepository: createPublishedWorksRepository(["marketing", "pharma"]),
+    userRoleRepository: createStaticUserRoleRepository([
+      { id: "judge-001", roles: ["judge"], status: "active" },
+    ]),
     resultSnapshotRepository: createResultSnapshotRepository(snapshotsFile.dataPath),
     auditLogRepository: createAuditLogRepository(auditFile.dataPath),
   });
@@ -3122,9 +3462,10 @@ test("admin result publish API requires an ended vote window and locked judge sc
   const published = await lockedPublishResponse.json();
 
   assert.equal(lockedPublishResponse.status, 201);
-  assert.equal(published.status, "published");
-  assert.equal(published.results[0].id, "marketing");
-  assert.equal(published.source.judge.records["judge-001"].marketing.status, "locked");
+	  assert.equal(published.status, "published");
+	  assert.equal(published.results[0].id, "marketing");
+	  assert.equal(published.source.judge.records["judge-001"].marketing.status, "locked");
+	  assert.equal(published.source.judge.records["judge-001"].hidden, undefined);
 
   voteState.status = "published";
   const recoveryResponse = await fetch(`${baseUrl}/api/admin/results/publish`, {
@@ -3135,8 +3476,60 @@ test("admin result publish API requires an ended vote window and locked judge sc
   const recovered = await recoveryResponse.json();
 
   assert.equal(recoveryResponse.status, 201);
-  assert.equal(recovered.status, "published");
-  assert.equal(recovered.results[0].id, "marketing");
+	  assert.equal(recovered.status, "published");
+	  assert.equal(recovered.results[0].id, "marketing");
+	});
+
+test("admin result publish API rejects when a published work is missing from vote results", async (t) => {
+  const snapshotsFile = await createTempJsonFile("ai-result-missing-vote-row-snapshots-", "result-snapshots.json", {
+    snapshots: [],
+  });
+  const auditFile = await createTempJsonFile("ai-result-missing-vote-row-audit-", "audit-logs.json", {
+    logs: [],
+  });
+  const server = createServer({
+    publicRoot: snapshotsFile.publicRoot,
+    voteResultsRepository: {
+      async listVoteResults() {
+        return {
+          pointScale: [100, 85, 70, 55, 40],
+          status: "closed",
+          results: [
+            { id: "marketing", name: "营销", votes: 180 },
+          ],
+        };
+      },
+    },
+    judgeScoresRepository: {
+      async readState() {
+        return {
+          records: {
+            "judge-001": {
+              marketing: { status: "locked", totalScore: 93 },
+              pharma: { status: "locked", totalScore: 90 },
+            },
+          },
+        };
+      },
+    },
+    worksRepository: createPublishedWorksRepository(["marketing", "pharma"]),
+    resultSnapshotRepository: createResultSnapshotRepository(snapshotsFile.dataPath),
+    auditLogRepository: createAuditLogRepository(auditFile.dataPath),
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/admin/results/publish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actor: "admin-001" }),
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 409);
+  assert.match(payload.error.message, /published works/i);
+  assert.match(payload.error.message, /pharma/);
 });
 
 test("admin result publish API rejects publishing when an active judge has missing locked scores", async (t) => {
@@ -3244,6 +3637,9 @@ test("admin result publish API limits final snapshots to published works", async
       },
     },
     worksRepository,
+    userRoleRepository: createStaticUserRoleRepository([
+      { id: "judge-001", roles: ["judge"], status: "active" },
+    ]),
     resultSnapshotRepository: createResultSnapshotRepository(snapshotsFile.dataPath),
     auditLogRepository: createAuditLogRepository(auditFile.dataPath),
   });
@@ -3314,6 +3710,10 @@ test("admin result publish API creates a final result snapshot", async (t) => {
     voteResultsRepository,
     judgeScoresRepository,
     worksRepository: createPublishedWorksRepository(["marketing", "pharma", "medicine", "production", "functions"]),
+    userRoleRepository: createStaticUserRoleRepository([
+      { id: "judge-001", roles: ["judge"], status: "active" },
+      { id: "judge-002", roles: ["judge"], status: "active" },
+    ]),
     resultSnapshotRepository,
     auditLogRepository,
   });

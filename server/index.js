@@ -151,6 +151,35 @@ function slugifyAssetPart(value, fallback) {
   return cleanValue || fallback;
 }
 
+function isSupportedImagePayload(mimeType, bytes) {
+  if (!Buffer.isBuffer(bytes)) {
+    return false;
+  }
+
+  if (mimeType === "image/png") {
+    return bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  }
+
+  if (mimeType === "image/jpeg") {
+    return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  }
+
+  if (mimeType === "image/gif") {
+    const header = bytes.subarray(0, 6).toString("ascii");
+    return header === "GIF87a" || header === "GIF89a";
+  }
+
+  if (mimeType === "image/webp") {
+    return (
+      bytes.length >= 12
+      && bytes.subarray(0, 4).toString("ascii") === "RIFF"
+      && bytes.subarray(8, 12).toString("ascii") === "WEBP"
+    );
+  }
+
+  return false;
+}
+
 async function saveTraineeAssetUpload(payload, publicRoot) {
   const field = String(payload.field || "").trim();
   if (!TRAINEE_ASSET_FIELDS.has(field)) {
@@ -180,6 +209,9 @@ async function saveTraineeAssetUpload(payload, publicRoot) {
   }
   if (bytes.length > 8 * 1024 * 1024) {
     throw createStatusError(413, "Image file is too large.");
+  }
+  if (!isSupportedImagePayload(mimeType, bytes)) {
+    throw createStatusError(400, "Image data does not match the declared image type.");
   }
 
   const originalBase = path.basename(String(payload.filename || ""), path.extname(String(payload.filename || "")));
@@ -227,6 +259,9 @@ async function saveWorkAssetUpload(payload, publicRoot) {
   }
   if (bytes.length > 8 * 1024 * 1024) {
     throw createStatusError(413, "Image file is too large.");
+  }
+  if (!isSupportedImagePayload(mimeType, bytes)) {
+    throw createStatusError(400, "Image data does not match the declared image type.");
   }
 
   const originalBase = path.basename(String(payload.filename || ""), path.extname(String(payload.filename || "")));
@@ -334,6 +369,14 @@ function assertSafeWorkUrls(payload = {}) {
       throw createStatusError(400, `${field} must be an https URL or a same-origin asset path.`);
     }
   });
+}
+
+function redactVoteResultsForPublic(voteState = {}) {
+  const { voters, ...publicState } = voteState && typeof voteState === "object" ? voteState : {};
+  return {
+    ...publicState,
+    votersCount: voters && typeof voters === "object" ? Object.keys(voters).length : 0,
+  };
 }
 
 function sanitizeRedirectPath(value, fallback = "/site.html#me") {
@@ -451,16 +494,46 @@ async function routeApi(
     return visibleWorks.find((work) => [work.id, work.teamId].some((value) => String(value || "").trim() === cleanId)) || null;
   }
 
-  async function enforceJoinedTeamWork(session, teamId) {
+  function teamMemberMatchesUser(member = {}, userId = "") {
+    const cleanUserId = String(userId || "").trim();
+    return Boolean(cleanUserId) && [member.userId, member.id, member.openId, member.unionId]
+      .some((value) => String(value || "").trim() === cleanUserId);
+  }
+
+  function isTeamLeaderMember(member = {}) {
+    return Boolean(member?.isAdvisor)
+      || /advisor|leader|captain|队长/i.test(`${member.roleKey || ""} ${member.role || ""} ${member.duty || ""}`);
+  }
+
+  async function enforceTeamLeaderWork(session, teamId) {
     const cleanTeamId = String(teamId || "").trim();
     const userId = String(session?.user?.id || "").trim();
     if (!cleanTeamId || !userId) {
       return;
     }
-    const teamsPayload = await teamRepository.listTeams();
-    const joinedTeamId = findJoinedTeamId(normalizeRouteArrayPayload(teamsPayload, "teams"), userId);
+
+    const teams = normalizeRouteArrayPayload(await teamRepository.listTeams(), "teams");
+    const joinedTeamId = findJoinedTeamId(teams, userId);
     if (joinedTeamId !== cleanTeamId) {
       throw createStatusError(403, "Work submissions must target the current user's joined team.");
+    }
+
+    const team = teams.find((item) => String(item?.id || "").trim() === cleanTeamId);
+    const roster = [team?.advisor, ...(Array.isArray(team?.members) ? team.members : [])].filter(Boolean);
+    const isLeader = roster.some((member) => teamMemberMatchesUser(member, userId) && isTeamLeaderMember(member));
+    if (!isLeader) {
+      throw createStatusError(403, "Only the current team leader can submit, withdraw, or upload work assets.");
+    }
+  }
+
+  async function enforcePublishedVoteTarget(teamId) {
+    const cleanTeamId = String(teamId || "").trim();
+    if (!cleanTeamId) {
+      return;
+    }
+    const publishedTeamIds = new Set(await listScoredTeamIds());
+    if (!publishedTeamIds.has(cleanTeamId)) {
+      throw createStatusError(409, `Votes can only target published works. Missing published work for team ${cleanTeamId}.`);
     }
   }
 
@@ -589,7 +662,7 @@ async function routeApi(
     const session = await enforcePermission(request, response, "canSubmitWork");
     if (!session) return true;
     const payload = await readJsonBody(request, 12 * 1024 * 1024);
-    await enforceJoinedTeamWork(session, payload.teamId);
+    await enforceTeamLeaderWork(session, payload.teamId);
     const result = await saveWorkAssetUpload(payload, publicRoot);
     await recordAuditSafe({
       actor: session.user?.id || "player",
@@ -1090,6 +1163,7 @@ async function routeApi(
     if (session.user?.id) {
       payload.userId = session.user.id;
     }
+    await enforcePublishedVoteTarget(payload.teamId);
     sendJson(response, 200, await voteResultsRepository.castVote(payload));
     return true;
   }
@@ -1122,6 +1196,7 @@ async function routeApi(
     if (authEnforcement === "strict" || session.user?.id) {
       payload.judgeId = session.user.id;
     }
+    scopeJudgeScorePayloadToTeams(payload, await listScoredTeamIds());
     const result = await judgeScoresRepository.saveDraft(payload);
     await recordAuditSafe({
       actor: payload.judgeId || "judge",
@@ -1214,7 +1289,7 @@ async function routeApi(
     const payload = await readJsonBody(request);
     assertSafeWorkUrls(payload);
     attachSessionUser(payload, session, { includeName: true, includeSubmitter: true });
-    await enforceJoinedTeamWork(session, payload.teamId || payload.id);
+    await enforceTeamLeaderWork(session, payload.teamId || payload.id);
     const result = await worksRepository.submitWork(payload);
     await auditLogRepository.record({
       actor: payload.userId || payload.submittedBy || "system",
@@ -1233,7 +1308,7 @@ async function routeApi(
     if (!session) return true;
     const payload = await readJsonBody(request);
     attachSessionUser(payload, session, { includeName: true, includeSubmitter: true });
-    await enforceJoinedTeamWork(session, payload.teamId || payload.id);
+    await enforceTeamLeaderWork(session, payload.teamId || payload.id);
     const result = await worksRepository.withdrawWork(payload);
     await auditLogRepository.record({
       actor: payload.userId || payload.submittedBy || "system",
@@ -1532,7 +1607,7 @@ async function routeApi(
   }
 
   if (url.pathname === "/api/vote-results" && request.method === "GET") {
-    sendJson(response, 200, await voteResultsRepository.listVoteResults());
+    sendJson(response, 200, redactVoteResultsForPublic(await voteResultsRepository.listVoteResults()));
     return true;
   }
 
@@ -1689,6 +1764,7 @@ function createServer(options = {}) {
     feishuOAuthProvider = createFeishuOAuthProvider(),
     authSessionRepository = repositoryBundle.authSessionRepository || createAuthSessionRepository(),
     authEnforcement = resolveAuthEnforcement(),
+    allowProtectedPagesWithoutSession = false,
   } = options;
   const siteStateService = options.siteStateService || createSiteStateService({
     repository,
@@ -1749,7 +1825,7 @@ function createServer(options = {}) {
       }
 
       // 大屏 / 后台 / 演示页仅管理员可进；否则跳回用户站并提示访问非法。
-      if (resolveProtectedPageKey(request, url)) {
+      if (!allowProtectedPagesWithoutSession && resolveProtectedPageKey(request, url)) {
         const session = await authSessionRepository.getSession(getSessionIdFromRequest(request));
         const permissions = session?.role ? (session.permissions || getRolePermissions(session.role)) : {};
         if (!permissions.canAdmin) {

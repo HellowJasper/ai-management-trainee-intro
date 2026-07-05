@@ -600,8 +600,9 @@ test("admin publish result action creates a backend result snapshot", () => {
   assert.match(adminJs, /const snapshot = await window\.AppData\.publishAdminResults\([\s\S]*?const voteResults = await window\.AppData\.updateAdminVoteWindow\("published"\)/);
   assert.match(adminJs, /setText\(adminResultPublishStatus,\s*formatErrorStatus\("发布失败", error\)\)/);
   assert.match(adminJs, /const publishAlreadyComplete = voteStatus === "published" && Boolean\(businessDataState\.resultSnapshot\?\.id\)/);
-  assert.match(adminJs, /const publishReady = voteReady && !publishAlreadyComplete/);
-  assert.doesNotMatch(adminJs, /const publishReady = voteReady && coverage\.locked && !publishAlreadyComplete/);
+  assert.match(adminJs, /const scoreReady = Boolean\(scoreCoverage\(businessDataState\.judgeScores, businessDataState\.judgeProgress\)\.locked\)/);
+  assert.match(adminJs, /const publishReady = voteReady && scoreReady && !publishAlreadyComplete/);
+  assert.doesNotMatch(adminJs, /const publishReady = voteReady && !publishAlreadyComplete/);
   assert.doesNotMatch(adminJs, /const voteResults = await window\.AppData\.updateAdminVoteWindow\(status\);\s*const resultAction[\s\S]*status === "published"/);
 });
 
@@ -621,8 +622,8 @@ test("admin console exposes a dedicated leaderboard publish workspace", () => {
   assert.match(html, /id="adminResultFlowVoteState"/);
   assert.match(html, /id="adminResultFlowScoreState"/);
   assert.match(html, /id="adminResultFlowSnapshotState"/);
-  assert.match(html, /可选：锁定已提交评分/);
-  assert.match(html, /关闭投票后即可发布/);
+  assert.match(html, /必须：锁定全部评分/);
+  assert.match(html, /关闭投票并锁定专家评分后/);
   assert.match(html, /data-vote-window-status="closed"/);
   assert.match(html, /data-lock-judge-scores/);
   assert.match(html, /data-result-publish/);
@@ -642,10 +643,12 @@ test("admin console exposes a dedicated leaderboard publish workspace", () => {
   assert.match(adminJs, /const adminResultFlowScoreState/);
   assert.match(adminJs, /const adminResultFlowSnapshotState/);
   assert.match(adminJs, /function renderResultPublishSummary/);
-  assert.match(adminJs, /const publishReady = voteReady && !publishAlreadyComplete/);
-  assert.match(adminJs, /管理员可直接发布排行/);
-  assert.match(adminJs, /未锁定也不阻止发布/);
-  assert.doesNotMatch(adminJs, /先锁定专家评分，再发布排行榜/);
+  assert.match(adminJs, /const scoreReady = Boolean\(coverage\.locked\)/);
+  assert.match(adminJs, /const finalReady = voteReady && scoreReady/);
+  assert.match(adminJs, /const publishReady = voteReady && scoreReady && !publishAlreadyComplete/);
+  assert.match(adminJs, /先锁定专家评分，再发布排行榜/);
+  assert.doesNotMatch(adminJs, /管理员可直接发布排行/);
+  assert.doesNotMatch(adminJs, /未锁定也不阻止发布/);
   assert.match(adminJs, /targetView === "results"/);
   assert.match(adminJs, /event\.target\.closest\("\[data-result-publish\]"\)/);
   assert.match(adminJs, /await updateAdminVoteWindow\("published"\)/);
@@ -1060,7 +1063,7 @@ test("official site home stays a navigable site dashboard instead of the index l
   const renderHomeBody = siteJs.match(/function renderHome\(\) \{([\s\S]*?)\n  function renderPeople\(\)/)?.[1] || "";
 
   assert.match(siteHtml, /src\/site\.css\?v=20260703-auth-role-selection/);
-  assert.match(siteHtml, /src\/site\.js\?v=20260703-auth-role-selection/);
+  assert.match(siteHtml, /src\/site\.js\?v=20260705-work-pitch-field/);
   assert.match(renderHomeBody, /<span class="hero-kicker"><span class="hero-kicker-live"><span class="live-dot"><\/span>LIVE<\/span><span class="hero-kicker-name">AI_INNOVATION_HACKATHON_2026<\/span><\/span>/);
   assert.match(renderHomeBody, /<h1 class="hero-title">AI创新黑客松<\/h1>/);
   assert.match(renderHomeBody, /<p class="hero-slogan">36小时 · 让想法落地，让创新发生<\/p>/);
@@ -1084,7 +1087,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260703-auth-role-selection/);
+  assert.match(siteHtml, /site\.js\?v=20260705-work-pitch-field/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -1126,7 +1129,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260703-auth-role-selection/);
+  assert.match(siteHtml, /site\.js\?v=20260705-work-pitch-field/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -1145,7 +1148,7 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
   assert.match(siteHtml, /site\.css\?v=20260703-auth-role-selection/);
-  assert.match(siteHtml, /site\.js\?v=20260703-auth-role-selection/);
+  assert.match(siteHtml, /site\.js\?v=20260705-work-pitch-field/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -1559,7 +1562,9 @@ test("team workspace fields align with the public gallery work details", () => {
 
   assert.match(siteJs, /作品展厅只展示/);
   assert.match(siteJs, /作品标题/);
-  assert.match(siteJs, /一句话介绍/);
+  assert.match(siteJs, /作品副标题/);
+  assert.match(siteJs, /field:\s*"pitch",\s*label:\s*"作品副标题"/);
+  assert.match(siteJs, /<p class="wk-pitch">\$\{esc\(t\.pitch \|\| ""\)\}<\/p>/);
   assert.match(siteJs, /Demo 链接/);
   assert.match(siteJs, /代码地址/);
   assert.match(siteJs, /展示截图/);
@@ -1751,6 +1756,13 @@ test("stage screen routing opens the vote progress and result screens", () => {
   assert.equal(resolveStageScreenView("final"), "final-result");
 });
 
+test("main screen applies the current backend stage on first admin sync", () => {
+  assert.equal(shouldApplyAdminStageChange("", "result@2026-06-23T05:30:12.085Z"), true);
+  assert.equal(shouldApplyAdminStageChange("result@2026-06-23T05:30:12.085Z", "result@2026-06-23T05:30:12.085Z"), false);
+  assert.equal(shouldApplyAdminStageChange("result@old", "final@new"), true);
+  assert.equal(shouldApplyAdminStageChange("result@old", ""), false);
+});
+
 test("computeVoteRanking sorts votes and applies the confirmed point scale", () => {
   const ranking = computeVoteRanking(
     [
@@ -1849,6 +1861,10 @@ test("main screen wires vote progress and vote result stages", () => {
   assert.match(appJs, /"view-vote-result"/);
   assert.match(appJs, /loadVoteResults/);
   assert.match(appJs, /computeVoteRanking/);
+  assert.match(appJs, /const VOTE_RESULTS_POLL_MS\s*=\s*5000/);
+  assert.match(appJs, /function startVoteResultsPolling\(/);
+  assert.match(appJs, /voteResultsPollTimer\s*=\s*window\.setInterval\(syncVoteResults,\s*VOTE_RESULTS_POLL_MS\)/);
+  assert.match(appJs, /function stopVoteResultsPolling\(/);
   assert.match(dataJs, /async function loadVoteResults/);
   assert.match(dataJs, /\/api\/vote-results/);
   assert.match(dataJs, /\.\/data\/vote-results\.json/);
@@ -1873,6 +1889,7 @@ test("final result stage wires the champion showcase after vote result", () => {
   assert.match(appJs, /function applyResultSnapshotState/);
   assert.match(appJs, /loadLatestResultSnapshot/);
   assert.match(appJs, /resolveDisplayFinalResults\(\{[\s\S]*voteResults:\s*voteResultsState\.results[\s\S]*pointScale:\s*voteResultsState\.pointScale[\s\S]*resultSnapshot:\s*resultSnapshotState\.snapshot/);
+  assert.match(appJs, /if \(!resultSnapshotState\.published \|\| !resultSnapshotState\.snapshot\)/);
   assert.doesNotMatch(appJs, /finalResultLeaderboard\.innerHTML\s*=\s*finalResults\.map/);
   assert.match(adminJs, /id:\s*"final"/);
   assert.match(adminJs, /name:\s*"冠军展示"/);
@@ -2139,9 +2156,9 @@ test("official site result page uses leaderboard copy and final award labels", (
   assert.doesNotMatch(renderResultBody, /const overviewHtml = renderOverviewBanner\(\)/);
   assert.match(siteJs, /const isAdminViewer = hasBackendSession\(\) && rolePermissions\(currentRole\(\)\)\.canAdmin/);
   assert.match(siteJs, /结果快照未生成/);
-  assert.match(siteJs, /关闭投票后即可发布最终排行/);
-  assert.match(siteJs, /专家评分会按当前已同步数据写入快照/);
-  assert.doesNotMatch(siteJs, /专家评分锁定与作品审核后发布最终排行/);
+  assert.match(siteJs, /需要关闭投票并锁定专家评分后，才能发布最终排行/);
+  assert.doesNotMatch(siteJs, /关闭投票后即可发布最终排行/);
+  assert.doesNotMatch(siteJs, /专家评分会按当前已同步数据写入快照/);
   assert.match(siteJs, /\/admin\.html#results/);
   assert.match(siteJs, /去后台发布排行/);
   assert.doesNotMatch(siteJs, />最终排行</);
@@ -2647,7 +2664,7 @@ test("official site forces Feishu login on desktop and mobile entry", () => {
   assert.match(siteCss, /\.auth-gate\.is-forced/);
   assert.match(siteCss, /\.auth-required-note/);
   assert.match(html, /src\/site\.css\?v=20260703-auth-role-selection/);
-  assert.match(html, /src\/site\.js\?v=20260703-auth-role-selection/);
+  assert.match(html, /src\/site\.js\?v=20260705-work-pitch-field/);
 });
 
 test("official site refreshes backend session before leaving the Feishu login gate", () => {
@@ -2701,7 +2718,7 @@ test("official site cache keys are bumped after navigation and detail layout pol
   assert.match(html, /src\/logic\.js\?v=20260703-judge-no-quick/);
   assert.match(html, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(html, /src\/screen-data\.js\?v=20260703-slogan-copy/);
-  assert.match(html, /src\/site\.js\?v=20260703-auth-role-selection/);
+  assert.match(html, /src\/site\.js\?v=20260705-work-pitch-field/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
@@ -3435,14 +3452,14 @@ test("resolveScreenViewFromRouteStage keeps direct big-screen links on the reque
   assert.equal(resolveScreenViewFromRouteStage("unknown"), "");
 });
 
-test("admin stage polling treats the first fetched stage as baseline only", () => {
+test("admin stage polling applies the first fetched backend stage", () => {
   const firstTeamPublish = createAdminStageSyncKey("team", "2026-05-22T06:00:00.000Z");
   const secondTeamPublish = createAdminStageSyncKey("team", "2026-06-17T03:12:47.953Z");
   const votePublish = createAdminStageSyncKey("vote", "2026-06-17T03:20:00.000Z");
 
   assert.equal(firstTeamPublish, "team@2026-05-22T06:00:00.000Z");
   assert.equal(createAdminStageSyncKey("", "2026-05-22T06:00:00.000Z"), "");
-  assert.equal(shouldApplyAdminStageChange("", firstTeamPublish), false);
+  assert.equal(shouldApplyAdminStageChange("", firstTeamPublish), true);
   assert.equal(shouldApplyAdminStageChange(firstTeamPublish, firstTeamPublish), false);
   assert.equal(shouldApplyAdminStageChange(firstTeamPublish, secondTeamPublish), true);
   assert.equal(shouldApplyAdminStageChange(secondTeamPublish, votePublish), true);
@@ -3654,8 +3671,9 @@ test("central team formation screen polls backend teams without changing the sta
   assert.match(appJs, /async function syncTeamState\(/);
   assert.match(appJs, /teamStatePollTimer\s*=\s*window\.setInterval\(syncTeamState,\s*TEAM_STATE_POLL_MS\)/);
   assert.match(appJs, /window\.clearInterval\(teamStatePollTimer\)/);
-  assert.match(appJs, /data-team-action="claim-track"/);
-  assert.match(appJs, /data-team-action="claim-role"/);
+  assert.doesNotMatch(appJs, /data-team-action=/);
+  assert.doesNotMatch(appJs, /function handleTeamAction/);
+  assert.match(appJs, /team-action-status/);
 });
 
 test("team header opens the mission countdown stage", () => {
@@ -3866,10 +3884,12 @@ test("team formation screen uses a squad-card role claiming layout", () => {
   assert.match(appJs, /TEAM_ROLE_BLUEPRINT\.length \+ 1/);
   assert.match(appJs, /team-advisor-slot/);
   assert.match(appJs, /LEAD/);
-  assert.match(appJs, /isClaimedAdvisor/);
-  assert.match(appJs, /data-role-key="advisor"/);
-  assert.match(appJs, /抢队长位/);
-  assert.match(appJs, /我的队长位/);
+  assert.doesNotMatch(appJs, /isClaimedAdvisor/);
+  assert.doesNotMatch(appJs, /data-role-key="advisor"/);
+  assert.doesNotMatch(appJs, /抢队长位/);
+  assert.doesNotMatch(appJs, /我的队长位/);
+  assert.match(appJs, /team-role-status/);
+  assert.match(appJs, /后端同步/);
   assert.doesNotMatch(appJs, /已报名/);
   assert.match(advisorSlotBlock, /margin:\s*clamp\(7px,\s*0\.85vh,\s*10px\)\s+0/);
   assert.match(advisorSlotBlock, /border-color:\s*rgba\(var\(--team-color-rgb\),\s*0\.28\)/);
@@ -3889,18 +3909,18 @@ test("team formation screen uses a squad-card role claiming layout", () => {
   assert.match(claimButtonBlock, /min-height:\s*clamp\(30px,\s*3\.6vh,\s*38px\)/);
   assert.match(roleActionBlock, /border:\s*1px solid rgba\(var\(--team-color-rgb\),\s*0\.24\)/);
   assert.doesNotMatch(roleActionBlock, /grid-column:\s*1\s*\/\s*-1/);
-  assert.doesNotMatch(css, /\.team-role-status/);
+  assert.match(css, /\.team-role-status/);
   assert.match(cardFooterBlock, /margin-top:\s*clamp\(7px,\s*0\.8vh,\s*10px\)/);
-  assert.doesNotMatch(appJs, /team-action-status/);
-  assert.doesNotMatch(css, /\.team-action-status/);
+  assert.match(appJs, /team-action-status/);
+  assert.match(css, /\.team-action-status/);
   assert.match(appJs, /TEAM_ROLE_BLUEPRINT/);
   assert.match(appJs, /team-squad-card/);
   assert.match(appJs, /data-track-id="\$\{escapeAttribute\(team\.id \|\| ""\)\}"/);
   assert.match(appJs, /team-role-slot/);
   assert.match(appJs, /team-role-main/);
   assert.match(appJs, /team-claim-button/);
-  assert.match(appJs, /data-team-action="claim-track"/);
-  assert.match(appJs, /data-team-action="claim-role"/);
+  assert.doesNotMatch(appJs, /data-team-action="claim-track"/);
+  assert.doesNotMatch(appJs, /data-team-action="claim-role"/);
 });
 
 test("business scenario cards use the requested 02-03-04 accent rotation", () => {

@@ -2,9 +2,12 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node server/index.js",
+    "dev:local": "node server/localDevServer.js",
+    "dev:frontend": "node server/frontendServer.js",
     "test": "node --test",
     "db:seed": "node server/mysqlSeedImporter.js",
     "db:seed:users": "node server/mysqlSeedImporter.js --only users",
+    "db:import:users:csv": "node scripts/import-users-from-csv.js",
     "db:reset:prelaunch": "node scripts/reset-hackathon-state.js --dry-run",
     "db:reset:prelaunch:dry-run": "node scripts/reset-hackathon-state.js --dry-run",
     "db:reset:prelaunch:execute": "node scripts/reset-hackathon-state.js --execute"

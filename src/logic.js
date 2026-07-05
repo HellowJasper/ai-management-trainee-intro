@@ -787,7 +787,7 @@
   }
 
   function shouldApplyAdminStageChange(previousStageSyncKey, nextStageSyncKey) {
-    return Boolean(previousStageSyncKey && nextStageSyncKey && previousStageSyncKey !== nextStageSyncKey);
+    return Boolean(nextStageSyncKey && previousStageSyncKey !== nextStageSyncKey);
   }
 
   function resolveAdjacentTraineeId(trainees, currentId, direction) {

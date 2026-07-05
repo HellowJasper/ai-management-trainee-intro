@@ -2169,7 +2169,7 @@
             </div>
             ${renderWorkspaceField({ teamId: team.id, field: "teamName", label: "自定义队伍名称", value: submission.teamName, hint: "随作品提交保存，展示在作品展厅和最终结果中。", editable: canEdit })}
             ${renderWorkspaceField({ teamId: team.id, field: "project", label: "作品标题", value: submission.project, hint: "对应作品展厅卡片标题。", editable: canEdit })}
-            ${renderWorkspaceField({ teamId: team.id, field: "pitch", label: "一句话介绍", value: submission.pitch, hint: "对应作品展厅摘要与作品详情介绍。", multiline: true, editable: canEdit })}
+            ${renderWorkspaceField({ teamId: team.id, field: "pitch", label: "作品副标题", value: submission.pitch, hint: "对应作品详情标题下方的高亮介绍，也同步到作品展厅摘要。", editable: canEdit })}
             ${renderWorkspaceField({ teamId: team.id, field: "stack", label: "技术栈 / AI 能力", value: submission.stack, hint: "用 / 或逗号分隔，会展示为标签。", editable: canEdit })}
             ${renderWorkspaceField({ teamId: team.id, field: "demoUrl", label: "Demo 链接", value: submission.demoUrl, hint: "用于管理员审核和现场路演。", editable: canEdit })}
             ${renderWorkspaceField({ teamId: team.id, field: "codeUrl", label: "代码地址", value: submission.codeUrl, hint: "用于技术复核，不在公开展厅直接暴露。", editable: canEdit })}
@@ -2194,7 +2194,7 @@
               <ul>
                 <li>队伍名称：${esc(submission.teamName)}</li>
                 <li>作品标题：${esc(submission.project || "未提交")}</li>
-                <li>一句话介绍：${esc(submission.pitch || "未提交")}</li>
+                <li>作品副标题：${esc(submission.pitch || "未提交")}</li>
                 <li>技术标签：${esc(submission.stack || "未提交")}</li>
                 <li>成员与票数：由队伍和投票数据自动同步</li>
               </ul>
@@ -2484,7 +2484,7 @@
       const voteLabel = SITE_STATE?.vote?.windowLabel || SITE_STATE?.stage?.voteWindowLabel || "等待同步";
       if (isAdminViewer) {
         return `${resultHead("排行榜")}
-        <section class="container sec"><div class="rk-locked glass"><span class="rk-lock-ic">${ICON("lock", "var(--neon)")}</span><h2>结果快照未生成</h2><p>当前投票状态：${esc(voteLabel)}。关闭投票后即可发布最终排行；专家评分会按当前已同步数据写入快照，不再作为发布前置条件。</p><div class="rk-locked-cta"><a class="btn-primary" href="/admin.html#results">去后台发布排行</a><a class="btn-ghost" data-nav="gallery">查看作品展厅</a></div></div></section>`;
+        <section class="container sec"><div class="rk-locked glass"><span class="rk-lock-ic">${ICON("lock", "var(--neon)")}</span><h2>结果快照未生成</h2><p>当前投票状态：${esc(voteLabel)}。需要关闭投票并锁定专家评分后，才能发布最终排行。</p><div class="rk-locked-cta"><a class="btn-primary" href="/admin.html#results">去后台发布排行</a><a class="btn-ghost" data-nav="gallery">查看作品展厅</a></div></div></section>`;
       }
       return `${resultHead("排行榜")}
       <section class="container sec"><div class="rk-locked glass"><span class="rk-lock-ic">${ICON("lock", "var(--neon)")}</span><h2>结果待公布</h2><p>排行榜将在后台正式发布后展示。<br>当前请前往作品展厅，为你支持的团队投票。</p><div class="rk-locked-cta"><a class="btn-primary" data-nav="gallery">去作品展厅加油</a></div></div></section>`;

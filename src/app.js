@@ -444,8 +444,6 @@ function getFallbackTeamState() {
 
 let traineeState = window.AppLogic.positionJasperAtCenter(fallbackTrainees.map(window.AppLogic.normalizeTrainee));
 let teamState = getFallbackTeamState();
-let selectedTeamId = "";
-let selectedTeamRoleKey = "";
 let selectedId = traineeState.find((t) => t.id === "jasper")?.id || traineeState[0].id;
 let currentKeywords = [];
 let drawStage = 0; // 0: not drawn, 1: A drawn, 2: both A and B drawn
@@ -496,6 +494,7 @@ let resultSnapshotState = {
   snapshot: null,
 };
 let voteResultsLoadRequestId = 0;
+let voteResultsPollTimer = null;
 
 const introTiming = window.AppLogic.getIntroTiming();
 const INTRO_HOLD_MS = introTiming.holdMs;
@@ -505,6 +504,7 @@ const COUNTDOWN_STORAGE_KEY = "joincare_mission_countdown_started_at_manual_v2";
 const COUNTDOWN_DURATION_MS = 36 * 60 * 60 * 1000;
 const ROADSHOW_STORAGE_KEY = "joincare_roadshow_timer_started_at_manual_v1";
 const ROADSHOW_DURATION_MS = 15 * 60 * 1000;
+const VOTE_RESULTS_POLL_MS = 5000;
 
 const appShell = document.querySelector(".app-shell");
 const introStage = document.getElementById("introStage");
@@ -810,7 +810,9 @@ function setView(view) {
     stopRoadshowTimer();
   }
   if (view === "vote" || view === "vote-result" || view === "final-result") {
-    syncVoteResults();
+    startVoteResultsPolling();
+  } else {
+    stopVoteResultsPolling();
   }
   discoverPanel.classList.remove("is-visible");
 }
@@ -1150,11 +1152,10 @@ function renderTeamFormation() {
         },
       }));
       const filledCount = advisorFilledCount + members.filter((member) => member?.name).length;
-      const isSelectedTeam = selectedTeamId === team.id;
-      const isClaimedAdvisor = isSelectedTeam && selectedTeamRoleKey === "advisor";
+      const isTeamComplete = filledCount >= totalSeats;
 
       return `
-        <article class="team-squad-card${isSelectedTeam ? " is-selected" : ""}" data-track-id="${escapeAttribute(team.id || "")}" style="--team-color: ${escapeAttribute(team.color || "var(--neon)")}; --team-color-rgb: ${escapeAttribute(team.colorRgb || "40, 255, 200")};">
+        <article class="team-squad-card" data-track-id="${escapeAttribute(team.id || "")}" style="--team-color: ${escapeAttribute(team.color || "var(--neon)")}; --team-color-rgb: ${escapeAttribute(team.colorRgb || "40, 255, 200")};">
           <header class="team-track-head">
             <span class="team-track-index">${escapeHtml(team.index || "")}</span>
             <div>
@@ -1163,7 +1164,7 @@ function renderTeamFormation() {
             </div>
             <span class="team-seat-meter">${filledCount}/${totalSeats}</span>
           </header>
-          <section class="team-role-slot team-advisor-slot${isClaimedAdvisor ? " is-claimed" : ""}">
+          <section class="team-role-slot team-advisor-slot${advisor.name ? " is-synced" : ""}">
             <div class="team-role-avatar" style="--avatar-image: ${cssUrl(advisor.photo || advisor.avatar || advisor.idPhoto || "")}">
               <span>${escapeHtml(String(advisorName || "?").slice(0, 1))}</span>
             </div>
@@ -1175,17 +1176,15 @@ function renderTeamFormation() {
               <p>赛道牵头选手，协调业务方向</p>
               <small>${escapeHtml(advisorName)} · ${escapeHtml(advisor.department || team.hostDepartment || "待分配")}</small>
             </div>
-            <button class="team-role-action" type="button" data-team-action="claim-role" data-track-id="${escapeAttribute(team.id || "")}" data-role-key="advisor" aria-label="${escapeAttribute(`抢占${team.name || "赛道"}队长位`)}">
-              ${isClaimedAdvisor ? "我的队长位" : "抢队长位"}
-            </button>
+            <span class="team-role-action team-role-status">${advisor.name ? "后端同步" : "待认领"}</span>
           </section>
           <div class="team-role-grid">
             ${roleSlots
               .map(({ key, label, labelEn, description, member }) => {
-                const isClaimedRole = isSelectedTeam && selectedTeamRoleKey === key;
+                const hasMember = Boolean(member?.name && member.name !== "待定队友");
 
                 return `
-                  <section class="team-role-slot${isClaimedRole ? " is-claimed" : ""}">
+                  <section class="team-role-slot${hasMember ? " is-synced" : ""}">
                     <div class="team-role-avatar" style="--avatar-image: ${cssUrl(member.photo)}">
                       <span>${escapeHtml(String(member.name || "?").slice(0, 1))}</span>
                     </div>
@@ -1197,43 +1196,19 @@ function renderTeamFormation() {
                       <p>${escapeHtml(description)}</p>
                       <small>${escapeHtml(member.name || "待定队友")} · ${escapeHtml(member.department || "待分配")}</small>
                     </div>
-                    <button class="team-role-action" type="button" data-team-action="claim-role" data-track-id="${escapeAttribute(team.id || "")}" data-role-key="${escapeAttribute(key)}" aria-label="${escapeAttribute(`认领${team.name || "赛道"}${label}职责`)}">
-                      ${isClaimedRole ? "我的职责" : "认领职责"}
-                    </button>
+                    <span class="team-role-action team-role-status">${hasMember ? "后端同步" : "待认领"}</span>
                   </section>
                 `;
               })
               .join("")}
           </div>
           <footer class="team-card-footer">
-            <button class="team-claim-button" type="button" data-team-action="claim-track" data-track-id="${escapeAttribute(team.id || "")}" data-track-name="${escapeAttribute(team.name || "赛道")}">
-              ${isSelectedTeam ? "赛道已锁定" : "抢占赛道"}
-            </button>
+            <span class="team-claim-button team-action-status">${isTeamComplete ? "队伍已满 · 后端同步" : "等待选手端组队"}</span>
           </footer>
         </article>
       `;
     })
     .join("");
-}
-
-function handleTeamAction(actionButton) {
-  const action = actionButton.dataset.teamAction;
-  const trackId = actionButton.dataset.trackId || "";
-
-  if (!trackId) return;
-
-  selectedTeamId = trackId;
-
-  if (action === "claim-track") {
-    selectedTeamRoleKey = "";
-    renderTeamFormation();
-    return;
-  }
-
-  if (action === "claim-role") {
-    selectedTeamRoleKey = actionButton.dataset.roleKey || "";
-    renderTeamFormation();
-  }
 }
 
 function readCountdownStartedAt() {
@@ -1408,7 +1383,7 @@ function applyRoadshowState(state = {}) {
 }
 
 function resolveRoadshowTeam() {
-  const teamId = roadshowState.currentTeamId || selectedTeamId || "marketing";
+  const teamId = roadshowState.currentTeamId || "marketing";
   const dataTeam = teamState.find((team) => team.id === teamId) || teamState[2] || teamState[0] || {};
   const stateTeam = roadshowState.currentTeam || {};
 
@@ -1755,6 +1730,30 @@ function renderVoteResult() {
 }
 
 function renderFinalResult() {
+  if (!resultSnapshotState.published || !resultSnapshotState.snapshot) {
+    if (finalResultPointScale) finalResultPointScale.textContent = voteResultsState.pointScale.join(" / ");
+    if (finalResultChampion) {
+      finalResultChampion.style.setProperty("--vote-color", "var(--neon)");
+      finalResultChampion.style.setProperty("--vote-color-rgb", "40, 255, 200");
+      finalResultChampion.innerHTML = `
+        <span class="vote-kicker">OVERALL CHAMPION</span>
+        <h2>等待最终结果发布</h2>
+        <p>管理员发布最终结果快照后，本页才展示冠军队伍。</p>
+      `;
+    }
+    if (finalResultLeaderboard) {
+      finalResultLeaderboard.innerHTML = `
+        <article class="final-result-row is-empty">
+          <div class="final-result-team">
+            <strong>最终结果未发布</strong>
+            <span>当前页面不会用临时投票数据提前生成冠军。</span>
+          </div>
+        </article>
+      `;
+    }
+    return;
+  }
+
   const finalResultDisplay = getFinalResultDisplay();
   const finalResults = finalResultDisplay.results;
   const champion = finalResults[0] || {};
@@ -1858,6 +1857,17 @@ async function syncVoteResults() {
   renderVoteProgress();
   renderVoteResult();
   renderFinalResult();
+}
+
+function startVoteResultsPolling() {
+  window.clearInterval(voteResultsPollTimer);
+  syncVoteResults();
+  voteResultsPollTimer = window.setInterval(syncVoteResults, VOTE_RESULTS_POLL_MS);
+}
+
+function stopVoteResultsPolling() {
+  window.clearInterval(voteResultsPollTimer);
+  voteResultsPollTimer = null;
 }
 
 function resetDock() {
@@ -2305,14 +2315,9 @@ function bindEvents() {
     const profileNavDirection = event.target.closest("[data-profile-nav]")?.dataset.profileNav;
     const viewTarget = event.target.dataset.viewTarget;
     const discoverTarget = event.target.dataset.discoverTarget;
-    const teamActionButton = event.target.closest("[data-team-action]");
 
     if (profileNavDirection && detailLayer.classList.contains("is-open")) {
       switchAdjacentProfile(profileNavDirection);
-      return;
-    }
-    if (teamActionButton) {
-      handleTeamAction(teamActionButton);
       return;
     }
     if (action === "close") {
@@ -2382,6 +2387,7 @@ function bindEvents() {
     window.clearInterval(adminPollTimer);
     window.clearInterval(teamStatePollTimer);
     window.clearInterval(traineeProfilePollTimer);
+    stopVoteResultsPolling();
   });
 }
 
@@ -2416,6 +2422,7 @@ async function initApp() {
     durationMs: ROADSHOW_DURATION_MS,
   }));
   applyVoteResultsState(await window.AppData.loadVoteResults([]));
+  applyResultSnapshotState(await window.AppData.loadLatestResultSnapshot({ published: false, snapshot: null }));
   selectedId = traineeState.find((t) => t.id === "jasper")?.id || traineeState[0]?.id || "";
   renderPhotoWall();
   renderBusinessScenarioCards();
@@ -2423,6 +2430,7 @@ async function initApp() {
   renderRoadshowStage();
   renderVoteProgress();
   renderVoteResult();
+  renderFinalResult();
   resetDock();
   startAdminStatePolling();
   startTeamStatePolling();

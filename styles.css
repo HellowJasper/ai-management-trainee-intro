@@ -4995,11 +4995,19 @@ button:disabled {
 
 .team-role-action:hover,
 .team-role-action:focus-visible,
-.team-role-slot.is-claimed .team-role-action {
+.team-role-slot.is-claimed .team-role-action,
+.team-role-slot.is-synced .team-role-status {
   color: #03100e;
   border-color: var(--team-color);
   background: var(--team-color);
   outline: none;
+}
+
+.team-role-status {
+  display: inline-grid;
+  place-items: center;
+  cursor: default;
+  pointer-events: none;
 }
 
 .team-card-footer {
@@ -5033,6 +5041,13 @@ button:disabled {
   box-shadow: 0 0 22px rgba(var(--team-color-rgb), 0.26);
   transform: translateY(-1px);
   outline: none;
+}
+
+.team-action-status {
+  display: grid;
+  place-items: center;
+  cursor: default;
+  pointer-events: none;
 }
 
 .team-empty-state {

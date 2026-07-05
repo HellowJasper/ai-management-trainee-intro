@@ -92,12 +92,40 @@ function filterVoteStateByTeamIds(voteState = {}, teamIds = []) {
   };
 }
 
+function filterJudgeStateByTeamIds(judgeState = {}, teamIds = []) {
+  const scopedTeamIds = new Set((Array.isArray(teamIds) ? teamIds : [])
+    .map((teamId) => String(teamId || "").trim())
+    .filter(Boolean));
+  const normalizedJudgeState = normalizeState(judgeState);
+  const records = {};
+
+  Object.entries(normalizedJudgeState.records || {}).forEach(([judgeId, teamRecords]) => {
+    const scopedRecords = {};
+    Object.entries(teamRecords || {}).forEach(([teamId, record]) => {
+      if (scopedTeamIds.has(String(teamId || "").trim())) {
+        scopedRecords[teamId] = record;
+      }
+    });
+    if (Object.keys(scopedRecords).length) {
+      records[judgeId] = scopedRecords;
+    }
+  });
+
+  return {
+    ...judgeState,
+    records,
+  };
+}
+
 function assertFinalResultPublishable({ voteState = {}, judgeState = {}, teamIds = [] } = {}) {
   const voteStatus = String(voteState.status || "").trim().toLowerCase();
   if (!["closed", "published"].includes(voteStatus)) {
     throw createHttpError(409, "Final results can only be published after the vote window is closed.");
   }
 
+  const publishedTeamIds = Array.from(new Set((Array.isArray(teamIds) ? teamIds : [])
+    .map((teamId) => String(teamId || "").trim())
+    .filter(Boolean)));
   const scopedVoteState = filterVoteStateByTeamIds(voteState, teamIds);
   const rankedTeamIds = (Array.isArray(scopedVoteState.results) ? scopedVoteState.results : [])
     .map((team) => String(team?.id || "").trim())
@@ -105,10 +133,15 @@ function assertFinalResultPublishable({ voteState = {}, judgeState = {}, teamIds
   if (!rankedTeamIds.length) {
     throw createHttpError(409, "Final results require at least one published ranked team.");
   }
+  const rankedTeamIdSet = new Set(rankedTeamIds);
+  const missingVoteRows = publishedTeamIds.filter((teamId) => !rankedTeamIdSet.has(teamId));
+  if (missingVoteRows.length) {
+    throw createHttpError(409, `Final results require vote result rows for all published works: ${missingVoteRows.join(", ")}.`);
+  }
 
   const progress = buildJudgeProgress({
     state: judgeState,
-    teamIds: rankedTeamIds,
+    teamIds: publishedTeamIds,
     judges: Array.isArray(judgeState.judges) ? judgeState.judges : [],
   });
   if (!progress.locked) {
@@ -121,9 +154,10 @@ function buildFinalResultSnapshot({ voteState = {}, judgeState = {}, teamIds = [
     ? voteState.pointScale
     : [100, 85, 70, 55, 40];
   const scopedVoteState = filterVoteStateByTeamIds(voteState, teamIds);
+  const scopedJudgeState = filterJudgeStateByTeamIds(judgeState, teamIds);
   const sourceResults = Array.isArray(scopedVoteState.results) ? scopedVoteState.results : [];
   const resultsWithJudgeScores = sourceResults.map((team) => {
-    const judgeExpertScores = getExpertScoresForTeam(judgeState, team.id);
+    const judgeExpertScores = getExpertScoresForTeam(scopedJudgeState, team.id);
     return {
       ...team,
       expert: judgeExpertScores.length ? judgeExpertScores : team.expert,
@@ -133,7 +167,7 @@ function buildFinalResultSnapshot({ voteState = {}, judgeState = {}, teamIds = [
   return {
     pointScale,
     results: computeFinalResults(resultsWithJudgeScores, pointScale),
-    source: buildFinalResultSource({ voteState: scopedVoteState, judgeState }),
+    source: buildFinalResultSource({ voteState: scopedVoteState, judgeState: scopedJudgeState }),
     publishedBy,
   };
 }

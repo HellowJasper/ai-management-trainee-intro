@@ -1407,6 +1407,8 @@ function renderResultPublishSummary() {
   const voteStatus = voteResults.windowLabel || voteResults.status || "等待同步";
   const needsSnapshotRecovery = voteResults.status === "published" && !snapshot?.id;
   const voteReady = voteResults.status === "closed" || voteResults.status === "published";
+  const scoreReady = Boolean(coverage.locked);
+  const finalReady = voteReady && scoreReady;
   const missingScoreCount = Math.max(0, (coverage.expectedCount || 0) - (coverage.submittedCount || 0));
   const scoreText = coverage.expectedCount
     ? `${formatNumber(coverage.submittedCount)}/${formatNumber(coverage.expectedCount)}`
@@ -1422,15 +1424,15 @@ function renderResultPublishSummary() {
     coverage.locked
       ? "专家评分已锁定"
       : coverage.expectedCount
-        ? "评分未锁定，可直接发布"
-        : "暂无评分，可直接发布",
+        ? "评分未锁定，暂不能发布"
+        : "暂无评分，暂不能发布",
   );
   setText(adminResultPublishWorkStatus, `${formatNumber(publishedWorks)}/${formatNumber(works.length)}`);
   setText(adminResultFlowVoteState, voteReady ? "投票已停止" : "投票仍在开放");
   setText(
     adminResultFlowVoteHint,
     voteReady
-      ? "大众投票入口已停止，管理员可直接发布排行。"
+      ? "大众投票入口已停止，继续确认专家评分是否已锁定。"
       : "先关闭投票，避免发布前票数继续变化。",
   );
   setText(adminResultFlowScoreState, coverage.locked ? "专家评分已锁定" : scoreText);
@@ -1439,21 +1441,32 @@ function renderResultPublishSummary() {
     coverage.locked
       ? "专家评分已经定稿，会写入最终排行快照。"
       : coverage.expectedCount
-        ? `已同步 ${formatNumber(coverage.submittedCount)}/${formatNumber(coverage.expectedCount)} 份评分，未锁定也不阻止发布。`
-        : "暂无正式评分，管理员仍可按投票排名发布结果。",
+        ? `已同步 ${formatNumber(coverage.submittedCount)}/${formatNumber(coverage.expectedCount)} 份评分，必须锁定后才能发布最终排行。`
+        : "暂无正式评分，发布最终排行前必须先完成并锁定专家评分。",
   );
-  setText(adminResultFlowSnapshotState, snapshot?.id ? "快照已发布" : needsSnapshotRecovery ? "需补发快照" : "快照未生成");
+  setText(
+    adminResultFlowSnapshotState,
+    snapshot?.id
+      ? "快照已发布"
+      : needsSnapshotRecovery
+        ? "需补发快照"
+        : finalReady
+          ? "可以发布"
+          : "快照未生成",
+  );
   setText(
     adminResultFlowSnapshotHint,
     snapshot?.id
       ? `前台排行榜正在读取快照 ${snapshot.id}。`
       : !voteReady
         ? "先完成关闭投票，再发布排行榜。"
-        : "前置条件已满足，勾选确认后可直接发布最终排行榜。",
+        : !scoreReady
+          ? "先锁定专家评分，再发布排行榜。"
+          : "前置条件已满足，勾选确认后可发布最终排行榜。",
   );
   setResultFlowStepStatus("vote", voteReady ? "complete" : "pending");
   setResultFlowStepStatus("judge", coverage.locked ? "complete" : voteReady ? "pending" : "blocked");
-  setResultFlowStepStatus("publish", snapshot?.id ? "complete" : voteReady ? "pending" : "blocked");
+  setResultFlowStepStatus("publish", snapshot?.id ? "complete" : finalReady ? "pending" : "blocked");
   syncDangerActionButtons();
 }
 
@@ -1678,7 +1691,7 @@ function renderJudgeProgress(progress = businessDataState.judgeProgress) {
 
   lockButtons.forEach((lockButton) => {
     lockButton.disabled = !allSubmitted || Boolean(progress?.locked);
-    lockButton.textContent = progress?.locked ? "专家评分已锁定" : "锁定专家评分";
+    lockButton.textContent = progress?.locked ? "专家评分已锁定" : allSubmitted ? "锁定专家评分" : "等待评分提交";
   });
   if (!adminJudgeProgress) {
     return;
@@ -1769,8 +1782,9 @@ function syncDangerActionButtons() {
   const resultConfirmed = Boolean(confirmResultPublishAction?.checked);
   const voteStatus = businessDataState.voteResults?.status || "voting";
   const voteReady = voteStatus === "closed" || voteStatus === "published";
+  const scoreReady = Boolean(scoreCoverage(businessDataState.judgeScores, businessDataState.judgeProgress).locked);
   const publishAlreadyComplete = voteStatus === "published" && Boolean(businessDataState.resultSnapshot?.id);
-  const publishReady = voteReady && !publishAlreadyComplete;
+  const publishReady = voteReady && scoreReady && !publishAlreadyComplete;
 
   if (closeVoteButton) {
     closeVoteButton.disabled = !flowConfirmed || voteStatus !== "voting";

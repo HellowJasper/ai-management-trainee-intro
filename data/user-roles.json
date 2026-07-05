@@ -1,4 +1,22 @@
 {
-  "updatedAt": "2026-06-24T06:08:11.733Z",
-  "users": []
+  "updatedAt": "2026-07-04T10:03:52.441Z",
+  "users": [
+    {
+      "id": "jkyjiaboshen",
+      "openId": "",
+      "unionId": "",
+      "name": "贾博深",
+      "department": "",
+      "avatar": "https://s3-imfile.feishucdn.com/static-resource/v1/v3_0012b_622290db-f6d1-4ff1-83d5-96b67aa79cdg~?image_size=72x72&cut_type=&quality=&format=image&sticker_format=.webp",
+      "status": "active",
+      "roles": [
+        "admin",
+        "judge",
+        "player",
+        "public"
+      ],
+      "source": "admin",
+      "updatedAt": "2026-07-04T10:03:52.441Z"
+    }
+  ]
 }
