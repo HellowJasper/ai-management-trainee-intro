@@ -510,6 +510,7 @@ const appShell = document.querySelector(".app-shell");
 const introStage = document.getElementById("introStage");
 const landingStage = document.getElementById("landingStage");
 const welcomeStage = document.getElementById("welcomeStage");
+const teammatesStage = document.getElementById("teammatesStage");
 const personaWallStage = document.getElementById("personaWallStage");
 const teamStage = document.getElementById("teamStage");
 const countdownStage = document.getElementById("countdownStage");
@@ -574,6 +575,7 @@ const rainRenderers = {
     : createRain("introRain", { fontSize: 17, density: 0.78, fade: "rgba(2, 8, 14, 0.08)" }),
   home: createRain("landingRain", { fontSize: 17, density: 0.78, fade: "rgba(2, 8, 14, 0.04)" }),
   welcome: createRain("welcomeRain", { fontSize: 17, density: 0.74, fade: "rgba(2, 8, 14, 0.045)" }),
+  teammates: createRain("teammatesRain", { fontSize: 17, density: 0.74, fade: "rgba(2, 8, 14, 0.045)" }),
   wall: createRain("wallRain", { fontSize: 18, fade: "rgba(2, 8, 14, 0.04)" }),
   detail: createRain("detailRain", { fontSize: 16, fade: "rgba(2, 8, 14, 0.05)" }),
   challenge: createRain("challengeRain", { fontSize: 18, fade: "rgba(2, 8, 14, 0.05)" }),
@@ -603,6 +605,7 @@ const viewStages = {
   intro: introStage,
   home: landingStage,
   welcome: welcomeStage,
+  teammates: teammatesStage,
   wall: personaWallStage,
   discover: document.getElementById("discoverStage"),
   team: document.getElementById("teamStage"),
@@ -649,10 +652,15 @@ function startLandingGlitchWindow() {
   }, LANDING_GLITCH_MS);
 }
 
+function isIntroPlaybackActive() {
+  return !explicitScreenViewRoute && (appView === "intro" || appShell.dataset.view === "intro" || appShell.dataset.view === "intro-exit" || isIntroExiting);
+}
+
 function syncStages(view) {
   setStageActive(viewStages.intro, view === "intro");
   setStageActive(viewStages.home, view === "home");
   setStageActive(viewStages.welcome, view === "welcome");
+  setStageActive(viewStages.teammates, view === "teammates");
   setStageActive(viewStages.wall, ["wall", "detail", "challenge"].includes(view));
   setStageActive(viewStages.discover, view === "discover");
   setStageActive(viewStages.team, view === "team");
@@ -671,6 +679,8 @@ function syncRain(view) {
         ? ["home"]
         : view === "welcome"
           ? ["welcome"]
+          : view === "teammates"
+          ? ["teammates"]
           : view === "detail"
             ? ["detail"]
             : view === "challenge"
@@ -689,7 +699,7 @@ function syncRain(view) {
                         ? ["voteResult"]
                         : view === "final-result"
                           ? ["finalResult"]
-                        : ["wall"]
+                          : ["wall"]
   );
 
   Object.entries(rainRenderers).forEach(([key, rain]) => {
@@ -726,7 +736,7 @@ function startIntroExit(skipped = false) {
   introStage.style.pointerEvents = "none";
 
   appShell.dataset.view = "intro-exit";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown", "view-roadshow", "view-vote", "view-vote-result", "view-final-result");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-teammates", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown", "view-roadshow", "view-vote", "view-vote-result", "view-final-result");
   appShell.classList.add("view-intro-exit");
 
   rainRenderers.home?.resize();
@@ -740,6 +750,7 @@ function startIntroExit(skipped = false) {
   introExitTimer = window.setTimeout(() => {
     isIntroExiting = false;
     setView(window.AppLogic.nextIntroState({ skipped }));
+    void pollAdminState();
   }, INTRO_EXIT_MS);
 }
 
@@ -785,7 +796,7 @@ function normalizeTraineeList(trainees = fallbackTrainees) {
 function setView(view) {
   appView = view;
   appShell.dataset.view = view;
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown", "view-roadshow", "view-vote", "view-vote-result", "view-final-result");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-teammates", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown", "view-roadshow", "view-vote", "view-vote-result", "view-final-result");
   appShell.classList.add(`view-${view}`);
   syncStages(view);
   if (view === "home") {
@@ -1973,7 +1984,7 @@ function openDetail(id) {
   detailLayer.setAttribute("aria-hidden", "false");
   syncDetailMotion(true);
   appShell.dataset.view = "detail";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown", "view-roadshow", "view-vote", "view-vote-result", "view-final-result");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-teammates", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown", "view-roadshow", "view-vote", "view-vote-result", "view-final-result");
   appShell.classList.add("view-detail");
 }
 
@@ -1982,7 +1993,7 @@ function closeDetail() {
   detailLayer.classList.remove("is-open");
   detailLayer.setAttribute("aria-hidden", "true");
   appShell.dataset.view = appView === "home" ? "home" : "wall";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown", "view-roadshow", "view-vote", "view-vote-result", "view-final-result");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-teammates", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown", "view-roadshow", "view-vote", "view-vote-result", "view-final-result");
   appShell.classList.add(appView === "home" ? "view-home" : "view-wall");
   syncStages(appView === "home" ? "home" : "wall");
   syncRain(appView === "home" ? "home" : "wall");
@@ -2110,7 +2121,7 @@ function openChallenge() {
   challengeLayer.setAttribute("aria-hidden", "false");
   syncChallengeMotion(true);
   appShell.dataset.view = "challenge";
-    appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown", "view-roadshow", "view-vote", "view-vote-result", "view-final-result");
+    appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-teammates", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown", "view-roadshow", "view-vote", "view-vote-result", "view-final-result");
   appShell.classList.add("view-challenge");
 
   if (trainee.previousPairs.length > 0) {
@@ -2134,7 +2145,7 @@ function closeChallenge() {
   drawWordsButton.disabled = false;
   redrawWordsButton.disabled = false;
   appShell.dataset.view = "detail";
-  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown", "view-roadshow", "view-vote", "view-vote-result", "view-final-result");
+  appShell.classList.remove("view-intro", "view-intro-exit", "view-home", "view-welcome", "view-teammates", "view-wall", "view-detail", "view-challenge", "view-discover", "view-team", "view-countdown", "view-roadshow", "view-vote", "view-vote-result", "view-final-result");
   appShell.classList.add("view-detail");
   syncStages("detail");
   syncRain("detail");
@@ -2178,6 +2189,9 @@ async function pollAdminState() {
     const state = await window.AppData.loadAdminState();
     await syncVisibleTimerState();
     if (explicitScreenViewRoute) {
+      return;
+    }
+    if (isIntroPlaybackActive()) {
       return;
     }
     const stageId = state?.screenOverrideStageId || state?.currentStageId || "";
@@ -2269,6 +2283,10 @@ function bindEvents() {
 
   document.getElementById("welcomeEnterButton").addEventListener("click", () => {
     setView(window.AppLogic.resolveWelcomeEntryTarget());
+  });
+
+  document.getElementById("teammatesEnterButton").addEventListener("click", () => {
+    setView(window.AppLogic.resolveTeammatesEntryTarget());
   });
 
   if (discoverButton && discoverMenu) {

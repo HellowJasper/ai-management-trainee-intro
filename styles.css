@@ -95,6 +95,7 @@ button:disabled {
 .intro-stage,
 .landing-stage,
 .welcome-stage,
+.teammates-stage,
 .home-stage {
   position: fixed;
   inset: 0;
@@ -177,6 +178,18 @@ button:disabled {
 }
 
 .app-shell.view-welcome > :is(.welcome-stage) {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.app-shell[data-view="teammates"] > :is(.teammates-stage) {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.app-shell.view-teammates > :is(.teammates-stage) {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
@@ -1087,6 +1100,84 @@ button:disabled {
 
 .welcome-ready-button:hover,
 .welcome-ready-button:focus-visible {
+  outline: none;
+  color: #ffffff;
+  transform: skewX(-8deg) translateY(-2px) scale(1.01);
+}
+
+.teammates-stage {
+  z-index: 11;
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(180deg, rgba(2, 8, 14, 0.08), rgba(2, 8, 14, 0.88)),
+    var(--void);
+}
+
+.teammates-rain {
+  z-index: 1;
+  opacity: 0.58;
+  mix-blend-mode: screen;
+}
+
+.teammates-ready-panel {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: min(1500px, calc(100vw - clamp(32px, 6vw, 160px)));
+  min-height: min(420px, 58vh);
+  text-align: center;
+}
+
+.teammates-ready-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: min(1500px, calc(100vw - 40px));
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  padding: clamp(10px, 1.8vw, 22px) clamp(12px, 2.7vw, 30px);
+  background: transparent;
+  color: var(--text);
+  font-family: var(--display);
+  font-size: clamp(44px, 6.2vw, 112px);
+  font-style: italic;
+  font-weight: 900;
+  line-height: 0.92;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  text-wrap: balance;
+  cursor: pointer;
+  box-shadow: none;
+  text-shadow:
+    0 0 5px rgba(234, 255, 248, 0.72),
+    0 0 16px rgba(40, 255, 200, 0.5),
+    0 0 42px rgba(40, 255, 200, 0.24);
+  transform: skewX(-8deg);
+  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: visible;
+}
+
+.teammates-ready-button::before {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(40, 255, 200, 0.24);
+  filter: blur(2px);
+  text-shadow:
+    0 0 18px rgba(40, 255, 200, 0.36),
+    0 0 48px rgba(40, 255, 200, 0.22);
+  transform: translate(0.04em, 0.03em);
+  pointer-events: none;
+}
+
+.teammates-ready-button:hover,
+.teammates-ready-button:focus-visible {
   outline: none;
   color: #ffffff;
   transform: skewX(-8deg) translateY(-2px) scale(1.01);
@@ -5787,11 +5878,13 @@ button:disabled {
 
   .enter-button,
   .discover-button,
-  .welcome-ready-button {
+  .welcome-ready-button,
+  .teammates-ready-button {
     min-width: min(260px, 90vw);
   }
 
-  .welcome-ready-panel {
+  .welcome-ready-panel,
+  .teammates-ready-panel {
     width: calc(100vw - 28px);
     min-height: min(360px, 58vh);
   }
@@ -5799,6 +5892,11 @@ button:disabled {
   .welcome-ready-button {
     font-size: clamp(40px, 13vw, 72px);
     letter-spacing: 0.035em;
+  }
+
+  .teammates-ready-button {
+    font-size: clamp(34px, 10.5vw, 62px);
+    letter-spacing: 0.028em;
   }
 
   .profile-console {
@@ -5889,10 +5987,12 @@ button:disabled {
 
 /* Responsive fixes for shorter screen heights (preventing vertical overflow cuts) */
 @media (max-height: 780px) {
-  .welcome-ready-panel {
+  .welcome-ready-panel,
+  .teammates-ready-panel {
     min-height: min(320px, 56vh);
   }
-  .welcome-ready-button {
+  .welcome-ready-button,
+  .teammates-ready-button {
     padding-top: clamp(18px, 3.2vw, 36px);
     padding-bottom: clamp(18px, 3.2vw, 36px);
   }

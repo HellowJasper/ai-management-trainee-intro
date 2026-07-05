@@ -98,6 +98,34 @@ function isAdvisorMember(member = {}) {
   return roleMatches(member, "advisor");
 }
 
+function normalizeAdvisor(member = {}, fallbackTeam = {}) {
+  return {
+    ...member,
+    department: member.department || fallbackTeam.hostDepartment || "",
+    role: "队长",
+    roleKey: "advisor",
+    duty: member.duty || member.role || "队长",
+  };
+}
+
+function normalizeTeamRoster(team = {}) {
+  const members = Array.isArray(team.members) ? team.members : [];
+  if (team.advisor?.userId) {
+    return { ...team, members };
+  }
+
+  const advisorIndex = members.findIndex((member) => member.userId && isAdvisorMember(member));
+  if (advisorIndex === -1) {
+    return { ...team, members };
+  }
+
+  return {
+    ...team,
+    advisor: normalizeAdvisor(members[advisorIndex], team),
+    members: members.filter((_, index) => index !== advisorIndex),
+  };
+}
+
 function teamRosterCount(team = {}, members = team.members || []) {
   return (team.advisor ? 1 : 0) + (Array.isArray(members) ? members.length : 0);
 }
@@ -177,11 +205,11 @@ function createMysqlTeamRepository(pool) {
 
     return teamRows.map((row) => {
       const team = rowToTeam(row);
-      return {
+      return normalizeTeamRoster({
         ...team,
         advisor: advisorByTeam.get(team.id) || null,
         members: membersByTeam.get(team.id) || [],
-      };
+      });
     });
   }
 
@@ -216,11 +244,11 @@ function createMysqlTeamRepository(pool) {
       members.push(rowToMember(row));
     });
 
-    return {
+    return normalizeTeamRoster({
       ...team,
       advisor,
       members,
-    };
+    });
   }
 
   async function getUserTeamIds(connection, userId, { forUpdate = false } = {}) {
@@ -389,9 +417,22 @@ function createMysqlTeamRepository(pool) {
     const { target } = await findTeamFromList(teamId, teams);
     assertTeamWritable(target, teamId, options);
 
+    if (roleKey === "advisor" && memberMatchesUser(target.advisor, userId)) {
+      return {
+        accepted: true,
+        team: target,
+        member: target.advisor,
+        teams,
+      };
+    }
+
     const member = target.members.find((item) => memberMatchesUser(item, userId));
     if (!member) {
       throw createHttpError(404, `User ${userId} is not in team ${teamId}.`);
+    }
+    const advisorUserId = String(target.advisor?.userId || "").trim();
+    if (roleKey === "advisor" && advisorUserId && advisorUserId !== userId) {
+      throw createHttpError(409, `Role ${roleKey} is already claimed in team ${teamId}.`);
     }
     const occupied = target.members.find((item) => item.userId !== userId && item.roleKey === roleKey);
     if (occupied) {
@@ -400,11 +441,18 @@ function createMysqlTeamRepository(pool) {
 
     const nextDuty = duty || member.duty || member.role || "";
     const nextRole = nextDuty || member.role || roleKey;
+    if (roleKey === "advisor") {
+      await pool.execute(
+        "DELETE FROM team_members WHERE team_id = ? AND is_advisor = TRUE",
+        [teamId],
+      );
+    }
     const [result] = await pool.execute(
       `UPDATE team_members SET
         role_key = ?,
         duty = ?,
         role = ?,
+        is_advisor = ${roleKey === "advisor" ? "TRUE" : "FALSE"},
         updated_at = CURRENT_TIMESTAMP
        WHERE team_id = ? AND user_id = ? AND is_advisor = FALSE`,
       [roleKey, nextDuty, nextRole, teamId, userId],
@@ -416,7 +464,9 @@ function createMysqlTeamRepository(pool) {
 
     const nextTeams = await listTeams();
     const nextTeam = nextTeams.find((team) => team.id === teamId);
-    const nextMember = nextTeam.members.find((item) => memberMatchesUser(item, userId));
+    const nextMember = roleKey === "advisor"
+      ? nextTeam.advisor
+      : nextTeam.members.find((item) => memberMatchesUser(item, userId));
     return {
       accepted: true,
       team: nextTeam,

@@ -33,6 +33,7 @@ const {
   resolveDiscoverTarget,
   resolveScreenViewFromRouteStage,
   resolveStageScreenView,
+  resolveTeammatesEntryTarget,
   resolveWelcomeEntryTarget,
   toggleProfileMedia,
   updateSentence,
@@ -268,6 +269,12 @@ test("nextIntroState moves from intro to home", () => {
 test("landing CTA opens the terminal boot welcome stage", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
   const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const teammatesStart = html.indexOf('<section class="teammates-stage" id="teammatesStage"');
+  const teammatesEnd = html.indexOf('<section class="home-stage"', teammatesStart);
+  const teammatesSection = html.slice(teammatesStart, teammatesEnd);
+  const wallStart = html.indexOf('<section class="home-stage" id="personaWallStage"');
+  const wallEnd = html.indexOf('<section class="detail-layer"', wallStart);
+  const wallSection = html.slice(wallStart, wallEnd);
 
   assert.doesNotMatch(html, /landing-title-main/);
   assert.doesNotMatch(html, /AI黑客松/);
@@ -279,7 +286,12 @@ test("landing CTA opens the terminal boot welcome stage", () => {
   assert.doesNotMatch(appJs, /loginWithFeishu/);
   assert.doesNotMatch(appJs, /site\.html#home/);
   assert.equal(resolveLandingCtaTarget(), "welcome");
-  assert.equal(resolveWelcomeEntryTarget(), "wall");
+  assert.equal(resolveWelcomeEntryTarget(), "teammates");
+  assert.equal(resolveTeammatesEntryTarget(), "wall");
+  assert.match(appJs, /document\.getElementById\("welcomeEnterButton"\)\.addEventListener\("click", \(\) => \{\s*setView\(window\.AppLogic\.resolveWelcomeEntryTarget\(\)\);\s*\}\);/);
+  assert.match(appJs, /document\.getElementById\("teammatesEnterButton"\)\.addEventListener\("click", \(\) => \{\s*setView\(window\.AppLogic\.resolveTeammatesEntryTarget\(\)\);\s*\}\);/);
+  assert.match(teammatesSection, /MEET YOUR TEAMMATES!/);
+  assert.match(wallSection, /<span>PERSONA<\/span>\s*<span>PROFILES<\/span>/);
 });
 
 test("data loader can target a separated API service through runtime config", async () => {
@@ -2730,6 +2742,11 @@ test("terminal boot welcome stage is wired into the HTML", () => {
   assert.match(html, /class="welcome-ready-button" id="welcomeEnterButton"/);
   assert.match(html, /ARE YOU READY\?/);
   assert.match(html, /aria-label="进入任务"/);
+  assert.match(html, /<section class="teammates-stage" id="teammatesStage"/);
+  assert.match(html, /id="teammatesRain"/);
+  assert.match(html, /class="teammates-ready-panel"/);
+  assert.match(html, /class="teammates-ready-button" id="teammatesEnterButton"/);
+  assert.match(html, /data-text="MEET YOUR TEAMMATES!"/);
   assert.doesNotMatch(html, /welcome-signal-field/);
   assert.doesNotMatch(html, /MISSION BRIEF/);
   assert.doesNotMatch(html, /AI_INNOVATION_HACKATHON_2026/);
@@ -3342,10 +3359,10 @@ test("admin and big screen cache keys stay current", () => {
   assert.match(adminHtml, /admin\.css\?v=20260703-admin-mobile-scroll/);
   assert.match(adminHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(adminHtml, /src\/admin\.js\?v=20260702-result-publish-api5173/);
-  assert.match(indexHtml, /styles\.css\?v=20260704-hero-group-down5/);
+  assert.match(indexHtml, /styles\.css\?v=20260705-teammates-bridge/);
   assert.match(indexHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
-  assert.match(indexHtml, /src\/logic\.js\?v=20260702-final-snapshot-source/);
-  assert.match(indexHtml, /src\/app\.js\?v=20260704-logo-timed-glitch/);
+  assert.match(indexHtml, /src\/logic\.js\?v=20260705-teammates-bridge/);
+  assert.match(indexHtml, /src\/app\.js\?v=20260705-teammates-bridge/);
   assert.match(screenHtml, /src\/screen-data\.js\?v=20260703-slogan-copy/);
 });
 
@@ -3434,7 +3451,7 @@ test("resolveDiscoverTarget accepts known discover menu targets", () => {
 test("resolveStageScreenView maps admin stages to existing screen views", () => {
   assert.equal(resolveStageScreenView("prestart"), "home");
   assert.equal(resolveStageScreenView("opening"), "welcome");
-  assert.equal(resolveStageScreenView("icebreaker"), "wall");
+  assert.equal(resolveStageScreenView("icebreaker"), "teammates");
   assert.equal(resolveStageScreenView("speech"), "home");
   assert.equal(resolveStageScreenView("tracks"), "discover");
   assert.equal(resolveStageScreenView("team"), "team");
@@ -3444,7 +3461,7 @@ test("resolveStageScreenView maps admin stages to existing screen views", () => 
 });
 
 test("resolveScreenViewFromRouteStage keeps direct big-screen links on the requested view", () => {
-  assert.equal(resolveScreenViewFromRouteStage("icebreaker"), "wall");
+  assert.equal(resolveScreenViewFromRouteStage("icebreaker"), "teammates");
   assert.equal(resolveScreenViewFromRouteStage("opening"), "welcome");
   assert.equal(resolveScreenViewFromRouteStage("wall"), "wall");
   assert.equal(resolveScreenViewFromRouteStage("vote-progress"), "vote");
@@ -3614,10 +3631,18 @@ test("admin roadshow timer selects current and next teams through the backend AP
 
 test("main screen polls admin state and switches views only on stage changes", () => {
   const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const pollStart = appJs.indexOf("async function pollAdminState()");
+  const pollEnd = appJs.indexOf("\nfunction startAdminStatePolling()", pollStart);
+  const pollBody = appJs.slice(pollStart, pollEnd);
+  const introExitStart = appJs.indexOf("function startIntroExit");
+  const introExitEnd = appJs.indexOf("\nfunction syncDetailMotion", introExitStart);
+  const introExitBody = appJs.slice(introExitStart, introExitEnd);
 
   assert.match(appJs, /const explicitScreenViewRoute = resolveExplicitScreenViewRoute\(\)/);
   assert.match(appJs, /if\s*\(explicitScreenViewRoute\)\s*{[\s\S]*?return;/);
   assert.match(appJs, /window\.AppData\.loadAdminState\(\)/);
+  assert.match(appJs, /function isIntroPlaybackActive\(\)/);
+  assert.match(pollBody, /if\s*\(isIntroPlaybackActive\(\)\)\s*{[\s\S]*?return;/);
   assert.match(appJs, /const stageId = state\?\.screenOverrideStageId \|\| state\?\.currentStageId \|\| ""/);
   assert.match(appJs, /window\.AppLogic\.createAdminStageSyncKey\(stageId,\s*state\.updatedAt\)/);
   assert.match(appJs, /window\.AppLogic\.shouldApplyAdminStageChange\(lastAdminStageSyncKey,\s*stageSyncKey\)/);
@@ -3625,6 +3650,7 @@ test("main screen polls admin state and switches views only on stage changes", (
   assert.match(appJs, /window\.AppLogic\.resolveStageScreenView\(stageId\)/);
   assert.match(appJs, /lastAdminStageSyncKey/);
   assert.match(appJs, /window\.setInterval\(pollAdminState/);
+  assert.match(introExitBody, /setView\(window\.AppLogic\.nextIntroState\(\{ skipped \}\)\);[\s\S]*void pollAdminState\(\);/);
 });
 
 test("discover header links to talent profiles and the team formation screen", () => {

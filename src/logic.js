@@ -719,6 +719,10 @@
   }
 
   function resolveWelcomeEntryTarget() {
+    return "teammates";
+  }
+
+  function resolveTeammatesEntryTarget() {
     return "wall";
   }
 
@@ -734,7 +738,7 @@
     const stageViews = {
       prestart: "home",
       opening: "welcome",
-      icebreaker: "wall",
+      icebreaker: "teammates",
       speech: "home",
       tracks: "discover",
       team: "team",
@@ -755,6 +759,7 @@
     const routeViews = new Set([
       "home",
       "welcome",
+      "teammates",
       "wall",
       "discover",
       "team",
@@ -905,6 +910,7 @@
     resolveDiscoverTarget,
     resolveScreenViewFromRouteStage,
     resolveStageScreenView,
+    resolveTeammatesEntryTarget,
     resolveWelcomeEntryTarget,
     toggleProfileMedia,
     updateSentence,

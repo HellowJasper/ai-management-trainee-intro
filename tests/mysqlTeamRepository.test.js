@@ -158,6 +158,11 @@ class MemoryMysqlTeamPool {
       member.role_key = roleKey || null;
       member.duty = duty;
       member.role = role;
+      if (compactSql.includes("is_advisor = true")) {
+        member.is_advisor = true;
+      } else if (compactSql.includes("is_advisor = false")) {
+        member.is_advisor = false;
+      }
       return [{ affectedRows: 1 }];
     }
 
@@ -279,6 +284,41 @@ test("MySQL team repository wraps joins in a transaction and locks the target te
   assert.deepEqual(pool.transactionEvents, ["getConnection", "begin", "commit", "release"]);
   assert.ok(pool.calls.some((call) => /from teams/i.test(call.sql) && /for update/i.test(call.sql)));
   assert.equal(joined.team.members.length, 2);
+});
+
+test("MySQL team repository promotes a claimed advisor role into the advisor slot", async () => {
+  const pool = new MemoryMysqlTeamPool({
+    teams: [
+      {
+        id: "medicine",
+        index: "01",
+        name: "医学",
+        status: "open",
+        capacity: 5,
+      },
+    ],
+    members: [
+      { teamId: "medicine", userId: "jkyjiaboshen", name: "贾博深", roleKey: "biz", duty: "业务洞察" },
+    ],
+  });
+  const repository = createMysqlTeamRepository(pool);
+
+  const claimed = await repository.claimRole({
+    teamId: "medicine",
+    userId: "jkyjiaboshen",
+    roleKey: "advisor",
+    duty: "队长",
+  });
+
+  assert.equal(claimed.team.advisor.userId, "jkyjiaboshen");
+  assert.equal(claimed.team.advisor.name, "贾博深");
+  assert.equal(claimed.member.userId, "jkyjiaboshen");
+  assert.equal(claimed.member.roleKey, "advisor");
+  assert.equal(claimed.team.members.some((member) => member.userId === "jkyjiaboshen"), false);
+
+  const teams = await repository.listTeams();
+  assert.equal(teams[0].advisor.userId, "jkyjiaboshen");
+  assert.equal(teams[0].members.some((member) => member.userId === "jkyjiaboshen"), false);
 });
 
 test("MySQL team repository blocks player roster changes after a team is locked", async () => {
