@@ -30,6 +30,12 @@ const DEFAULT_STAGES = [
     time: "05-22 11:15\n05-22 11:35",
   },
   {
+    id: "company",
+    name: "认识公司",
+    subtitle: "健康元集团介绍",
+    time: "05-22 11:35\n05-22 11:45",
+  },
+  {
     id: "tracks",
     name: "赛道发布",
     subtitle: "五条赛道发布与解读",
@@ -93,16 +99,28 @@ function normalizeAdminStages(stages) {
     ? stages.map((stage) => ({ ...stage }))
     : clone(DEFAULT_STAGES);
   const hasPrestartStage = list.some((stage) => stage.id === "prestart");
-  const openingStageIndex = list.findIndex((stage) => stage.id === "opening");
   const defaultPrestartStage = DEFAULT_STAGES.find((stage) => stage.id === "prestart");
   const hasFinalStage = list.some((stage) => stage.id === "final");
-  const resultStageIndex = list.findIndex((stage) => stage.id === "result");
   const defaultFinalStage = DEFAULT_STAGES.find((stage) => stage.id === "final");
+  const hasCompanyStage = list.some((stage) => stage.id === "company");
+  const defaultCompanyStage = DEFAULT_STAGES.find((stage) => stage.id === "company");
+  const findStageIndex = (id) => list.findIndex((stage) => stage.id === id);
 
+  const openingStageIndex = findStageIndex("opening");
   if (!hasPrestartStage && openingStageIndex >= 0 && defaultPrestartStage) {
     list.splice(openingStageIndex, 0, { ...defaultPrestartStage });
   }
 
+  if (!hasCompanyStage && defaultCompanyStage) {
+    const speechStageIndex = findStageIndex("speech");
+    const tracksStageIndex = findStageIndex("tracks");
+    if (speechStageIndex >= 0 || tracksStageIndex >= 0) {
+      const insertIndex = speechStageIndex >= 0 ? speechStageIndex + 1 : tracksStageIndex;
+      list.splice(insertIndex, 0, { ...defaultCompanyStage });
+    }
+  }
+
+  const resultStageIndex = findStageIndex("result");
   if (!hasFinalStage && resultStageIndex >= 0 && defaultFinalStage) {
     list.splice(resultStageIndex + 1, 0, { ...defaultFinalStage });
   }

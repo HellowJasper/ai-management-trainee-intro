@@ -116,8 +116,8 @@ test("landing headline uses glitch text layers without decorative bars or subtit
 
   assert.match(html, /class="landing-title-cn"[^>]*data-text="AI创新黑客松"/);
   assert.match(html, /class="landing-title-sub"[^>]*data-text="36小时 · 让想法落地，让创新发生"/);
-  assert.match(html, /styles\.css\?v=20260705-teammates-bridge/);
-  assert.match(html, /src\/app\.js\?v=20260705-teammates-bridge/);
+  assert.match(html, /styles\.css\?v=20260705-company-stage/);
+  assert.match(html, /src\/app\.js\?v=20260705-company-stage/);
   assert.match(logoBlock, /top:\s*calc\(23% \+ 15px\)/);
   assert.match(logoBlock, /width:\s*clamp\(240px,\s*20vw,\s*420px\)/);
   assert.doesNotMatch(css, /\.landing-title::before/);

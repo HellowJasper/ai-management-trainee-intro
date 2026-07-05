@@ -15,7 +15,7 @@
   const SESSION_KEY = "joincare_hackathon_session";
   const VALID_ROLES = ["public", "player", "judge", "admin"];
   const PRESTART_COUNTDOWN_STAGE_ID = "prestart";
-  const MISSION_COUNTDOWN_STAGE_IDS = new Set(["opening", "icebreaker", "speech", "tracks", "team"]);
+  const MISSION_COUNTDOWN_STAGE_IDS = new Set(["opening", "icebreaker", "speech", "company", "tracks", "team"]);
   const DISPLAY_PARTICIPANT_COUNT = 20;
   const TEAM_DISPLAY_ORDER = ["medicine", "pharma", "production", "marketing", "functions"];
   const TEAM_DISPLAY_META = {
@@ -84,7 +84,7 @@
     const s = String(stageId || "").toLowerCase();
     if (s === "prestart") {
       return { phase: "大赛筹备中", label: "正式比赛开始倒计时", remain: 86400 };
-    } else if (["opening", "icebreaker", "speech", "tracks"].includes(s)) {
+    } else if (["opening", "icebreaker", "speech", "company", "tracks"].includes(s)) {
       return { phase: "挑战任务发布中", label: "距任务开始还有", remain: 7200 };
     } else if (s === "team") {
       return { phase: "挑战任务进行中", label: "距作品提交截止", remain: 129600 };
@@ -908,7 +908,6 @@
   };
   const toolTags = (s) => String(s || "").split(/[，、,\n/]+/).map((x) => x.trim()).filter(Boolean).slice(0, 3);
   const entryCard = ({ nav, href, title, en, sub, icon, accent, rgb }, index, options = {}) => {
-    const attr = href ? `href="${esc(href)}"` : `data-nav="${esc(nav)}"`;
     const compactClass = options.hideEnglish ? " no-entry-en" : "";
     const englishLine = options.hideEnglish ? "" : `<i>${esc(en)}</i>`;
     let arrow = "";
@@ -921,6 +920,10 @@
         arrow = `<span class="entry-go left-arr">➔</span>`;
       }
     }
+    if (options.static) {
+      return `<article class="entry-card${compactClass}" data-static-card="true" aria-label="${esc(title)}" style="--accent:${accent};--rgb:${rgb}"><span class="entry-ic">${ICON(icon, accent)}</span><div class="entry-tx"><b>${esc(title)}</b>${englishLine}<span>${esc(sub)}</span></div>${arrow}</article>`;
+    }
+    const attr = href ? `href="${esc(href)}"` : `data-nav="${esc(nav)}"`;
     return `<a class="entry-card${compactClass}" ${attr} style="--accent:${accent};--rgb:${rgb}"><span class="entry-ic">${ICON(icon, accent)}</span><div class="entry-tx"><b>${esc(title)}</b>${englishLine}<span>${esc(sub)}</span></div>${arrow}</a>`;
   };
   function getHomeActions(role) {
@@ -1091,7 +1094,8 @@
     closeAuthGate({ force: true });
     closeRolePicker();
     toast(`已进入「${pickLabel(role)}」视角`);
-    const target = (String(redirectPath || "").split("#")[1] || pendingAuthTarget || "me").trim() || "me";
+    const requestedTarget = (String(redirectPath || "").split("#")[1] || pendingAuthTarget || "me").trim() || "me";
+    const target = normalizeMobileEntryTarget(requestedTarget);
     pendingAuthTarget = null;
     go(target);
   }
@@ -1099,7 +1103,7 @@
   // 发起飞书登录：拿授权 URL → 跳转飞书（前端回跳式，回到本页带 ?code&state）。
   async function startFeishuLogin() {
     toast("正在跳转飞书登录…");
-    const target = pendingAuthTarget || (location.hash.slice(1) || "me");
+    const target = normalizeMobileEntryTarget(pendingAuthTarget || (location.hash.slice(1) || "me"));
     // 回调地址动态取当前页面（去 hash/query），跳转前生成，无需任何额外配置。
     const page = root.location.pathname || "/site.html";
     try {
@@ -1184,7 +1188,7 @@
         renderMobileTabbar();
         refreshRoleChrome();
         toast(`已切换到「${pickLabel(res.role)}」`);
-        go("me");
+        go(normalizeMobileEntryTarget("me"));
         return;
       }
       toast("角色切换失败，请重试");
@@ -1790,7 +1794,7 @@
     const snakeOrder = [0, 1, 2, 3, 7, 6, 5, 4];
     const chronologicalOrder = [0, 1, 2, 3, 4, 5, 6, 7];
     const journeyOrder = isMobileView() ? chronologicalOrder : snakeOrder;
-    const actionCards = journeyOrder.map((sourceIndex, gridIndex) => entryCard(journeyCards[sourceIndex], gridIndex, { hideEnglish: true })).join("");
+    const actionCards = journeyOrder.map((sourceIndex, gridIndex) => entryCard(journeyCards[sourceIndex], gridIndex, { hideEnglish: true, static: true })).join("");
     const mechanismBriefs = {
       format: { headline: "五大业务赛道开放命题", sub: "围绕真实业务场景，探索创新方案" },
       delivery: { headline: "真实可运行方案", sub: "提交作品与现场展示" },
@@ -2265,9 +2269,9 @@
     }).join("");
     const empty = scoreTeams.length ? "" : `<div class="gl2-empty glass"><b>暂无已发布作品</b><span>管理员发布作品后，评委评分表会在这里出现。</span></div>`;
 
-    return `${pageHead("评委评分", "五维评分接入后端暂存与正式提交；提交后不可修改，管理员锁定后进入最终核算。", "EVALUATION")}
+    return `${pageHead("评委评分", "输入评分（0-100分），点击【暂存评分】不计入最终结果，点击【正式提交】则无法再修改评分。", "EVALUATION")}
     <section class="container sec judge-board">
-      <div class="judge-toolbar glass"><div><span class="status-chip on">专家评分</span><h2>评委评分表</h2><p>输入 0-100 分完成五维评分；暂存评分不计入结果，正式提交后进入后台评审进度。</p></div><div class="judge-actions"><span class="judge-sync-status" data-judge-status>等待同步</span><button class="judge-save" data-judge-save>暂存评分</button><button class="judge-save judge-submit" data-judge-submit>正式提交</button></div></div>
+      <div class="judge-toolbar glass"><div><h2>评委评分表</h2></div><div class="judge-actions"><span class="judge-sync-status" data-judge-status>等待同步</span><button class="judge-save" data-judge-save>暂存评分</button><button class="judge-save judge-submit" data-judge-submit>正式提交</button></div></div>
       <div class="judge-head"><span class="judge-head-spacer" aria-hidden="true"></span><div class="judge-head-grid">${head}</div></div>
       <div class="judge-list">${rows}${empty}</div>
     </section>`;
@@ -2310,7 +2314,7 @@
       const stack = (t.stack || []).map((s) => `<span>${esc(s)}</span>`).join("");
       return `<article class="gl2-card glass gl2-h ${isVoted ? "voted" : ""}" data-work="${t.id}" style="--accent:${t.accent};--rgb:${t.rgb}"><div class="gl2-shot"><span class="gl2-dots"></span><span class="gl2-cover-label"><span class="gl2-cover-index">${esc(t.trackCode)}</span><span class="gl2-cover-track">${esc(t.track)}</span></span><h3 class="gl2-cover-name">${esc(t.name)}</h3><span class="gl2-bars"></span><span class="gl2-hover">点击查看作品详情 ➔</span></div><div class="gl2-mid"><div class="gl2-id"><b class="gl2-project-name">${esc(projectName)}</b></div><p class="gl2-pitch">${esc(t.pitch || "")}</p><div class="gl2-stack2">${stack}</div><div class="gl2-avas">${avas}</div></div><div class="gl2-right"><div class="gl2-vcount"><b>${t.votes.toLocaleString()}</b><span>实时票数</span></div><span class="gl2-detail" data-work="${t.id}">查看详情 ➔</span>${btn}</div></article>`;
     }).join("");
-    const empty = publishedTeams.length ? "" : `<div class="gl2-empty glass"><b>暂无已发布作品</b><span>队伍提交后需管理员审核发布，作品才会进入展厅。</span></div>`;
+    const empty = publishedTeams.length ? "" : `<div class="gl2-empty glass"><b>暂无已发布作品</b></div>`;
     const dataNotice = SITE_STATE_ERROR
       ? `<div class="vote-banner"><span class="live-dot"></span>${esc(SITE_STATE_ERROR)}</div>`
       : "";
@@ -2579,6 +2583,18 @@
   const mobileTabbar = doc.getElementById("mobileTabbar");
   let rain = null;
   let lastMobileView = isMobileView();
+
+  function normalizeMobileEntryTarget(target = "home") {
+    const cleanTarget = String(target || "").replace(/^#/, "").trim() || "home";
+    return isMobileView() ? "home" : cleanTarget;
+  }
+
+  function normalizeInitialMobileRoute() {
+    if (!isMobileView()) return;
+    const rawHash = root.location.hash.slice(1).trim();
+    if (!rawHash || rawHash === "home") return;
+    history.replaceState(null, "", "#home");
+  }
 
   function mobileTabs() {
     if (currentRole() === "player") return MOBILE_TABS_PLAYER;
@@ -3658,6 +3674,7 @@
     const handledLogin = await consumeFeishuCallback();
     if (!handledLogin) await syncRoleFromBackend();
     const initialSiteState = await loadSiteState();
+    normalizeInitialMobileRoute();
     siteStateSignature = createVisibleSiteStateSignature(initialSiteState || SITE_STATE);
     bind();
     route(false);

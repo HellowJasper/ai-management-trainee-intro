@@ -6,7 +6,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { createServer } = require("../server");
 const { createFrontendServer } = require("../server/frontendServer");
-const { createAdminStateRepository } = require("../server/adminStateRepository");
+const { createAdminStateRepository, normalizeAdminStages } = require("../server/adminStateRepository");
 const { createAuditLogRepository } = require("../server/auditLogRepository");
 const { createAuthSessionRepository } = require("../server/authSessionRepository");
 const { createJudgeScoresRepository } = require("../server/judgeScoresRepository");
@@ -3880,6 +3880,23 @@ test("admin state API returns current stage state", async (t) => {
     ["team", "vote"],
   );
   assert.equal(state.logs.length, 1);
+});
+
+test("admin stage normalization inserts company intro between speech and tracks", () => {
+  const stages = normalizeAdminStages([
+    { id: "opening", name: "启动仪式" },
+    { id: "icebreaker", name: "新生破冰" },
+    { id: "speech", name: "总裁讲话" },
+    { id: "tracks", name: "赛道发布" },
+    { id: "team", name: "组队开启" },
+    { id: "result", name: "结果发布" },
+  ]);
+
+  assert.deepEqual(
+    stages.map((stage) => stage.id),
+    ["prestart", "opening", "icebreaker", "speech", "company", "tracks", "team", "result", "final"],
+  );
+  assert.equal(stages[4].name, "认识公司");
 });
 
 test("admin stage API updates current stage and persists a log", async (t) => {

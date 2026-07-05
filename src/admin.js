@@ -28,6 +28,13 @@ const stages = [
     time: "05-22 11:15\n05-22 11:35",
   },
   {
+    id: "company",
+    name: "认识公司",
+    subtitle: "健康元集团介绍",
+    status: "done",
+    time: "05-22 11:35\n05-22 11:45",
+  },
+  {
     id: "tracks",
     name: "赛道发布",
     subtitle: "五条赛道发布与解读",
@@ -401,8 +408,10 @@ const teamStatusLabels = {
 
 const screenRoutes = [
   { stageId: "prestart", name: "赛前倒计时", route: "/index.html?stage=prestart", note: "官网首页显示比赛开始倒计时" },
-  { stageId: "opening", name: "启动仪式", route: "/index.html?stage=opening", note: "开场和入场引导" },
-  { stageId: "icebreaker", name: "新生破冰", route: "/index.html?stage=icebreaker", note: "星锐档案与互动破冰" },
+  { stageId: "opening", name: "启动仪式", route: "/index.html?stage=opening", note: "主会场 index 首页" },
+  { stageId: "icebreaker", name: "新生破冰", route: "/index.html?stage=icebreaker", note: "星锐档案卡片墙" },
+  { stageId: "speech", name: "总裁讲话", route: "/index.html?stage=speech", note: "新版 READY 开场视觉" },
+  { stageId: "company", name: "认识公司", route: "/index.html?stage=company", note: "公司介绍过渡页" },
   { stageId: "tracks", name: "赛道发布", route: "/index.html?stage=tracks", note: "五条赛道与组队大屏" },
   { stageId: "team", name: "组队开启", route: "/index.html?stage=team", note: "实时组队展示" },
   { stageId: "vote", name: "投票开启", route: "/index.html?stage=vote", note: "大众投票进度" },

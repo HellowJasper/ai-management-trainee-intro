@@ -28,6 +28,7 @@ const {
   pickKeywordPairAB,
   createAdminStageSyncKey,
   resolveLandingCtaTarget,
+  resolveCompanyEntryTarget,
   resolveAdjacentTraineeId,
   shouldApplyAdminStageChange,
   resolveDiscoverTarget,
@@ -288,8 +289,10 @@ test("landing CTA opens the terminal boot welcome stage", () => {
   assert.equal(resolveLandingCtaTarget(), "welcome");
   assert.equal(resolveWelcomeEntryTarget(), "teammates");
   assert.equal(resolveTeammatesEntryTarget(), "wall");
+  assert.equal(resolveCompanyEntryTarget(), "discover");
   assert.match(appJs, /document\.getElementById\("welcomeEnterButton"\)\.addEventListener\("click", \(\) => \{\s*setView\(window\.AppLogic\.resolveWelcomeEntryTarget\(\)\);\s*\}\);/);
   assert.match(appJs, /document\.getElementById\("teammatesEnterButton"\)\.addEventListener\("click", \(\) => \{\s*setView\(window\.AppLogic\.resolveTeammatesEntryTarget\(\)\);\s*\}\);/);
+  assert.match(appJs, /document\.getElementById\("companyEnterButton"\)\.addEventListener\("click", \(\) => \{\s*setView\(window\.AppLogic\.resolveCompanyEntryTarget\(\)\);\s*\}\);/);
   assert.match(teammatesSection, /MEET YOUR TEAMMATES!/);
   assert.match(wallSection, /<span>PERSONA<\/span>\s*<span>PROFILES<\/span>/);
 });
@@ -905,7 +908,7 @@ test("official site schedule status reads the synchronized backend stage timer",
   assert.ok(applySiteStageStateBody, "applySiteStageState should exist");
   assert.ok(timerRemainingSecondsBody, "timerRemainingSeconds should exist");
   assert.match(siteJs, /const PRESTART_COUNTDOWN_STAGE_ID = "prestart"/);
-  assert.match(siteJs, /const MISSION_COUNTDOWN_STAGE_IDS = new Set\(\["opening", "icebreaker", "speech", "tracks", "team"\]\)/);
+  assert.match(siteJs, /const MISSION_COUNTDOWN_STAGE_IDS = new Set\(\["opening", "icebreaker", "speech", "company", "tracks", "team"\]\)/);
   assert.match(siteJs, /const DISPLAY_PARTICIPANT_COUNT = 20/);
   assert.match(siteJs, /members:\s*DISPLAY_PARTICIPANT_COUNT/);
   assert.match(siteJs, /s === "prestart"[\s\S]*phase:\s*"大赛筹备中"[\s\S]*label:\s*"正式比赛开始倒计时"/);
@@ -1074,8 +1077,8 @@ test("official site home stays a navigable site dashboard instead of the index l
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
   const renderHomeBody = siteJs.match(/function renderHome\(\) \{([\s\S]*?)\n  function renderPeople\(\)/)?.[1] || "";
 
-  assert.match(siteHtml, /src\/site\.css\?v=20260703-auth-role-selection/);
-  assert.match(siteHtml, /src\/site\.js\?v=20260705-work-pitch-field/);
+  assert.match(siteHtml, /src\/site\.css\?v=20260705-user-menu-opacity/);
+  assert.match(siteHtml, /src\/site\.js\?v=20260705-company-stage/);
   assert.match(renderHomeBody, /<span class="hero-kicker"><span class="hero-kicker-live"><span class="live-dot"><\/span>LIVE<\/span><span class="hero-kicker-name">AI_INNOVATION_HACKATHON_2026<\/span><\/span>/);
   assert.match(renderHomeBody, /<h1 class="hero-title">AI创新黑客松<\/h1>/);
   assert.match(renderHomeBody, /<p class="hero-slogan">36小时 · 让想法落地，让创新发生<\/p>/);
@@ -1099,7 +1102,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260705-work-pitch-field/);
+  assert.match(siteHtml, /site\.js\?v=20260705-company-stage/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -1141,7 +1144,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260705-work-pitch-field/);
+  assert.match(siteHtml, /site\.js\?v=20260705-company-stage/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -1159,8 +1162,8 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.css\?v=20260703-auth-role-selection/);
-  assert.match(siteHtml, /site\.js\?v=20260705-work-pitch-field/);
+  assert.match(siteHtml, /site\.css\?v=20260705-user-menu-opacity/);
+  assert.match(siteHtml, /site\.js\?v=20260705-company-stage/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -1169,6 +1172,7 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   assert.match(siteJs, /function displayWorkProjectName\(team = \{\}\)/);
   assert.match(siteJs, /const projectName = displayWorkProjectName\(t\);/);
   assert.match(siteJs, /<b class="gl2-project-name">\$\{esc\(projectName\)\}<\/b>/);
+  assert.doesNotMatch(siteJs, /队伍提交后需管理员审核发布，作品才会进入展厅/);
   assert.match(siteJs, /permissions\.canScore\s*\?\s*`<button class="gl2-vote" type="button" data-gallery-judge-entry>去评分 ➔<\/button>`/);
   assert.match(siteJs, /`<button class="gl2-vote" data-vote="\$\{t\.id\}">为TA加油<\/button>`/);
   assert.match(siteJs, /const galleryJudgeEntry = e\.target\.closest\("\[data-gallery-judge-entry\]"\)/);
@@ -2099,7 +2103,19 @@ test("schedule journey uses chronological order on the mobile app view", () => {
 
   assert.match(siteJs, /const chronologicalOrder = \[0, 1, 2, 3, 4, 5, 6, 7\]/);
   assert.match(siteJs, /const journeyOrder = isMobileView\(\) \? chronologicalOrder : snakeOrder/);
-  assert.match(siteJs, /journeyOrder\.map\(\(sourceIndex, gridIndex\) => entryCard\(journeyCards\[sourceIndex\], gridIndex, \{ hideEnglish: true \}\)\)/);
+  assert.match(siteJs, /journeyOrder\.map\(\(sourceIndex, gridIndex\) => entryCard\(journeyCards\[sourceIndex\], gridIndex, \{ hideEnglish: true, static: true \}\)\)/);
+});
+
+test("schedule journey cards are static display items without navigation", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+  const entryCardBody = siteJs.match(/const entryCard = \(\{[\s\S]*?\n  \};/)?.[0] || "";
+  const renderSchedule = siteJs.match(/function renderSchedule\(\) \{[\s\S]*?function renderTeam\(\)/)?.[0] || "";
+
+  assert.match(renderSchedule, /entryCard\(journeyCards\[sourceIndex\], gridIndex, \{ hideEnglish: true, static: true \}\)/);
+  assert.match(entryCardBody, /if \(options\.static\)/);
+  assert.match(entryCardBody, /<article class="entry-card\$\{compactClass\}" data-static-card="true"/);
+  assert.match(siteCss, /\.entry-card\[data-static-card="true"\]\s*\{[^}]*cursor:\s*default/s);
 });
 
 test("mobile home focuses on the stage countdown without shortcut cards", () => {
@@ -2309,7 +2325,7 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260703-auth-role-selection/);
+  assert.match(html, /src\/site\.css\?v=20260705-user-menu-opacity/);
   assert.match(siteCss, /--site-detail-console-width:\s*calc\(min\(80vw,\s*1260px\) - 24px\)/);
   assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*max\(3vw,\s*calc\(100dvw - var\(--site-detail-console-width\) - var\(--site-detail-card-width\) - 40px\)\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*auto/);
@@ -2510,6 +2526,21 @@ test("judge scoring uses manual numeric input only", () => {
   assert.doesNotMatch(siteCss, /judge-score\[type="range"\]/);
 });
 
+test("judge scoring copy is participant-facing and does not expose backend workflow", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const renderJudgeStart = siteJs.indexOf("function renderJudge()");
+  const renderJudgeEnd = siteJs.indexOf("\n  function renderTracks", renderJudgeStart);
+  const renderJudgeBody = renderJudgeStart >= 0 && renderJudgeEnd > renderJudgeStart
+    ? siteJs.slice(renderJudgeStart, renderJudgeEnd)
+    : "";
+
+  assert.match(renderJudgeBody, /pageHead\("评委评分",\s*"输入评分（0-100分），点击【暂存评分】不计入最终结果，点击【正式提交】则无法再修改评分。",\s*"EVALUATION"\)/);
+  assert.match(renderJudgeBody, /输入评分（0-100分），点击【暂存评分】不计入最终结果，点击【正式提交】则无法再修改评分。/);
+  assert.doesNotMatch(renderJudgeBody, /<h2>评委评分表<\/h2><p>/);
+  assert.doesNotMatch(renderJudgeBody, /五维评分接入后端|后端暂存|后台评审进度|管理员锁定后进入最终核算/);
+  assert.doesNotMatch(renderJudgeBody, /<span class="status-chip on">专家评分<\/span>/);
+});
+
 test("judge scoring work summary keeps the browse action fixed and mobile-safe", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
@@ -2658,6 +2689,13 @@ test("role authorization is completed at entry and protects sensitive actions", 
   assert.match(siteJs, /if \(!requireRole\("team", \(p\) => p\.canJoinTeam/);
   assert.match(siteJs, /if \(!requireRole\("judge", \(p\) => p\.canScore/);
   assert.match(siteJs, /enforceEntryAuth\(\)/);
+  assert.match(siteJs, /function normalizeMobileEntryTarget\(target = "home"\)/);
+  assert.match(siteJs, /return isMobileView\(\) \? "home" : cleanTarget/);
+  assert.match(siteJs, /function normalizeInitialMobileRoute\(\)/);
+  assert.match(siteJs, /history\.replaceState\(null, "", "#home"\)/);
+  assert.match(siteJs, /const target = normalizeMobileEntryTarget\(pendingAuthTarget \|\| \(location\.hash\.slice\(1\) \|\| "me"\)\)/);
+  assert.match(siteJs, /go\(normalizeMobileEntryTarget\("me"\)\)/);
+  assert.match(siteJs, /normalizeInitialMobileRoute\(\);\s*siteStateSignature = createVisibleSiteStateSignature/);
   assert.doesNotMatch(siteJs, /if \(!currentRole\(\)\) showAuthGate\("entry"\)/);
 });
 
@@ -2675,8 +2713,8 @@ test("official site forces Feishu login on desktop and mobile entry", () => {
   assert.match(siteJs, /closeAuthGate\(\{ force: true \}\)/);
   assert.match(siteCss, /\.auth-gate\.is-forced/);
   assert.match(siteCss, /\.auth-required-note/);
-  assert.match(html, /src\/site\.css\?v=20260703-auth-role-selection/);
-  assert.match(html, /src\/site\.js\?v=20260705-work-pitch-field/);
+  assert.match(html, /src\/site\.css\?v=20260705-user-menu-opacity/);
+  assert.match(html, /src\/site\.js\?v=20260705-company-stage/);
 });
 
 test("official site refreshes backend session before leaving the Feishu login gate", () => {
@@ -2704,12 +2742,16 @@ test("official site shows role picker instead of Feishu gate for pending role se
 
 test("mobile official site keeps a visible account entry for logout", () => {
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
+  const mobileUserMenuBlock = siteCss.match(/@media \(max-width:\s*680px\)\s*\{\s*\.nav-user-menu\s*\{[\s\S]*?\n  \}\n\}/)?.[0] || "";
 
   assert.doesNotMatch(siteCss, /\.nav-login,\s*\.nav-phase\s*\{\s*display:\s*none;\s*\}/);
   assert.doesNotMatch(siteCss, /\.nav-links,\s*\.nav-links\.open,\s*\.nav-actions,\s*\.nav-burger\s*\{\s*display:\s*none\s*!important;\s*\}/);
   assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.nav-actions\s*\{[\s\S]*display:\s*flex/s);
   assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.nav-login\s*\{[\s\S]*display:\s*inline-flex/s);
   assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.nav-user-menu\s*\{/s);
+  assert.match(mobileUserMenuBlock, /position:\s*fixed/);
+  assert.match(mobileUserMenuBlock, /background:\s*linear-gradient\([\s\S]*rgba\(2,\s*8,\s*14,\s*0\.96\)/);
+  assert.match(mobileUserMenuBlock, /box-shadow:\s*0\s+24px\s+64px\s+rgba\(0,\s*0,\s*0,\s*0\.72\)/);
 });
 
 test("mobile result route does not fall back to the gallery tab highlight", () => {
@@ -2726,11 +2768,11 @@ test("official site cache keys are bumped after navigation and detail layout pol
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
-  assert.match(html, /src\/site\.css\?v=20260703-auth-role-selection/);
+  assert.match(html, /src\/site\.css\?v=20260705-user-menu-opacity/);
   assert.match(html, /src\/logic\.js\?v=20260703-judge-no-quick/);
   assert.match(html, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(html, /src\/screen-data\.js\?v=20260703-slogan-copy/);
-  assert.match(html, /src\/site\.js\?v=20260705-work-pitch-field/);
+  assert.match(html, /src\/site\.js\?v=20260705-company-stage/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
@@ -2747,6 +2789,11 @@ test("terminal boot welcome stage is wired into the HTML", () => {
   assert.match(html, /class="teammates-ready-panel"/);
   assert.match(html, /class="teammates-ready-button" id="teammatesEnterButton"/);
   assert.match(html, /data-text="MEET YOUR TEAMMATES!"/);
+  assert.match(html, /<section class="company-stage" id="companyStage"/);
+  assert.match(html, /id="companyRain"/);
+  assert.match(html, /class="company-ready-panel"/);
+  assert.match(html, /class="company-ready-button" id="companyEnterButton"/);
+  assert.match(html, /data-text="认识公司"/);
   assert.doesNotMatch(html, /welcome-signal-field/);
   assert.doesNotMatch(html, /MISSION BRIEF/);
   assert.doesNotMatch(html, /AI_INNOVATION_HACKATHON_2026/);
@@ -3359,10 +3406,10 @@ test("admin and big screen cache keys stay current", () => {
   assert.match(adminHtml, /admin\.css\?v=20260703-admin-mobile-scroll/);
   assert.match(adminHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(adminHtml, /src\/admin\.js\?v=20260702-result-publish-api5173/);
-  assert.match(indexHtml, /styles\.css\?v=20260705-teammates-bridge/);
+  assert.match(indexHtml, /styles\.css\?v=20260705-company-stage/);
   assert.match(indexHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
-  assert.match(indexHtml, /src\/logic\.js\?v=20260705-teammates-bridge/);
-  assert.match(indexHtml, /src\/app\.js\?v=20260705-teammates-bridge/);
+  assert.match(indexHtml, /src\/logic\.js\?v=20260705-company-stage/);
+  assert.match(indexHtml, /src\/app\.js\?v=20260705-company-stage/);
   assert.match(screenHtml, /src\/screen-data\.js\?v=20260703-slogan-copy/);
 });
 
@@ -3450,9 +3497,10 @@ test("resolveDiscoverTarget accepts known discover menu targets", () => {
 
 test("resolveStageScreenView maps admin stages to existing screen views", () => {
   assert.equal(resolveStageScreenView("prestart"), "home");
-  assert.equal(resolveStageScreenView("opening"), "welcome");
-  assert.equal(resolveStageScreenView("icebreaker"), "teammates");
-  assert.equal(resolveStageScreenView("speech"), "home");
+  assert.equal(resolveStageScreenView("opening"), "home");
+  assert.equal(resolveStageScreenView("icebreaker"), "wall");
+  assert.equal(resolveStageScreenView("speech"), "welcome");
+  assert.equal(resolveStageScreenView("company"), "company");
   assert.equal(resolveStageScreenView("tracks"), "discover");
   assert.equal(resolveStageScreenView("team"), "team");
   assert.equal(resolveStageScreenView("vote"), "vote");
@@ -3461,8 +3509,10 @@ test("resolveStageScreenView maps admin stages to existing screen views", () => 
 });
 
 test("resolveScreenViewFromRouteStage keeps direct big-screen links on the requested view", () => {
-  assert.equal(resolveScreenViewFromRouteStage("icebreaker"), "teammates");
-  assert.equal(resolveScreenViewFromRouteStage("opening"), "welcome");
+  assert.equal(resolveScreenViewFromRouteStage("icebreaker"), "wall");
+  assert.equal(resolveScreenViewFromRouteStage("opening"), "home");
+  assert.equal(resolveScreenViewFromRouteStage("speech"), "welcome");
+  assert.equal(resolveScreenViewFromRouteStage("company"), "company");
   assert.equal(resolveScreenViewFromRouteStage("wall"), "wall");
   assert.equal(resolveScreenViewFromRouteStage("vote-progress"), "vote");
   assert.equal(resolveScreenViewFromRouteStage("vote-result"), "vote-result");
@@ -3594,12 +3644,14 @@ test("admin screen control toggles a dedicated big screen override", () => {
   assert.match(js, /function setScreenFlowStage\(stageId\)/);
   assert.match(js, /function toggleScreenOverride\(stageId\)/);
   assert.match(js, /await window\.AppData\.updateAdminStage\(cleanStageId\)/);
+  assert.match(js, /stageId:\s*"company"[\s\S]*name:\s*"认识公司"[\s\S]*route:\s*"\/index\.html\?stage=company"/);
   assert.match(js, /await window\.AppData\.updateAdminScreenOverride\(""\)/);
   assert.match(js, /await toggleScreenOverride\(button\.dataset\.screenStageLockCommand\)/);
   assert.match(js, /await setScreenFlowStage\(button\.dataset\.screenStageFlowCommand\)/);
   assert.match(js, /锁定显示/);
   assert.match(js, /设为流程/);
   assert.match(js, /取消锁定/);
+  assert.match(js, /stageId:\s*"speech"[\s\S]*name:\s*"总裁讲话"[\s\S]*route:\s*"\/index\.html\?stage=speech"/);
   assert.doesNotMatch(js, /\$\{escapeHtml\(item\.note\)\}\s*·\s*\$\{escapeHtml\(stageStatus\)\}/);
   assert.doesNotMatch(js, /大屏跟随中/);
   assert.match(js, /class="admin-screen-route-main"/);
@@ -4050,6 +4102,7 @@ test("view transitions clear the discover view class before switching stages", (
   removeCalls.forEach((removeCall) => {
     assert.match(removeCall, /"view-discover"/);
     assert.match(removeCall, /"view-welcome"/);
+    assert.match(removeCall, /"view-company"/);
   });
 });
 

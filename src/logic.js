@@ -726,6 +726,10 @@
     return "wall";
   }
 
+  function resolveCompanyEntryTarget() {
+    return "discover";
+  }
+
   function getIntroTiming() {
     return { ...introTiming };
   }
@@ -737,9 +741,10 @@
   function resolveStageScreenView(stageId) {
     const stageViews = {
       prestart: "home",
-      opening: "welcome",
-      icebreaker: "teammates",
-      speech: "home",
+      opening: "home",
+      icebreaker: "wall",
+      speech: "welcome",
+      company: "company",
       tracks: "discover",
       team: "team",
       vote: "vote",
@@ -760,6 +765,7 @@
       "home",
       "welcome",
       "teammates",
+      "company",
       "wall",
       "discover",
       "team",
@@ -905,6 +911,7 @@
     pickKeywordPairAB,
     createAdminStageSyncKey,
     resolveLandingCtaTarget,
+    resolveCompanyEntryTarget,
     resolveAdjacentTraineeId,
     shouldApplyAdminStageChange,
     resolveDiscoverTarget,
