@@ -15,7 +15,7 @@
   const SESSION_KEY = "joincare_hackathon_session";
   const VALID_ROLES = ["public", "player", "judge", "admin"];
   const PRESTART_COUNTDOWN_STAGE_ID = "prestart";
-  const HOME_CTA_SWITCH_AT_MS = Date.parse("2026-07-08T08:50:00+08:00");
+  const HOME_CTA_SWITCH_AT_MS = Date.parse("2026-07-10T08:50:00+08:00");
   const MISSION_COUNTDOWN_STAGE_IDS = new Set(["opening", "icebreaker", "speech", "company", "tracks", "team"]);
   const DISPLAY_PARTICIPANT_COUNT = 20;
   const TEAM_DISPLAY_ORDER = ["medicine", "pharma", "production", "marketing", "functions"];

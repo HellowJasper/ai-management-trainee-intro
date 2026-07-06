@@ -1078,11 +1078,11 @@ test("official site home stays a navigable site dashboard instead of the index l
   const renderHomeBody = siteJs.match(/function renderHome\(\) \{([\s\S]*?)\n  function renderPeople\(\)/)?.[1] || "";
 
   assert.match(siteHtml, /src\/site\.css\?v=20260706-hero-desc-wrap/);
-  assert.match(siteHtml, /src\/site\.js\?v=20260706-prelaunch-home-ctas/);
+  assert.match(siteHtml, /src\/site\.js\?v=20260706-prelaunch-home-ctas-jul10/);
   assert.match(renderHomeBody, /<span class="hero-kicker"><span class="hero-kicker-live"><span class="live-dot"><\/span>LIVE<\/span><span class="hero-kicker-name">AI_INNOVATION_HACKATHON_2026<\/span><\/span>/);
   assert.match(renderHomeBody, /<h1 class="hero-title">AI创新黑客松<\/h1>/);
   assert.match(renderHomeBody, /<p class="hero-slogan">36小时 · 让想法落地，让创新发生<\/p>/);
-  assert.match(siteJs, /const HOME_CTA_SWITCH_AT_MS = Date\.parse\("2026-07-08T08:50:00\+08:00"\)/);
+  assert.match(siteJs, /const HOME_CTA_SWITCH_AT_MS = Date\.parse\("2026-07-10T08:50:00\+08:00"\)/);
   assert.match(siteJs, /function shouldShowPrelaunchHomeCtas\(now = Date\.now\(\)\)/);
   assert.match(siteJs, /Number\(now\) < HOME_CTA_SWITCH_AT_MS/);
   assert.match(siteJs, /<a class="btn-primary" data-nav="people">认识本届新生<\/a><a class="btn-ghost" data-nav="schedule">查看赛事指南<\/a>/);
@@ -1107,7 +1107,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260706-prelaunch-home-ctas/);
+  assert.match(siteHtml, /site\.js\?v=20260706-prelaunch-home-ctas-jul10/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -1149,7 +1149,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260706-prelaunch-home-ctas/);
+  assert.match(siteHtml, /site\.js\?v=20260706-prelaunch-home-ctas-jul10/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -1168,7 +1168,7 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
   assert.match(siteHtml, /site\.css\?v=20260706-hero-desc-wrap/);
-  assert.match(siteHtml, /site\.js\?v=20260706-prelaunch-home-ctas/);
+  assert.match(siteHtml, /site\.js\?v=20260706-prelaunch-home-ctas-jul10/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -2744,7 +2744,7 @@ test("official site forces Feishu login on desktop and mobile entry", () => {
   assert.match(siteCss, /\.auth-gate\.is-forced/);
   assert.match(siteCss, /\.auth-required-note/);
   assert.match(html, /src\/site\.css\?v=20260706-hero-desc-wrap/);
-  assert.match(html, /src\/site\.js\?v=20260706-prelaunch-home-ctas/);
+  assert.match(html, /src\/site\.js\?v=20260706-prelaunch-home-ctas-jul10/);
 });
 
 test("official site refreshes backend session before leaving the Feishu login gate", () => {
@@ -2802,7 +2802,7 @@ test("official site cache keys are bumped after navigation and detail layout pol
   assert.match(html, /src\/logic\.js\?v=20260703-judge-no-quick/);
   assert.match(html, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(html, /src\/screen-data\.js\?v=20260703-slogan-copy/);
-  assert.match(html, /src\/site\.js\?v=20260706-prelaunch-home-ctas/);
+  assert.match(html, /src\/site\.js\?v=20260706-prelaunch-home-ctas-jul10/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
