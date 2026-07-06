@@ -1607,6 +1607,8 @@ button:disabled {
   --detail-edge: clamp(18px, 2vw, 34px);
   --detail-card-width: clamp(260px, 20vw, 340px);
   --detail-card-left: clamp(28px, 2.4vw, 64px);
+  --detail-panel-gap: clamp(14px, 1.3vw, 22px);
+  --detail-media-column: clamp(360px, 40%, 600px);
   --detail-console-left: clamp(
     420px,
     calc(var(--detail-card-left) + var(--detail-card-width) + clamp(70px, 5vw, 110px)),
@@ -1781,9 +1783,9 @@ button:disabled {
   bottom: clamp(18px, 3vh, 34px);
   z-index: 4;
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) var(--detail-media-column);
   grid-template-rows: minmax(0, 1fr) auto;
-  gap: 18px;
+  gap: var(--detail-panel-gap);
   width: auto;
   overflow: hidden;
   border: 1px solid var(--line-strong);
@@ -1909,11 +1911,12 @@ button:disabled {
   grid-template-rows: minmax(0, 1fr);
   gap: 0;
   padding: clamp(14px, 1.8vw, 22px);
-  aspect-ratio: 3 / 4;
+  aspect-ratio: auto;
+  width: 100%;
   height: 100%;
-  max-width: 420px;
+  max-width: none;
   max-height: 100%;
-  justify-self: end;
+  justify-self: stretch;
   align-self: center;
 }
 

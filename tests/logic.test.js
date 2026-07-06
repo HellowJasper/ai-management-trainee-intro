@@ -2363,9 +2363,11 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   assert.match(siteCss, /--site-detail-card-width:\s*clamp\(220px,\s*20vw,\s*340px\)/);
   assert.match(siteCss, /--site-detail-card-left:\s*clamp\(28px,\s*2\.4vw,\s*64px\)/);
   assert.match(siteCss, /--site-detail-console-left:\s*calc\(var\(--site-detail-card-left\) \+ var\(--site-detail-card-width\) \+ clamp\(42px,\s*3\.8vw,\s*78px\)\)/);
+  assert.match(siteCss, /--site-detail-media-column:\s*clamp\(360px,\s*40%,\s*600px\)/);
   assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*var\(--site-detail-card-left\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*var\(--site-detail-console-left\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?right:\s*var\(--site-detail-edge\)/);
+  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\) var\(--site-detail-media-column\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?width:\s*auto/);
   assert.match(siteCss, /\.site-detail-layer\.is-open \.profile-console\s*\{[\s\S]*?transform:\s*translateX\(0\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?bottom:\s*clamp\(18px,\s*3dvh,\s*34px\)/);
@@ -2377,7 +2379,7 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   assert.match(wideDesktopBlock, /--site-detail-card-width:\s*clamp\(200px,\s*18vw,\s*280px\)/);
   assert.doesNotMatch(wideDesktopBlock, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?display:\s*none/);
   assert.match(siteCss, /@media \(max-width:\s*1180px\)[\s\S]*?\.site-detail-layer > \.draw-card\s*\{[\s\S]*?display:\s*none/);
-  assert.match(siteCss, /@media \(max-width:\s*1180px\)[\s\S]*?grid-template-columns:\s*minmax\(480px,\s*1fr\) minmax\(240px,\s*min\(32vw,\s*320px\)\)/);
+  assert.match(siteCss, /@media \(max-width:\s*1180px\)[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\) clamp\(240px,\s*36%,\s*320px\)/);
   assert.match(siteCss, /@media \(max-width:\s*1180px\)[\s\S]*?\.site-detail-layer\.is-open \.profile-console\s*\{[\s\S]*?transform:\s*none/);
   assert.match(siteCss, /@media \(max-width:\s*980px\)[\s\S]*?\.site-detail-layer \.profile-media-panel\s*\{[\s\S]*?height:\s*clamp\(240px,\s*42dvh,\s*360px\)/);
 });

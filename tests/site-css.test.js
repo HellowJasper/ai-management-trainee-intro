@@ -50,6 +50,8 @@ test("site profile detail drawer stays aligned with the big-screen detail layout
   assert.match(css, /\.site-detail-layer\s*\{[^}]*z-index:\s*220/s);
   assert.match(css, /--site-detail-card-width:\s*clamp\(220px,\s*20vw,\s*340px\)/);
   assert.match(css, /--site-detail-console-left:\s*calc\(var\(--site-detail-card-left\) \+ var\(--site-detail-card-width\) \+ clamp\(42px,\s*3\.8vw,\s*78px\)\)/);
+  assert.match(css, /--site-detail-panel-gap:\s*clamp\(14px,\s*1\.3vw,\s*22px\)/);
+  assert.match(css, /--site-detail-media-column:\s*clamp\(360px,\s*40%,\s*600px\)/);
   assert.match(css, /\.site-detail-layer \.draw-card\s*\{[^}]*width:\s*var\(--site-detail-card-width\);[^}]*min-width:\s*190px/s);
   assert.match(css, /\.site-detail-layer \.profile-console\s*\{[^}]*left:\s*var\(--site-detail-console-left\);[^}]*right:\s*var\(--site-detail-edge\);[^}]*width:\s*auto;[^}]*border-right:\s*0;[^}]*border-radius:\s*var\(--radius\) 0 0 var\(--radius\)/s);
   assert.match(css, /\.site-detail-layer\.is-open \.profile-console\s*\{[^}]*transform:\s*translateX\(0\)/s);
@@ -65,8 +67,9 @@ test("site profile detail drawer stays aligned with the big-screen detail layout
 test("site profile detail panels use the photo ratio and equal height", () => {
   const css = fs.readFileSync(cssPath, "utf8");
 
-  assert.match(css, /\.site-detail-layer \.profile-console\s*\{[^}]*grid-template-columns:\s*minmax\(240px,\s*1fr\) auto;[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\) auto/s);
-  assert.match(css, /\.site-detail-layer \.profile-media-panel\s*\{[^}]*aspect-ratio:\s*3 \/ 4;[^}]*max-width:\s*420px;[^}]*padding:\s*clamp\(14px,\s*1\.8vw,\s*22px\)/s);
+  assert.match(css, /\.site-detail-layer \.profile-console\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) var\(--site-detail-media-column\);[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\) auto/s);
+  assert.match(css, /\.site-detail-layer \.profile-console\s*\{[^}]*gap:\s*var\(--site-detail-panel-gap\)/s);
+  assert.match(css, /\.site-detail-layer \.profile-media-panel\s*\{[^}]*width:\s*100%;[^}]*aspect-ratio:\s*auto;[^}]*max-width:\s*none;[^}]*padding:\s*clamp\(14px,\s*1\.8vw,\s*22px\)/s);
   assert.match(css, /\.site-detail-layer \.profile-media-frame\[data-mode="photo"\]\s*\{[^}]*background-size:\s*cover,\s*cover,\s*cover\s*!important/s);
   assert.match(css, /\.site-detail-layer \.profile-media-frame\[data-mode="photo"\]\s*\{[^}]*background-repeat:\s*no-repeat,\s*no-repeat,\s*no-repeat\s*!important/s);
   assert.match(css, /\.site-detail-layer \.profile-media-frame\[data-mode="photo"\]\s*\{[^}]*background-position:\s*center,\s*center,\s*center\s*!important/s);
@@ -139,9 +142,10 @@ test("index profile detail drawer keeps the card rail and console fluid across d
   const css = fs.readFileSync(landingCssPath, "utf8");
 
   assert.match(html, /styles\.css\?v=20260706-detail-fluid/);
-  assert.match(css, /\.detail-layer\s*\{[^}]*--detail-card-width:\s*clamp\(260px,\s*20vw,\s*340px\)[^}]*--detail-card-left:\s*clamp\(28px,\s*2\.4vw,\s*64px\)[^}]*--detail-console-left:\s*clamp\(\s*420px,\s*calc\(var\(--detail-card-left\) \+ var\(--detail-card-width\) \+ clamp\(70px,\s*5vw,\s*110px\)\),\s*520px\s*\)/s);
+  assert.match(css, /\.detail-layer\s*\{[^}]*--detail-card-width:\s*clamp\(260px,\s*20vw,\s*340px\)[^}]*--detail-card-left:\s*clamp\(28px,\s*2\.4vw,\s*64px\)[^}]*--detail-panel-gap:\s*clamp\(14px,\s*1\.3vw,\s*22px\)[^}]*--detail-media-column:\s*clamp\(360px,\s*40%,\s*600px\)[^}]*--detail-console-left:\s*clamp\(\s*420px,\s*calc\(var\(--detail-card-left\) \+ var\(--detail-card-width\) \+ clamp\(70px,\s*5vw,\s*110px\)\),\s*520px\s*\)/s);
   assert.match(css, /\.draw-card\s*\{[^}]*left:\s*var\(--detail-card-left\)[^}]*width:\s*var\(--detail-card-width\)/s);
-  assert.match(css, /\.profile-console\s*\{[^}]*left:\s*var\(--detail-console-left\)[^}]*right:\s*var\(--detail-edge\)[^}]*width:\s*auto/s);
+  assert.match(css, /\.profile-console\s*\{[^}]*left:\s*var\(--detail-console-left\)[^}]*right:\s*var\(--detail-edge\)[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) var\(--detail-media-column\)[^}]*gap:\s*var\(--detail-panel-gap\)[^}]*width:\s*auto/s);
+  assert.match(css, /\.profile-media-panel\s*\{[^}]*aspect-ratio:\s*auto;[^}]*width:\s*100%;[^}]*max-width:\s*none;[^}]*justify-self:\s*stretch/s);
   const shortHeightBlock = extractMediaBlock(css, "@media (max-height: 780px)", ".detail-layer");
   assert.match(shortHeightBlock, /--detail-card-width:\s*clamp\(260px,\s*20vw,\s*340px\)/);
   assert.match(shortHeightBlock, /\.draw-card\s*\{[^}]*width:\s*var\(--detail-card-width\)/s);

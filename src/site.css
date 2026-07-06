@@ -4026,6 +4026,8 @@
   --site-detail-card-width: clamp(220px, 20vw, 340px);
   --site-detail-card-left: clamp(28px, 2.4vw, 64px);
   --site-detail-console-left: calc(var(--site-detail-card-left) + var(--site-detail-card-width) + clamp(42px, 3.8vw, 78px));
+  --site-detail-panel-gap: clamp(14px, 1.3vw, 22px);
+  --site-detail-media-column: clamp(360px, 40%, 600px);
   --site-detail-console-pad: clamp(24px, 2.6vw, 38px);
   --site-detail-chrome-left: 18px;
   --site-detail-close-right: clamp(18px, 2vw, 28px);
@@ -4048,9 +4050,9 @@
   bottom: clamp(18px, 3dvh, 34px);
   width: auto;
   max-width: none;
-  grid-template-columns: minmax(240px, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) var(--site-detail-media-column);
   grid-template-rows: minmax(0, 1fr) auto;
-  gap: 18px;
+  gap: var(--site-detail-panel-gap);
   align-content: normal;
   border-right: 0;
   border-radius: var(--radius) 0 0 var(--radius);
@@ -4082,9 +4084,9 @@
 }
 
 .site-detail-layer .profile-media-panel {
-  width: auto;
-  aspect-ratio: 3 / 4;
-  max-width: 420px;
+  width: 100%;
+  aspect-ratio: auto;
+  max-width: none;
   padding: clamp(14px, 1.8vw, 22px);
 }
 
@@ -4153,7 +4155,7 @@
     bottom: var(--site-detail-edge);
     width: auto;
     max-width: none;
-    grid-template-columns: minmax(480px, 1fr) minmax(240px, min(32vw, 320px));
+    grid-template-columns: minmax(0, 1fr) clamp(240px, 36%, 320px);
     grid-template-rows: minmax(0, var(--site-detail-panel-height)) auto;
     align-content: center;
     overflow: hidden;
@@ -4172,8 +4174,8 @@
   }
 
   .site-detail-layer .profile-media-panel {
-    width: auto;
-    aspect-ratio: 3 / 4;
+    width: 100%;
+    aspect-ratio: auto;
     padding: clamp(14px, 1.8vw, 22px);
   }
 }
