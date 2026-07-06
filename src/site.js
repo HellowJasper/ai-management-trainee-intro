@@ -2704,12 +2704,32 @@
     navLinks.classList.remove("open");
     root.scrollTo({ top: 0, behavior: "auto" });
   }
+
+  function alignHomeHeroDescription() {
+    const title = doc.querySelector(".hero-title");
+    const desc = doc.querySelector(".hero-desc");
+    if (!title || !desc) return;
+    if (isMobileView()) {
+      desc.style.maxWidth = "";
+      return;
+    }
+
+    const apply = () => {
+      const width = Math.ceil(title.getBoundingClientRect().width);
+      if (width > 0) desc.style.maxWidth = `${width}px`;
+    };
+    apply();
+    root.requestAnimationFrame(apply);
+    if (doc.fonts && doc.fonts.ready) doc.fonts.ready.then(apply).catch(() => {});
+  }
+
   function go(key, push) {
     const v = VIEWS.find((x) => x.key === key) || VIEWS[0];
     const protectedView = { me: true, vote: true, judge: true };
     if (protectedView[v.key] && !isAuthenticatedSession()) {
       main.innerHTML = renderHome();
       setActive("home");
+      alignHomeHeroDescription();
       showAuthGate(v.key, { force: true });
       return;
     }
@@ -2727,6 +2747,7 @@
     else closeAuthGate();
     main.innerHTML = v.render();
     setActive(v.key);
+    if (v.key === "home") alignHomeHeroDescription();
     if (v.key === "people") {
       if (isMobileView()) setupMobilePeople();
       else setupWall();
@@ -3662,6 +3683,7 @@
     root.addEventListener("resize", () => {
       rain && rain.resize();
       const nowMobile = isMobileView();
+      if (doc.body.dataset.view === "home") alignHomeHeroDescription();
       if (doc.body.dataset.view === "people") {
         if (nowMobile !== lastMobileView) route(false);
         else if (nowMobile) setupMobilePeople();

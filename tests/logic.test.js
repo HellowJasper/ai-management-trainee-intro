@@ -1077,8 +1077,8 @@ test("official site home stays a navigable site dashboard instead of the index l
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
   const renderHomeBody = siteJs.match(/function renderHome\(\) \{([\s\S]*?)\n  function renderPeople\(\)/)?.[1] || "";
 
-  assert.match(siteHtml, /src\/site\.css\?v=20260706-hero-desc-title-wrap/);
-  assert.match(siteHtml, /src\/site\.js\?v=20260706-home-prestart-copy/);
+  assert.match(siteHtml, /src\/site\.css\?v=20260706-hero-desc-635/);
+  assert.match(siteHtml, /src\/site\.js\?v=20260706-home-hero-desc-align/);
   assert.match(renderHomeBody, /<span class="hero-kicker"><span class="hero-kicker-live"><span class="live-dot"><\/span>LIVE<\/span><span class="hero-kicker-name">AI_INNOVATION_HACKATHON_2026<\/span><\/span>/);
   assert.match(renderHomeBody, /<h1 class="hero-title">AI创新黑客松<\/h1>/);
   assert.match(renderHomeBody, /<p class="hero-slogan">36小时 · 让想法落地，让创新发生<\/p>/);
@@ -1107,7 +1107,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260706-home-prestart-copy/);
+  assert.match(siteHtml, /site\.js\?v=20260706-home-hero-desc-align/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -1149,7 +1149,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260706-home-prestart-copy/);
+  assert.match(siteHtml, /site\.js\?v=20260706-home-hero-desc-align/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -1167,8 +1167,8 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.css\?v=20260706-hero-desc-title-wrap/);
-  assert.match(siteHtml, /site\.js\?v=20260706-home-prestart-copy/);
+  assert.match(siteHtml, /site\.css\?v=20260706-hero-desc-635/);
+  assert.match(siteHtml, /site\.js\?v=20260706-home-hero-desc-align/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -2190,7 +2190,11 @@ test("desktop home hero uses the latest slogan and compact live badge", () => {
   assert.doesNotMatch(renderHomeBody, /class="hero-slogan">36小时，用 AI 把创意照进现实<\/p>/);
   assert.doesNotMatch(renderHomeBody, /五大真实业务挑战，五支战队，从业务场景出发，用AI解决真实问题。认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。/);
   assert.match(siteCss, /\.hero-kicker\s*\{[^}]*gap:\s*clamp\(10px,\s*1\.5vw,\s*24px\)/);
-  assert.match(siteCss, /@media \(min-width:\s*681px\)[\s\S]*\.hero-desc\s*\{[\s\S]*max-width:\s*28\.5em/);
+  assert.match(siteCss, /@media \(min-width:\s*681px\)[\s\S]*\.hero-desc\s*\{[\s\S]*max-width:\s*635px/);
+  assert.match(siteJs, /function alignHomeHeroDescription\(\)/);
+  assert.match(siteJs, /title\.getBoundingClientRect\(\)\.width/);
+  assert.match(siteJs, /desc\.style\.maxWidth = `\$\{width\}px`/);
+  assert.match(siteJs, /if \(v\.key === "home"\) alignHomeHeroDescription\(\)/);
   assert.match(siteCss, /\.hero-kicker\s*\{[^}]*letter-spacing:\s*0\.1em/);
   assert.match(siteCss, /\.hero-kicker\s*\{[^}]*padding:\s*8px clamp\(12px,\s*1\.2vw,\s*20px\) 8px 14px/);
   assert.doesNotMatch(siteCss, /\.hero-kicker\s*\{[^}]*transform:\s*translateX/);
@@ -2355,7 +2359,7 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260706-hero-desc-title-wrap/);
+  assert.match(html, /src\/site\.css\?v=20260706-hero-desc-635/);
   assert.match(siteCss, /--site-detail-console-width:\s*calc\(min\(80vw,\s*1260px\) - 24px\)/);
   assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*max\(3vw,\s*calc\(100dvw - var\(--site-detail-console-width\) - var\(--site-detail-card-width\) - 40px\)\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*auto/);
@@ -2743,8 +2747,8 @@ test("official site forces Feishu login on desktop and mobile entry", () => {
   assert.match(siteJs, /closeAuthGate\(\{ force: true \}\)/);
   assert.match(siteCss, /\.auth-gate\.is-forced/);
   assert.match(siteCss, /\.auth-required-note/);
-  assert.match(html, /src\/site\.css\?v=20260706-hero-desc-title-wrap/);
-  assert.match(html, /src\/site\.js\?v=20260706-home-prestart-copy/);
+  assert.match(html, /src\/site\.css\?v=20260706-hero-desc-635/);
+  assert.match(html, /src\/site\.js\?v=20260706-home-hero-desc-align/);
 });
 
 test("official site refreshes backend session before leaving the Feishu login gate", () => {
@@ -2798,11 +2802,11 @@ test("official site cache keys are bumped after navigation and detail layout pol
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
-  assert.match(html, /src\/site\.css\?v=20260706-hero-desc-title-wrap/);
+  assert.match(html, /src\/site\.css\?v=20260706-hero-desc-635/);
   assert.match(html, /src\/logic\.js\?v=20260703-judge-no-quick/);
   assert.match(html, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(html, /src\/screen-data\.js\?v=20260703-slogan-copy/);
-  assert.match(html, /src\/site\.js\?v=20260706-home-prestart-copy/);
+  assert.match(html, /src\/site\.js\?v=20260706-home-hero-desc-align/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
