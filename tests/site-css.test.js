@@ -48,13 +48,14 @@ test("site profile detail drawer stays aligned with the big-screen detail layout
 
   assert.match(css, /\.site-body:has\(\.site-detail-layer\.is-open\)\s*\{[^}]*overflow:\s*hidden/s);
   assert.match(css, /\.site-detail-layer\s*\{[^}]*z-index:\s*220/s);
-  assert.match(css, /--site-detail-console-width:\s*calc\(min\(80vw,\s*1260px\) - 24px\)/);
+  assert.match(css, /--site-detail-card-width:\s*clamp\(220px,\s*20vw,\s*340px\)/);
+  assert.match(css, /--site-detail-console-left:\s*calc\(var\(--site-detail-card-left\) \+ var\(--site-detail-card-width\) \+ clamp\(42px,\s*3\.8vw,\s*78px\)\)/);
   assert.match(css, /\.site-detail-layer \.draw-card\s*\{[^}]*width:\s*var\(--site-detail-card-width\);[^}]*min-width:\s*190px/s);
-  assert.match(css, /\.site-detail-layer \.profile-console\s*\{[^}]*left:\s*auto;[^}]*right:\s*0;[^}]*width:\s*var\(--site-detail-console-width\);[^}]*border-right:\s*0;[^}]*border-radius:\s*var\(--radius\) 0 0 var\(--radius\)/s);
+  assert.match(css, /\.site-detail-layer \.profile-console\s*\{[^}]*left:\s*var\(--site-detail-console-left\);[^}]*right:\s*var\(--site-detail-edge\);[^}]*width:\s*auto;[^}]*border-right:\s*0;[^}]*border-radius:\s*var\(--radius\) 0 0 var\(--radius\)/s);
   assert.match(css, /\.site-detail-layer\.is-open \.profile-console\s*\{[^}]*transform:\s*translateX\(0\)/s);
   assert.doesNotMatch(css, /left:\s*var\(--site-detail-side-rail\)/);
   const wideDesktopBlock = extractMediaBlock(css, "@media (max-width: 1679px)", ".site-detail-layer");
-  assert.match(wideDesktopBlock, /--site-detail-console-width:\s*calc\(min\(78vw,\s*1180px\) - 24px\)/);
+  assert.match(wideDesktopBlock, /--site-detail-card-width:\s*clamp\(200px,\s*18vw,\s*280px\)/);
   assert.doesNotMatch(wideDesktopBlock, /\.site-detail-layer \.draw-card\s*\{[^}]*display:\s*none/s);
 
   const compactBlock = extractMediaBlock(css, "@media (max-width: 980px)", ".site-detail-layer .profile-console");
@@ -116,7 +117,7 @@ test("landing headline uses glitch text layers without decorative bars or subtit
 
   assert.match(html, /class="landing-title-cn"[^>]*data-text="AI创新黑客松"/);
   assert.match(html, /class="landing-title-sub"[^>]*data-text="36小时 · 让想法落地，让创新发生"/);
-  assert.match(html, /styles\.css\?v=20260705-company-stage/);
+  assert.match(html, /styles\.css\?v=20260706-detail-fluid/);
   assert.match(html, /src\/app\.js\?v=20260705-company-stage/);
   assert.match(logoBlock, /top:\s*calc\(23% \+ 15px\)/);
   assert.match(logoBlock, /width:\s*clamp\(240px,\s*20vw,\s*420px\)/);
@@ -131,4 +132,23 @@ test("landing headline uses glitch text layers without decorative bars or subtit
   assert.match(appJs, /const LANDING_GLITCH_MS = 15 \* 1000/);
   assert.match(appJs, /function startLandingGlitchWindow\(\)/);
   assert.match(appJs, /appShell\.classList\.add\("landing-glitch-ended"\)/);
+});
+
+test("index profile detail drawer keeps the card rail and console fluid across desktop widths", () => {
+  const html = fs.readFileSync(landingHtmlPath, "utf8");
+  const css = fs.readFileSync(landingCssPath, "utf8");
+
+  assert.match(html, /styles\.css\?v=20260706-detail-fluid/);
+  assert.match(css, /\.detail-layer\s*\{[^}]*--detail-card-width:\s*clamp\(260px,\s*20vw,\s*340px\)[^}]*--detail-card-left:\s*clamp\(28px,\s*2\.4vw,\s*64px\)[^}]*--detail-console-left:\s*clamp\(\s*420px,\s*calc\(var\(--detail-card-left\) \+ var\(--detail-card-width\) \+ clamp\(70px,\s*5vw,\s*110px\)\),\s*520px\s*\)/s);
+  assert.match(css, /\.draw-card\s*\{[^}]*left:\s*var\(--detail-card-left\)[^}]*width:\s*var\(--detail-card-width\)/s);
+  assert.match(css, /\.profile-console\s*\{[^}]*left:\s*var\(--detail-console-left\)[^}]*right:\s*var\(--detail-edge\)[^}]*width:\s*auto/s);
+  const shortHeightBlock = extractMediaBlock(css, "@media (max-height: 780px)", ".detail-layer");
+  assert.match(shortHeightBlock, /--detail-card-width:\s*clamp\(260px,\s*20vw,\s*340px\)/);
+  assert.match(shortHeightBlock, /\.draw-card\s*\{[^}]*width:\s*var\(--detail-card-width\)/s);
+  const tabletBlock = extractMediaBlock(css, "@media (max-width: 1180px)", ".detail-layer");
+  assert.match(tabletBlock, /--detail-card-width:\s*clamp\(190px,\s*18vw,\s*240px\)/);
+  assert.match(tabletBlock, /\.profile-console\s*\{[^}]*left:\s*var\(--detail-console-left\)[^}]*right:\s*var\(--detail-edge\)[^}]*width:\s*auto/s);
+  const compactBlock = extractMediaBlock(css, "@media (max-width: 980px)", ".profile-console");
+  assert.match(compactBlock, /\.draw-card\s*\{[^}]*display:\s*none/s);
+  assert.match(compactBlock, /\.profile-console\s*\{[^}]*left:\s*14px;[^}]*right:\s*14px;[^}]*width:\s*auto/s);
 });

@@ -1603,6 +1603,17 @@ button:disabled {
   opacity: 1;
 }
 
+.detail-layer {
+  --detail-edge: clamp(18px, 2vw, 34px);
+  --detail-card-width: clamp(260px, 20vw, 340px);
+  --detail-card-left: clamp(28px, 2.4vw, 64px);
+  --detail-console-left: clamp(
+    420px,
+    calc(var(--detail-card-left) + var(--detail-card-width) + clamp(70px, 5vw, 110px)),
+    520px
+  );
+}
+
 .detail-backdrop,
 .challenge-backdrop {
   position: absolute;
@@ -1619,10 +1630,10 @@ button:disabled {
 
 .draw-card {
   position: absolute;
-  left: max(3vw, 100vw - calc(min(80vw, 1260px) - 24px) - min(22vw, 290px) - 40px);
+  left: var(--detail-card-left);
   top: 50%;
   z-index: 40;
-  width: min(22vw, 290px);
+  width: var(--detail-card-width);
   min-width: 190px;
   transform: translate(-120px, -50%) rotate(-7deg);
   opacity: 0;
@@ -1764,7 +1775,8 @@ button:disabled {
 
 .profile-console {
   position: absolute;
-  right: 0;
+  left: var(--detail-console-left);
+  right: var(--detail-edge);
   top: clamp(18px, 3vh, 34px);
   bottom: clamp(18px, 3vh, 34px);
   z-index: 4;
@@ -1772,7 +1784,7 @@ button:disabled {
   grid-template-columns: minmax(240px, 1fr) auto;
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 18px;
-  width: calc(min(80vw, 1260px) - 24px);
+  width: auto;
   overflow: hidden;
   border: 1px solid var(--line-strong);
   border-right: 0;
@@ -5250,11 +5262,18 @@ button:disabled {
 
 
 @media (max-width: 1180px) {
+  .detail-layer {
+    --detail-card-width: clamp(190px, 18vw, 240px);
+    --detail-card-left: clamp(18px, 2vw, 32px);
+    --detail-console-left: calc(var(--detail-card-left) + var(--detail-card-width) + clamp(24px, 3vw, 42px));
+  }
+
   .profile-console {
-    width: calc(min(76vw, 920px) - 24px);
+    left: var(--detail-console-left);
+    right: var(--detail-edge);
+    width: auto;
     grid-template-columns: 1fr;
     overflow: auto;
-    padding-left: clamp(60px, 8vw, 90px);
   }
 
   .profile-info-panel {
@@ -5290,9 +5309,9 @@ button:disabled {
   }
 
   .draw-card {
-    width: min(20vw, 230px);
+    width: var(--detail-card-width);
     min-width: 170px;
-    left: max(3vw, 100vw - calc(min(76vw, 920px) - 24px) - min(20vw, 230px) - 24px);
+    left: var(--detail-card-left);
   }
 }
 
@@ -6079,6 +6098,10 @@ button:disabled {
 
 /* Responsive fixes for shorter screen heights (preventing vertical overflow cuts) */
 @media (max-height: 780px) {
+  .detail-layer {
+    --detail-card-width: clamp(260px, 20vw, 340px);
+  }
+
   .welcome-ready-panel,
   .teammates-ready-panel,
   .company-ready-panel {
@@ -6091,7 +6114,7 @@ button:disabled {
     padding-bottom: clamp(18px, 3.2vw, 36px);
   }
   .draw-card {
-    width: min(20vw, 240px);
+    width: var(--detail-card-width);
   }
   .draw-nameplate strong {
     font-size: clamp(20px, 2.2vw, 32px);

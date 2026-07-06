@@ -1077,7 +1077,7 @@ test("official site home stays a navigable site dashboard instead of the index l
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
   const renderHomeBody = siteJs.match(/function renderHome\(\) \{([\s\S]*?)\n  function renderPeople\(\)/)?.[1] || "";
 
-  assert.match(siteHtml, /src\/site\.css\?v=20260706-hero-desc-635/);
+  assert.match(siteHtml, /src\/site\.css\?v=20260706-score-grid-sync/);
   assert.match(siteHtml, /src\/site\.js\?v=20260706-home-hero-desc-align/);
   assert.match(renderHomeBody, /<span class="hero-kicker"><span class="hero-kicker-live"><span class="live-dot"><\/span>LIVE<\/span><span class="hero-kicker-name">AI_INNOVATION_HACKATHON_2026<\/span><\/span>/);
   assert.match(renderHomeBody, /<h1 class="hero-title">AI创新黑客松<\/h1>/);
@@ -1167,7 +1167,7 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.css\?v=20260706-hero-desc-635/);
+  assert.match(siteHtml, /site\.css\?v=20260706-score-grid-sync/);
   assert.match(siteHtml, /site\.js\?v=20260706-home-hero-desc-align/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票/);
@@ -2265,7 +2265,7 @@ test("schedule mechanism section uses briefing cards and separate evaluation cri
 
   assert.match(siteCss, /\.site-body\[data-view="schedule"\] \.container\s*{[\s\S]*width:\s*min\(1360px,\s*calc\(100% - 48px\)\)/);
   assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.site-body\[data-view="schedule"\] \.score-criteria\s*\{\s*display:\s*none/);
-  assert.match(siteCss, /\.score-dim-grid\s*{[\s\S]*width:\s*min\(100%,\s*1500px\)[\s\S]*margin:\s*0 auto[\s\S]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)[\s\S]*gap:\s*clamp\(12px,\s*1vw,\s*16px\)/);
+  assert.match(siteCss, /\.score-dim-grid\s*{[\s\S]*width:\s*100%[\s\S]*margin:\s*0[\s\S]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)[\s\S]*gap:\s*18px/);
   assert.match(siteCss, /\.score-criteria\s*{[\s\S]*gap:\s*44px[\s\S]*margin-top:\s*26px/);
   assert.match(siteCss, /\.score-dim-card\s*{[\s\S]*display:\s*flex/);
   assert.match(siteCss, /\.score-dim-card\s*{[\s\S]*--dim-accent:\s*#64e8d6[\s\S]*--dim-rgb:\s*100,\s*232,\s*214/);
@@ -2359,12 +2359,14 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260706-hero-desc-635/);
-  assert.match(siteCss, /--site-detail-console-width:\s*calc\(min\(80vw,\s*1260px\) - 24px\)/);
-  assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*max\(3vw,\s*calc\(100dvw - var\(--site-detail-console-width\) - var\(--site-detail-card-width\) - 40px\)\)/);
-  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*auto/);
-  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?right:\s*0/);
-  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?width:\s*var\(--site-detail-console-width\)/);
+  assert.match(html, /src\/site\.css\?v=20260706-score-grid-sync/);
+  assert.match(siteCss, /--site-detail-card-width:\s*clamp\(220px,\s*20vw,\s*340px\)/);
+  assert.match(siteCss, /--site-detail-card-left:\s*clamp\(28px,\s*2\.4vw,\s*64px\)/);
+  assert.match(siteCss, /--site-detail-console-left:\s*calc\(var\(--site-detail-card-left\) \+ var\(--site-detail-card-width\) \+ clamp\(42px,\s*3\.8vw,\s*78px\)\)/);
+  assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*var\(--site-detail-card-left\)/);
+  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*var\(--site-detail-console-left\)/);
+  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?right:\s*var\(--site-detail-edge\)/);
+  assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?width:\s*auto/);
   assert.match(siteCss, /\.site-detail-layer\.is-open \.profile-console\s*\{[\s\S]*?transform:\s*translateX\(0\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?bottom:\s*clamp\(18px,\s*3dvh,\s*34px\)/);
   assert.doesNotMatch(siteCss, /calc\(100vh - 210px\)/);
@@ -2372,7 +2374,7 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   const wideDesktopStart = siteCss.indexOf("@media (max-width: 1679px)");
   const compactStart = siteCss.indexOf("@media (max-width: 1180px)", wideDesktopStart);
   const wideDesktopBlock = siteCss.slice(wideDesktopStart, compactStart);
-  assert.match(wideDesktopBlock, /--site-detail-console-width:\s*calc\(min\(78vw,\s*1180px\) - 24px\)/);
+  assert.match(wideDesktopBlock, /--site-detail-card-width:\s*clamp\(200px,\s*18vw,\s*280px\)/);
   assert.doesNotMatch(wideDesktopBlock, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?display:\s*none/);
   assert.match(siteCss, /@media \(max-width:\s*1180px\)[\s\S]*?\.site-detail-layer > \.draw-card\s*\{[\s\S]*?display:\s*none/);
   assert.match(siteCss, /@media \(max-width:\s*1180px\)[\s\S]*?grid-template-columns:\s*minmax\(480px,\s*1fr\) minmax\(240px,\s*min\(32vw,\s*320px\)\)/);
@@ -2747,7 +2749,7 @@ test("official site forces Feishu login on desktop and mobile entry", () => {
   assert.match(siteJs, /closeAuthGate\(\{ force: true \}\)/);
   assert.match(siteCss, /\.auth-gate\.is-forced/);
   assert.match(siteCss, /\.auth-required-note/);
-  assert.match(html, /src\/site\.css\?v=20260706-hero-desc-635/);
+  assert.match(html, /src\/site\.css\?v=20260706-score-grid-sync/);
   assert.match(html, /src\/site\.js\?v=20260706-home-hero-desc-align/);
 });
 
@@ -2802,7 +2804,7 @@ test("official site cache keys are bumped after navigation and detail layout pol
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
-  assert.match(html, /src\/site\.css\?v=20260706-hero-desc-635/);
+  assert.match(html, /src\/site\.css\?v=20260706-score-grid-sync/);
   assert.match(html, /src\/logic\.js\?v=20260703-judge-no-quick/);
   assert.match(html, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(html, /src\/screen-data\.js\?v=20260703-slogan-copy/);
@@ -3440,7 +3442,7 @@ test("admin and big screen cache keys stay current", () => {
   assert.match(adminHtml, /admin\.css\?v=20260703-admin-mobile-scroll/);
   assert.match(adminHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(adminHtml, /src\/admin\.js\?v=20260702-result-publish-api5173/);
-  assert.match(indexHtml, /styles\.css\?v=20260705-company-stage/);
+  assert.match(indexHtml, /styles\.css\?v=20260706-detail-fluid/);
   assert.match(indexHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(indexHtml, /src\/logic\.js\?v=20260705-company-stage/);
   assert.match(indexHtml, /src\/app\.js\?v=20260705-company-stage/);
