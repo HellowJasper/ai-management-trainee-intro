@@ -1078,7 +1078,7 @@ test("official site home stays a navigable site dashboard instead of the index l
   const renderHomeBody = siteJs.match(/function renderHome\(\) \{([\s\S]*?)\n  function renderPeople\(\)/)?.[1] || "";
 
   assert.match(siteHtml, /src\/site\.css\?v=20260705-user-menu-opacity/);
-  assert.match(siteHtml, /src\/site\.js\?v=20260705-company-stage/);
+  assert.match(siteHtml, /src\/site\.js\?v=20260706-team-prelaunch-copy/);
   assert.match(renderHomeBody, /<span class="hero-kicker"><span class="hero-kicker-live"><span class="live-dot"><\/span>LIVE<\/span><span class="hero-kicker-name">AI_INNOVATION_HACKATHON_2026<\/span><\/span>/);
   assert.match(renderHomeBody, /<h1 class="hero-title">AI创新黑客松<\/h1>/);
   assert.match(renderHomeBody, /<p class="hero-slogan">36小时 · 让想法落地，让创新发生<\/p>/);
@@ -1102,7 +1102,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260705-company-stage/);
+  assert.match(siteHtml, /site\.js\?v=20260706-team-prelaunch-copy/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -1144,7 +1144,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260705-company-stage/);
+  assert.match(siteHtml, /site\.js\?v=20260706-team-prelaunch-copy/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -1163,7 +1163,7 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
   assert.match(siteHtml, /site\.css\?v=20260705-user-menu-opacity/);
-  assert.match(siteHtml, /site\.js\?v=20260705-company-stage/);
+  assert.match(siteHtml, /site\.js\?v=20260706-team-prelaunch-copy/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -1492,6 +1492,23 @@ test("team card roster uses the same real-identity list as the member count", ()
 
   assert.match(renderTeamBody, /Logic\.getActualTeamPeople/);
   assert.doesNotMatch(renderTeamBody, /\[\{\s*\.\.\.t\.advisor,\s*role:\s*"队长"\s*\},\s*\.\.\.t\.members/);
+});
+
+test("team cards hide demo project copy before a backend work exists", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const renderTeamStart = siteJs.indexOf("function renderTeam()");
+  const renderTeamEnd = siteJs.indexOf("\n  function getWorkSubmission", renderTeamStart);
+  const renderTeamBody = siteJs.slice(renderTeamStart, renderTeamEnd);
+
+  assert.match(renderTeamBody, /const canOpenWork = canViewWorkTeam\(t\)/);
+  assert.match(renderTeamBody, /const hasVisibleWorkCopy = canOpenWork && Boolean\(t\.work\)/);
+  assert.match(renderTeamBody, /const workCopy = hasVisibleWorkCopy/);
+  assert.match(renderTeamBody, /displayWorkProjectName\(t\)/);
+  assert.match(renderTeamBody, /: "";\s*const progressLabel = hasVisibleWorkCopy/s);
+  assert.match(renderTeamBody, /count > 0 \? "组队中" : "等待组队"/);
+  assert.match(renderTeamBody, /: canOpenWork\s*\?\s*`<button class="team-workspace-link" type="button" data-work="\$\{t\.id\}">查看公开作品<\/button>`\s*:\s*""/);
+  assert.doesNotMatch(renderTeamBody, /<h3>\$\{esc\(t\.project\)\}<\/h3><p>\$\{esc\(t\.pitch\)\}<\/p>/);
+  assert.doesNotMatch(renderTeamBody, /Demo 制作中/);
 });
 
 test("team workspace roster excludes fallback people and avoids duplicate leader labels", () => {
@@ -2714,7 +2731,7 @@ test("official site forces Feishu login on desktop and mobile entry", () => {
   assert.match(siteCss, /\.auth-gate\.is-forced/);
   assert.match(siteCss, /\.auth-required-note/);
   assert.match(html, /src\/site\.css\?v=20260705-user-menu-opacity/);
-  assert.match(html, /src\/site\.js\?v=20260705-company-stage/);
+  assert.match(html, /src\/site\.js\?v=20260706-team-prelaunch-copy/);
 });
 
 test("official site refreshes backend session before leaving the Feishu login gate", () => {
@@ -2772,7 +2789,7 @@ test("official site cache keys are bumped after navigation and detail layout pol
   assert.match(html, /src\/logic\.js\?v=20260703-judge-no-quick/);
   assert.match(html, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(html, /src\/screen-data\.js\?v=20260703-slogan-copy/);
-  assert.match(html, /src\/site\.js\?v=20260705-company-stage/);
+  assert.match(html, /src\/site\.js\?v=20260706-team-prelaunch-copy/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {

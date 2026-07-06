@@ -1836,7 +1836,19 @@
       const disabled = selectedTeam && !mine ? "disabled" : "";
       const lockedDisabled = isLocked ? "disabled" : "";
       const displayName = t.name;
-      const openTarget = mine ? `data-team-workspace="${t.id}"` : `data-work="${t.id}"`;
+      const canOpenWork = canViewWorkTeam(t);
+      const hasVisibleWorkCopy = canOpenWork && Boolean(t.work);
+      const openTarget = mine
+        ? `data-team-workspace="${t.id}"`
+        : canOpenWork
+          ? `data-work="${t.id}"`
+          : "";
+      const workCopy = hasVisibleWorkCopy
+        ? `<h3>${esc(displayWorkProjectName(t))}</h3><p>${esc(t.pitch)}</p>`
+        : "";
+      const progressLabel = hasVisibleWorkCopy
+        ? t.submitted ? "作品已提交" : "作品准备中"
+        : count > 0 ? "组队中" : "等待组队";
       const roster = rosterPeople
         .map((p) => {
           const roleText = `${p.roleKey || ""} ${p.role || ""} ${p.duty || ""}`;
@@ -1855,12 +1867,14 @@
         : "";
       const openAction = mine
         ? `<button class="team-workspace-link" type="button" data-team-workspace="${t.id}">进入工作台</button>`
-        : `<button class="team-workspace-link" type="button" data-work="${t.id}">查看公开作品</button>`;
+        : canOpenWork
+          ? `<button class="team-workspace-link" type="button" data-work="${t.id}">查看公开作品</button>`
+          : "";
       return `<article class="team-card glass ${mine ? "mine" : ""}" ${openTarget} style="--accent:${t.accent};--rgb:${t.rgb}">
         <div class="team-head"><span class="status-chip ${mine ? "on" : ""}">${mine ? "我的队伍" : t.trackCode}</span><b>${esc(displayName)}</b><em>${esc(t.track)}</em></div>
-        <h3>${esc(t.project)}</h3><p>${esc(t.pitch)}</p>
+        ${workCopy}
         <div class="team-roster">${roster}</div>
-        <div class="team-foot"><span>${count} 名成员已就位 · ${t.submitted ? "作品已提交" : "Demo 制作中"}</span><div class="team-actions">${action}${openAction}</div></div>
+        <div class="team-foot"><span>${count} 名成员已就位 · ${progressLabel}</span><div class="team-actions">${action}${openAction}</div></div>
       </article>`;
     }).join("");
     return `${pageHead("组队", "选择你感兴趣的挑战方向，与伙伴组建战队，开启共创之旅", "TEAM FORMATION")}
