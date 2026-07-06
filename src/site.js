@@ -84,13 +84,13 @@
   function resolveHomePhase(stageId) {
     const s = String(stageId || "").toLowerCase();
     if (s === "prestart") {
-      return { phase: "大赛筹备中", label: "正式比赛开始倒计时", remain: 86400 };
+      return { stageLabel: "当前阶段", phase: "启航倒计时", label: "距赛事开始", remain: 86400 };
     } else if (["opening", "icebreaker", "speech", "company", "tracks"].includes(s)) {
-      return { phase: "挑战任务发布中", label: "距任务开始还有", remain: 7200 };
+      return { stageLabel: "当前阶段", phase: "挑战任务发布中", label: "距任务开始还有", remain: 7200 };
     } else if (s === "team") {
-      return { phase: "挑战任务进行中", label: "距作品提交截止", remain: 129600 };
+      return { stageLabel: "当前阶段", phase: "挑战任务进行中", label: "距作品提交截止", remain: 129600 };
     } else {
-      return { phase: "成果展示进行中", label: "距投票结束截止", remain: 6353 };
+      return { stageLabel: "当前阶段", phase: "成果展示进行中", label: "距投票结束截止", remain: 6353 };
     }
   }
   function parseSiteTimestamp(value) {
@@ -1268,7 +1268,7 @@
         <p class="mh-intro">五大业务挑战 · 五支战队，用AI重塑业务场景。认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。</p>
         <div class="mh-live">
           <div class="mh-live-status">
-            <span class="mh-chip"><span class="live-dot"></span>当前阶段</span>
+            <span class="mh-chip"><span class="live-dot"></span>${esc(phaseInfo.stageLabel)}</span>
             <b>${esc(phaseInfo.phase)}</b>
           </div>
           <div class="mh-live-count">
@@ -1324,7 +1324,7 @@
         ${homeCtas}
       </div>
       <aside class="hero-panel glass">
-        <div class="hp-row"><span class="live-dot"></span><span class="hp-label">当前阶段</span></div>
+        <div class="hp-row"><span class="live-dot"></span><span class="hp-label">${esc(phaseInfo.stageLabel)}</span></div>
         <div class="hp-phase">${esc(phaseInfo.phase)}</div>
         <div class="hp-row hp-sub-row"><span class="live-dot"></span><span class="hp-label">${esc(phaseInfo.label)}</span></div>
         <div class="hp-cd" ${countdownAttrs()}>${fmtHMS(COUNTDOWN_REMAIN)}</div>

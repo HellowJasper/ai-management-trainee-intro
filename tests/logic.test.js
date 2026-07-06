@@ -911,7 +911,7 @@ test("official site schedule status reads the synchronized backend stage timer",
   assert.match(siteJs, /const MISSION_COUNTDOWN_STAGE_IDS = new Set\(\["opening", "icebreaker", "speech", "company", "tracks", "team"\]\)/);
   assert.match(siteJs, /const DISPLAY_PARTICIPANT_COUNT = 20/);
   assert.match(siteJs, /members:\s*DISPLAY_PARTICIPANT_COUNT/);
-  assert.match(siteJs, /s === "prestart"[\s\S]*phase:\s*"大赛筹备中"[\s\S]*label:\s*"正式比赛开始倒计时"/);
+  assert.match(siteJs, /s === "prestart"[\s\S]*stageLabel:\s*"当前阶段"[\s\S]*phase:\s*"启航倒计时"[\s\S]*label:\s*"距赛事开始"/);
   assert.match(applySiteStageStateBody[1], /CURRENT_STAGE_ID === PRESTART_COUNTDOWN_STAGE_ID[\s\S]*timers\.prestartCountdown/);
   assert.match(applySiteStageStateBody[1], /MISSION_COUNTDOWN_STAGE_IDS\.has\(CURRENT_STAGE_ID\)[\s\S]*timers\.missionCountdown/);
   assert.match(timerRemainingSecondsBody[1], /return Math\.max\(0,\s*Math\.floor\(durationMs \/ 1000\)\)/);
@@ -1078,7 +1078,7 @@ test("official site home stays a navigable site dashboard instead of the index l
   const renderHomeBody = siteJs.match(/function renderHome\(\) \{([\s\S]*?)\n  function renderPeople\(\)/)?.[1] || "";
 
   assert.match(siteHtml, /src\/site\.css\?v=20260706-hero-desc-wrap/);
-  assert.match(siteHtml, /src\/site\.js\?v=20260706-prelaunch-home-ctas-jul10/);
+  assert.match(siteHtml, /src\/site\.js\?v=20260706-home-prestart-copy/);
   assert.match(renderHomeBody, /<span class="hero-kicker"><span class="hero-kicker-live"><span class="live-dot"><\/span>LIVE<\/span><span class="hero-kicker-name">AI_INNOVATION_HACKATHON_2026<\/span><\/span>/);
   assert.match(renderHomeBody, /<h1 class="hero-title">AI创新黑客松<\/h1>/);
   assert.match(renderHomeBody, /<p class="hero-slogan">36小时 · 让想法落地，让创新发生<\/p>/);
@@ -1107,7 +1107,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260706-prelaunch-home-ctas-jul10/);
+  assert.match(siteHtml, /site\.js\?v=20260706-home-prestart-copy/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -1149,7 +1149,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260706-prelaunch-home-ctas-jul10/);
+  assert.match(siteHtml, /site\.js\?v=20260706-home-prestart-copy/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -1168,7 +1168,7 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
   assert.match(siteHtml, /site\.css\?v=20260706-hero-desc-wrap/);
-  assert.match(siteHtml, /site\.js\?v=20260706-prelaunch-home-ctas-jul10/);
+  assert.match(siteHtml, /site\.js\?v=20260706-home-prestart-copy/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -2155,7 +2155,7 @@ test("mobile home focuses on the stage countdown without shortcut cards", () => 
   assert.match(renderMobileHomeBody, /class="mh-slogan">36小时 · 让想法落地，让创新发生/);
   assert.match(renderMobileHomeBody, /五大业务挑战 · 五支战队，用AI重塑业务场景。认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。/);
   assert.doesNotMatch(renderMobileHomeBody, /五大真实业务挑战，五支战队，从业务场景出发，用 AI 解决真实问题，认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。/);
-  assert.match(renderMobileHomeBody, /class="mh-chip"><span class="live-dot"><\/span>当前阶段/);
+  assert.match(renderMobileHomeBody, /class="mh-chip"><span class="live-dot"><\/span>\$\{esc\(phaseInfo\.stageLabel\)\}/);
   assert.match(renderMobileHomeBody, /class="mh-chip">\$\{esc\(phaseInfo\.label\)\}/);
   assert.match(renderMobileHomeBody, /<b>\$\{esc\(phaseInfo\.phase\)\}<\/b>/);
   assert.match(renderMobileHomeBody, /<strong \$\{countdownAttrs\(\)\}>\$\{fmtHMS\(COUNTDOWN_REMAIN\)\}<\/strong>/);
@@ -2744,7 +2744,7 @@ test("official site forces Feishu login on desktop and mobile entry", () => {
   assert.match(siteCss, /\.auth-gate\.is-forced/);
   assert.match(siteCss, /\.auth-required-note/);
   assert.match(html, /src\/site\.css\?v=20260706-hero-desc-wrap/);
-  assert.match(html, /src\/site\.js\?v=20260706-prelaunch-home-ctas-jul10/);
+  assert.match(html, /src\/site\.js\?v=20260706-home-prestart-copy/);
 });
 
 test("official site refreshes backend session before leaving the Feishu login gate", () => {
@@ -2802,7 +2802,7 @@ test("official site cache keys are bumped after navigation and detail layout pol
   assert.match(html, /src\/logic\.js\?v=20260703-judge-no-quick/);
   assert.match(html, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(html, /src\/screen-data\.js\?v=20260703-slogan-copy/);
-  assert.match(html, /src\/site\.js\?v=20260706-prelaunch-home-ctas-jul10/);
+  assert.match(html, /src\/site\.js\?v=20260706-home-prestart-copy/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
@@ -2895,7 +2895,7 @@ test("admin console keeps the event control cockpit structure wired", () => {
   assert.match(flowView, /id="resetFlowToStart"[^>]*>回到最开始<\/button>/);
   assert.match(html, /id="prestartFlowModal"/);
   assert.match(html, /id="prestartStartAt"[^>]*type="datetime-local"/);
-  assert.match(html, /首页状态卡会显示“大赛筹备中”/);
+  assert.match(html, /首页状态卡会显示“启航倒计时”/);
   assert.match(flowView, />任务倒计时</);
   assert.match(flowView, /这里控制任务\/作品倒计时/);
   assert.match(css, /\.quick-switch\s*{[\s\S]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
