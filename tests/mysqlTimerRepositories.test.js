@@ -5,6 +5,16 @@ const { createMysqlMissionCountdownRepository } = require("../server/mysqlMissio
 const { createMysqlRoadshowRepository } = require("../server/mysqlRoadshowRepository");
 const { createRepositoryBundle } = require("../server/repositoryFactory");
 
+function expectedMysqlLocalDatetime(value) {
+  const date = new Date(value);
+  const pad = (part) => String(part).padStart(2, "0");
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join("-") + ` ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
 class MemoryMysqlTimerPool {
   constructor({
     mission = null,
@@ -91,6 +101,9 @@ test("MySQL mission countdown repository preserves start and admin update behavi
   });
   assert.equal(started.startedAt, "2026-06-24T01:00:00.000Z");
   assert.equal(started.durationMs, 3600000);
+  const insertCall = pool.calls.find((call) => call.sql.toLowerCase().includes("insert into mission_countdowns"));
+  assert.equal(typeof insertCall.params[1], "string");
+  assert.equal(insertCall.params[1], expectedMysqlLocalDatetime("2026-06-24T01:00:00.000Z"));
 
   const secondStart = await repository.startCountdown({
     startedAt: "2026-06-24T02:00:00.000Z",
@@ -146,6 +159,9 @@ test("MySQL roadshow repository hydrates teams and preserves timer behavior", as
   assert.equal(started.currentTeam.name, "职能");
   assert.equal(started.startedAt, "2026-06-24T03:00:00.000Z");
   assert.equal(started.durationMs, 600000);
+  const insertCall = pool.calls.find((call) => call.sql.toLowerCase().includes("insert into roadshow_sessions"));
+  assert.equal(typeof insertCall.params[4], "string");
+  assert.equal(insertCall.params[4], expectedMysqlLocalDatetime("2026-06-24T03:00:00.000Z"));
 
   const updated = await repository.updateState({
     currentTeamId: "marketing",

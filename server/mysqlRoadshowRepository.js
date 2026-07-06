@@ -1,4 +1,5 @@
 const { createHttpError } = require("./traineeRepository");
+const { formatMysqlLocalDatetime } = require("./mysqlDatetime");
 
 const DEFAULT_ID = "main";
 const DEFAULT_DURATION_MS = 15 * 60 * 1000;
@@ -60,7 +61,7 @@ function normalizeStartedAt(startedAt) {
 
 function toDateOrNull(startedAt) {
   const normalized = normalizeStartedAt(startedAt);
-  return normalized ? new Date(normalized) : null;
+  return normalized ? formatMysqlLocalDatetime(normalized) : null;
 }
 
 function parseJsonValue(value) {

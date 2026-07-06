@@ -1,4 +1,5 @@
 const { createHttpError } = require("./traineeRepository");
+const { formatMysqlLocalDatetime } = require("./mysqlDatetime");
 
 const DEFAULT_ID = "main";
 const DEFAULT_DURATION_MS = 36 * 60 * 60 * 1000;
@@ -36,7 +37,7 @@ function normalizeStartedAt(startedAt, label = "Mission countdown") {
 
 function toDateOrNull(startedAt, label) {
   const normalized = normalizeStartedAt(startedAt, label);
-  return normalized ? new Date(normalized) : null;
+  return normalized ? formatMysqlLocalDatetime(normalized) : null;
 }
 
 function normalizeState(state = {}, { defaultDurationMs = DEFAULT_DURATION_MS, label } = {}) {
