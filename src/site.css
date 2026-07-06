@@ -1148,7 +1148,7 @@
   }
 
   .hero-desc {
-    max-width: 650px;
+    max-width: 635px;
     font-size: clamp(15px, 1.12vw, 18px);
     line-height: 1.78;
   }

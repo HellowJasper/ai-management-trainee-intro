@@ -1077,14 +1077,19 @@ test("official site home stays a navigable site dashboard instead of the index l
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
   const renderHomeBody = siteJs.match(/function renderHome\(\) \{([\s\S]*?)\n  function renderPeople\(\)/)?.[1] || "";
 
-  assert.match(siteHtml, /src\/site\.css\?v=20260705-user-menu-opacity/);
-  assert.match(siteHtml, /src\/site\.js\?v=20260706-team-prelaunch-copy/);
+  assert.match(siteHtml, /src\/site\.css\?v=20260706-hero-desc-wrap/);
+  assert.match(siteHtml, /src\/site\.js\?v=20260706-prelaunch-home-ctas/);
   assert.match(renderHomeBody, /<span class="hero-kicker"><span class="hero-kicker-live"><span class="live-dot"><\/span>LIVE<\/span><span class="hero-kicker-name">AI_INNOVATION_HACKATHON_2026<\/span><\/span>/);
   assert.match(renderHomeBody, /<h1 class="hero-title">AI创新黑客松<\/h1>/);
   assert.match(renderHomeBody, /<p class="hero-slogan">36小时 · 让想法落地，让创新发生<\/p>/);
-  assert.match(renderHomeBody, /<a class="btn-primary" data-nav="gallery">进入作品展厅<\/a>/);
+  assert.match(siteJs, /const HOME_CTA_SWITCH_AT_MS = Date\.parse\("2026-07-08T08:50:00\+08:00"\)/);
+  assert.match(siteJs, /function shouldShowPrelaunchHomeCtas\(now = Date\.now\(\)\)/);
+  assert.match(siteJs, /Number\(now\) < HOME_CTA_SWITCH_AT_MS/);
+  assert.match(siteJs, /<a class="btn-primary" data-nav="people">认识本届新生<\/a><a class="btn-ghost" data-nav="schedule">查看赛事指南<\/a>/);
+  assert.match(siteJs, /<a class="btn-primary" data-nav="gallery">进入作品展厅<\/a>\$\{secondaryCta\}/);
   assert.match(renderHomeBody, /<aside class="hero-panel glass">/);
-  assert.match(renderHomeBody, /secondaryCta/);
+  assert.match(renderHomeBody, /const homeCtas = renderHomeCtas\(permissions\)/);
+  assert.match(renderHomeBody, /\$\{homeCtas\}/);
   assert.doesNotMatch(renderHomeBody, /hero-brand-mark/);
   assert.doesNotMatch(renderHomeBody, /data-text="AI 创新黑客松"/);
   assert.doesNotMatch(renderHomeBody, /hero-title-text/);
@@ -1102,7 +1107,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260706-team-prelaunch-copy/);
+  assert.match(siteHtml, /site\.js\?v=20260706-prelaunch-home-ctas/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -1144,7 +1149,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260706-team-prelaunch-copy/);
+  assert.match(siteHtml, /site\.js\?v=20260706-prelaunch-home-ctas/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -1162,8 +1167,8 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.css\?v=20260705-user-menu-opacity/);
-  assert.match(siteHtml, /site\.js\?v=20260706-team-prelaunch-copy/);
+  assert.match(siteHtml, /site\.css\?v=20260706-hero-desc-wrap/);
+  assert.match(siteHtml, /site\.js\?v=20260706-prelaunch-home-ctas/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -2115,6 +2120,13 @@ test("schedule journey follows the snake arrow order", () => {
   assert.match(siteJs, /const journeyOrder = isMobileView\(\) \? chronologicalOrder : snakeOrder/);
 });
 
+test("schedule co-creation journey card uses the business innovation copy", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /title:\s*"方案共创"[\s\S]*sub:\s*"洞察业务需求，探索创新解决方案"/);
+  assert.doesNotMatch(siteJs, /洞察业务需求，探索解决方案方向/);
+});
+
 test("schedule journey uses chronological order on the mobile app view", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
@@ -2178,6 +2190,7 @@ test("desktop home hero uses the latest slogan and compact live badge", () => {
   assert.doesNotMatch(renderHomeBody, /class="hero-slogan">36小时，用 AI 把创意照进现实<\/p>/);
   assert.doesNotMatch(renderHomeBody, /五大真实业务挑战，五支战队，从业务场景出发，用AI解决真实问题。认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。/);
   assert.match(siteCss, /\.hero-kicker\s*\{[^}]*gap:\s*clamp\(10px,\s*1\.5vw,\s*24px\)/);
+  assert.match(siteCss, /@media \(min-width:\s*681px\)[\s\S]*\.hero-desc\s*\{[\s\S]*max-width:\s*635px/);
   assert.match(siteCss, /\.hero-kicker\s*\{[^}]*letter-spacing:\s*0\.1em/);
   assert.match(siteCss, /\.hero-kicker\s*\{[^}]*padding:\s*8px clamp\(12px,\s*1\.2vw,\s*20px\) 8px 14px/);
   assert.doesNotMatch(siteCss, /\.hero-kicker\s*\{[^}]*transform:\s*translateX/);
@@ -2342,7 +2355,7 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260705-user-menu-opacity/);
+  assert.match(html, /src\/site\.css\?v=20260706-hero-desc-wrap/);
   assert.match(siteCss, /--site-detail-console-width:\s*calc\(min\(80vw,\s*1260px\) - 24px\)/);
   assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*max\(3vw,\s*calc\(100dvw - var\(--site-detail-console-width\) - var\(--site-detail-card-width\) - 40px\)\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*auto/);
@@ -2730,8 +2743,8 @@ test("official site forces Feishu login on desktop and mobile entry", () => {
   assert.match(siteJs, /closeAuthGate\(\{ force: true \}\)/);
   assert.match(siteCss, /\.auth-gate\.is-forced/);
   assert.match(siteCss, /\.auth-required-note/);
-  assert.match(html, /src\/site\.css\?v=20260705-user-menu-opacity/);
-  assert.match(html, /src\/site\.js\?v=20260706-team-prelaunch-copy/);
+  assert.match(html, /src\/site\.css\?v=20260706-hero-desc-wrap/);
+  assert.match(html, /src\/site\.js\?v=20260706-prelaunch-home-ctas/);
 });
 
 test("official site refreshes backend session before leaving the Feishu login gate", () => {
@@ -2785,11 +2798,11 @@ test("official site cache keys are bumped after navigation and detail layout pol
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
-  assert.match(html, /src\/site\.css\?v=20260705-user-menu-opacity/);
+  assert.match(html, /src\/site\.css\?v=20260706-hero-desc-wrap/);
   assert.match(html, /src\/logic\.js\?v=20260703-judge-no-quick/);
   assert.match(html, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(html, /src\/screen-data\.js\?v=20260703-slogan-copy/);
-  assert.match(html, /src\/site\.js\?v=20260706-team-prelaunch-copy/);
+  assert.match(html, /src\/site\.js\?v=20260706-prelaunch-home-ctas/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {

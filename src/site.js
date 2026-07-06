@@ -15,6 +15,7 @@
   const SESSION_KEY = "joincare_hackathon_session";
   const VALID_ROLES = ["public", "player", "judge", "admin"];
   const PRESTART_COUNTDOWN_STAGE_ID = "prestart";
+  const HOME_CTA_SWITCH_AT_MS = Date.parse("2026-07-08T08:50:00+08:00");
   const MISSION_COUNTDOWN_STAGE_IDS = new Set(["opening", "icebreaker", "speech", "company", "tracks", "team"]);
   const DISPLAY_PARTICIPANT_COUNT = 20;
   const TEAM_DISPLAY_ORDER = ["medicine", "pharma", "production", "marketing", "functions"];
@@ -931,7 +932,7 @@
       { nav: "schedule", title: "启航时刻", en: "KICKOFF", sub: "认识组织·认识彼此", icon: "calendar", accent: "#6ad7ff", rgb: "106,215,255" },
       { nav: "tracks", title: "挑战发布", en: "CHALLENGE BRIEFING", sub: "五大业务赛道发布挑战课题", icon: "doc", accent: "#c79bff", rgb: "199,155,255" },
       { nav: "team", title: "自由组队", en: "TEAM FORMATION", sub: "选择感兴趣的赛题，组建战队", icon: "team", accent: "var(--neon-2)", rgb: "167,255,79" },
-      { nav: "schedule", title: "方案共创", en: "SOLUTION DESIGN", sub: "洞察业务需求，探索解决方案方向", icon: "bulb", accent: "var(--warning)", rgb: "246,255,129" },
+      { nav: "schedule", title: "方案共创", en: "SOLUTION DESIGN", sub: "洞察业务需求，探索创新解决方案", icon: "bulb", accent: "var(--warning)", rgb: "246,255,129" },
       { nav: "schedule", title: "创新冲刺", en: "HACKATHON SPRINT", sub: "完成方案打磨、原型开发与成果完善", icon: "code", accent: "var(--neon)", rgb: "40,255,200" },
       { nav: "gallery", title: "成果展示", en: "SHOWCASE", sub: "展示团队成果与解决方案思路", icon: "stage", accent: "#ff9be1", rgb: "255,155,225" },
       { nav: "vote", title: "评审与投票", en: "EVALUATION & VOTING", sub: "专家评审团评分·全员投票", icon: "vote", accent: "#ffd06a", rgb: "255,208,106" },
@@ -1283,14 +1284,26 @@
     </section>`;
   }
 
+  function shouldShowPrelaunchHomeCtas(now = Date.now()) {
+    return Number.isFinite(HOME_CTA_SWITCH_AT_MS) && Number(now) < HOME_CTA_SWITCH_AT_MS;
+  }
+
+  function renderHomeCtas(permissions) {
+    if (shouldShowPrelaunchHomeCtas()) {
+      return `<div class="hero-ctas"><a class="btn-primary" data-nav="people">认识本届新生</a><a class="btn-ghost" data-nav="schedule">查看赛事指南</a></div>`;
+    }
+    const secondaryCta = permissions.canAdmin
+      ? `<a class="btn-ghost" href="./admin.html">进入管理后台 ➔</a>`
+      : `<a class="btn-ghost" data-nav="result">查看实时排行 ➔</a>`;
+    return `<div class="hero-ctas"><a class="btn-primary" data-nav="gallery">进入作品展厅</a>${secondaryCta}</div>`;
+  }
+
   /* ---- 首页：人 + 作品 两条主线 -------------------------------------- */
   function renderHome() {
     const role = currentRole();
     const permissions = rolePermissions(role);
     const totalVotes = D.teams.reduce((s, t) => s + t.votes, 0);
-    const secondaryCta = permissions.canAdmin
-      ? `<a class="btn-ghost" href="./admin.html">进入管理后台 ➔</a>`
-      : `<a class="btn-ghost" data-nav="result">查看实时排行 ➔</a>`;
+    const homeCtas = renderHomeCtas(permissions);
     const days = D.flowDays.map((d, i) => {
       const timeSpan = d.time ? `<span class="fs-time">${esc(d.time)}</span>` : "";
       const card = `<div class="flow-step"><div class="fs-header"><div class="fs-ic">${ICON(d.icon, "var(--neon)")}</div><div class="fs-badge"><span>${esc(d.day)}</span><i>${esc(d.en)}</i></div></div><b>${esc(d.title)}</b><p>${d.lines.map(esc).join("<br>")}</p>${timeSpan}</div>`;
@@ -1308,7 +1321,7 @@
         </div>
         <p class="hero-slogan">36小时 · 让想法落地，让创新发生</p>
         <p class="hero-desc">五大业务挑战 · 五支战队，用AI重塑业务场景。认识参赛伙伴，探索创新方案，并为你支持的团队投出关键一票。</p>
-        <div class="hero-ctas"><a class="btn-primary" data-nav="gallery">进入作品展厅</a>${secondaryCta}</div>
+        ${homeCtas}
       </div>
       <aside class="hero-panel glass">
         <div class="hp-row"><span class="live-dot"></span><span class="hp-label">当前阶段</span></div>
