@@ -1608,7 +1608,7 @@ button:disabled {
   --detail-card-width: clamp(260px, 20vw, 340px);
   --detail-card-left: clamp(28px, 2.4vw, 64px);
   --detail-panel-gap: clamp(14px, 1.3vw, 22px);
-  --detail-media-column: clamp(360px, 40%, 600px);
+  --detail-media-column: clamp(380px, 43%, 640px);
   --detail-console-left: clamp(
     420px,
     calc(var(--detail-card-left) + var(--detail-card-width) + clamp(70px, 5vw, 110px)),
@@ -3429,7 +3429,7 @@ button:disabled {
   z-index: 1;
   display: grid;
   grid-template-columns: 1fr;
-  grid-template-rows: repeat(5, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
   align-content: stretch;
   gap: clamp(6px, 0.75vh, 8px);
   min-height: 0;
@@ -5019,8 +5019,8 @@ button:disabled {
   z-index: 1;
   display: grid;
   grid-template-columns: 1fr;
-  grid-template-rows: repeat(4, minmax(58px, 1fr));
-  gap: clamp(8px, 0.75vw, 12px);
+  grid-template-rows: repeat(3, minmax(66px, 1fr));
+  gap: clamp(12px, 1.12vh, 18px);
   min-height: 0;
 }
 
@@ -5208,7 +5208,8 @@ button:disabled {
   position: relative;
   z-index: 1;
   display: grid;
-  margin-top: clamp(7px, 0.8vh, 10px);
+  margin-top: clamp(4px, 0.7vh, 10px);
+  transform: translateY(calc(-1 * clamp(18px, 2.4vh, 28px)));
 }
 
 .team-claim-button {
@@ -5782,6 +5783,10 @@ button:disabled {
   .team-squad-card {
     min-height: auto;
     overflow: visible;
+  }
+
+  .team-card-footer {
+    transform: none;
   }
 
   .team-role-grid {

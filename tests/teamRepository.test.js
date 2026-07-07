@@ -18,14 +18,14 @@ test("JSON team repository preserves concurrent joins for different users", asyn
     {
       id: "marketing",
       name: "营销",
-      capacity: 5,
+      capacity: 4,
       status: "open",
       advisor: null,
       members: [],
     },
   ]);
   const repository = createTeamRepository(dataPath);
-  const users = Array.from({ length: 4 }, (_, index) => ({
+  const users = Array.from({ length: 3 }, (_, index) => ({
     teamId: "marketing",
     userId: `player-${index + 1}`,
     name: `选手 ${index + 1}`,
@@ -43,12 +43,34 @@ test("JSON team repository preserves concurrent joins for different users", asyn
   );
 });
 
+test("JSON team repository defaults to one leader plus three members", async () => {
+  const dataPath = await createTempTeamFile([
+    {
+      id: "marketing",
+      name: "营销",
+      status: "open",
+      advisor: { userId: "leader-1", name: "队长", role: "队长" },
+      members: [
+        { userId: "player-1", name: "选手 1", role: "队友" },
+        { userId: "player-2", name: "选手 2", role: "队友" },
+        { userId: "player-3", name: "选手 3", role: "队友" },
+      ],
+    },
+  ]);
+  const repository = createTeamRepository(dataPath);
+
+  await assert.rejects(
+    () => repository.joinTeam({ teamId: "marketing", userId: "player-4", name: "选手 4" }),
+    /Team marketing is already full/,
+  );
+});
+
 test("JSON team repository blocks moving a player out of a locked source team", async () => {
   const dataPath = await createTempTeamFile([
     {
       id: "marketing",
       name: "营销",
-      capacity: 5,
+      capacity: 4,
       status: "locked",
       advisor: null,
       members: [{ userId: "player-1", name: "选手 1", role: "队友" }],
@@ -56,7 +78,7 @@ test("JSON team repository blocks moving a player out of a locked source team", 
     {
       id: "functions",
       name: "职能",
-      capacity: 5,
+      capacity: 4,
       status: "open",
       advisor: null,
       members: [],

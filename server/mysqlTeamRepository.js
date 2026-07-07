@@ -1,7 +1,7 @@
 const { normalizeTeamScenarioPayload } = require("./teamRepository");
 const { createHttpError } = require("./traineeRepository");
 
-const DEFAULT_TEAM_CAPACITY = 5;
+const DEFAULT_TEAM_CAPACITY = 4;
 const LOCKED_TEAM_STATUSES = new Set(["locked", "closed"]);
 const WRITABLE_TEAM_STATUSES = new Set(["open", "locked"]);
 
@@ -336,7 +336,7 @@ function createMysqlTeamRepository(pool) {
         return;
       }
 
-      if (teamRosterCount(target, targetMembersAfterMove) >= teamCapacity(target)) {
+      if (targetMembersAfterMove.length >= teamCapacity(target) - 1) {
         throw createHttpError(409, `Team ${teamId} is already full.`);
       }
 

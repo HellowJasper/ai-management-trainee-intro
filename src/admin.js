@@ -626,7 +626,7 @@ const workStatusText = {
   rejected: "已退回",
 };
 
-const DEFAULT_TEAM_CAPACITY = 5;
+const DEFAULT_TEAM_CAPACITY = 4;
 
 function getWorkReviewId(work) {
   return work?.id || work?.teamId || "";
@@ -1601,7 +1601,7 @@ function renderTeamRoster(teams = businessDataState.teams) {
               <span>${roleCoverage.coveredCount}/${roleCoverage.expectedCount} 已配置职责</span>
               <i style="--role-percent: ${rolePercent}%"></i>
             </div>
-            <div class="admin-team-members" aria-label="${escapeHtml(team.name || "队伍")}五人阵容">
+            <div class="admin-team-members" aria-label="${escapeHtml(team.name || "队伍")}四人阵容">
               ${teamPeople.map((person) => `
                 <div class="admin-team-member ${person.isLeader ? "is-leader" : ""}${person.isPlaceholder ? " is-placeholder" : ""}">
                   ${person.photo

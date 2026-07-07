@@ -18,7 +18,7 @@ class MemoryMysqlTeamPool {
       track_name: team.nameEn || team.trackName || "",
       project: team.project || "",
       status: team.status || "open",
-      capacity: team.capacity || 5,
+      capacity: team.capacity || 4,
       sort_order: team.sortOrder || index,
       meta_json: JSON.stringify(team),
     }]));
@@ -180,7 +180,7 @@ test("MySQL team repository keeps the grouping and role claiming contract", asyn
         nameEn: "SALES & MARKETING",
         hostDepartment: "健康品事业部",
         color: "rgb(100, 232, 214)",
-        capacity: 5,
+        capacity: 4,
         advisor: { name: "队长 C", department: "健康品事业部", role: "队长" },
       },
       {
@@ -190,7 +190,7 @@ test("MySQL team repository keeps the grouping and role claiming contract", asyn
         nameEn: "GENERAL FUNCTIONS",
         hostDepartment: "董事长办公室",
         color: "var(--neon-2)",
-        capacity: 5,
+        capacity: 4,
         advisor: { name: "队长 D", department: "董事长办公室", role: "队长" },
       },
     ],
@@ -223,11 +223,11 @@ test("MySQL team repository keeps the grouping and role claiming contract", asyn
   const claimed = await repository.claimRole({
     teamId: "marketing",
     userId: "player-b",
-    roleKey: "pitch",
-    duty: "路演运营",
+    roleKey: "design",
+    duty: "产品设计",
   });
-  assert.equal(claimed.member.roleKey, "pitch");
-  assert.equal(claimed.member.duty, "路演运营");
+  assert.equal(claimed.member.roleKey, "design");
+  assert.equal(claimed.member.duty, "产品设计");
 
   const left = await repository.leaveTeam({
     teamId: "marketing",
@@ -265,7 +265,7 @@ test("MySQL team repository wraps joins in a transaction and locks the target te
         index: "03",
         name: "营销",
         status: "open",
-        capacity: 2,
+        capacity: 4,
       },
     ],
     members: [
@@ -294,7 +294,7 @@ test("MySQL team repository promotes a claimed advisor role into the advisor slo
         index: "01",
         name: "医学",
         status: "open",
-        capacity: 5,
+        capacity: 4,
       },
     ],
     members: [
@@ -329,7 +329,7 @@ test("MySQL team repository blocks player roster changes after a team is locked"
         index: "03",
         name: "营销",
         status: "locked",
-        capacity: 5,
+        capacity: 4,
       },
     ],
     members: [
@@ -343,7 +343,7 @@ test("MySQL team repository blocks player roster changes after a team is locked"
     /Team marketing is locked/,
   );
   await assert.rejects(
-    () => repository.claimRole({ teamId: "marketing", userId: "player-a", roleKey: "pitch", duty: "路演运营" }),
+    () => repository.claimRole({ teamId: "marketing", userId: "player-a", roleKey: "design", duty: "产品设计" }),
     /Team marketing is locked/,
   );
 
@@ -359,14 +359,14 @@ test("MySQL team repository blocks moving a player out of a locked source team",
         index: "03",
         name: "营销",
         status: "locked",
-        capacity: 5,
+        capacity: 4,
       },
       {
         id: "functions",
         index: "04",
         name: "职能",
         status: "open",
-        capacity: 5,
+        capacity: 4,
       },
     ],
     members: [
@@ -397,7 +397,7 @@ test("MySQL team repository lets an advisor leave without sending advisor metada
         index: "03",
         name: "营销",
         status: "open",
-        capacity: 5,
+        capacity: 4,
       },
     ],
     members: [
@@ -424,14 +424,14 @@ test("MySQL team repository removes a previous advisor row when the user joins a
         index: "03",
         name: "营销",
         status: "open",
-        capacity: 5,
+        capacity: 4,
       },
       {
         id: "functions",
         index: "04",
         name: "职能",
         status: "open",
-        capacity: 5,
+        capacity: 4,
       },
     ],
     members: [
@@ -460,7 +460,7 @@ test("MySQL team repository removes a previous advisor row when the user joins a
   assert.equal(joined.team.members.some((member) => member.userId === "captain"), true);
 });
 
-test("MySQL team repository allows the fifth member when no advisor row exists", async () => {
+test("MySQL team repository reserves one leader slot when no advisor row exists", async () => {
   const pool = new MemoryMysqlTeamPool({
     teams: [
       {
@@ -468,29 +468,55 @@ test("MySQL team repository allows the fifth member when no advisor row exists",
         index: "02",
         name: "医学",
         status: "open",
-        capacity: 5,
+        capacity: 4,
       },
     ],
     members: [
       { teamId: "medicine", userId: "medicine-member-2", name: "许镁胜", duty: "队友 01" },
       { teamId: "medicine", userId: "medicine-member-3", name: "陈徐林", duty: "队友 02" },
       { teamId: "medicine", userId: "medicine-member-4", name: "唐靖沛", duty: "队友 03" },
-      { teamId: "medicine", userId: "medicine-member-5", name: "张瑞", duty: "队友 04" },
     ],
   });
   const repository = createMysqlTeamRepository(pool);
 
-  const joined = await repository.joinTeam({
-    teamId: "medicine",
-    userId: "new-player",
-    name: "新成员",
-    department: "AI创新部",
-  });
+  await assert.rejects(
+    () => repository.joinTeam({
+      teamId: "medicine",
+      userId: "new-player",
+      name: "新成员",
+      department: "AI创新部",
+    }),
+    /Team medicine is already full/,
+  );
+});
 
-  assert.equal(joined.accepted, true);
-  assert.equal(joined.team.advisor, null);
-  assert.equal(joined.team.members.length, 5);
-  assert.equal(joined.team.members.some((member) => member.userId === "new-player"), true);
+test("MySQL team repository defaults to one leader plus three members", async () => {
+  const pool = new MemoryMysqlTeamPool({
+    teams: [
+      {
+        id: "medicine",
+        index: "01",
+        name: "医学",
+        status: "open",
+      },
+    ],
+    members: [
+      { teamId: "medicine", userId: "leader-1", name: "队长", roleKey: "advisor", duty: "队长", isAdvisor: true },
+      { teamId: "medicine", userId: "member-1", name: "队友 1", duty: "队友 01" },
+      { teamId: "medicine", userId: "member-2", name: "队友 2", duty: "队友 02" },
+      { teamId: "medicine", userId: "member-3", name: "队友 3", duty: "队友 03" },
+    ],
+  });
+  const repository = createMysqlTeamRepository(pool);
+
+  await assert.rejects(
+    () => repository.joinTeam({
+      teamId: "medicine",
+      userId: "member-4",
+      name: "队友 4",
+    }),
+    /Team medicine is already full/,
+  );
 });
 
 test("MySQL team repository counts a new advisor against team capacity", async () => {
@@ -501,7 +527,7 @@ test("MySQL team repository counts a new advisor against team capacity", async (
         index: "02",
         name: "医学",
         status: "open",
-        capacity: 5,
+        capacity: 4,
       },
     ],
     members: [
@@ -509,7 +535,6 @@ test("MySQL team repository counts a new advisor against team capacity", async (
       { teamId: "medicine", userId: "member-2", name: "队友 2", duty: "队友 02" },
       { teamId: "medicine", userId: "member-3", name: "队友 3", duty: "队友 03" },
       { teamId: "medicine", userId: "member-4", name: "队友 4", duty: "队友 04" },
-      { teamId: "medicine", userId: "member-5", name: "队友 5", duty: "队友 05" },
     ],
   });
   const repository = createMysqlTeamRepository(pool);

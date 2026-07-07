@@ -23,6 +23,7 @@
     "docUrl": "",
     "color": "rgb(205, 255, 92)",
     "colorRgb": "205, 255, 92",
+    "capacity": 4,
     "advisor": {
       "name": "队长 B",
       "department": "临床研发中心",
@@ -46,12 +47,6 @@
         "department": "AI创新部",
         "role": "队友 03",
         "photo": "./assets/trainees/tang-jingpei/idPhoto.jpg"
-      },
-      {
-        "name": "张瑞",
-        "department": "AI创新部",
-        "role": "队友 04",
-        "photo": "./assets/trainees/zhang-rui/idPhoto.jpg"
       }
     ]
   },
@@ -79,6 +74,7 @@
     "docUrl": "",
     "color": "var(--neon)",
     "colorRgb": "40, 255, 200",
+    "capacity": 4,
     "advisor": {
       "name": "队长 A",
       "department": "药学研发中心",
@@ -102,12 +98,6 @@
         "department": "AIDD研究部",
         "role": "队友 03",
         "photo": "./assets/trainees/gu-lingqian/idPhoto.jpg"
-      },
-      {
-        "name": "林艺新",
-        "department": "AI创新部",
-        "role": "队友 04",
-        "photo": "./assets/trainees/lin-yixin/idPhoto.jpg"
       }
     ]
   },
@@ -135,6 +125,7 @@
     "docUrl": "",
     "color": "rgb(110, 235, 150)",
     "colorRgb": "110, 235, 150",
+    "capacity": 4,
     "advisor": {
       "name": "队长 E",
       "department": "生产管理中心",
@@ -158,12 +149,6 @@
         "department": "健康品事业部",
         "role": "队友 03",
         "photo": "./assets/trainees/li-beibei/idPhoto.jpg"
-      },
-      {
-        "name": "黄钊强",
-        "department": "药学研发中心",
-        "role": "队友 04",
-        "photo": "./assets/trainees/huang-zhaoqiang/idPhoto.jpg"
       }
     ]
   },
@@ -191,6 +176,7 @@
     "docUrl": "",
     "color": "rgb(100, 232, 214)",
     "colorRgb": "100, 232, 214",
+    "capacity": 4,
     "advisor": {
       "name": "队长 C",
       "department": "健康品事业部",
@@ -214,12 +200,6 @@
         "department": "注册部",
         "role": "队友 03",
         "photo": "./assets/trainees/zhang-hengrui/idPhoto.jpg"
-      },
-      {
-        "name": "贾博深",
-        "department": "AI创新部",
-        "role": "队友 04",
-        "photo": "./assets/trainees/jasper/idPhoto.jpg"
       }
     ]
   },
@@ -247,6 +227,7 @@
     "docUrl": "",
     "color": "var(--neon-2)",
     "colorRgb": "167, 255, 79",
+    "capacity": 4,
     "advisor": {
       "name": "队长 D",
       "department": "董事长办公室",
@@ -270,12 +251,6 @@
         "department": "注册部",
         "role": "队友 03",
         "photo": "./assets/trainees/li-feng/idPhoto.jpg"
-      },
-      {
-        "name": "陈徐林",
-        "department": "AI创新部",
-        "role": "队友 04",
-        "photo": "./assets/trainees/chen-xulin/idPhoto.png"
       }
     ]
   }

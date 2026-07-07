@@ -1040,7 +1040,7 @@ test("team role API promotes a joined player into the advisor slot", async (t) =
     {
       id: "medicine",
       name: "医学",
-      capacity: 5,
+      capacity: 4,
       advisor: { name: "队长待确认", role: "队长" },
       members: [
         { userId: "player-001", name: "贾博深", department: "AI创新部", role: "队友" },
@@ -1082,7 +1082,7 @@ test("team list API promotes legacy advisor-role members into the advisor slot",
     {
       id: "medicine",
       name: "医学",
-      capacity: 5,
+      capacity: 4,
       advisor: { name: "队长待确认", role: "队长" },
       members: [
         { userId: "player-001", name: "贾博深", department: "AI创新部", roleKey: "advisor", duty: "队长", role: "队长" },
@@ -1216,7 +1216,6 @@ test("API lists team formation tracks for backend-controlled grouping", async (t
             { name: "队友 01" },
             { name: "队友 02" },
             { name: "队友 03" },
-            { name: "队友 04" },
           ],
         },
         {
@@ -1228,7 +1227,6 @@ test("API lists team formation tracks for backend-controlled grouping", async (t
             { name: "队友 01" },
             { name: "队友 02" },
             { name: "队友 03" },
-            { name: "队友 04" },
           ],
         },
         {
@@ -1240,7 +1238,6 @@ test("API lists team formation tracks for backend-controlled grouping", async (t
             { name: "队友 01" },
             { name: "队友 02" },
             { name: "队友 03" },
-            { name: "队友 04" },
           ],
         },
         {
@@ -1252,7 +1249,6 @@ test("API lists team formation tracks for backend-controlled grouping", async (t
             { name: "队友 01" },
             { name: "队友 02" },
             { name: "队友 03" },
-            { name: "队友 04" },
           ],
         },
         {
@@ -1264,7 +1260,6 @@ test("API lists team formation tracks for backend-controlled grouping", async (t
             { name: "队友 01" },
             { name: "队友 02" },
             { name: "队友 03" },
-            { name: "队友 04" },
           ],
         },
       ];
@@ -1286,7 +1281,7 @@ test("API lists team formation tracks for backend-controlled grouping", async (t
   );
   teams.forEach((team) => {
     assert.equal(team.advisor.role, "队长");
-    assert.equal(team.members.length, 4);
+    assert.equal(team.members.length, 3);
   });
 });
 
@@ -2281,7 +2276,7 @@ test("admin team member API lets admins add and remove the team leader", async (
     {
       id: "marketing",
       name: "营销",
-      capacity: 5,
+      capacity: 4,
       advisor: { name: "旧队长", role: "队长" },
       members: [
         { userId: "member-001", name: "队员一", roleKey: "dev", duty: "AI 开发" },
@@ -2452,7 +2447,7 @@ test("locked teams reject player leave and role-claim changes while admins can s
   const claimResponse = await fetch(`${baseUrl}/api/team/claim-role`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Cookie: playerCookie },
-    body: JSON.stringify({ teamId: "marketing", roleKey: "pitch", duty: "路演运营" }),
+    body: JSON.stringify({ teamId: "marketing", roleKey: "design", duty: "产品设计" }),
   });
   const claimPayload = await claimResponse.json();
 

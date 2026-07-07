@@ -25,7 +25,7 @@ class MemoryResetPool {
           track_name: "PHARMACEUTICALS",
           project: "运行期项目",
           status: "locked",
-          capacity: 5,
+          capacity: 4,
           sort_order: 1,
           meta_json: JSON.stringify({
             id: "pharma",

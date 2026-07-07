@@ -1077,8 +1077,8 @@ test("official site home stays a navigable site dashboard instead of the index l
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
   const renderHomeBody = siteJs.match(/function renderHome\(\) \{([\s\S]*?)\n  function renderPeople\(\)/)?.[1] || "";
 
-  assert.match(siteHtml, /src\/site\.css\?v=20260706-score-grid-sync/);
-  assert.match(siteHtml, /src\/site\.js\?v=20260706-home-hero-desc-align/);
+  assert.match(siteHtml, /src\/site\.css\?v=20260706-work-empty-state/);
+  assert.match(siteHtml, /src\/site\.js\?v=20260706-work-empty-state/);
   assert.match(renderHomeBody, /<span class="hero-kicker"><span class="hero-kicker-live"><span class="live-dot"><\/span>LIVE<\/span><span class="hero-kicker-name">AI_INNOVATION_HACKATHON_2026<\/span><\/span>/);
   assert.match(renderHomeBody, /<h1 class="hero-title">AI创新黑客松<\/h1>/);
   assert.match(renderHomeBody, /<p class="hero-slogan">36小时 · 让想法落地，让创新发生<\/p>/);
@@ -1107,7 +1107,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260706-home-hero-desc-align/);
+  assert.match(siteHtml, /site\.js\?v=20260706-work-empty-state/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -1149,7 +1149,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260706-home-hero-desc-align/);
+  assert.match(siteHtml, /site\.js\?v=20260706-work-empty-state/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -1167,8 +1167,8 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.css\?v=20260706-score-grid-sync/);
-  assert.match(siteHtml, /site\.js\?v=20260706-home-hero-desc-align/);
+  assert.match(siteHtml, /site\.css\?v=20260706-work-empty-state/);
+  assert.match(siteHtml, /site\.js\?v=20260706-work-empty-state/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -1212,8 +1212,12 @@ test("published work cards do not backfill empty submitted tech stack from demo 
   const normalizeBody = siteJs.slice(normalizeStart, normalizeEnd);
 
   assert.match(normalizeBody, /const hasWork = Boolean\(work\)/);
+  assert.match(normalizeBody, /const workTitle = workProjectTitle\(work\)/);
+  assert.match(normalizeBody, /const workPitch = hasWork \? String\(work\?\.pitch \|\| ""\)\.trim\(\) : ""/);
   assert.match(normalizeBody, /hasWork\s*\?\s*\(\s*Array\.isArray\(work\?\.stack\)\s*\?\s*work\.stack\s*:\s*\[\]\s*\)/);
   assert.doesNotMatch(normalizeBody, /Array\.isArray\(work\?\.stack\) && work\.stack\.length[\s\S]*normalizeList\(base\.stack\)/);
+  assert.doesNotMatch(normalizeBody, /project:[^\n]*base\.project/);
+  assert.doesNotMatch(normalizeBody, /pitch:[^\n]*base\.pitch/);
 });
 
 test("official site regular page headers match the talent profile title scale", () => {
@@ -1285,8 +1289,10 @@ test("official site work detail opens the submitted Feishu document URL", () => 
   const renderWorkBody = siteJs.slice(renderWorkStart, renderWorkEnd);
 
   assert.match(renderWorkBody, /const workDocUrl = String\(t\.work\?\.docUrl \|\| ""\)\.trim\(\);/);
-  assert.match(renderWorkBody, /const docHref = workDocUrl \|\| L\.page;/);
-  assert.match(renderWorkBody, /<a class="wk-doc" href="\$\{esc\(docHref\)\}" target="_blank" rel="noopener">/);
+  assert.match(renderWorkBody, /const hasWorkDoc = Boolean\(workDocUrl\);/);
+  assert.match(renderWorkBody, /hasWorkDoc[\s\S]*<a class="wk-doc" href="\$\{esc\(workDocUrl\)\}" target="_blank" rel="noopener">/);
+  assert.match(renderWorkBody, /未设置飞书作品页/);
+  assert.doesNotMatch(renderWorkBody, /const docHref = workDocUrl \|\| L\.page;/);
   assert.doesNotMatch(renderWorkBody, /<a class="wk-doc" href="\$\{L\.page\}"/);
 });
 
@@ -1309,6 +1315,9 @@ test("work detail carousel omits the screenshot upload hint", () => {
   const renderWorkBody = siteJs.slice(renderWorkStart, renderWorkEnd);
 
   assert.match(renderWorkBody, /class="wkc-foot"><div class="wkc-dots">\$\{dotEls\}<\/div><\/div>/);
+  assert.match(renderWorkBody, /未上传作品截图/);
+  assert.match(renderWorkBody, /提交展示截图后将在这里显示/);
+  assert.doesNotMatch(renderWorkBody, /主界面|产品核心流程|数据看板|关键指标可视化|AI 能力|模型推理与结果/);
   assert.doesNotMatch(renderWorkBody, /wkc-hint|提交作品时可上传多张截图/);
 });
 
@@ -1532,6 +1541,16 @@ test("team workspace roster excludes fallback people and avoids duplicate leader
   assert.doesNotMatch(workspaceBody, /\$\{personId === leaderId \? " · 队长" : ""\}/);
 });
 
+test("team workspace leaves custom team name blank until a submitted work names it", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const submissionStart = siteJs.indexOf("function getWorkSubmission");
+  const submissionEnd = siteJs.indexOf("\n  function getWorkDraft", submissionStart);
+  const submissionBody = siteJs.slice(submissionStart, submissionEnd);
+
+  assert.match(submissionBody, /teamName:\s*work\.teamName \|\| ""/);
+  assert.doesNotMatch(submissionBody, /teamName:\s*work\.teamName \|\| team\.name \|\| ""/);
+});
+
 test("gallery, work detail and ranking use filtered real team people", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const galleryStart = siteJs.indexOf("function renderGallery()");
@@ -1544,10 +1563,10 @@ test("gallery, work detail and ranking use filtered real team people", () => {
   const resultEnd = siteJs.indexOf("\n  function renderNoPermission", resultStart);
   const resultBody = siteJs.slice(resultStart, resultEnd);
 
-  assert.match(galleryBody, /teamPeople\(t\)\.slice\(0, 5\)\.map\(\(p\) => avatar\(p, 34\)\)/);
+  assert.match(galleryBody, /teamPeople\(t\)\.slice\(0, 4\)\.map\(\(p\) => avatar\(p, 34\)\)/);
   assert.match(workBody, /const workLeaderId = getTeamLeaderId\(t\)/);
   assert.match(workBody, /teamPeople\(t\)[\s\S]*p\.realUserId && p\.realUserId === workLeaderId \? "队长" : "组员"/);
-  assert.match(resultBody, /teamPeople\(t\)\.slice\(0, 5\)\.map\(\(p\) => avatar\(p, 30\)\)/);
+  assert.match(resultBody, /teamPeople\(t\)\.slice\(0, 4\)\.map\(\(p\) => avatar\(p, 30\)\)/);
   assert.doesNotMatch(galleryBody, /\[t\.advisor,\s*...t\.members\]/);
   assert.doesNotMatch(workBody, /\[\{\s*...t\.advisor,\s*role:\s*"队长"\s*\},\s*...t\.members/);
   assert.doesNotMatch(resultBody, /\[t\.advisor,\s*...t\.members\]/);
@@ -1765,6 +1784,9 @@ test("player workspace lets joined players claim backend team roles", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
   assert.match(siteJs, /TEAM_ROLE_SLOTS/);
+  assert.match(siteJs, /const TEAM_ROLE_SLOTS = \[[\s\S]*?roleKey:\s*"advisor"[\s\S]*?roleKey:\s*"biz"[\s\S]*?roleKey:\s*"dev"[\s\S]*?roleKey:\s*"design"[\s\S]*?\];/);
+  assert.doesNotMatch(siteJs.match(/const TEAM_ROLE_SLOTS = \[[\s\S]*?\];/)?.[0] || "", /roleKey:\s*"roadshow"/);
+  assert.match(siteJs, /const DISPLAY_PARTICIPANT_COUNT = 20/);
   assert.match(siteJs, /claimRole:\s*\(teamId,\s*roleKey,\s*duty\)/);
   assert.match(siteJs, /\/api\/team\/claim-role/);
   assert.match(siteJs, /data-role-claim/);
@@ -2359,11 +2381,11 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260706-score-grid-sync/);
+  assert.match(html, /src\/site\.css\?v=20260706-work-empty-state/);
   assert.match(siteCss, /--site-detail-card-width:\s*clamp\(220px,\s*20vw,\s*340px\)/);
   assert.match(siteCss, /--site-detail-card-left:\s*clamp\(28px,\s*2\.4vw,\s*64px\)/);
   assert.match(siteCss, /--site-detail-console-left:\s*calc\(var\(--site-detail-card-left\) \+ var\(--site-detail-card-width\) \+ clamp\(42px,\s*3\.8vw,\s*78px\)\)/);
-  assert.match(siteCss, /--site-detail-media-column:\s*clamp\(360px,\s*40%,\s*600px\)/);
+  assert.match(siteCss, /--site-detail-media-column:\s*clamp\(380px,\s*43%,\s*640px\)/);
   assert.match(siteCss, /\.site-detail-layer \.draw-card\s*\{[\s\S]*?left:\s*var\(--site-detail-card-left\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?left:\s*var\(--site-detail-console-left\)/);
   assert.match(siteCss, /\.site-detail-layer \.profile-console\s*\{[\s\S]*?right:\s*var\(--site-detail-edge\)/);
@@ -2751,8 +2773,8 @@ test("official site forces Feishu login on desktop and mobile entry", () => {
   assert.match(siteJs, /closeAuthGate\(\{ force: true \}\)/);
   assert.match(siteCss, /\.auth-gate\.is-forced/);
   assert.match(siteCss, /\.auth-required-note/);
-  assert.match(html, /src\/site\.css\?v=20260706-score-grid-sync/);
-  assert.match(html, /src\/site\.js\?v=20260706-home-hero-desc-align/);
+  assert.match(html, /src\/site\.css\?v=20260706-work-empty-state/);
+  assert.match(html, /src\/site\.js\?v=20260706-work-empty-state/);
 });
 
 test("official site refreshes backend session before leaving the Feishu login gate", () => {
@@ -2806,11 +2828,11 @@ test("official site cache keys are bumped after navigation and detail layout pol
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
-  assert.match(html, /src\/site\.css\?v=20260706-score-grid-sync/);
+  assert.match(html, /src\/site\.css\?v=20260706-work-empty-state/);
   assert.match(html, /src\/logic\.js\?v=20260703-judge-no-quick/);
   assert.match(html, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(html, /src\/screen-data\.js\?v=20260703-slogan-copy/);
-  assert.match(html, /src\/site\.js\?v=20260706-home-hero-desc-align/);
+  assert.match(html, /src\/site\.js\?v=20260706-work-empty-state/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
@@ -3444,7 +3466,7 @@ test("admin and big screen cache keys stay current", () => {
   assert.match(adminHtml, /admin\.css\?v=20260703-admin-mobile-scroll/);
   assert.match(adminHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(adminHtml, /src\/admin\.js\?v=20260702-result-publish-api5173/);
-  assert.match(indexHtml, /styles\.css\?v=20260706-detail-fluid/);
+  assert.match(indexHtml, /styles\.css\?v=20260706-team-formation-spacing/);
   assert.match(indexHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(indexHtml, /src\/logic\.js\?v=20260705-company-stage/);
   assert.match(indexHtml, /src\/app\.js\?v=20260705-company-stage/);
@@ -3876,7 +3898,7 @@ test("countdown header opens a current roadshow team timer stage", () => {
   assert.match(appJs, /roadshow-member-copy/);
   assert.match(appJs, /roadshow-member-status/);
   assert.match(appJs, /createRoadshowRosterSeat/);
-  assert.match(appJs, /Array\.from\(\{ length: 5 \}, \(_, index\) => createRoadshowRosterSeat\(roster\[index\], index\)\)/);
+  assert.match(appJs, /Array\.from\(\{ length: 4 \}, \(_, index\) => createRoadshowRosterSeat\(roster\[index\], index\)\)/);
   assert.match(appJs, /name:\s*"无名成员"/);
   assert.match(appJs, /roadshow-member is-empty/);
   assert.match(appJs, /resolveNextRoadshowTeam/);
@@ -3894,7 +3916,8 @@ test("countdown header opens a current roadshow team timer stage", () => {
   assert.match(css, /\.roadshow-control-stack/);
   assert.match(css, /\.roadshow-current-team/);
   assert.match(css, /grid-template-rows:\s*auto auto auto auto auto minmax\(0, 1fr\)/);
-  assert.match(css, /\.roadshow-roster\s*{[\s\S]*?grid-template-rows:\s*repeat\(5, minmax\(0, 1fr\)\)/);
+  assert.match(appJs, /Array\.from\(\{\s*length:\s*4\s*\}/);
+  assert.match(css, /\.roadshow-roster\s*{[\s\S]*?grid-template-rows:\s*repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(css, /\.roadshow-member\.is-empty/);
   assert.match(css, /\.roadshow-member-seat/);
   assert.match(css, /\.roadshow-member-avatar/);
@@ -4011,8 +4034,8 @@ test("team formation screen uses a squad-card role claiming layout", () => {
   assert.match(advisorSlotBlock, /border-color:\s*rgba\(var\(--team-color-rgb\),\s*0\.28\)/);
   assert.match(advisorSlotBlock, /background:[\s\S]*rgba\(var\(--team-color-rgb\),\s*0\.1\)/);
   assert.match(roleGridBlock, /grid-template-columns:\s*1fr/);
-  assert.match(roleGridBlock, /grid-template-rows:\s*repeat\(4,\s*minmax\(58px,\s*1fr\)\)/);
-  assert.match(roleGridBlock, /gap:\s*clamp\(8px,\s*0\.75vw,\s*12px\)/);
+  assert.match(roleGridBlock, /grid-template-rows:\s*repeat\(3,\s*minmax\(66px,\s*1fr\)\)/);
+  assert.match(roleGridBlock, /gap:\s*clamp\(12px,\s*1\.12vh,\s*18px\)/);
   assert.match(roleSlotBlock, /grid-template-columns:\s*auto minmax\(0,\s*1fr\) auto/);
   assert.match(roleSlotBlock, /align-items:\s*center/);
   assert.match(roleAvatarBlock, /background-image:\s*var\(--avatar-image\)/);
@@ -4026,7 +4049,8 @@ test("team formation screen uses a squad-card role claiming layout", () => {
   assert.match(roleActionBlock, /border:\s*1px solid rgba\(var\(--team-color-rgb\),\s*0\.24\)/);
   assert.doesNotMatch(roleActionBlock, /grid-column:\s*1\s*\/\s*-1/);
   assert.match(css, /\.team-role-status/);
-  assert.match(cardFooterBlock, /margin-top:\s*clamp\(7px,\s*0\.8vh,\s*10px\)/);
+  assert.match(cardFooterBlock, /margin-top:\s*clamp\(4px,\s*0\.7vh,\s*10px\)/);
+  assert.match(cardFooterBlock, /transform:\s*translateY\(calc\(-1 \* clamp\(18px,\s*2\.4vh,\s*28px\)\)\)/);
   assert.match(appJs, /team-action-status/);
   assert.match(css, /\.team-action-status/);
   assert.match(appJs, /TEAM_ROLE_BLUEPRINT/);

@@ -49,7 +49,6 @@
     { roleKey: "biz", label: "业务洞察", duty: "业务洞察" },
     { roleKey: "dev", label: "AI 开发", duty: "AI 开发" },
     { roleKey: "design", label: "产品设计", duty: "产品设计" },
-    { roleKey: "roadshow", label: "路演运营", duty: "路演运营" },
   ];
   const WORK_SCREENSHOT_LIMIT = 3;
   const WORK_SCREENSHOT_MAX_BYTES = 8 * 1024 * 1024;
@@ -190,7 +189,7 @@
     try { return JSON.parse(root.localStorage.getItem(key) || JSON.stringify(fallback)); } catch (e) { return fallback; }
   };
   const splitTags = (value) => String(value || "").split(/[，、,\n/]+/).map((x) => x.trim()).filter(Boolean);
-  const defaultDuty = (index) => ["队长 / 统筹推进", "业务洞察", "AI 开发", "产品设计", "路演运营"][index] || "队友协作";
+  const defaultDuty = (index) => ["队长 / 统筹推进", "业务洞察", "AI 开发", "产品设计"][index] || "队友协作";
   const normalizeList = (value) => Array.isArray(value) ? value : [];
   const toNumber = (value, fallback = 0) => {
     const number = Number(value);
@@ -306,6 +305,8 @@
       displayMeta.nameEn || "业务赛道",
     );
     const hasWork = Boolean(work);
+    const workTitle = workProjectTitle(work);
+    const workPitch = hasWork ? String(work?.pitch || "").trim() : "";
     const stack = hasWork
       ? (Array.isArray(work?.stack) ? work.stack : [])
       : Array.isArray(team.stack) && team.stack.length
@@ -322,9 +323,9 @@
       nameEn: track,
       accent: team.color || displayMeta.accent || team.accent || base.accent || "var(--neon)",
       rgb: team.colorRgb || displayMeta.rgb || team.rgb || base.rgb || "40, 255, 200",
-      name: team.name || base.name || track,
-      project: workProjectTitle(work) || team.project || base.project || "作品待提交",
-      pitch: work?.pitch || team.pitch || base.pitch || "",
+      name: work?.teamName || team.name || base.name || track,
+      project: hasWork ? (workTitle || "作品待提交") : (String(team.project || "").trim() || "作品待提交"),
+      pitch: hasWork ? workPitch : String(team.pitch || "").trim(),
       stack,
       submitted: Boolean(work && !["draft", "rejected"].includes(work.status)) || Boolean(team.submitted),
       advisor: normalizeLeader(team.advisor || base.advisor || { name: "队长", avatar: "" }),
@@ -1899,7 +1900,7 @@
   function getWorkSubmission(team) {
     const work = team.work || {};
     return {
-      teamName: work.teamName || team.name || "",
+      teamName: work.teamName || "",
       project: workProjectTitle(work),
       pitch: work.pitch || "",
       stack: Array.isArray(work.stack) ? work.stack.join(" / ") : "",
@@ -2319,7 +2320,7 @@
     const publishedTeams = D.teams.filter(isPublishedWorkTeam);
     const cards = publishedTeams.map((t) => {
       const projectName = displayWorkProjectName(t);
-      const avas = teamPeople(t).slice(0, 5).map((p) => avatar(p, 34)).join("");
+      const avas = teamPeople(t).slice(0, 4).map((p) => avatar(p, 34)).join("");
       const isVoted = voted === t.id;
       const btn = !hasBackendSession()
         ? `<button class="gl2-vote" data-auth-vote="${t.id}">登录后投票</button>`
@@ -2368,9 +2369,8 @@
     const voteWindowOpen = isVoteWindowOpen();
     const isVoted = voted === t.id;
     const judgeScoringLocked = permissions.canScore && isJudgeScoringLockedForTeam(t.id);
-    const L = teamLinks(t);
     const workDocUrl = String(t.work?.docUrl || "").trim();
-    const docHref = workDocUrl || L.page;
+    const hasWorkDoc = Boolean(workDocUrl);
     const workLeaderId = getTeamLeaderId(t);
     const people = teamPeople(t)
       .map((p) => {
@@ -2398,16 +2398,20 @@
           ? `<button class="btn-primary dim" disabled>投票未开启</button>`
           : `<button class="btn-primary dim" disabled>当前身份不可投票</button>`;
     const screenshots = normalizeScreenshotList(t.work?.screenshots);
-    const slides = screenshots.length
-      ? screenshots.slice(0, WORK_SCREENSHOT_LIMIT).map((src, index) => ({ src: resolveUploadedAssetUrl(src), title: `展示截图 ${index + 1}`, caption: "作品真实界面" }))
-      : [["主界面", "产品核心流程"], ["数据看板", "关键指标可视化"], ["AI 能力", "模型推理与结果"]].map((item) => ({ title: item[0], caption: item[1] }));
-    const slideEls = slides.map((slide, i) => {
+    const slides = screenshots.slice(0, WORK_SCREENSHOT_LIMIT).map((src, index) => ({ src: resolveUploadedAssetUrl(src), title: `展示截图 ${index + 1}`, caption: "作品真实界面" }));
+    const slideEls = slides.length ? slides.map((slide, i) => {
       const shot = slide.src && isImageSource(slide.src)
         ? `<img src="${esc(slide.src)}" alt="${esc(slide.title)}" loading="lazy" />`
         : `<h3>${esc(t.project)}</h3>`;
       return `<div class="wkc-slide ${i === 0 ? "on" : ""}"><span class="gl2-dots"></span>${shot}<span class="wkc-cap">${esc(slide.title)} · ${esc(slide.caption)}</span><span class="gl2-bars"></span></div>`;
-    }).join("");
-    const dotEls = slides.map((_, i) => `<button class="wkc-dot ${i === 0 ? "on" : ""}" data-cgoto="${i}" aria-label="第 ${i + 1} 张"></button>`).join("");
+    }).join("") : `<div class="wkc-slide on wkc-empty"><span class="gl2-dots"></span><h3>未上传作品截图</h3><span class="wkc-cap">提交展示截图后将在这里显示</span><span class="gl2-bars"></span></div>`;
+    const dotEls = slides.length ? slides.map((_, i) => `<button class="wkc-dot ${i === 0 ? "on" : ""}" data-cgoto="${i}" aria-label="第 ${i + 1} 张"></button>`).join("") : "";
+    const workDescription = t.pitch
+      ? `该作品聚焦「${esc(t.track)}」赛道的真实业务痛点，构建可运行系统：${esc(t.pitch)}。${hasWorkDoc ? "完整介绍、功能说明与使用方式见飞书作品页文档。" : "完整介绍待补充。"}`
+      : "作品介绍待补充。";
+    const docPanel = hasWorkDoc
+      ? `<a class="wk-doc" href="${esc(workDocUrl)}" target="_blank" rel="noopener"><span class="wk-li">${ICON("doc", "var(--void)")}</span><span class="wk-doc-tx"><b>飞书作品页文档</b><span>项目介绍 · 功能 · 使用说明</span></span><i>➔</i></a>`
+      : `<div class="wk-doc is-disabled" aria-disabled="true"><span class="wk-li">${ICON("doc", "var(--text-soft)")}</span><span class="wk-doc-tx"><b>未设置飞书作品页</b><span>提交后展示项目介绍 · 功能 · 使用说明</span></span><i>—</i></div>`;
     return `<section class="page-hero wk-hero" style="--accent:${t.accent};--rgb:${t.rgb}"><div class="container">
       <a class="wk-back" data-nav="${safeReturnView}">‹ ${backLabel}</a>
       <span class="ph-en">${esc(t.trackCode)} · ${esc(t.track)} TRACK</span>
@@ -2420,7 +2424,7 @@
         <div class="sec-cap"><span></span>作品预览 · 轮播</div>
         <div class="wk-carousel" id="wkCarousel" style="--accent:${t.accent};--rgb:${t.rgb}"><div class="wkc-viewport"><div class="wkc-track">${slideEls}</div></div><button class="wkc-arrow prev" data-cdir="-1" aria-label="上一张">‹</button><button class="wkc-arrow next" data-cdir="1" aria-label="下一张">›</button><div class="wkc-foot"><div class="wkc-dots">${dotEls}</div></div></div>
         <div class="sec-cap"><span></span>作品介绍</div>
-        <p class="wk-desc">该作品聚焦「${esc(t.track)}」赛道的真实业务痛点，构建可运行系统：${esc(t.pitch || "")}。完整介绍、功能说明与使用方式见飞书作品页文档。</p>
+        <p class="wk-desc">${workDescription}</p>
         <div class="sec-cap"><span></span>技术栈</div>
         <div class="wk-stack">${stack}</div>
         <div class="sec-cap"><span></span>团队成员</div>
@@ -2429,7 +2433,7 @@
       <aside class="wk-side">
         <div class="wk-card glass">
           <div class="wk-cap">作品交付 · DELIVERY</div>
-          <a class="wk-doc" href="${esc(docHref)}" target="_blank" rel="noopener"><span class="wk-li">${ICON("doc", "var(--void)")}</span><span class="wk-doc-tx"><b>飞书作品页文档</b><span>项目介绍 · 功能 · 使用说明</span></span><i>➔</i></a>
+          ${docPanel}
           <div class="wk-status-list">
             <div><span>提交状态</span><b>${t.submitted ? "已提交" : "待补交"}</b></div>
             <div><span>当前票数</span><b>${t.votes.toLocaleString()}</b></div>
@@ -2527,7 +2531,7 @@
     const max = Math.max(1, ...ranked.map((t) => t.total));
     const rows = ranked.map((t) => {
       const champ = t.rank === 1;
-      const avas = teamPeople(t).slice(0, 5).map((p) => avatar(p, 30)).join("");
+      const avas = teamPeople(t).slice(0, 4).map((p) => avatar(p, 30)).join("");
       const scoreWidth = ((t.total / max) * 100).toFixed(2);
       const delay = (t.rank - 1) * 120;
       const metaText = [t.track, t.project].filter(Boolean).map((item) => esc(item)).join(" · ");

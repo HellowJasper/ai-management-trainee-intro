@@ -51,7 +51,7 @@ test("site profile detail drawer stays aligned with the big-screen detail layout
   assert.match(css, /--site-detail-card-width:\s*clamp\(220px,\s*20vw,\s*340px\)/);
   assert.match(css, /--site-detail-console-left:\s*calc\(var\(--site-detail-card-left\) \+ var\(--site-detail-card-width\) \+ clamp\(42px,\s*3\.8vw,\s*78px\)\)/);
   assert.match(css, /--site-detail-panel-gap:\s*clamp\(14px,\s*1\.3vw,\s*22px\)/);
-  assert.match(css, /--site-detail-media-column:\s*clamp\(360px,\s*40%,\s*600px\)/);
+  assert.match(css, /--site-detail-media-column:\s*clamp\(380px,\s*43%,\s*640px\)/);
   assert.match(css, /\.site-detail-layer \.draw-card\s*\{[^}]*width:\s*var\(--site-detail-card-width\);[^}]*min-width:\s*190px/s);
   assert.match(css, /\.site-detail-layer \.profile-console\s*\{[^}]*left:\s*var\(--site-detail-console-left\);[^}]*right:\s*var\(--site-detail-edge\);[^}]*width:\s*auto;[^}]*border-right:\s*0;[^}]*border-radius:\s*var\(--radius\) 0 0 var\(--radius\)/s);
   assert.match(css, /\.site-detail-layer\.is-open \.profile-console\s*\{[^}]*transform:\s*translateX\(0\)/s);
@@ -120,7 +120,7 @@ test("landing headline uses glitch text layers without decorative bars or subtit
 
   assert.match(html, /class="landing-title-cn"[^>]*data-text="AI创新黑客松"/);
   assert.match(html, /class="landing-title-sub"[^>]*data-text="36小时 · 让想法落地，让创新发生"/);
-  assert.match(html, /styles\.css\?v=20260706-detail-fluid/);
+  assert.match(html, /styles\.css\?v=20260706-team-formation-spacing/);
   assert.match(html, /src\/app\.js\?v=20260705-company-stage/);
   assert.match(logoBlock, /top:\s*calc\(23% \+ 15px\)/);
   assert.match(logoBlock, /width:\s*clamp\(240px,\s*20vw,\s*420px\)/);
@@ -141,8 +141,8 @@ test("index profile detail drawer keeps the card rail and console fluid across d
   const html = fs.readFileSync(landingHtmlPath, "utf8");
   const css = fs.readFileSync(landingCssPath, "utf8");
 
-  assert.match(html, /styles\.css\?v=20260706-detail-fluid/);
-  assert.match(css, /\.detail-layer\s*\{[^}]*--detail-card-width:\s*clamp\(260px,\s*20vw,\s*340px\)[^}]*--detail-card-left:\s*clamp\(28px,\s*2\.4vw,\s*64px\)[^}]*--detail-panel-gap:\s*clamp\(14px,\s*1\.3vw,\s*22px\)[^}]*--detail-media-column:\s*clamp\(360px,\s*40%,\s*600px\)[^}]*--detail-console-left:\s*clamp\(\s*420px,\s*calc\(var\(--detail-card-left\) \+ var\(--detail-card-width\) \+ clamp\(70px,\s*5vw,\s*110px\)\),\s*520px\s*\)/s);
+  assert.match(html, /styles\.css\?v=20260706-team-formation-spacing/);
+  assert.match(css, /\.detail-layer\s*\{[^}]*--detail-card-width:\s*clamp\(260px,\s*20vw,\s*340px\)[^}]*--detail-card-left:\s*clamp\(28px,\s*2\.4vw,\s*64px\)[^}]*--detail-panel-gap:\s*clamp\(14px,\s*1\.3vw,\s*22px\)[^}]*--detail-media-column:\s*clamp\(380px,\s*43%,\s*640px\)[^}]*--detail-console-left:\s*clamp\(\s*420px,\s*calc\(var\(--detail-card-left\) \+ var\(--detail-card-width\) \+ clamp\(70px,\s*5vw,\s*110px\)\),\s*520px\s*\)/s);
   assert.match(css, /\.draw-card\s*\{[^}]*left:\s*var\(--detail-card-left\)[^}]*width:\s*var\(--detail-card-width\)/s);
   assert.match(css, /\.profile-console\s*\{[^}]*left:\s*var\(--detail-console-left\)[^}]*right:\s*var\(--detail-edge\)[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\) var\(--detail-media-column\)[^}]*gap:\s*var\(--detail-panel-gap\)[^}]*width:\s*auto/s);
   assert.match(css, /\.profile-media-panel\s*\{[^}]*aspect-ratio:\s*auto;[^}]*width:\s*100%;[^}]*max-width:\s*none;[^}]*justify-self:\s*stretch/s);

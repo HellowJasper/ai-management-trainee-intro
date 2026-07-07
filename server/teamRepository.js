@@ -3,7 +3,7 @@ const path = require("node:path");
 const { createHttpError } = require("./traineeRepository");
 
 const DEFAULT_DATA_PATH = path.join(__dirname, "../data/teams.json");
-const DEFAULT_TEAM_CAPACITY = 5;
+const DEFAULT_TEAM_CAPACITY = 4;
 const LOCKED_TEAM_STATUSES = new Set(["locked", "closed"]);
 const WRITABLE_TEAM_STATUSES = new Set(["open", "locked"]);
 const SCENARIO_LIST_FIELDS = new Set(["scenarios", "scenariosEn"]);

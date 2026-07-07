@@ -60,20 +60,19 @@
   const TEAMS = [
     {
       id: "t1", trackCode: "01", track: "MEDICAL AFFAIRS", accent: "rgb(205, 255, 92)", rgb: "205, 255, 92",
-      name: "智元先锋", project: "临床试验智能入组系统", submitted: true, capacity: 5,
+      name: "智元先锋", project: "临床试验智能入组系统", submitted: true, capacity: 4,
       pitch: "AI 自动匹配受试者，入组效率提升 3 倍", stack: ["RAG", "Agent", "FastAPI"],
       advisor: { name: "林艺新", avatar: A("lin-yixin", "idPhoto.jpg") },
       members: [
         { name: "许镁胜", avatar: A("xu-meisheng", "idPhoto.jpg") },
         { name: "占美玲", avatar: A("zhan-meiling", "idPhoto.jpg") },
         { name: "顾灵茜", avatar: A("gu-lingqian", "idPhoto.jpg") },
-        { name: "陈徐林", avatar: A("chen-xulin", "idPhoto.png") },
       ],
       expert: 93.2, votes: 312,
     },
     {
       id: "t2", trackCode: "02", track: "PHARMACEUTICAL SCIENCE", accent: "var(--neon)", rgb: "40, 255, 200",
-      name: "丹方智造", project: "AI 辅助配方优化平台", submitted: true, capacity: 5,
+      name: "丹方智造", project: "AI 辅助配方优化平台", submitted: true, capacity: 4,
       pitch: "工艺参数智能寻优，研发周期缩短一半", stack: ["贝叶斯优化", "LLM", "Vue"],
       advisor: { name: "张瑞", avatar: A("zhang-rui", "idPhoto.jpg") },
       members: [
@@ -85,20 +84,19 @@
     },
     {
       id: "t3", trackCode: "03", track: "MANUFACTURING", accent: "rgb(110, 235, 150)", rgb: "110, 235, 150",
-      name: "智造引擎", project: "产线质检视觉系统", submitted: false, capacity: 5,
+      name: "智造引擎", project: "产线质检视觉系统", submitted: false, capacity: 4,
       pitch: "缺陷识别准确率 99.2%，质检零漏检", stack: ["YOLO", "Edge", "React"],
       advisor: { name: "唐靖沛", avatar: A("tang-jingpei", "idPhoto.jpg") },
       members: [
         { name: "顾柏", avatar: A("gu-bai", "photo.png") },
         { name: "梁星野", avatar: A("liang-xingye", "photo.png") },
         { name: "林源", avatar: A("lin-yuan", "photo.png") },
-        { name: "宋怡宁", avatar: A("song-yining", "photo.png") },
       ],
       expert: 88.1, votes: 251,
     },
     {
       id: "t4", trackCode: "04", track: "SALES & MARKETING", accent: "rgb(100, 232, 214)", rgb: "100, 232, 214",
-      name: "增长黑客", project: "全域内容生成引擎", submitted: true, capacity: 5,
+      name: "增长黑客", project: "全域内容生成引擎", submitted: true, capacity: 4,
       pitch: "一键生成全渠道营销内容，产能 ×10", stack: ["Diffusion", "LLM", "Next.js"],
       advisor: { name: "李蓓蓓", avatar: A("li-beibei", "idPhoto.jpg") },
       members: [
@@ -110,7 +108,7 @@
     },
     {
       id: "t5", trackCode: "05", track: "CORPORATE FUNCTIONS", accent: "var(--neon-2)", rgb: "167, 255, 79",
-      name: "效能中枢", project: "职能流程自动化助手", submitted: false, capacity: 5,
+      name: "效能中枢", project: "职能流程自动化助手", submitted: false, capacity: 4,
       pitch: "表单/合同/报表自动化，人均提效 40%", stack: ["RPA", "Workflow", "Dify"],
       advisor: { name: "贾博深", avatar: A("jasper", "idPhoto.jpg") },
       members: [

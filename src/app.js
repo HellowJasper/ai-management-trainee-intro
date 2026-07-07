@@ -317,12 +317,6 @@ const TEAM_ROLE_BLUEPRINT = [
     labelEn: "UX",
     description: "设计交互路径，打磨演示界面",
   },
-  {
-    key: "pitch",
-    label: "路演运营",
-    labelEn: "PITCH",
-    description: "组织答辩叙事，统筹现场协作",
-  },
 ];
 
 function fallbackMemberByName(name, role) {
@@ -354,8 +348,9 @@ function getFallbackTeamState() {
       docUrl: "",
       color: "var(--neon)",
       colorRgb: "40, 255, 200",
+      capacity: 4,
       advisor: { name: "队长 A", department: "药学研发中心", role: "队长" },
-      memberNames: ["黄钊强", "占美玲", "顾灵茜", "林艺新"],
+      memberNames: ["黄钊强", "占美玲", "顾灵茜"],
     },
     {
       id: "medicine",
@@ -373,8 +368,9 @@ function getFallbackTeamState() {
       docUrl: "",
       color: "rgb(205, 255, 92)",
       colorRgb: "205, 255, 92",
+      capacity: 4,
       advisor: { name: "队长 B", department: "临床研发中心", role: "队长" },
-      memberNames: ["许镁胜", "陈徐林", "唐靖沛", "张瑞"],
+      memberNames: ["许镁胜", "陈徐林", "唐靖沛"],
     },
     {
       id: "marketing",
@@ -392,8 +388,9 @@ function getFallbackTeamState() {
       docUrl: "",
       color: "rgb(100, 232, 214)",
       colorRgb: "100, 232, 214",
+      capacity: 4,
       advisor: { name: "队长 C", department: "健康品事业部", role: "队长" },
-      memberNames: ["李蓓蓓", "李丰", "张恒睿", "贾博深"],
+      memberNames: ["李蓓蓓", "李丰", "张恒睿"],
     },
     {
       id: "functions",
@@ -411,8 +408,9 @@ function getFallbackTeamState() {
       docUrl: "",
       color: "var(--neon-2)",
       colorRgb: "167, 255, 79",
+      capacity: 4,
       advisor: { name: "队长 D", department: "董事长办公室", role: "队长" },
-      memberNames: ["张瑞", "唐靖沛", "李丰", "陈徐林"],
+      memberNames: ["张瑞", "唐靖沛", "李丰"],
     },
     {
       id: "production",
@@ -430,8 +428,9 @@ function getFallbackTeamState() {
       docUrl: "",
       color: "rgb(110, 235, 150)",
       colorRgb: "110, 235, 150",
+      capacity: 4,
       advisor: { name: "队长 E", department: "生产管理中心", role: "队长" },
-      memberNames: ["顾灵茜", "许镁胜", "李蓓蓓", "黄钊强"],
+      memberNames: ["顾灵茜", "许镁胜", "李蓓蓓"],
     },
   ];
 
@@ -1157,7 +1156,7 @@ function renderTeamFormation() {
     .map((team) => {
       const advisor = team.advisor || {};
       const advisorName = normalizeLeaderDisplay(advisor.name) || "待定选手";
-      const members = Array.isArray(team.members) ? team.members.slice(0, 4) : [];
+      const members = Array.isArray(team.members) ? team.members.slice(0, 3) : [];
       const advisorFilledCount = advisor.name ? 1 : 0;
       const totalSeats = TEAM_ROLE_BLUEPRINT.length + 1;
       const roleSlots = TEAM_ROLE_BLUEPRINT.map((role, index) => ({
@@ -1477,8 +1476,8 @@ function renderRoadshowStage() {
   const nextTeam = resolveNextRoadshowTeam();
   const roster = [team.advisor, ...(Array.isArray(team.members) ? team.members : [])]
     .filter(Boolean)
-    .slice(0, 5);
-  const rosterSeats = Array.from({ length: 5 }, (_, index) => createRoadshowRosterSeat(roster[index], index));
+    .slice(0, 4);
+  const rosterSeats = Array.from({ length: 4 }, (_, index) => createRoadshowRosterSeat(roster[index], index));
 
   roadshowStage?.style.setProperty("--roadshow-color", team.color || "var(--neon)");
   roadshowStage?.style.setProperty("--roadshow-color-rgb", team.colorRgb || "40, 255, 200");

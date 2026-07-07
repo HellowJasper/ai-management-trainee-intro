@@ -115,7 +115,7 @@ async function seedTeams(pool, teams) {
         clean(team.nameEn || team.trackName),
         clean(team.project),
         clean(team.status || "open"),
-        Number(team.capacity || 5),
+        Number(team.capacity || 4),
         index,
         json(team, {}),
       ],

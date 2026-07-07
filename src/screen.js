@@ -140,7 +140,7 @@
    * ===================================================================== */
   function renderGallery() {
     const cards = D.teams.map((t, i) => {
-      const avas = [t.advisor, ...t.members].slice(0, 5).map((p) => avatar(p, 34, "ring")).join("");
+      const avas = [t.advisor, ...t.members].slice(0, 4).map((p) => avatar(p, 34, "ring")).join("");
       const stack = (t.stack || []).map((s) => `<span>${esc(s)}</span>`).join("");
       return `<article class="gl-card glass" style="--accent:${t.accent};--rgb:${t.rgb};--d:${i}"><span class="gl-corner tl"></span><span class="gl-corner br"></span><div class="gl-head"><span class="track-code sm">${esc(t.trackCode)}</span><div class="gl-id"><b>${esc(t.name)}</b><span>${esc(t.track)}</span></div>${hud(t.icon || "code", t.accent, 46)}</div><div class="gl-preview"><h3>${esc(t.project)}</h3></div><p class="gl-pitch">${esc(t.pitch || "")}</p><div class="gl-stack">${stack}</div><div class="gl-foot"><div class="gl-avas">${avas}</div><a class="gl-vote" href="https://joincare.feishu.cn/hackathon/vote/${t.id}" target="_blank" rel="noopener">为TA加油</a></div></article>`;
     }).join("");
@@ -155,7 +155,7 @@
     const total = D.teams.reduce((s, t) => s + t.votes, 0);
     const ranked = [...D.teams].sort((a, b) => b.votes - a.votes);
     const cards = ranked.map((t, i) => {
-      const avas = [t.advisor, ...t.members].slice(0, 5).map((p) => avatar(p, 40, "ring")).join("");
+      const avas = [t.advisor, ...t.members].slice(0, 4).map((p) => avatar(p, 40, "ring")).join("");
       return `<article class="vt-card glass ${i === 0 ? "lead" : ""}" style="--accent:${t.accent};--rgb:${t.rgb};--d:${i}"><div class="vt-head"><span class="track-code">${esc(t.trackCode)}</span><span class="vt-rank">#${i + 1}</span></div><h3 class="vt-name">${esc(t.name)}</h3><span class="vt-proj">${esc(t.project)}</span><div class="vt-avas">${avas}</div><div class="vt-meter">${bar((t.votes / max) * 100, t.accent, t.rgb)}</div><div class="vt-votes"><b>${t.votes.toLocaleString()}</b><span>实时票数</span></div></article>`;
     }).join("");
     return `<div class="page-wrap vote-wrap">${wm("LIVE", "VOTE")}${head("LIVE VOTE")}<div class="page-title"><h1>大众投票进度</h1><p>一人一票 · 投票窗口内有效<span class="pt-kpi">累计 <b>${total.toLocaleString()}</b> 票 · 窗口 <b data-countdown data-remain="1148" class="inline-cd">${fmtHMS(1148)}</b></span></p></div><div class="vt-grid">${cards}</div><div class="vote-cta glass"><div class="qr-box">${qrSvg()}</div><div class="cta-text"><strong>进入作品展厅投票</strong><span>电脑网页端 / 移动端扫码均可 — 浏览作品，为你支持的团队投 1 票</span></div><a class="cta-btn" href="https://joincare.feishu.cn/hackathon/gallery" target="_blank" rel="noopener">作品展厅 ➔</a></div>${foot("VOTE OPEN")}</div>`;
@@ -182,7 +182,7 @@
     const podium = [ranked[3], ranked[1], ranked[0], ranked[2], ranked[4]].filter(Boolean);
     const cards = podium.map((t) => {
       const champ = t.rank === 1;
-      const avas = [t.advisor, ...t.members].slice(0, 5).map((p) => avatar(p, champ ? 50 : 38, "ring")).join("");
+      const avas = [t.advisor, ...t.members].slice(0, 4).map((p) => avatar(p, champ ? 50 : 38, "ring")).join("");
       return `<article class="cp-card glass ${champ ? "is-champ" : ""} pos-${t.rank}" style="--accent:${t.accent};--rgb:${t.rgb}">${champ ? '<div class="cp-crown">' + hud("trophy", "var(--warning)", 78) + "</div>" : ""}<div class="cp-rank ${champ ? "r1" : ""}">${champ ? "CHAMPION" : "NO." + t.rank}</div><h3 class="cp-name">${esc(t.name)}</h3><span class="cp-proj">${esc(t.project)} · ${esc(t.track)}</span><div class="cp-avas">${avas}</div><div class="cp-total"><b>${t.total}</b><span>综合得分</span></div><div class="cp-break"><span>专家 ${t.expert}</span><span>赋分 ${t.votePoint}</span></div></article>`;
     }).join("");
     return `<div class="page-wrap champ-wrap">${wm("GRAND", "PRIZE")}${head("GRAND PRIZE")}<div class="page-title center"><h1>冠军揭晓 · GRAND PRIZE</h1><p>综合得分 = 专家评审 70% + 大众投票赋分 30%</p></div><div class="cp-podium">${cards}</div><div class="cp-company">${esc(D.meta.company)}</div></div>`;
