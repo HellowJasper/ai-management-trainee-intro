@@ -743,7 +743,7 @@
       prestart: "home",
       opening: "home",
       icebreaker: "wall",
-      speech: "welcome",
+      speech: "company",
       company: "company",
       tracks: "discover",
       team: "team",

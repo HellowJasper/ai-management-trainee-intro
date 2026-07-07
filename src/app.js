@@ -1,3 +1,5 @@
+const PRESIDENT_SPEECH_URL = "http://192.168.141.60:8776/joincare-ai-hackathon.html";
+
 const fallbackTrainees = [
   {
     "id": "jasper",
@@ -2295,6 +2297,10 @@ function bindEvents() {
   });
 
   document.getElementById("companyEnterButton").addEventListener("click", () => {
+    window.location.href = PRESIDENT_SPEECH_URL;
+  });
+
+  document.getElementById("companyTracksButton").addEventListener("click", () => {
     setView(window.AppLogic.resolveCompanyEntryTarget());
   });
 

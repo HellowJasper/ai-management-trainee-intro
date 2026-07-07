@@ -292,7 +292,9 @@ test("landing CTA opens the terminal boot welcome stage", () => {
   assert.equal(resolveCompanyEntryTarget(), "discover");
   assert.match(appJs, /document\.getElementById\("welcomeEnterButton"\)\.addEventListener\("click", \(\) => \{\s*setView\(window\.AppLogic\.resolveWelcomeEntryTarget\(\)\);\s*\}\);/);
   assert.match(appJs, /document\.getElementById\("teammatesEnterButton"\)\.addEventListener\("click", \(\) => \{\s*setView\(window\.AppLogic\.resolveTeammatesEntryTarget\(\)\);\s*\}\);/);
-  assert.match(appJs, /document\.getElementById\("companyEnterButton"\)\.addEventListener\("click", \(\) => \{\s*setView\(window\.AppLogic\.resolveCompanyEntryTarget\(\)\);\s*\}\);/);
+  assert.match(appJs, /const PRESIDENT_SPEECH_URL = "http:\/\/192\.168\.141\.60:8776\/joincare-ai-hackathon\.html";/);
+  assert.match(appJs, /document\.getElementById\("companyEnterButton"\)\.addEventListener\("click", \(\) => \{\s*window\.location\.href = PRESIDENT_SPEECH_URL;\s*\}\);/);
+  assert.match(appJs, /document\.getElementById\("companyTracksButton"\)\.addEventListener\("click", \(\) => \{\s*setView\(window\.AppLogic\.resolveCompanyEntryTarget\(\)\);\s*\}\);/);
   assert.match(teammatesSection, /MEET YOUR TEAMMATES!/);
   assert.match(wallSection, /<span>PERSONA<\/span>\s*<span>PROFILES<\/span>/);
 });
@@ -1991,12 +1993,20 @@ test("vote total orbit centers the numeric total independently from its label", 
 
 test("vote command status reads as a lightweight HUD indicator", () => {
   const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
+  const appJs = fs.readFileSync(path.join(__dirname, "../src/app.js"), "utf8");
+  const voteRepoJs = fs.readFileSync(path.join(__dirname, "../server/voteResultsRepository.js"), "utf8");
+  const mysqlVoteRepoJs = fs.readFileSync(path.join(__dirname, "../server/mysqlVoteResultsRepository.js"), "utf8");
 
   assert.match(css, /\.vote-command-bar strong\s*\{[^}]*justify-self:\s*center/s);
   assert.match(css, /\.vote-command-bar strong\s*\{[^}]*border:\s*0/s);
   assert.match(css, /\.vote-command-bar strong\s*\{[^}]*background:\s*transparent/s);
+  assert.match(css, /\.vote-command-bar strong\s*\{[^}]*font-family:\s*var\(--body\)/s);
   assert.match(css, /\.vote-command-bar strong\s*\{[^}]*font-size:\s*clamp\(12px,\s*0\.78vw,\s*14px\)/s);
+  assert.match(css, /\.vote-command-bar strong\s*\{[^}]*letter-spacing:\s*0\.04em/s);
   assert.match(css, /\.vote-command-bar strong\s*\{[^}]*box-shadow:\s*none/s);
+  assert.match(appJs, /windowLabel:\s*"投票窗口开启中"/);
+  assert.match(voteRepoJs, /voting:\s*"投票窗口开启中"/);
+  assert.match(mysqlVoteRepoJs, /voting:\s*"投票窗口开启中"/);
   assert.doesNotMatch(css, /\.vote-command-bar strong\s*\{[^}]*border-radius:\s*999px/s);
   assert.match(css, /\.vote-command-bar strong::before\s*\{[^}]*content:\s*""/s);
   assert.match(css, /\.vote-command-bar strong::after\s*\{[^}]*linear-gradient\(90deg,\s*transparent,\s*rgba\(40,\s*255,\s*200,\s*0\.72\),\s*transparent\)/s);
@@ -2837,6 +2847,7 @@ test("official site cache keys are bumped after navigation and detail layout pol
 
 test("terminal boot welcome stage is wired into the HTML", () => {
   const html = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../styles.css"), "utf8");
 
   assert.match(html, /<section class="welcome-stage" id="welcomeStage"/);
   assert.match(html, /id="welcomeRain"/);
@@ -2849,11 +2860,15 @@ test("terminal boot welcome stage is wired into the HTML", () => {
   assert.match(html, /class="teammates-ready-panel"/);
   assert.match(html, /class="teammates-ready-button" id="teammatesEnterButton"/);
   assert.match(html, /data-text="MEET YOUR TEAMMATES!"/);
-  assert.match(html, /<section class="company-stage" id="companyStage"/);
+  assert.match(html, /<section class="company-stage" id="companyStage" aria-label="总裁讲话"/);
   assert.match(html, /id="companyRain"/);
   assert.match(html, /class="company-ready-panel"/);
   assert.match(html, /class="company-ready-button" id="companyEnterButton"/);
-  assert.match(html, /data-text="认识公司"/);
+  assert.match(html, /data-text="关于健康元"/);
+  assert.match(html, /class="company-tracks-skip" id="companyTracksButton"/);
+  assert.match(html, />进入五大赛道<\/button>/);
+  assert.match(css, /\.company-tracks-skip\s*\{[\s\S]*position:\s*absolute[\s\S]*right:\s*clamp/);
+  assert.match(css, /\.company-tracks-skip\s*\{[\s\S]*background:\s*rgba\(2,\s*8,\s*14,\s*0\.18\)/);
   assert.doesNotMatch(html, /welcome-signal-field/);
   assert.doesNotMatch(html, /MISSION BRIEF/);
   assert.doesNotMatch(html, /AI_INNOVATION_HACKATHON_2026/);
@@ -2885,15 +2900,13 @@ test("terminal boot welcome stage uses the ready screen composition", () => {
   assert.match(buttonBlock, /color:\s*var\(--text\)/);
   assert.match(buttonBlock, /font-family:\s*var\(--display\)/);
   assert.match(buttonBlock, /font-size:\s*clamp\(54px,\s*7\.4vw,\s*128px\)/);
-  assert.match(buttonBlock, /font-style:\s*italic/);
+  assert.match(buttonBlock, /font-style:\s*normal/);
   assert.match(buttonBlock, /letter-spacing:\s*0\.06em/);
   assert.match(buttonBlock, /border:\s*0/);
   assert.match(buttonBlock, /background:\s*transparent/);
-  assert.match(buttonBlock, /transform:\s*skewX\(-8deg\)/);
-  assert.match(buttonBeforeBlock, /content:\s*attr\(data-text\)/);
-  assert.match(buttonBlock, /rgba\(40,\s*255,\s*200,\s*0\.5\)/);
-  assert.match(buttonBeforeBlock, /color:\s*rgba\(40,\s*255,\s*200,\s*0\.24\)/);
-  assert.match(buttonBeforeBlock, /rgba\(40,\s*255,\s*200,\s*0\.36\)/);
+  assert.match(buttonBlock, /transform:\s*none/);
+  assert.match(buttonBeforeBlock, /display:\s*none/);
+  assert.match(buttonBlock, /rgba\(40,\s*255,\s*200,\s*0\.4\)/);
   assert.doesNotMatch(`${stageBlock}\n${rainBlock}\n${buttonBlock}\n${buttonBeforeBlock}`, /167,\s*255,\s*79|#a7ff4f/i);
   assert.doesNotMatch(css, /\.welcome-terminal\s*{/);
   assert.doesNotMatch(css, /\.welcome-terminal-body\s*{/);
@@ -3466,10 +3479,10 @@ test("admin and big screen cache keys stay current", () => {
   assert.match(adminHtml, /admin\.css\?v=20260703-admin-mobile-scroll/);
   assert.match(adminHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(adminHtml, /src\/admin\.js\?v=20260702-result-publish-api5173/);
-  assert.match(indexHtml, /styles\.css\?v=20260706-team-formation-spacing/);
+  assert.match(indexHtml, /styles\.css\?v=20260707-vote-status-cn/);
   assert.match(indexHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
-  assert.match(indexHtml, /src\/logic\.js\?v=20260705-company-stage/);
-  assert.match(indexHtml, /src\/app\.js\?v=20260705-company-stage/);
+  assert.match(indexHtml, /src\/logic\.js\?v=20260707-team-formation-stretch/);
+  assert.match(indexHtml, /src\/app\.js\?v=20260707-team-formation-stretch/);
   assert.match(screenHtml, /src\/screen-data\.js\?v=20260703-slogan-copy/);
 });
 
@@ -3559,7 +3572,7 @@ test("resolveStageScreenView maps admin stages to existing screen views", () => 
   assert.equal(resolveStageScreenView("prestart"), "home");
   assert.equal(resolveStageScreenView("opening"), "home");
   assert.equal(resolveStageScreenView("icebreaker"), "wall");
-  assert.equal(resolveStageScreenView("speech"), "welcome");
+  assert.equal(resolveStageScreenView("speech"), "company");
   assert.equal(resolveStageScreenView("company"), "company");
   assert.equal(resolveStageScreenView("tracks"), "discover");
   assert.equal(resolveStageScreenView("team"), "team");
@@ -3571,7 +3584,7 @@ test("resolveStageScreenView maps admin stages to existing screen views", () => 
 test("resolveScreenViewFromRouteStage keeps direct big-screen links on the requested view", () => {
   assert.equal(resolveScreenViewFromRouteStage("icebreaker"), "wall");
   assert.equal(resolveScreenViewFromRouteStage("opening"), "home");
-  assert.equal(resolveScreenViewFromRouteStage("speech"), "welcome");
+  assert.equal(resolveScreenViewFromRouteStage("speech"), "company");
   assert.equal(resolveScreenViewFromRouteStage("company"), "company");
   assert.equal(resolveScreenViewFromRouteStage("wall"), "wall");
   assert.equal(resolveScreenViewFromRouteStage("vote-progress"), "vote");
@@ -4008,10 +4021,11 @@ test("team formation screen uses a squad-card role claiming layout", () => {
   assert.doesNotMatch(html, /先抢赛道，再认领岗位职责/);
   assert.match(css, /\.app-shell\[data-view="team"\]\s*>\s*\.team-stage/);
   assert.match(css, /\.app-shell\.view-team\s*>\s*\.team-stage/);
-  assert.match(wrapBlock, /padding:\s*clamp\(72px,\s*7\.8vh,\s*102px\)\s+clamp\(32px,\s*4vw,\s*64px\)\s+clamp\(58px,\s*6\.4vh,\s*78px\)/);
+  assert.match(wrapBlock, /padding:\s*clamp\(76px,\s*7\.2vh,\s*96px\)\s+clamp\(32px,\s*4vw,\s*64px\)\s+clamp\(56px,\s*5\.8vh,\s*72px\)/);
   assert.match(gridBlock, /grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/);
-  assert.match(gridBlock, /height:\s*min\(660px,\s*calc\(100vh - 252px\)\)/);
-  assert.match(squadBlock, /grid-template-rows:\s*auto auto minmax\(0,\s*1fr\) auto/);
+  assert.match(gridBlock, /height:\s*min\(620px,\s*calc\(100vh - 282px\)\)/);
+  assert.match(squadBlock, /grid-template-rows:\s*auto 1fr 3fr auto/);
+  assert.match(squadBlock, /align-content:\s*stretch/);
   assert.match(squadBlock, /border-top:\s*1px solid rgba\(var\(--team-color-rgb\),\s*0\.62\)/);
   assert.match(squadBlock, /background:[\s\S]*rgba\(3,\s*14,\s*18,\s*0\.72\)/);
   assert.doesNotMatch(squadBlock, /0 20px 50px/);
@@ -4030,12 +4044,12 @@ test("team formation screen uses a squad-card role claiming layout", () => {
   assert.match(appJs, /team-role-status/);
   assert.match(appJs, /后端同步/);
   assert.doesNotMatch(appJs, /已报名/);
-  assert.match(advisorSlotBlock, /margin:\s*clamp\(7px,\s*0\.85vh,\s*10px\)\s+0/);
+  assert.match(advisorSlotBlock, /margin:\s*0/);
   assert.match(advisorSlotBlock, /border-color:\s*rgba\(var\(--team-color-rgb\),\s*0\.28\)/);
   assert.match(advisorSlotBlock, /background:[\s\S]*rgba\(var\(--team-color-rgb\),\s*0\.1\)/);
   assert.match(roleGridBlock, /grid-template-columns:\s*1fr/);
-  assert.match(roleGridBlock, /grid-template-rows:\s*repeat\(3,\s*minmax\(66px,\s*1fr\)\)/);
-  assert.match(roleGridBlock, /gap:\s*clamp\(12px,\s*1\.12vh,\s*18px\)/);
+  assert.match(roleGridBlock, /grid-template-rows:\s*repeat\(3,\s*1fr\)/);
+  assert.match(roleGridBlock, /gap:\s*clamp\(10px,\s*1\.2vh,\s*14px\)/);
   assert.match(roleSlotBlock, /grid-template-columns:\s*auto minmax\(0,\s*1fr\) auto/);
   assert.match(roleSlotBlock, /align-items:\s*center/);
   assert.match(roleAvatarBlock, /background-image:\s*var\(--avatar-image\)/);
@@ -4049,8 +4063,8 @@ test("team formation screen uses a squad-card role claiming layout", () => {
   assert.match(roleActionBlock, /border:\s*1px solid rgba\(var\(--team-color-rgb\),\s*0\.24\)/);
   assert.doesNotMatch(roleActionBlock, /grid-column:\s*1\s*\/\s*-1/);
   assert.match(css, /\.team-role-status/);
-  assert.match(cardFooterBlock, /margin-top:\s*clamp\(4px,\s*0\.7vh,\s*10px\)/);
-  assert.match(cardFooterBlock, /transform:\s*translateY\(calc\(-1 \* clamp\(18px,\s*2\.4vh,\s*28px\)\)\)/);
+  assert.match(cardFooterBlock, /margin-top:\s*clamp\(2px,\s*0\.4vh,\s*6px\)/);
+  assert.match(cardFooterBlock, /transform:\s*none/);
   assert.match(appJs, /team-action-status/);
   assert.match(css, /\.team-action-status/);
   assert.match(appJs, /TEAM_ROLE_BLUEPRINT/);
