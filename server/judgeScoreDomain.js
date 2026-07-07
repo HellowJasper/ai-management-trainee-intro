@@ -270,10 +270,20 @@ function buildJudgeProgress({ state = {}, teamIds = [], judges = [] } = {}) {
 
   const expectedScoreCount = judgeRows.length * allTeamIds.length;
   const lockedScoreCount = judgeRows.reduce((sum, judge) => sum + judge.lockedCount, 0);
+  const submittedScoreCount = judgeRows.reduce((sum, judge) => sum + judge.submittedCount, 0);
+  const scoredTeamCount = teamRows.filter((team) => Number(team.submittedJudgeCount) > 0).length;
+  const missingScoreTeamIds = teamRows
+    .filter((team) => !(Number(team.submittedJudgeCount) > 0))
+    .map((team) => team.teamId);
   return {
     locked: expectedScoreCount > 0 && lockedScoreCount === expectedScoreCount,
+    scoreReady: allTeamIds.length > 0 && missingScoreTeamIds.length === 0,
     judgeCount: judgeRows.length,
     teamCount: allTeamIds.length,
+    expectedScoreCount,
+    submittedScoreCount,
+    scoredTeamCount,
+    missingScoreTeamIds,
     judges: judgeRows,
     teams: teamRows,
   };

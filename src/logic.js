@@ -13,6 +13,8 @@
   });
   const feishuLoginSessionKey = "joincare_feishu_login";
   const missionCountdownDurationMs = 36 * 60 * 60 * 1000;
+  const finalExpertWeight = 0.9;
+  const finalVoteWeight = 0.1;
   const roleDefinitions = Object.freeze({
     player: Object.freeze({
       label: "参赛选手",
@@ -643,7 +645,7 @@
     return ranking
       .map((team, index) => {
         const expertScore = getExpertScoreValue(team.expert);
-        const totalScore = Number((expertScore * 0.7 + team.votePoints * 0.3).toFixed(2));
+        const totalScore = Number((expertScore * finalExpertWeight + team.votePoints * finalVoteWeight).toFixed(2));
 
         return {
           ...team,
@@ -697,7 +699,7 @@
           const rawTotalScore = Number(team?.totalScore ?? team?.total ?? team?.score);
           const totalScore = Number.isFinite(rawTotalScore)
             ? rawTotalScore
-            : Number((expertScore * 0.7 + votePoints * 0.3).toFixed(2));
+            : Number((expertScore * finalExpertWeight + votePoints * finalVoteWeight).toFixed(2));
 
           return {
             ...team,

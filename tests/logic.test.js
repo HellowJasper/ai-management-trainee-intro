@@ -617,7 +617,7 @@ test("admin publish result action creates a backend result snapshot", () => {
   assert.match(adminJs, /const snapshot = await window\.AppData\.publishAdminResults\([\s\S]*?const voteResults = await window\.AppData\.updateAdminVoteWindow\("published"\)/);
   assert.match(adminJs, /setText\(adminResultPublishStatus,\s*formatErrorStatus\("发布失败", error\)\)/);
   assert.match(adminJs, /const publishAlreadyComplete = voteStatus === "published" && Boolean\(businessDataState\.resultSnapshot\?\.id\)/);
-  assert.match(adminJs, /const scoreReady = Boolean\(scoreCoverage\(businessDataState\.judgeScores, businessDataState\.judgeProgress\)\.locked\)/);
+  assert.match(adminJs, /const scoreReady = Boolean\(scoreCoverage\(businessDataState\.judgeScores, businessDataState\.judgeProgress\)\.scoreReady\)/);
   assert.match(adminJs, /const publishReady = voteReady && scoreReady && !publishAlreadyComplete/);
   assert.doesNotMatch(adminJs, /const publishReady = voteReady && !publishAlreadyComplete/);
   assert.doesNotMatch(adminJs, /const voteResults = await window\.AppData\.updateAdminVoteWindow\(status\);\s*const resultAction[\s\S]*status === "published"/);
@@ -639,8 +639,8 @@ test("admin console exposes a dedicated leaderboard publish workspace", () => {
   assert.match(html, /id="adminResultFlowVoteState"/);
   assert.match(html, /id="adminResultFlowScoreState"/);
   assert.match(html, /id="adminResultFlowSnapshotState"/);
-  assert.match(html, /必须：锁定全部评分/);
-  assert.match(html, /关闭投票并锁定专家评分后/);
+  assert.match(html, /必须：每个作品至少一份评分/);
+  assert.match(html, /关闭投票并满足评分覆盖后/);
   assert.match(html, /data-vote-window-status="closed"/);
   assert.match(html, /data-lock-judge-scores/);
   assert.match(html, /data-result-publish/);
@@ -660,12 +660,12 @@ test("admin console exposes a dedicated leaderboard publish workspace", () => {
   assert.match(adminJs, /const adminResultFlowScoreState/);
   assert.match(adminJs, /const adminResultFlowSnapshotState/);
   assert.match(adminJs, /function renderResultPublishSummary/);
-  assert.match(adminJs, /const scoreReady = Boolean\(coverage\.locked\)/);
+  assert.match(adminJs, /const scoreReady = Boolean\(coverage\.scoreReady\)/);
   assert.match(adminJs, /const finalReady = voteReady && scoreReady/);
   assert.match(adminJs, /const publishReady = voteReady && scoreReady && !publishAlreadyComplete/);
-  assert.match(adminJs, /先锁定专家评分，再发布排行榜/);
+  assert.match(adminJs, /先确保每个已发布作品至少有一份正式评分，再发布排行榜/);
   assert.doesNotMatch(adminJs, /管理员可直接发布排行/);
-  assert.doesNotMatch(adminJs, /未锁定也不阻止发布/);
+  assert.match(adminJs, /未锁定也不阻止发布/);
   assert.match(adminJs, /targetView === "results"/);
   assert.match(adminJs, /event\.target\.closest\("\[data-result-publish\]"\)/);
   assert.match(adminJs, /await updateAdminVoteWindow\("published"\)/);
@@ -1080,7 +1080,7 @@ test("official site home stays a navigable site dashboard instead of the index l
   const renderHomeBody = siteJs.match(/function renderHome\(\) \{([\s\S]*?)\n  function renderPeople\(\)/)?.[1] || "";
 
   assert.match(siteHtml, /src\/site\.css\?v=20260706-work-empty-state/);
-  assert.match(siteHtml, /src\/site\.js\?v=20260706-work-empty-state/);
+  assert.match(siteHtml, /src\/site\.js\?v=20260707-final-rank-weights/);
   assert.match(renderHomeBody, /<span class="hero-kicker"><span class="hero-kicker-live"><span class="live-dot"><\/span>LIVE<\/span><span class="hero-kicker-name">AI_INNOVATION_HACKATHON_2026<\/span><\/span>/);
   assert.match(renderHomeBody, /<h1 class="hero-title">AI创新黑客松<\/h1>/);
   assert.match(renderHomeBody, /<p class="hero-slogan">36小时 · 让想法落地，让创新发生<\/p>/);
@@ -1109,7 +1109,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260706-work-empty-state/);
+  assert.match(siteHtml, /site\.js\?v=20260707-final-rank-weights/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -1151,7 +1151,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260706-work-empty-state/);
+  assert.match(siteHtml, /site\.js\?v=20260707-final-rank-weights/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -1170,7 +1170,7 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
   assert.match(siteHtml, /site\.css\?v=20260706-work-empty-state/);
-  assert.match(siteHtml, /site\.js\?v=20260706-work-empty-state/);
+  assert.match(siteHtml, /site\.js\?v=20260707-final-rank-weights/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -1866,14 +1866,14 @@ test("computeFinalResults combines expert average and vote rank points into a un
   assert.equal(finalResults.length, 5);
   assert.deepEqual(
     finalResults.map((team) => team.id),
-    ["marketing", "pharma", "medicine", "production", "functions"],
+    ["marketing", "medicine", "pharma", "production", "functions"],
   );
   assert.equal(finalResults[0].rank, 1);
   assert.equal(finalResults[0].votePoints, 100);
   assert.equal(finalResults[0].expertScore, 93.1);
-  assert.equal(finalResults[0].totalScore, 95.17);
-  assert.equal(finalResults[1].totalScore, 91.72);
-  assert.equal(finalResults[2].totalScore, 88.48);
+  assert.equal(finalResults[0].totalScore, 93.79);
+  assert.equal(finalResults[1].totalScore, 93.76);
+  assert.equal(finalResults[2].totalScore, 93.64);
   assert.ok(finalResults[0].totalScore > finalResults[1].totalScore);
   assert.equal(finalResults.filter((team) => team.isChampion).length, 1);
   assert.equal(finalResults[0].isChampion, true);
@@ -1942,6 +1942,7 @@ test("final result stage wires the champion showcase after vote result", () => {
 
   assert.match(html, /id="finalResultStage"/);
   assert.match(html, /最终结果 · 冠军展示/);
+  assert.match(html, /最终综合得分 = 专家评审均分 × 70% \+ 大众投票排名赋分 × 30%/);
   assert.match(html, /data-view-target="final-result">FINAL RESULT<\/button>/);
   assert.match(html, /id="finalResultChampion"/);
   assert.match(html, /id="finalResultLeaderboard"/);
@@ -1952,10 +1953,28 @@ test("final result stage wires the champion showcase after vote result", () => {
   assert.match(appJs, /loadLatestResultSnapshot/);
   assert.match(appJs, /resolveDisplayFinalResults\(\{[\s\S]*voteResults:\s*voteResultsState\.results[\s\S]*pointScale:\s*voteResultsState\.pointScale[\s\S]*resultSnapshot:\s*resultSnapshotState\.snapshot/);
   assert.match(appJs, /if \(!resultSnapshotState\.published \|\| !resultSnapshotState\.snapshot\)/);
-  assert.doesNotMatch(appJs, /finalResultLeaderboard\.innerHTML\s*=\s*finalResults\.map/);
+  assert.match(appJs, /const finalResultRows = finalResults\.slice\(1\)/);
+  assert.match(appJs, /finalResultLeaderboard\.innerHTML\s*=\s*finalResultRows\.map\(\(team\) =>/);
+  assert.doesNotMatch(appJs, /team\.rank === 1 \? " · 冠军" : ""/);
+  assert.doesNotMatch(appJs, /final-result-context/);
+  assert.doesNotMatch(appJs, /<span>综合得分<\/span>/);
+  assert.doesNotMatch(appJs, /<span>专家评审均分<\/span>/);
+  assert.doesNotMatch(appJs, /<span>大众赋分<\/span>/);
   assert.match(adminJs, /id:\s*"final"/);
   assert.match(adminJs, /name:\s*"冠军展示"/);
   assert.match(css, /\.app-shell\[data-view="final-result"\]\s*>\s*\.final-result-stage/);
+});
+
+test("public result keeps leaderboard data visible, calculates 90 to 10, and displays 70 to 30", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.match(siteJs, /total:\s*\+\(team\.expert \* 0\.9 \+ votePoint \* 0\.1\)\.toFixed\(2\)/);
+  assert.match(siteJs, /专家评审 70% \+ 大众投票 30%/);
+  assert.match(siteJs, /以 30% 权重计入最终综合得分/);
+  assert.doesNotMatch(siteJs, /class="rk-mini"/);
+  assert.doesNotMatch(siteJs, /专家 \$\{t\.expert\}/);
+  assert.doesNotMatch(siteJs, /赋分 \$\{t\.votePoint\}/);
+  assert.match(siteJs, /<span class="rk-total">\$\{t\.total\}<\/span>/);
 });
 
 test("final result styling exposes ceremony layout hooks", () => {
@@ -1963,10 +1982,9 @@ test("final result styling exposes ceremony layout hooks", () => {
 
   assert.match(css, /\.final-result-stage\s*\{/);
   assert.match(css, /\.final-result-champion\s*\{/);
-  assert.match(css, /\.final-result-score strong\s*\{/);
+  assert.match(css, /\.final-result-rank-badge strong\s*\{/);
   assert.match(css, /\.final-result-leaderboard\s*\{/);
-  assert.match(css, /\.final-result-score-grid\s*\{/);
-  assert.match(css, /\.final-result-context\s*\{/);
+  assert.match(css, /\.final-result-row\.is-rank-only\s*\{/);
   assert.match(css, /\.final-result-row\.is-champion\s*\{/);
 });
 
@@ -2072,10 +2090,10 @@ test("final result screen reserves enough vertical room for the champion showcas
   assert.match(css, /\.final-result-cockpit\s*\{[^}]*height:\s*min\(660px,\s*calc\(100dvh - var\(--final-result-chrome-space\)\)\)[^}]*max-height:\s*calc\(100dvh - var\(--final-result-chrome-space\)\)[^}]*min-height:\s*0[^}]*overflow:\s*hidden/s);
   assert.doesNotMatch(css, /\.final-result-cockpit\s*\{[^}]*height:\s*var\(--final-result-cockpit-height\)/s);
   assert.match(css, /\.final-result-champion\s*\{[^}]*height:\s*100%[^}]*min-height:\s*0[^}]*gap:\s*clamp\(8px,\s*1\.25vh,\s*18px\)[^}]*padding:\s*clamp\(22px,\s*2\.4vw,\s*42px\)/s);
-  assert.match(css, /\.final-result-score strong\s*\{[^}]*font-size:\s*clamp\(50px,\s*4\.4vw,\s*84px\)/s);
-  assert.match(css, /\.final-result-sideboard\s*\{[^}]*gap:\s*clamp\(12px,\s*1\.2vw,\s*22px\)[^}]*padding:\s*clamp\(16px,\s*1\.7vw,\s*28px\)/s);
-  assert.match(css, /\.final-result-leaderboard\s*\{[^}]*gap:\s*clamp\(10px,\s*1\.1vh,\s*14px\)/s);
-  assert.match(css, /\.final-result-row\s*\{[^}]*grid-template-columns:\s*64px minmax\(0,\s*1fr\) 136px[^}]*gap:\s*clamp\(14px,\s*1\.25vw,\s*22px\)[^}]*min-height:\s*clamp\(86px,\s*8\.5vh,\s*112px\)[^}]*padding:\s*clamp\(14px,\s*1\.2vw,\s*20px\)/s);
+  assert.match(css, /\.final-result-rank-badge strong\s*\{[^}]*font-size:\s*clamp\(50px,\s*4\.4vw,\s*84px\)/s);
+  assert.match(css, /\.final-result-sideboard\s*\{[^}]*gap:\s*clamp\(10px,\s*1vw,\s*16px\)[^}]*padding:\s*clamp\(14px,\s*1\.5vw,\s*24px\)/s);
+  assert.match(css, /\.final-result-leaderboard\s*\{[^}]*gap:\s*clamp\(7px,\s*0\.78vh,\s*10px\)/s);
+  assert.match(css, /\.final-result-row\s*\{[^}]*grid-template-columns:\s*64px minmax\(0,\s*1fr\)[^}]*gap:\s*clamp\(10px,\s*1vw,\s*16px\)[^}]*min-height:\s*clamp\(64px,\s*7\.2vh,\s*84px\)[^}]*padding:\s*clamp\(10px,\s*1vw,\s*15px\)/s);
 });
 
 test("final result screen adds a cyber award ceremony motion layer", () => {
@@ -2090,7 +2108,7 @@ test("final result screen adds a cyber award ceremony motion layer", () => {
   assert.match(css, /\.app-shell\[data-view="final-result"\]\s+\.final-result-stage::before\s*\{[^}]*animation:\s*awardSpotlightSweep/s);
   assert.match(css, /\.app-shell\[data-view="final-result"\]\s+\.final-result-cockpit\s*\{[^}]*animation:\s*awardPanelReveal/s);
   assert.match(css, /\.app-shell\[data-view="final-result"\]\s+\.final-result-emblem\s*\{[^}]*animation:\s*awardChampionPulse/s);
-  assert.match(css, /\.app-shell\[data-view="final-result"\]\s+\.final-result-score strong\s*\{[^}]*animation:\s*awardScorePop/s);
+  assert.match(css, /\.app-shell\[data-view="final-result"\]\s+\.final-result-rank-badge strong\s*\{[^}]*animation:\s*awardScorePop/s);
   assert.match(css, /\.final-result-champion::after\s*\{[^}]*animation:\s*awardGoldScan/s);
   assert.match(css, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.app-shell\[data-view="final-result"\]\s+\.final-result-stage::before,[\s\S]*animation:\s*none/s);
 });
@@ -2784,7 +2802,7 @@ test("official site forces Feishu login on desktop and mobile entry", () => {
   assert.match(siteCss, /\.auth-gate\.is-forced/);
   assert.match(siteCss, /\.auth-required-note/);
   assert.match(html, /src\/site\.css\?v=20260706-work-empty-state/);
-  assert.match(html, /src\/site\.js\?v=20260706-work-empty-state/);
+  assert.match(html, /src\/site\.js\?v=20260707-final-rank-weights/);
 });
 
 test("official site refreshes backend session before leaving the Feishu login gate", () => {
@@ -2839,10 +2857,10 @@ test("official site cache keys are bumped after navigation and detail layout pol
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
   assert.match(html, /src\/site\.css\?v=20260706-work-empty-state/);
-  assert.match(html, /src\/logic\.js\?v=20260703-judge-no-quick/);
+  assert.match(html, /src\/logic\.js\?v=20260707-final-rank-weights/);
   assert.match(html, /src\/data\.js\?v=20260630-prestart-separate-timer/);
-  assert.match(html, /src\/screen-data\.js\?v=20260703-slogan-copy/);
-  assert.match(html, /src\/site\.js\?v=20260706-work-empty-state/);
+  assert.match(html, /src\/screen-data\.js\?v=20260707-final-rank-weights/);
+  assert.match(html, /src\/site\.js\?v=20260707-final-rank-weights/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {
@@ -3479,11 +3497,11 @@ test("admin and big screen cache keys stay current", () => {
   assert.match(adminHtml, /admin\.css\?v=20260703-admin-mobile-scroll/);
   assert.match(adminHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(adminHtml, /src\/admin\.js\?v=20260702-result-publish-api5173/);
-  assert.match(indexHtml, /styles\.css\?v=20260707-vote-status-cn/);
+  assert.match(indexHtml, /styles\.css\?v=20260707-final-rank-weights/);
   assert.match(indexHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
-  assert.match(indexHtml, /src\/logic\.js\?v=20260707-team-formation-stretch/);
-  assert.match(indexHtml, /src\/app\.js\?v=20260707-team-formation-stretch/);
-  assert.match(screenHtml, /src\/screen-data\.js\?v=20260703-slogan-copy/);
+  assert.match(indexHtml, /src\/logic\.js\?v=20260707-final-rank-weights/);
+  assert.match(indexHtml, /src\/app\.js\?v=20260707-final-rank-weights/);
+  assert.match(screenHtml, /src\/screen-data\.js\?v=20260707-final-rank-weights/);
 });
 
 test("landing stage starts with its main CTA visible and clickable", () => {

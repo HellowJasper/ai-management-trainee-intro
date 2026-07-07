@@ -3380,7 +3380,7 @@ function createStaticUserRoleRepository(users = []) {
   };
 }
 
-test("admin result publish API requires an ended vote window and locked judge scores", async (t) => {
+test("admin result publish API requires an ended vote window and at least one score per published work", async (t) => {
   const snapshotsFile = await createTempJsonFile("ai-result-guard-snapshots-", "result-snapshots.json", {
     snapshots: [],
   });
@@ -3397,13 +3397,13 @@ test("admin result publish API requires an ended vote window and locked judge sc
   };
   const judgeState = {
     records: {
-	      "judge-001": {
-	        marketing: { status: "submitted", totalScore: 93 },
-	        pharma: { status: "submitted", totalScore: 90 },
-	        hidden: { status: "locked", totalScore: 60 },
-	      },
-	    },
-	  };
+      "judge-001": {
+        marketing: { status: "submitted", totalScore: 93 },
+        pharma: { status: "submitted", totalScore: 90 },
+        hidden: { status: "locked", totalScore: 60 },
+      },
+    },
+  };
   const server = createServer({
     publicRoot: snapshotsFile.publicRoot,
     voteResultsRepository: {
@@ -3437,30 +3437,18 @@ test("admin result publish API requires an ended vote window and locked judge sc
   assert.match(votingPayload.error.message, /vote window/i);
 
   voteState.status = "closed";
-  const unlockedPublishResponse = await fetch(`${baseUrl}/api/admin/results/publish`, {
+  const partialPublishResponse = await fetch(`${baseUrl}/api/admin/results/publish`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ actor: "admin-001" }),
   });
-  const unlockedPayload = await unlockedPublishResponse.json();
+  const published = await partialPublishResponse.json();
 
-  assert.equal(unlockedPublishResponse.status, 409);
-  assert.match(unlockedPayload.error.message, /judge scores/i);
-
-  judgeState.records["judge-001"].marketing.status = "locked";
-  judgeState.records["judge-001"].pharma.status = "locked";
-  const lockedPublishResponse = await fetch(`${baseUrl}/api/admin/results/publish`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ actor: "admin-001" }),
-  });
-  const published = await lockedPublishResponse.json();
-
-  assert.equal(lockedPublishResponse.status, 201);
-	  assert.equal(published.status, "published");
-	  assert.equal(published.results[0].id, "marketing");
-	  assert.equal(published.source.judge.records["judge-001"].marketing.status, "locked");
-	  assert.equal(published.source.judge.records["judge-001"].hidden, undefined);
+  assert.equal(partialPublishResponse.status, 201);
+  assert.equal(published.status, "published");
+  assert.equal(published.results[0].id, "marketing");
+  assert.equal(published.source.judge.records["judge-001"].marketing.status, "submitted");
+  assert.equal(published.source.judge.records["judge-001"].hidden, undefined);
 
   voteState.status = "published";
   const recoveryResponse = await fetch(`${baseUrl}/api/admin/results/publish`, {
@@ -3471,9 +3459,9 @@ test("admin result publish API requires an ended vote window and locked judge sc
   const recovered = await recoveryResponse.json();
 
   assert.equal(recoveryResponse.status, 201);
-	  assert.equal(recovered.status, "published");
-	  assert.equal(recovered.results[0].id, "marketing");
-	});
+  assert.equal(recovered.status, "published");
+  assert.equal(recovered.results[0].id, "marketing");
+});
 
 test("admin result publish API rejects when a published work is missing from vote results", async (t) => {
   const snapshotsFile = await createTempJsonFile("ai-result-missing-vote-row-snapshots-", "result-snapshots.json", {
@@ -3527,7 +3515,7 @@ test("admin result publish API rejects when a published work is missing from vot
   assert.match(payload.error.message, /pharma/);
 });
 
-test("admin result publish API rejects publishing when an active judge has missing locked scores", async (t) => {
+test("admin result publish API rejects when a published work has no judge score", async (t) => {
   const snapshotsFile = await createTempJsonFile("ai-result-missing-judge-snapshots-", "result-snapshots.json", {
     snapshots: [],
   });
@@ -3554,22 +3542,15 @@ test("admin result publish API rejects publishing when an active judge has missi
           records: {
             "judge-001": {
               marketing: { status: "locked", totalScore: 93 },
-              pharma: { status: "locked", totalScore: 90 },
             },
           },
         };
       },
     },
-    userRoleRepository: {
-      async listUsers() {
-        return {
-          users: [
-            { id: "judge-001", roles: ["judge"], status: "active" },
-            { id: "judge-002", roles: ["judge"], status: "active" },
-          ],
-        };
-      },
-    },
+    userRoleRepository: createStaticUserRoleRepository([
+      { id: "judge-001", roles: ["judge"], status: "active" },
+      { id: "judge-002", roles: ["judge"], status: "active" },
+    ]),
     worksRepository: createPublishedWorksRepository(["marketing", "pharma"]),
     resultSnapshotRepository: createResultSnapshotRepository(snapshotsFile.dataPath),
     auditLogRepository: createAuditLogRepository(auditFile.dataPath),
@@ -3586,7 +3567,8 @@ test("admin result publish API rejects publishing when an active judge has missi
   const payload = await response.json();
 
   assert.equal(response.status, 409);
-  assert.match(payload.error.message, /judge scores/i);
+  assert.match(payload.error.message, /judge score/i);
+  assert.match(payload.error.message, /pharma/);
 });
 
 test("admin result publish API limits final snapshots to published works", async (t) => {

@@ -588,29 +588,65 @@ function scoreCoverage(scoresState = {}, progressState = businessDataState.judge
         * (Number.isFinite(teamCount) ? teamCount : 0),
     );
     const submittedCount = progressState.judges.reduce((sum, judge) => sum + (Number(judge.submittedCount) || 0), 0);
+    const scoredTeamCount = Array.isArray(progressState.teams)
+      ? progressState.teams.filter((team) => Number(team.submittedJudgeCount) > 0).length
+      : 0;
+    const missingTeamCount = Math.max(0, (Number.isFinite(teamCount) ? teamCount : 0) - scoredTeamCount);
+    const normalizedTeamCount = Number.isFinite(teamCount) ? teamCount : 0;
     return {
       judgeCount: Number.isFinite(judgeCount) ? judgeCount : progressState.judges.length,
-      teamCount: Number.isFinite(teamCount) ? teamCount : 0,
+      teamCount: normalizedTeamCount,
       submittedCount,
       expectedCount,
+      scoredTeamCount,
+      missingTeamCount,
       locked: Boolean(progressState.locked),
+      scoreReady: typeof progressState.scoreReady === "undefined"
+        ? normalizedTeamCount > 0 && scoredTeamCount === normalizedTeamCount
+        : Boolean(progressState.scoreReady),
     };
   }
 
   const scores = scoresState.scores && typeof scoresState.scores === "object" ? scoresState.scores : {};
   const judgeIds = Object.keys(scores);
-  const teamIds = new Set();
+  const submittedTeamIds = new Set();
+  const configuredTeamIds = normalizeWorks(businessDataState.works)
+    .filter((work) => work.status === "published")
+    .map((work) => work.teamId || work.id)
+    .filter(Boolean);
+  const teamIds = new Set(configuredTeamIds.length
+    ? configuredTeamIds
+    : (businessDataState.teams || []).map((team) => team.id).filter(Boolean));
+  let submittedCount = 0;
+  let lockedCount = 0;
 
   judgeIds.forEach((judgeId) => {
-    Object.keys(scores[judgeId] || {}).forEach((teamId) => teamIds.add(teamId));
+    Object.entries(scores[judgeId] || {}).forEach(([teamId, record]) => {
+      const status = String(record?.status || "").trim();
+      if (!teamIds.size) {
+        teamIds.add(teamId);
+      }
+      if (status === "submitted" || status === "locked") {
+        submittedTeamIds.add(teamId);
+        submittedCount += 1;
+      }
+      if (status === "locked") {
+        lockedCount += 1;
+      }
+    });
   });
+  const scoredTeamCount = Array.from(teamIds).filter((teamId) => submittedTeamIds.has(teamId)).length;
+  const expectedCount = judgeIds.length * teamIds.size;
 
   return {
     judgeCount: judgeIds.length,
     teamCount: teamIds.size,
-    submittedCount: 0,
-    expectedCount: 0,
-    locked: false,
+    submittedCount,
+    expectedCount,
+    scoredTeamCount,
+    missingTeamCount: Math.max(0, teamIds.size - scoredTeamCount),
+    locked: expectedCount > 0 && lockedCount === expectedCount,
+    scoreReady: teamIds.size > 0 && scoredTeamCount === teamIds.size,
   };
 }
 
@@ -1416,9 +1452,8 @@ function renderResultPublishSummary() {
   const voteStatus = voteResults.windowLabel || voteResults.status || "等待同步";
   const needsSnapshotRecovery = voteResults.status === "published" && !snapshot?.id;
   const voteReady = voteResults.status === "closed" || voteResults.status === "published";
-  const scoreReady = Boolean(coverage.locked);
+  const scoreReady = Boolean(coverage.scoreReady);
   const finalReady = voteReady && scoreReady;
-  const missingScoreCount = Math.max(0, (coverage.expectedCount || 0) - (coverage.submittedCount || 0));
   const scoreText = coverage.expectedCount
     ? `${formatNumber(coverage.submittedCount)}/${formatNumber(coverage.expectedCount)}`
     : `${formatNumber(coverage.teamCount)} 队`;
@@ -1432,8 +1467,10 @@ function renderResultPublishSummary() {
     adminResultPublishScoreStatus,
     coverage.locked
       ? "专家评分已锁定"
+      : scoreReady
+        ? "评分覆盖已满足，未锁定也不阻止发布"
       : coverage.expectedCount
-        ? "评分未锁定，暂不能发布"
+        ? "仍有作品暂无正式评分"
         : "暂无评分，暂不能发布",
   );
   setText(adminResultPublishWorkStatus, `${formatNumber(publishedWorks)}/${formatNumber(works.length)}`);
@@ -1441,17 +1478,19 @@ function renderResultPublishSummary() {
   setText(
     adminResultFlowVoteHint,
     voteReady
-      ? "大众投票入口已停止，继续确认专家评分是否已锁定。"
+      ? "大众投票入口已停止，继续确认每个已发布作品是否至少有一份评分。"
       : "先关闭投票，避免发布前票数继续变化。",
   );
-  setText(adminResultFlowScoreState, coverage.locked ? "专家评分已锁定" : scoreText);
+  setText(adminResultFlowScoreState, coverage.locked ? "专家评分已锁定" : scoreReady ? "评分覆盖已满足" : scoreText);
   setText(
     adminResultFlowScoreHint,
     coverage.locked
       ? "专家评分已经定稿，会写入最终排行快照。"
+      : scoreReady
+        ? `已同步 ${formatNumber(coverage.submittedCount)}/${formatNumber(coverage.expectedCount)} 份评分，覆盖 ${formatNumber(coverage.scoredTeamCount)}/${formatNumber(coverage.teamCount)} 个作品；未锁定也不阻止发布。`
       : coverage.expectedCount
-        ? `已同步 ${formatNumber(coverage.submittedCount)}/${formatNumber(coverage.expectedCount)} 份评分，必须锁定后才能发布最终排行。`
-        : "暂无正式评分，发布最终排行前必须先完成并锁定专家评分。",
+        ? `已同步 ${formatNumber(coverage.submittedCount)}/${formatNumber(coverage.expectedCount)} 份评分，还有 ${formatNumber(coverage.missingTeamCount)} 个作品暂无正式评分。`
+        : "暂无正式评分，发布最终排行前必须先完成每个作品至少一份评分。",
   );
   setText(
     adminResultFlowSnapshotState,
@@ -1469,12 +1508,12 @@ function renderResultPublishSummary() {
       ? `前台排行榜正在读取快照 ${snapshot.id}。`
       : !voteReady
         ? "先完成关闭投票，再发布排行榜。"
-        : !scoreReady
-          ? "先锁定专家评分，再发布排行榜。"
+      : !scoreReady
+          ? "先确保每个已发布作品至少有一份正式评分，再发布排行榜。"
           : "前置条件已满足，勾选确认后可发布最终排行榜。",
   );
   setResultFlowStepStatus("vote", voteReady ? "complete" : "pending");
-  setResultFlowStepStatus("judge", coverage.locked ? "complete" : voteReady ? "pending" : "blocked");
+  setResultFlowStepStatus("judge", scoreReady ? "complete" : voteReady ? "pending" : "blocked");
   setResultFlowStepStatus("publish", snapshot?.id ? "complete" : finalReady ? "pending" : "blocked");
   syncDangerActionButtons();
 }
@@ -1697,10 +1736,17 @@ function renderJudgeProgress(progress = businessDataState.judgeProgress) {
   const expected = judges.reduce((sum, judge) => sum + (Number(judge.totalTeamCount) || 0), 0);
   const submitted = judges.reduce((sum, judge) => sum + (Number(judge.submittedCount) || 0), 0);
   const allSubmitted = expected > 0 && submitted >= expected;
+  const scoreReady = Boolean(progress?.scoreReady);
 
   lockButtons.forEach((lockButton) => {
     lockButton.disabled = !allSubmitted || Boolean(progress?.locked);
-    lockButton.textContent = progress?.locked ? "专家评分已锁定" : allSubmitted ? "锁定专家评分" : "等待评分提交";
+    lockButton.textContent = progress?.locked
+      ? "专家评分已锁定"
+      : allSubmitted
+        ? "锁定专家评分"
+        : scoreReady
+          ? "可发布，待全量提交后锁定"
+          : "等待评分提交";
   });
   if (!adminJudgeProgress) {
     return;
@@ -1770,8 +1816,10 @@ function renderBusinessData(payload = {}) {
     adminJudgeSummary,
     coverage.locked
       ? "专家评分已锁定，可进入最终结果核算。"
+      : coverage.scoreReady
+        ? `评分覆盖已满足，已有 ${formatNumber(coverage.submittedCount)}/${formatNumber(coverage.expectedCount)} 份评分正式提交，可发布最终结果。`
       : coverage.expectedCount
-        ? `已有 ${coverage.submittedCount}/${coverage.expectedCount} 份评分正式提交，覆盖 ${coverage.teamCount} 个赛道。`
+        ? `已有 ${coverage.submittedCount}/${coverage.expectedCount} 份评分正式提交，覆盖 ${coverage.scoredTeamCount}/${coverage.teamCount} 个作品。`
         : "暂无评委提交进度。",
   );
 
@@ -1791,7 +1839,7 @@ function syncDangerActionButtons() {
   const resultConfirmed = Boolean(confirmResultPublishAction?.checked);
   const voteStatus = businessDataState.voteResults?.status || "voting";
   const voteReady = voteStatus === "closed" || voteStatus === "published";
-  const scoreReady = Boolean(scoreCoverage(businessDataState.judgeScores, businessDataState.judgeProgress).locked);
+  const scoreReady = Boolean(scoreCoverage(businessDataState.judgeScores, businessDataState.judgeProgress).scoreReady);
   const publishAlreadyComplete = voteStatus === "published" && Boolean(businessDataState.resultSnapshot?.id);
   const publishReady = voteReady && scoreReady && !publishAlreadyComplete;
 
@@ -1853,7 +1901,7 @@ function renderDashboardSummary() {
     {
       label: "评分覆盖",
       value: coverage.expectedCount ? `${coverage.submittedCount}/${coverage.expectedCount}` : formatNumber(coverage.teamCount),
-      note: coverage.locked ? "专家评分已锁定" : `${coverage.judgeCount} 位评委提交进度`,
+      note: coverage.locked ? "专家评分已锁定" : coverage.scoreReady ? "评分覆盖已满足" : `${coverage.judgeCount} 位评委提交进度`,
       wide: true,
     },
     {
@@ -2055,7 +2103,7 @@ function renderContentManager() {
     { name: "投票排名", route: "data/vote-results.json", apiRoute: "/api/vote-results", count: `${formatNumber(getVoteTotal())} 票`, note: businessDataState.voteResults.windowLabel || "投票窗口状态待同步。" },
     { name: "最终结果快照", route: "data/result-snapshots.json", apiRoute: "/api/results/latest", count: snapshot?.id ? "已发布" : "未发布", note: snapshot?.id || "发布结果后生成不可变最终排名快照。" },
     { name: "作品提交", route: "data/works.json", apiRoute: "/api/admin/works", count: `${works.length} 件作品`, note: "作品提交后可在数据与投票页审核发布或退回。" },
-    { name: "评委评分", route: "data/judge-scores.json", apiRoute: "/api/judge/scores", count: coverage.expectedCount ? `${coverage.submittedCount}/${coverage.expectedCount} 已提交` : `${coverage.teamCount} 个赛道`, note: coverage.locked ? "专家评分已锁定，可发布最终结果。" : `${coverage.judgeCount} 位评委提交进度待同步。` },
+    { name: "评委评分", route: "data/judge-scores.json", apiRoute: "/api/judge/scores", count: coverage.expectedCount ? `${coverage.submittedCount}/${coverage.expectedCount} 已提交` : `${coverage.teamCount} 个赛道`, note: coverage.locked ? "专家评分已锁定，可发布最终结果。" : coverage.scoreReady ? "评分覆盖已满足，可发布最终结果。" : `${coverage.judgeCount} 位评委提交进度待同步。` },
     { name: "审计日志", route: "data/audit-logs.json", apiRoute: "/api/admin/audit-logs", count: `${businessDataState.auditLogs.length} 条`, note: "记录后台关键写操作，便于排查与复盘。" },
     { name: "星锐档案", route: "data/trainees.json", apiRoute: "/api/trainees", count: `${traineeProfileState.trainees.length || 14} 人`, note: "新人档案和个人展示内容由后台统一维护。" },
   ];

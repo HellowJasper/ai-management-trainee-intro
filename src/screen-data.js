@@ -138,7 +138,7 @@
     byVotes.forEach((t, i) => { votePoint[t.id] = VOTE_POINTS[i] != null ? VOTE_POINTS[i] : 40; });
     const ranked = TEAMS.map((t) => {
       const vp = votePoint[t.id];
-      return { ...t, votePoint: vp, voteRank: byVotes.findIndex((x) => x.id === t.id) + 1, total: +(t.expert * 0.7 + vp * 0.3).toFixed(2) };
+      return { ...t, votePoint: vp, voteRank: byVotes.findIndex((x) => x.id === t.id) + 1, total: +(t.expert * 0.9 + vp * 0.1).toFixed(2) };
     }).sort((a, b) => b.total - a.total);
     ranked.forEach((t, i) => { t.rank = i + 1; });
     return ranked;

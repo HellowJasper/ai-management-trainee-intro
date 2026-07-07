@@ -1787,23 +1787,9 @@ function renderFinalResult() {
       <div class="final-result-emblem">#1</div>
       <h2>${escapeHtml(champion.name || "待定队伍")}</h2>
       <p>${escapeHtml(champion.project || "AI 创新解决方案")}</p>
-      <div class="final-result-score">
-        <span>综合得分</span>
-        <strong>${champion.totalScore.toFixed(2)}</strong>
-      </div>
-      <div class="final-result-metrics">
-        <section>
-          <span>专家评审均分</span>
-          <strong>${champion.expertScore.toFixed(1)}</strong>
-        </section>
-        <section>
-          <span>大众票数</span>
-          <strong>${champion.votes}</strong>
-        </section>
-        <section>
-          <span>大众赋分</span>
-          <strong>${champion.votePoints}</strong>
-        </section>
+      <div class="final-result-rank-badge">
+        <span>最终排名</span>
+        <strong>#1</strong>
       </div>
     ` : `
       <span class="vote-kicker">OVERALL CHAMPION</span>
@@ -1825,41 +1811,28 @@ function renderFinalResult() {
     return;
   }
 
-  const expertWeighted = Number((champion.expertScore * 0.7).toFixed(2));
-  const voteWeighted = Number((champion.votePoints * 0.3).toFixed(2));
+  const finalResultRows = finalResults.slice(1);
+  if (!finalResultRows.length) {
+    finalResultLeaderboard.innerHTML = `
+      <article class="final-result-row is-empty">
+        <div class="final-result-team">
+          <strong>等待后续名次</strong>
+          <span>冠军已在左侧展示，其余队伍发布后显示在这里。</span>
+        </div>
+      </article>
+    `;
+    return;
+  }
 
-  finalResultLeaderboard.innerHTML = `
-    <article class="final-result-row is-champion" style="--vote-color: ${escapeAttribute(champion.color || "var(--neon)")}; --vote-color-rgb: ${escapeAttribute(champion.colorRgb || "40, 255, 200")};">
-      <div class="final-result-rank">冠军</div>
+  finalResultLeaderboard.innerHTML = finalResultRows.map((team) => `
+    <article class="final-result-row is-rank-only" style="--vote-color: ${escapeAttribute(team.color || "var(--neon)")}; --vote-color-rgb: ${escapeAttribute(team.colorRgb || "40, 255, 200")};">
+      <div class="final-result-rank">#${String(team.rank || 0).padStart(2, "0")}</div>
       <div class="final-result-team">
-        <strong>${escapeHtml(champion.name || "待定队伍")}</strong>
-        <span>${escapeHtml(champion.track || champion.nameEn || "")} / ${escapeHtml(champion.project || "")}</span>
-      </div>
-      <div class="final-result-total">
-        <span>TOTAL</span>
-        <strong>${champion.totalScore.toFixed(2)}</strong>
+        <strong>${escapeHtml(team.name || "待定队伍")}</strong>
+        <span>${escapeHtml(team.track || team.nameEn || "")} / ${escapeHtml(team.project || "")}</span>
       </div>
     </article>
-    <div class="final-result-score-grid">
-      <section>
-        <span>专家权重 70%</span>
-        <strong>${expertWeighted.toFixed(2)}</strong>
-      </section>
-      <section>
-        <span>大众权重 30%</span>
-        <strong>${voteWeighted.toFixed(2)}</strong>
-      </section>
-      <section>
-        <span>综合得分</span>
-        <strong>${champion.totalScore.toFixed(2)}</strong>
-      </section>
-    </div>
-    <div class="final-result-context">
-      <span>CHAMPION PROFILE</span>
-      <strong>${escapeHtml(champion.project || "AI 创新解决方案")}</strong>
-      <p>${escapeHtml(champion.name || "冠军队伍")} 已在综合评分中位列第一，本页用于大屏最终展示。</p>
-    </div>
-  `;
+  `).join("");
 }
 
 async function syncVoteResults() {

@@ -372,7 +372,7 @@
         ...team,
         voteRank,
         votePoint,
-        total: +(team.expert * 0.7 + votePoint * 0.3).toFixed(2),
+        total: +(team.expert * 0.9 + votePoint * 0.1).toFixed(2),
       };
     }).sort((a, b) => b.total - a.total);
     ranked.forEach((team, index) => { team.rank = index + 1; });
@@ -2536,7 +2536,7 @@
       const delay = (t.rank - 1) * 120;
       const metaText = [t.track, t.project].filter(Boolean).map((item) => esc(item)).join(" · ");
       const metaHtml = metaText ? `<span class="rk-meta">${metaText}</span>` : "";
-      return `<div class="rk-row glass ${champ ? "champ" : ""}" style="--accent:${t.accent};--rgb:${t.rgb};--score-width:${scoreWidth}%;--rank-delay:${delay}ms"><span class="rk-no ${t.rank <= 3 ? "top" : ""}">${champ ? "🏆" : pad(t.rank)}</span><div class="rk-id"><b>${esc(t.name)}${champ ? '<i class="rk-crown">冠军战队</i>' : ""}</b>${metaHtml}</div><div class="rk-avas">${avas}</div><div class="rk-bar"><span class="meter" style="--accent:${t.accent};--rgb:${t.rgb}"><i></i></span></div><div class="rk-mini"><span>专家 ${t.expert}</span><span>赋分 ${t.votePoint}</span></div><span class="rk-total">${t.total}</span></div>`;
+      return `<div class="rk-row glass ${champ ? "champ" : ""}" style="--accent:${t.accent};--rgb:${t.rgb};--score-width:${scoreWidth}%;--rank-delay:${delay}ms"><span class="rk-no ${t.rank <= 3 ? "top" : ""}">${champ ? "🏆" : pad(t.rank)}</span><div class="rk-id"><b>${esc(t.name)}${champ ? '<i class="rk-crown">冠军战队</i>' : ""}</b>${metaHtml}</div><div class="rk-avas">${avas}</div><div class="rk-bar"><span class="meter" style="--accent:${t.accent};--rgb:${t.rgb}"><i></i></span></div><span class="rk-total">${t.total}</span></div>`;
     }).join("");
     return `${resultHead("排行榜")}<section class="container sec result-sec"><div class="rk-list">${rows}</div></section>`;
   }

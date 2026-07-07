@@ -144,8 +144,11 @@ function assertFinalResultPublishable({ voteState = {}, judgeState = {}, teamIds
     teamIds: publishedTeamIds,
     judges: Array.isArray(judgeState.judges) ? judgeState.judges : [],
   });
-  if (!progress.locked) {
-    throw createHttpError(409, "Final results require locked judge scores before publishing.");
+  if (!progress.scoreReady) {
+    const missingTeamIds = Array.isArray(progress.missingScoreTeamIds) && progress.missingScoreTeamIds.length
+      ? progress.missingScoreTeamIds.join(", ")
+      : "unknown";
+    throw createHttpError(409, `Final results require at least one submitted judge score for every published work: ${missingTeamIds}.`);
   }
 }
 

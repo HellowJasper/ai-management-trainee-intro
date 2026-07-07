@@ -4230,6 +4230,7 @@ button:disabled {
 .vote-rule-panel small,
 .vote-winner-stats span,
 .final-result-score span,
+.final-result-rank-badge span,
 .final-result-metrics span,
 .final-result-rule-panel span,
 .final-result-rule-panel small,
@@ -4532,7 +4533,8 @@ button:disabled {
   line-height: 0.95;
 }
 
-.final-result-score {
+.final-result-score,
+.final-result-rank-badge {
   position: relative;
   z-index: 1;
   display: grid;
@@ -4540,14 +4542,16 @@ button:disabled {
   justify-items: center;
 }
 
-.final-result-score strong {
+.final-result-score strong,
+.final-result-rank-badge strong {
   color: rgba(244, 255, 250, 0.98);
   font-size: clamp(50px, 4.4vw, 84px);
   line-height: 0.9;
   text-shadow: 0 0 34px rgba(var(--vote-color-rgb), 0.18);
 }
 
-.app-shell[data-view="final-result"] .final-result-score strong {
+.app-shell[data-view="final-result"] .final-result-score strong,
+.app-shell[data-view="final-result"] .final-result-rank-badge strong {
   animation: awardScorePop 980ms cubic-bezier(0.16, 1, 0.22, 1) 760ms both;
   color: rgba(255, 252, 229, 0.98);
   text-shadow:
@@ -4555,7 +4559,8 @@ button:disabled {
     0 0 48px rgba(var(--vote-color-rgb), 0.22);
 }
 
-.app-shell.view-final-result .final-result-score strong {
+.app-shell.view-final-result .final-result-score strong,
+.app-shell.view-final-result .final-result-rank-badge strong {
   animation: awardScorePop 980ms cubic-bezier(0.16, 1, 0.22, 1) 760ms both;
   color: rgba(255, 252, 229, 0.98);
   text-shadow:
@@ -4585,8 +4590,8 @@ button:disabled {
 .final-result-sideboard {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: clamp(12px, 1.2vw, 22px);
-  padding: clamp(16px, 1.7vw, 28px);
+  gap: clamp(10px, 1vw, 16px);
+  padding: clamp(14px, 1.5vw, 24px);
   min-height: 0;
 }
 
@@ -4626,21 +4631,25 @@ button:disabled {
 .final-result-leaderboard {
   display: grid;
   align-content: start;
-  gap: clamp(10px, 1.1vh, 14px);
+  gap: clamp(7px, 0.78vh, 10px);
   min-height: 0;
 }
 
 .final-result-row {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) 136px;
+  grid-template-columns: 64px minmax(0, 1fr);
   align-items: center;
-  gap: clamp(14px, 1.25vw, 22px);
-  min-height: clamp(86px, 8.5vh, 112px);
-  padding: clamp(14px, 1.2vw, 20px);
+  gap: clamp(10px, 1vw, 16px);
+  min-height: clamp(64px, 7.2vh, 84px);
+  padding: clamp(10px, 1vw, 15px);
   border-color: rgba(var(--vote-color-rgb), 0.24);
   background:
     linear-gradient(90deg, rgba(var(--vote-color-rgb), 0.08), transparent 42%),
     rgba(3, 13, 17, 0.66);
+}
+
+.final-result-row.is-rank-only {
+  grid-template-columns: 64px minmax(0, 1fr);
 }
 
 .final-result-row.is-champion {
@@ -4827,6 +4836,7 @@ button:disabled {
   .app-shell[data-view="final-result"] .final-result-champion::after,
   .app-shell[data-view="final-result"] .final-result-emblem,
   .app-shell[data-view="final-result"] .final-result-score strong,
+  .app-shell[data-view="final-result"] .final-result-rank-badge strong,
   .app-shell[data-view="final-result"] .final-result-sideboard,
   .app-shell.view-final-result .final-result-stage::before,
   .app-shell.view-final-result .final-result-stage::after,
@@ -4835,6 +4845,7 @@ button:disabled {
   .app-shell.view-final-result .final-result-champion::after,
   .app-shell.view-final-result .final-result-emblem,
   .app-shell.view-final-result .final-result-score strong,
+  .app-shell.view-final-result .final-result-rank-badge strong,
   .app-shell.view-final-result .final-result-sideboard {
     animation: none;
   }
