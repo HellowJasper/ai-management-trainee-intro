@@ -23,6 +23,10 @@ function normalizeVoteWindowStatus(status) {
   return cleanStatus;
 }
 
+function resolveVoteWindowLabel(status) {
+  return VOTE_WINDOW_LABELS[status] || VOTE_WINDOW_LABELS.voting;
+}
+
 function normalizeVoteResults(payload = {}) {
   const source = Array.isArray(payload)
     ? { results: payload }
@@ -34,7 +38,7 @@ function normalizeVoteResults(payload = {}) {
       ? source.pointScale
       : DEFAULT_POINT_SCALE,
     status,
-    windowLabel: source.windowLabel || VOTE_WINDOW_LABELS[status] || "投票窗口开启中",
+    windowLabel: resolveVoteWindowLabel(status),
     updatedAt: source.updatedAt || new Date().toISOString(),
     results: Array.isArray(source.results) ? source.results : [],
     voters: source.voters && typeof source.voters === "object" ? source.voters : {},
@@ -162,7 +166,7 @@ function createVoteResultsRepository(dataPath = DEFAULT_DATA_PATH) {
       const nextState = {
         ...state,
         status,
-        windowLabel: payload.windowLabel || VOTE_WINDOW_LABELS[status],
+        windowLabel: resolveVoteWindowLabel(status),
         updatedAt: new Date().toISOString(),
       };
 

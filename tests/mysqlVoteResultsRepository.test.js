@@ -202,6 +202,27 @@ test("MySQL vote repository keeps the vote window and one-active-vote contract",
   );
 });
 
+test("MySQL vote repository normalizes stale vote window labels from status", async () => {
+  const pool = new MemoryMysqlVotePool({
+    window: {
+      status: "voting",
+      windowLabel: "乱码旧文案",
+      pointScale: [100, 85, 70, 55, 40],
+    },
+  });
+  const repository = createMysqlVoteResultsRepository(pool);
+
+  const listed = await repository.listVoteResults();
+  assert.equal(listed.windowLabel, "投票窗口开启中");
+
+  const closed = await repository.updateWindowStatus({
+    status: "closed",
+    windowLabel: "bad stale label",
+  });
+  assert.equal(closed.windowLabel, "投票已关闭");
+  assert.equal(pool.window.windowLabel, "投票已关闭");
+});
+
 test("MySQL vote repository wraps vote writes in a transaction and locks the vote window", async () => {
   const pool = new MemoryMysqlVotePool({
     window: {

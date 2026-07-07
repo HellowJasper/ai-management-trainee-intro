@@ -37,11 +37,15 @@ function normalizeVoteWindowStatus(status) {
   return cleanStatus;
 }
 
+function resolveVoteWindowLabel(status) {
+  return VOTE_WINDOW_LABELS[status] || VOTE_WINDOW_LABELS.voting;
+}
+
 function defaultVoteWindow() {
   return {
     pointScale: DEFAULT_POINT_SCALE,
     status: "voting",
-    windowLabel: VOTE_WINDOW_LABELS.voting,
+    windowLabel: resolveVoteWindowLabel("voting"),
     updatedAt: new Date().toISOString(),
   };
 }
@@ -106,7 +110,7 @@ function createMysqlVoteResultsRepository(pool) {
     return {
       pointScale: parseJsonValue(row.point_scale_json || row.pointScaleJson, DEFAULT_POINT_SCALE),
       status,
-      windowLabel: row.window_label || row.windowLabel || VOTE_WINDOW_LABELS[status] || VOTE_WINDOW_LABELS.voting,
+      windowLabel: resolveVoteWindowLabel(status),
       updatedAt: new Date().toISOString(),
     };
   }
@@ -269,7 +273,7 @@ function createMysqlVoteResultsRepository(pool) {
     const pointScale = Array.isArray(payload.pointScale) && payload.pointScale.length
       ? payload.pointScale
       : DEFAULT_POINT_SCALE;
-    const windowLabel = payload.windowLabel || VOTE_WINDOW_LABELS[status];
+    const windowLabel = resolveVoteWindowLabel(status);
 
     await pool.execute(
       `INSERT INTO vote_windows (id, status, window_label, point_scale_json)

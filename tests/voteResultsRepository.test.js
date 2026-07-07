@@ -53,3 +53,26 @@ test("JSON vote repository reads wait for queued vote writes", async () => {
   assert.equal(listed.results.find((team) => team.id === "marketing").votes, 1);
   assert.equal(listed.voters["public-queued"], "marketing");
 });
+
+test("JSON vote repository normalizes stale vote window labels from status", async () => {
+  const dataPath = await createTempVoteFile({
+    pointScale: [100, 85, 70, 55, 40],
+    status: "voting",
+    windowLabel: "乱码旧文案",
+    results: [],
+    voters: {},
+  });
+  const repository = createVoteResultsRepository(dataPath);
+
+  const listed = await repository.listVoteResults();
+  assert.equal(listed.windowLabel, "投票窗口开启中");
+
+  const closed = await repository.updateWindowStatus({
+    status: "closed",
+    windowLabel: "bad stale label",
+  });
+  assert.equal(closed.windowLabel, "投票已关闭");
+
+  const stored = JSON.parse(await fs.readFile(dataPath, "utf8"));
+  assert.equal(stored.windowLabel, "投票已关闭");
+});

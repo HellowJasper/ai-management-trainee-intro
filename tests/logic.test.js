@@ -2864,7 +2864,7 @@ test("terminal boot welcome stage is wired into the HTML", () => {
   assert.match(html, /id="companyRain"/);
   assert.match(html, /class="company-ready-panel"/);
   assert.match(html, /class="company-ready-button" id="companyEnterButton"/);
-  assert.match(html, /data-text="关于健康元"/);
+  assert.match(html, /data-text="ABOUT JOINCARE"/);
   assert.match(html, /class="company-tracks-skip" id="companyTracksButton"/);
   assert.match(html, />进入五大赛道<\/button>/);
   assert.match(css, /\.company-tracks-skip\s*\{[\s\S]*position:\s*absolute[\s\S]*right:\s*clamp/);
