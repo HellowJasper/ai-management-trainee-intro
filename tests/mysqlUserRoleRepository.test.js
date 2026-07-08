@@ -110,6 +110,26 @@ test("MySQL user role repository stores users and resolves active login roles", 
   assert.equal(resolved.role, "judge");
 });
 
+test("MySQL user role repository assigns public role when Feishu login user has no roles", async () => {
+  const pool = new MemoryMysqlUserRolePool();
+  const repository = createMysqlUserRoleRepository(pool);
+
+  const synced = await repository.upsertLoginUser({
+    userId: "feishu-public-001",
+    name: "新观众",
+    department: "市场部",
+    avatar: "https://example.com/public.png",
+  });
+
+  assert.equal(synced.user.id, "feishu-public-001");
+  assert.equal(synced.user.name, "新观众");
+  assert.deepEqual(synced.roles, ["public"]);
+
+  const resolved = await repository.resolveLoginUser({ userId: "feishu-public-001" });
+  assert.equal(resolved.role, "public");
+  assert.deepEqual(resolved.roles, ["public"]);
+});
+
 test("repository factory wires the MySQL user role repository", async () => {
   const pool = new MemoryMysqlUserRolePool();
   const bundle = createRepositoryBundle({

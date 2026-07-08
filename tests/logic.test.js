@@ -1967,10 +1967,13 @@ test("final result stage wires the champion showcase after vote result", () => {
 
 test("public result keeps leaderboard data visible, calculates 90 to 10, and displays 70 to 30", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+  const screenDataJs = fs.readFileSync(path.join(__dirname, "../src/screen-data.js"), "utf8");
 
   assert.match(siteJs, /total:\s*\+\(team\.expert \* 0\.9 \+ votePoint \* 0\.1\)\.toFixed\(2\)/);
+  assert.match(screenDataJs, /total:\s*\+\(t\.expert \* 0\.9 \+ vp \* 0\.1\)\.toFixed\(2\)/);
   assert.match(siteJs, /专家评审 70% \+ 大众投票 30%/);
   assert.match(siteJs, /以 30% 权重计入最终综合得分/);
+  assert.match(screenDataJs, /专家 70% · 大众 30%/);
   assert.doesNotMatch(siteJs, /class="rk-mini"/);
   assert.doesNotMatch(siteJs, /专家 \$\{t\.expert\}/);
   assert.doesNotMatch(siteJs, /赋分 \$\{t\.votePoint\}/);

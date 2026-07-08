@@ -1742,6 +1742,68 @@ test("Feishu OAuth callback creates a session from mapped Feishu user info", asy
   assert.equal(me.permissions.canScore, true);
 });
 
+test("Feishu login persists previously unassigned users as public accounts", async (t) => {
+  const userRolesFile = await createTempJsonFile("ai-oauth-public-users-", "user-roles.json", {
+    users: [],
+  });
+  const sessionsFile = await createTempJsonFile("ai-oauth-public-sessions-", "sessions.json", { sessions: {} });
+  const states = new Map();
+  const oauthStateRepository = {
+    async createState(payload) {
+      const state = `state-${states.size + 1}`;
+      states.set(state, { ...payload, state });
+      return { ...payload, state };
+    },
+    async consumeState(state) {
+      const stored = states.get(state) || null;
+      states.delete(state);
+      return stored;
+    },
+  };
+  const feishuOAuthProvider = {
+    configured: true,
+    createAuthorizationUrl({ state, redirectUri }) {
+      return `https://feishu.test/oauth?state=${encodeURIComponent(state)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    },
+    async exchangeCodeForUser({ code }) {
+      assert.equal(code, "oauth-code-public");
+      return {
+        id: "feishu-public-001",
+        name: "新观众",
+        department: "市场部",
+        avatar: "https://feishu.test/public.png",
+      };
+    },
+  };
+  const server = createServer({
+    publicRoot: userRolesFile.publicRoot,
+    userRoleRepository: createUserRoleRepository(userRolesFile.dataPath),
+    authSessionRepository: createAuthSessionRepository(sessionsFile.dataPath),
+    oauthStateRepository,
+    feishuOAuthProvider,
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const authorizeResponse = await fetch(`${baseUrl}/api/auth/feishu/authorize?redirect=/site.html%23me&page=/site.html`);
+  const authorize = await authorizeResponse.json();
+  const loginResponse = await fetch(`${baseUrl}/api/auth/feishu/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code: "oauth-code-public", state: authorize.state }),
+  });
+  const login = await loginResponse.json();
+  const stored = JSON.parse(await fs.readFile(userRolesFile.dataPath, "utf8"));
+  const storedUser = stored.users.find((user) => user.id === "feishu-public-001");
+
+  assert.equal(loginResponse.status, 200);
+  assert.equal(login.role, "public");
+  assert.deepEqual(login.roles, ["public"]);
+  assert.equal(storedUser.name, "新观众");
+  assert.deepEqual(storedUser.roles, ["public"]);
+});
+
 test("admin user role API maps Feishu login users to backend roles", async (t) => {
   const userRolesFile = await createTempJsonFile("ai-user-roles-", "user-roles.json", {
     users: [],

@@ -156,14 +156,18 @@ function createUserRoleRepository(dataPath = DEFAULT_DATA_PATH) {
     }
     const state = await readState();
     const existing = state.users.find((item) => item.id === id);
+    const existingRoles = normalizeRoles(existing ? existing.roles : []);
     const nextUser = normalizeUser({
       ...existing,
       id,
+      openId: payload.openId || payload.feishuOpenId || (existing && existing.openId) || "",
+      unionId: payload.unionId || payload.feishuUnionId || (existing && existing.unionId) || "",
       name: payload.name || payload.displayName || (existing && existing.name) || "飞书用户",
       department: payload.department || (existing && existing.department) || "",
       avatar: payload.avatar || payload.avatarUrl || payload.photo || (existing && existing.avatar) || "",
-      roles: existing ? existing.roles : [],
+      roles: existingRoles.length ? existingRoles : ["public"],
       status: "active",
+      source: (existing && existing.source) || "feishu-oauth",
     });
     const users = state.users.filter((item) => item.id !== id);
     await writeState({ updatedAt: nextUser.updatedAt, users: [nextUser, ...users] });

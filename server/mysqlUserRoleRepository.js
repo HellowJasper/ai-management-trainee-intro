@@ -141,21 +141,38 @@ function createMysqlUserRoleRepository(pool) {
     if (!id) {
       throw createHttpError(400, "feishu user_id is required.");
     }
+    const openId = String(payload.openId || payload.feishuOpenId || "").trim();
+    const unionId = String(payload.unionId || payload.feishuUnionId || "").trim();
     const name = String(payload.name || payload.displayName || "飞书用户").trim();
     const department = String(payload.department || "").trim();
     const avatar = String(payload.avatar || payload.avatarUrl || payload.photo || "").trim();
 
     await pool.execute(
-      `INSERT INTO users (id, name, department, avatar_url, status)
-       VALUES (?, ?, ?, ?, 'active')
+      `INSERT INTO users (id, feishu_open_id, feishu_union_id, name, department, avatar_url, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
+        feishu_open_id = CASE WHEN VALUES(feishu_open_id) IS NOT NULL THEN VALUES(feishu_open_id) ELSE feishu_open_id END,
+        feishu_union_id = CASE WHEN VALUES(feishu_union_id) IS NOT NULL THEN VALUES(feishu_union_id) ELSE feishu_union_id END,
         name = VALUES(name),
         department = CASE WHEN VALUES(department) <> '' THEN VALUES(department) ELSE department END,
         avatar_url = CASE WHEN VALUES(avatar_url) <> '' THEN VALUES(avatar_url) ELSE avatar_url END,
         status = 'active',
         updated_at = CURRENT_TIMESTAMP`,
-      [id, name, department, avatar],
+      [id, openId || null, unionId || null, name, department, avatar, "active"],
     );
+
+    const current = await getUserWithRoles(id);
+    if (!current || !current.roles.length) {
+      await pool.execute(
+        `INSERT INTO role_assignments (user_id, role, source, status)
+         VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+          source = VALUES(source),
+          status = VALUES(status),
+          updated_at = CURRENT_TIMESTAMP`,
+        [id, "public", "feishu-oauth", "active"],
+      );
+    }
 
     return getUserWithRoles(id);
   }

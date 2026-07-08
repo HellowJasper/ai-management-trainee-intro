@@ -876,6 +876,8 @@ async function routeApi(
       // 同步飞书身份(user_id+姓名+头像)进 users 表；取该用户已派发的角色集。
       const record = await userRoleRepository.upsertLoginUser({
         userId: feishuUser.id,
+        openId: feishuUser.openId,
+        unionId: feishuUser.unionId,
         name: feishuUser.name,
         department: feishuUser.department,
         avatar: feishuUser.avatar,
@@ -883,6 +885,8 @@ async function routeApi(
       const roles = (record && record.roles) || [];
       const userInfo = {
         userId: feishuUser.id,
+        openId: feishuUser.openId,
+        unionId: feishuUser.unionId,
         name: feishuUser.name,
         department: feishuUser.department,
         avatar: feishuUser.avatar,
