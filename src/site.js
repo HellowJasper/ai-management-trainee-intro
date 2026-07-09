@@ -65,6 +65,7 @@
   let siteStateSignature = "";
   let siteStateSyncing = false;
   let siteMediaMode = "photo";
+  let activeWorkLightboxCleanup = null;
   const STATIC_TEAMS = (D.teams || []).map((team) => ({
     ...team,
     advisor: { ...(team.advisor || {}) },
@@ -2400,11 +2401,23 @@
     const slides = screenshots.map((src, index) => ({ src: resolveUploadedAssetUrl(src), title: `展示截图 ${index + 1}`, caption: "作品真实界面" }));
     const slideEls = slides.length ? slides.map((slide, i) => {
       const shot = slide.src && isImageSource(slide.src)
-        ? `<img src="${esc(slide.src)}" alt="${esc(slide.title)}" loading="lazy" />`
+        ? `<button class="wkc-image-button" type="button" data-work-lightbox-open="${i}" aria-label="查看大图：${esc(slide.title)}"><img src="${esc(slide.src)}" alt="${esc(slide.title)}" loading="lazy" /></button>`
         : `<h3>${esc(t.project)}</h3>`;
       return `<div class="wkc-slide ${i === 0 ? "on" : ""}"><span class="gl2-dots"></span>${shot}<span class="wkc-cap">${esc(slide.title)} · ${esc(slide.caption)}</span><span class="gl2-bars"></span></div>`;
     }).join("") : `<div class="wkc-slide on wkc-empty"><span class="gl2-dots"></span><h3>未上传作品截图</h3><span class="wkc-cap">提交展示截图后将在这里显示</span><span class="gl2-bars"></span></div>`;
     const dotEls = slides.length ? slides.map((_, i) => `<button class="wkc-dot ${i === 0 ? "on" : ""}" data-cgoto="${i}" aria-label="第 ${i + 1} 张"></button>`).join("") : "";
+    const lightboxNavHidden = slides.length > 1 ? "" : "hidden";
+    const lightboxMarkup = slides.length ? `<div class="work-lightbox" data-work-lightbox role="dialog" aria-modal="true" aria-label="${esc(t.project)} 作品大图" hidden style="--accent:${t.accent};--rgb:${t.rgb}">
+      <button class="work-lightbox-close" type="button" data-work-lightbox-close aria-label="关闭大图">×</button>
+      <div class="work-lightbox-stage">
+        <button class="work-lightbox-nav work-lightbox-prev" type="button" data-work-lightbox-dir="-1" aria-label="上一张" ${lightboxNavHidden}>‹</button>
+        <figure class="work-lightbox-figure">
+          <img class="work-lightbox-image" data-work-lightbox-image src="${esc(slides[0].src)}" alt="${esc(slides[0].title)}" />
+          <figcaption><strong>${esc(t.project)}</strong><span data-work-lightbox-count aria-live="polite">01 / ${pad(slides.length)}</span></figcaption>
+        </figure>
+        <button class="work-lightbox-nav work-lightbox-next" type="button" data-work-lightbox-dir="1" aria-label="下一张" ${lightboxNavHidden}>›</button>
+      </div>
+    </div>` : "";
     const workDescription = t.pitch
       ? `该作品聚焦「${esc(t.track)}」赛道的真实业务痛点，构建可运行系统：${esc(t.pitch)}。${hasWorkDoc ? "完整介绍、功能说明与使用方式见飞书作品页文档。" : "完整介绍待补充。"}`
       : "作品介绍待补充。";
@@ -2442,20 +2455,94 @@
           <div class="wk-vote">${voteBtn}</div>
         </div>
       </aside>
-    </section>`;
+    </section>${lightboxMarkup}`;
   }
   function setupCarousel() {
+    if (activeWorkLightboxCleanup) activeWorkLightboxCleanup();
     const car = doc.getElementById("wkCarousel"); if (!car) return;
     const track = car.querySelector(".wkc-track");
     const slides = car.querySelectorAll(".wkc-slide");
     const dots = car.querySelectorAll(".wkc-dot");
+    const imageButtons = Array.from(car.querySelectorAll("[data-work-lightbox-open]"));
+    const lightbox = doc.querySelector("[data-work-lightbox]");
+    const lightboxImage = lightbox?.querySelector("[data-work-lightbox-image]");
+    const lightboxCount = lightbox?.querySelector("[data-work-lightbox-count]");
+    const lightboxClose = lightbox?.querySelector("[data-work-lightbox-close]");
     let idx = 0;
-    const apply = () => { track.style.transform = `translateX(-${idx * 100}%)`; slides.forEach((s, i) => s.classList.toggle("on", i === idx)); dots.forEach((d, i) => d.classList.toggle("on", i === idx)); };
+    let touchStartX = null;
+    let lastFocusedElement = null;
+    const normalizeIndex = (value) => slides.length ? (value + slides.length) % slides.length : 0;
+    const apply = () => {
+      track.style.transform = `translateX(-${idx * 100}%)`;
+      slides.forEach((slide, index) => slide.classList.toggle("on", index === idx));
+      dots.forEach((dot, index) => dot.classList.toggle("on", index === idx));
+      const sourceImage = imageButtons[idx]?.querySelector("img");
+      if (lightboxImage && sourceImage) {
+        lightboxImage.src = sourceImage.currentSrc || sourceImage.src;
+        lightboxImage.alt = sourceImage.alt;
+      }
+      if (lightboxCount) lightboxCount.textContent = `${pad(idx + 1)} / ${pad(imageButtons.length)}`;
+    };
+    function moveLightbox(direction) {
+      idx = normalizeIndex(idx + Number(direction || 0));
+      apply();
+    }
+    function handleLightboxKeydown(event) {
+      if (!lightbox || lightbox.hidden) return;
+      if (event.key === "ArrowLeft") { event.preventDefault(); moveLightbox(-1); }
+      else if (event.key === "ArrowRight") { event.preventDefault(); moveLightbox(1); }
+      else if (event.key === "Escape") { event.preventDefault(); closeLightbox(); }
+    }
+    function openLightbox(index) {
+      if (!lightbox || !imageButtons.length) return;
+      idx = normalizeIndex(Number(index) || 0);
+      apply();
+      lastFocusedElement = doc.activeElement;
+      lightbox.hidden = false;
+      lightbox.classList.add("is-open");
+      doc.body.classList.add("work-lightbox-open");
+      doc.addEventListener("keydown", handleLightboxKeydown);
+      lightboxClose?.focus();
+    }
+    function closeLightbox() {
+      if (!lightbox || lightbox.hidden) return;
+      lightbox.classList.remove("is-open");
+      lightbox.hidden = true;
+      doc.body.classList.remove("work-lightbox-open");
+      doc.removeEventListener("keydown", handleLightboxKeydown);
+      if (lastFocusedElement && typeof lastFocusedElement.focus === "function") lastFocusedElement.focus();
+      lastFocusedElement = null;
+    }
     car.addEventListener("click", (e) => {
+      const opener = e.target.closest("[data-work-lightbox-open]");
       const a = e.target.closest("[data-cdir]"); const g = e.target.closest("[data-cgoto]");
-      if (a) { idx = (idx + +a.dataset.cdir + slides.length) % slides.length; apply(); }
+      if (opener) { openLightbox(opener.dataset.workLightboxOpen); }
+      else if (a) { moveLightbox(a.dataset.cdir); }
       else if (g) { idx = +g.dataset.cgoto; apply(); }
     });
+    if (lightbox) {
+      lightbox.addEventListener("click", (event) => {
+        const close = event.target.closest("[data-work-lightbox-close]");
+        const direction = event.target.closest("[data-work-lightbox-dir]");
+        if (close || event.target === lightbox) closeLightbox();
+        else if (direction) moveLightbox(direction.dataset.workLightboxDir);
+      });
+      lightbox.addEventListener("touchstart", (event) => {
+        touchStartX = event.touches.length === 1 ? event.touches[0].clientX : null;
+      }, { passive: true });
+      lightbox.addEventListener("touchend", (event) => {
+        if (touchStartX === null || !event.changedTouches.length) return;
+        const deltaX = event.changedTouches[0].clientX - touchStartX;
+        touchStartX = null;
+        if (Math.abs(deltaX) < 48) return;
+        moveLightbox(deltaX < 0 ? 1 : -1);
+      }, { passive: true });
+    }
+    const cleanup = () => {
+      closeLightbox();
+      if (activeWorkLightboxCleanup === cleanup) activeWorkLightboxCleanup = null;
+    };
+    activeWorkLightboxCleanup = cleanup;
   }
 
   function renderOverviewBanner() {
@@ -2726,7 +2813,12 @@
     if (doc.fonts && doc.fonts.ready) doc.fonts.ready.then(apply).catch(() => {});
   }
 
+  function clearActiveWorkLightbox() {
+    if (typeof activeWorkLightboxCleanup === "function") activeWorkLightboxCleanup();
+  }
+
   function go(key, push) {
+    clearActiveWorkLightbox();
     const v = VIEWS.find((x) => x.key === key) || VIEWS[0];
     const protectedView = { me: true, vote: true, judge: true };
     if (protectedView[v.key] && !isAuthenticatedSession()) {
@@ -2762,6 +2854,7 @@
     if (push !== false && location.hash.slice(1) !== v.key) history.pushState(null, "", `#${v.key}`);
   }
   function showWork(id, push, returnView) {
+    clearActiveWorkLightbox();
     const safeReturnView = returnView === "judge" ? "judge" : "";
     if (safeReturnView && push !== false) rememberReturnScroll(safeReturnView);
     main.innerHTML = renderWork(id, safeReturnView);
@@ -2773,6 +2866,7 @@
     refreshJudgeStateForWorkDetail(id, safeReturnView);
   }
   function showTeamWorkspace(id, push) {
+    clearActiveWorkLightbox();
     const team = getTeam(id);
     if (team && !canOpenTeamWorkspace(team.id)) {
       toast("队伍工作台仅限已加入该队伍的参赛选手");
