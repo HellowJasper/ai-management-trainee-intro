@@ -3820,7 +3820,7 @@ test("admin / screen / big-screen pages require an admin session", async (t) => 
   assert.match(response.headers.get("content-type"), /text\/html/);
   assert.match(html, /AI 星锐黑客松 管理后台/);
   assert.match(html, /id="stageRows"/);
-  assert.match(html, /src="\.\/src\/admin\.js\?v=20260702-result-publish-api5173"/);
+  assert.match(html, /src="\.\/src\/admin\.js\?v=20260710-judge-drilldown-scroll"/);
 });
 
 test("root serves the user site for everyone; big screen stays admin-only", async (t) => {

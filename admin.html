@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI 星锐黑客松 管理后台</title>
-    <link rel="stylesheet" href="./admin.css?v=20260703-admin-mobile-scroll" />
+    <link rel="stylesheet" href="./admin.css?v=20260710-judge-drilldown-scroll" />
   </head>
   <body>
     <main class="admin-shell">
@@ -650,6 +650,17 @@
               </div>
             </section>
 
+            <section class="panel admin-wide-panel admin-result-judge-panel" aria-labelledby="adminJudgeProgressTitle">
+              <header class="wide-panel-heading">
+                <div>
+                  <span>JUDGE PROGRESS</span>
+                  <strong id="adminJudgeProgressTitle">评委评分明细</strong>
+                </div>
+                <small>按评委查看提交状态</small>
+              </header>
+              <div class="admin-judge-progress" id="adminJudgeProgress"></div>
+            </section>
+
             <section class="panel admin-wide-panel admin-result-snapshot-panel admin-leaderboard-snapshot-panel" aria-label="排行榜最新快照">
               <header>
                 <span>LEADERBOARD SNAPSHOT</span>
@@ -924,6 +935,6 @@
 
     <script src="./runtime-config.js?v=20260624-split"></script>
     <script src="./src/data.js?v=20260630-prestart-separate-timer"></script>
-    <script src="./src/admin.js?v=20260702-result-publish-api5173"></script>
+    <script src="./src/admin.js?v=20260710-judge-drilldown-scroll"></script>
   </body>
 </html>

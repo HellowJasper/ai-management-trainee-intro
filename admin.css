@@ -3601,6 +3601,50 @@ button {
   margin: 0 10px 10px;
 }
 
+.admin-result-judge-panel .admin-judge-progress {
+  margin: 0;
+  padding: 14px 16px 16px;
+}
+
+.admin-judge-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(103, 255, 213, 0.13);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: rgba(2, 13, 20, 0.42);
+}
+
+.admin-judge-progress-head div {
+  min-width: 0;
+}
+
+.admin-judge-progress-head strong {
+  display: block;
+  color: var(--text);
+  font-size: 16px;
+}
+
+.admin-judge-progress-head span {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.admin-judge-progress-head > b {
+  flex: 0 0 auto;
+  border: 1px solid rgba(167, 255, 79, 0.24);
+  border-radius: 999px;
+  padding: 7px 12px;
+  color: var(--lime);
+  background: rgba(167, 255, 79, 0.08);
+  font-size: 12px;
+}
+
 .admin-judge-progress-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3657,6 +3701,683 @@ button {
   grid-column: 1 / -1;
   color: var(--muted);
   font-size: 10px;
+}
+
+.admin-judge-score-matrix {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  border: 1px solid rgba(103, 255, 213, 0.14);
+  border-radius: 14px;
+  padding: 12px;
+  background:
+    linear-gradient(135deg, rgba(40, 255, 200, 0.08), rgba(167, 255, 79, 0.025)),
+    rgba(2, 8, 14, 0.42);
+  overflow: hidden;
+}
+
+.admin-judge-score-matrix > header,
+.admin-judge-track-averages > header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.admin-judge-score-matrix > header strong,
+.admin-judge-track-averages > header strong {
+  display: block;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.admin-judge-score-matrix > header span,
+.admin-judge-score-matrix > header small,
+.admin-judge-track-averages > header span {
+  color: var(--text-soft);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.admin-judge-score-table {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.admin-judge-score-row {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.84fr) repeat(var(--judge-score-columns), minmax(126px, 1fr));
+  gap: 8px;
+  min-width: max-content;
+}
+
+.admin-judge-score-row.is-head {
+  align-items: stretch;
+}
+
+.admin-judge-score-person,
+.admin-judge-score-track,
+.admin-judge-score-cell {
+  min-width: 0;
+  border: 1px solid rgba(103, 255, 213, 0.12);
+  border-radius: 10px;
+  background: rgba(2, 13, 20, 0.58);
+}
+
+.admin-judge-score-person {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 10px 11px;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.admin-judge-score-person strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.admin-judge-score-person span,
+.admin-judge-score-person small {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-judge-score-track {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  padding: 9px 10px;
+  background: rgba(40, 255, 200, 0.055);
+}
+
+.admin-judge-score-track b {
+  overflow: hidden;
+  color: var(--neon);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-judge-score-track span {
+  color: var(--text-soft);
+  font-size: 10px;
+}
+
+.admin-judge-score-cell {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  min-height: 74px;
+  padding: 10px;
+  background: rgba(2, 8, 14, 0.4);
+}
+
+.admin-judge-score-cell strong {
+  color: #fff;
+  font-family: var(--display);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.admin-judge-score-cell span {
+  color: var(--text-soft);
+  font-size: 11px;
+}
+
+.admin-judge-score-cell small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.admin-judge-score-cell[data-score-state="submitted"],
+.admin-judge-score-cell[data-score-state="locked"] {
+  border-color: rgba(40, 255, 200, 0.34);
+  background:
+    linear-gradient(180deg, rgba(40, 255, 200, 0.12), rgba(2, 8, 14, 0.38)),
+    rgba(2, 8, 14, 0.42);
+}
+
+.admin-judge-score-cell[data-score-state="submitted"] span,
+.admin-judge-score-cell[data-score-state="locked"] span {
+  color: var(--neon);
+}
+
+.admin-judge-score-cell[data-score-state="draft"] {
+  border-color: rgba(246, 255, 129, 0.32);
+  background: rgba(246, 255, 129, 0.07);
+}
+
+.admin-judge-score-cell[data-score-state="draft"] span {
+  color: var(--warning);
+}
+
+.admin-judge-score-cell[data-score-state="missing"] {
+  border-color: rgba(255, 77, 103, 0.25);
+  background: rgba(255, 77, 103, 0.055);
+}
+
+.admin-judge-score-cell[data-score-state="missing"] strong,
+.admin-judge-score-cell[data-score-state="missing"] span {
+  color: #ff9aaa;
+}
+
+.admin-judge-track-averages {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  border: 1px solid rgba(103, 255, 213, 0.12);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(2, 8, 14, 0.34);
+}
+
+.admin-judge-track-averages > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.admin-judge-track-averages article {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  border: 1px solid rgba(103, 255, 213, 0.12);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(40, 255, 200, 0.045);
+}
+
+.admin-judge-track-averages article span {
+  overflow: hidden;
+  color: var(--text-soft);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-judge-track-averages article strong {
+  color: var(--lime);
+  font-family: var(--display);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.admin-judge-track-averages article small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.admin-judge-empty-state {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.42fr) minmax(0, 1fr);
+  gap: 14px;
+  margin-top: 12px;
+  border: 1px dashed rgba(103, 255, 213, 0.22);
+  border-radius: 14px;
+  padding: 14px;
+  background:
+    radial-gradient(circle at 12% 20%, rgba(40, 255, 200, 0.08), transparent 34%),
+    rgba(2, 8, 14, 0.34);
+}
+
+.admin-judge-empty-state strong {
+  display: block;
+  color: var(--text);
+  font-size: 16px;
+}
+
+.admin-judge-empty-state p {
+  margin: 7px 0 0;
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.admin-judge-roster-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.admin-judge-roster-chips span {
+  display: inline-grid;
+  gap: 2px;
+  min-width: 142px;
+  border: 1px solid rgba(40, 255, 200, 0.22);
+  border-radius: 10px;
+  padding: 9px 11px;
+  background:
+    linear-gradient(135deg, rgba(40, 255, 200, 0.09), rgba(255, 255, 255, 0.018)),
+    rgba(2, 13, 20, 0.42);
+}
+
+.admin-judge-roster-chips b {
+  color: #eafff8;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.admin-judge-roster-chips small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-judge-accordion-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  max-height: clamp(320px, 58vh, 620px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.admin-judge-drilldown {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  border: 1px solid rgba(103, 255, 213, 0.14);
+  border-radius: 14px;
+  padding: 12px;
+  background:
+    linear-gradient(135deg, rgba(40, 255, 200, 0.07), rgba(255, 255, 255, 0.018)),
+    rgba(2, 8, 14, 0.38);
+}
+
+.admin-judge-drilldown > header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.admin-judge-drilldown > header strong {
+  display: block;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.admin-judge-drilldown > header span,
+.admin-judge-drilldown > header small {
+  color: var(--text-soft);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.admin-judge-drilldown-body {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.34fr) minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+}
+
+.admin-judge-selector-list {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  max-height: clamp(320px, 58vh, 620px);
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.admin-judge-selector-card {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(103, 255, 213, 0.13);
+  border-radius: 10px;
+  padding: 10px 11px;
+  background: rgba(2, 13, 20, 0.54);
+  color: var(--text-soft);
+  text-align: left;
+}
+
+.admin-judge-selector-card.is-active,
+.admin-judge-selector-card:hover,
+.admin-judge-selector-card:focus-visible {
+  border-color: rgba(40, 255, 200, 0.38);
+  background:
+    linear-gradient(90deg, rgba(40, 255, 200, 0.14), rgba(255, 255, 255, 0.018)),
+    rgba(2, 13, 20, 0.64);
+  box-shadow: inset 3px 0 0 rgba(40, 255, 200, 0.7);
+}
+
+.admin-judge-selector-card strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.admin-judge-selector-card span,
+.admin-judge-selector-card small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-judge-detail-stack {
+  min-width: 0;
+}
+
+.admin-judge-detail-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.admin-judge-detail-panel[hidden] {
+  display: none;
+}
+
+.admin-judge-detail-panel > header {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.34fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  border: 1px solid rgba(103, 255, 213, 0.12);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(2, 13, 20, 0.42);
+}
+
+.admin-judge-detail-panel > header span {
+  color: var(--neon);
+  font-family: var(--pixel);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+.admin-judge-detail-panel > header strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--text);
+  font-size: 18px;
+}
+
+.admin-judge-detail-panel > header small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.admin-judge-person-total {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-judge-person-total span {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid rgba(103, 255, 213, 0.12);
+  border-radius: 10px;
+  padding: 9px;
+  background: rgba(40, 255, 200, 0.045);
+}
+
+.admin-judge-person-total b {
+  color: var(--lime);
+  font-family: var(--display);
+  font-size: 26px;
+  line-height: 1;
+}
+
+.admin-judge-person-total small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.admin-judge-track-score-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.admin-judge-track-score-card {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid rgba(103, 255, 213, 0.13);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(2, 8, 14, 0.4);
+}
+
+.admin-judge-track-score-card span {
+  overflow: hidden;
+  color: var(--text-soft);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-judge-track-score-card strong {
+  color: #fff;
+  font-family: var(--display);
+  font-size: 26px;
+  line-height: 1;
+}
+
+.admin-judge-track-score-card small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.admin-judge-track-score-card.is-submitted,
+.admin-judge-track-score-card.is-locked {
+  border-color: rgba(40, 255, 200, 0.3);
+  background: rgba(40, 255, 200, 0.08);
+}
+
+.admin-judge-track-score-card.is-draft {
+  border-color: rgba(246, 255, 129, 0.28);
+  background: rgba(246, 255, 129, 0.07);
+}
+
+.admin-judge-track-score-card.is-missing {
+  border-color: rgba(255, 77, 103, 0.22);
+  background: rgba(255, 77, 103, 0.045);
+}
+
+.admin-judge-progress-matrix {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.admin-judge-accordion {
+  border: 1px solid rgba(103, 255, 213, 0.13);
+  border-radius: 12px;
+  background:
+    linear-gradient(90deg, rgba(40, 255, 200, 0.08), rgba(255, 255, 255, 0.012)),
+    rgba(2, 13, 20, 0.48);
+}
+
+.admin-judge-accordion[open] {
+  border-color: rgba(40, 255, 200, 0.28);
+  box-shadow: 0 0 24px rgba(40, 255, 200, 0.08);
+}
+
+.admin-judge-progress-row.is-missing {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.admin-judge-progress-row.is-submitted,
+.admin-judge-progress-row.is-locked {
+  border-color: rgba(40, 255, 200, 0.28);
+}
+
+.admin-judge-progress-person {
+  display: grid;
+  grid-template-columns: 24px minmax(92px, 0.24fr) minmax(130px, 0.34fr) minmax(220px, 1fr) auto;
+  gap: 6px 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.admin-judge-progress-person::-webkit-details-marker {
+  display: none;
+}
+
+.admin-judge-toggle {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(103, 255, 213, 0.24);
+  border-radius: 50%;
+  color: var(--neon);
+  font-family: var(--pixel);
+  font-size: 10px;
+}
+
+.admin-judge-accordion[open] .admin-judge-toggle {
+  color: var(--warning);
+}
+
+.admin-judge-accordion[open] .admin-judge-toggle::before {
+  content: "-";
+}
+
+.admin-judge-accordion[open] .admin-judge-toggle {
+  font-size: 0;
+}
+
+.admin-judge-progress-person strong {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.admin-judge-progress-person span,
+.admin-judge-progress-person small {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.admin-judge-progress-person b {
+  color: var(--neon);
+  font-size: 12px;
+}
+
+.admin-judge-progress-person em {
+  justify-self: end;
+  border: 1px solid rgba(103, 255, 213, 0.16);
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: var(--text-soft);
+  background: rgba(2, 8, 14, 0.42);
+  font-style: normal;
+  font-size: 11px;
+}
+
+.admin-judge-progress-person small {
+  grid-column: 4 / 6;
+}
+
+.admin-judge-status-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+  min-width: 0;
+  border-top: 1px solid rgba(103, 255, 213, 0.1);
+  padding: 0 14px 14px;
+}
+
+.admin-judge-status-cell {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  border: 1px solid rgba(103, 255, 213, 0.13);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(2, 8, 14, 0.38);
+}
+
+.admin-judge-status-cell b {
+  overflow: hidden;
+  color: var(--text-soft);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-judge-status-cell span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.admin-judge-detail-card dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 8px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.admin-judge-detail-card dt {
+  color: rgba(167, 201, 192, 0.68);
+}
+
+.admin-judge-detail-card dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+}
+
+.admin-judge-status-cell.is-submitted,
+.admin-judge-status-cell.is-locked {
+  border-color: rgba(40, 255, 200, 0.32);
+  background: rgba(40, 255, 200, 0.08);
+}
+
+.admin-judge-status-cell.is-submitted span,
+.admin-judge-status-cell.is-locked span {
+  color: var(--neon);
+}
+
+.admin-judge-status-cell.is-draft {
+  border-color: rgba(246, 255, 129, 0.28);
+  background: rgba(246, 255, 129, 0.07);
+}
+
+.admin-judge-status-cell.is-draft span {
+  color: var(--warning);
+}
+
+.admin-judge-status-cell.is-missing {
+  border-color: rgba(255, 77, 103, 0.22);
+  background: rgba(255, 77, 103, 0.045);
+}
+
+.admin-judge-status-cell.is-missing span {
+  color: #ff9aaa;
 }
 
 .admin-judge-lock {
@@ -4064,6 +4785,7 @@ button {
 }
 
 .admin-result-management-layout .admin-result-publish-panel,
+.admin-result-management-layout .admin-result-judge-panel,
 .admin-result-management-layout .admin-leaderboard-snapshot-panel {
   grid-column: 1 / -1;
 }

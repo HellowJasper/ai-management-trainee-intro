@@ -644,6 +644,8 @@ test("admin console exposes a dedicated leaderboard publish workspace", () => {
   assert.match(html, /data-vote-window-status="closed"/);
   assert.match(html, /data-lock-judge-scores/);
   assert.match(html, /data-result-publish/);
+  assert.match(html, /id="adminJudgeProgress"/);
+  assert.match(html, /评委评分明细/);
   assert.match(html, /id="adminLeaderboardSnapshot"/);
   assert.match(html, /data-result-snapshot/);
   assert.match(html, /site\.html#result/);
@@ -653,6 +655,8 @@ test("admin console exposes a dedicated leaderboard publish workspace", () => {
   assert.match(css, /\.admin-result-flow-step/);
   assert.match(css, /\.admin-result-step-action/);
   assert.match(css, /\.admin-result-publish-panel/);
+  assert.match(css, /\.admin-judge-progress-matrix/);
+  assert.match(css, /\.admin-judge-accordion/);
   assert.match(css, /\.admin-result-action-grid/);
   assert.match(adminJs, /const confirmResultPublishAction/);
   assert.match(adminJs, /const resultPublishButtons/);
@@ -660,6 +664,12 @@ test("admin console exposes a dedicated leaderboard publish workspace", () => {
   assert.match(adminJs, /const adminResultFlowScoreState/);
   assert.match(adminJs, /const adminResultFlowSnapshotState/);
   assert.match(adminJs, /function renderResultPublishSummary/);
+  assert.match(adminJs, /评委评分明细/);
+  assert.match(adminJs, /admin-judge-accordion/);
+  assert.match(adminJs, /admin-judge-detail-card/);
+  assert.match(adminJs, /admin-judge-status-cell/);
+  assert.match(adminJs, /分数/);
+  assert.match(adminJs, /未评分/);
   assert.match(adminJs, /const scoreReady = Boolean\(coverage\.scoreReady\)/);
   assert.match(adminJs, /const finalReady = voteReady && scoreReady/);
   assert.match(adminJs, /const publishReady = voteReady && scoreReady && !publishAlreadyComplete/);
@@ -669,6 +679,64 @@ test("admin console exposes a dedicated leaderboard publish workspace", () => {
   assert.match(adminJs, /targetView === "results"/);
   assert.match(adminJs, /event\.target\.closest\("\[data-result-publish\]"\)/);
   assert.match(adminJs, /await updateAdminVoteWindow\("published"\)/);
+});
+
+test("admin judge progress renders a score matrix with track averages", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.match(adminJs, /const judgeMatrixTeams =/);
+  assert.match(adminJs, /const judgeMatrixRows =/);
+  assert.match(adminJs, /class="admin-judge-score-matrix"/);
+  assert.match(adminJs, /class="admin-judge-score-cell/);
+  assert.match(adminJs, /data-score-state="\$\{escapeHtml\(cellStatus\)\}"/);
+  assert.match(adminJs, /class="admin-judge-track-averages"/);
+  assert.match(adminJs, /平均分/);
+  assert.match(adminJs, /总分/);
+  assert.match(adminJs, /未评/);
+  assert.match(adminJs, /已同步 \$\{escapeHtml\(String\(judges\.length\)\)\} 位评委/);
+  assert.match(adminJs, /class="admin-judge-roster-chips"/);
+  assert.match(adminJs, /businessDataState\.adminUsers/);
+  assert.match(adminJs, /roles\.includes\("judge"\)/);
+  assert.match(adminJs, /function buildJudgeProgressFallbackFromScores/);
+  assert.match(adminJs, /buildJudgeProgressFallbackFromScores\(businessDataState\.judgeScores/);
+  assert.match(adminJs, /暂无可展示的评委数据/);
+  assert.match(adminJs, /检查评分接口是否同步成功/);
+  assert.match(adminJs, /window\.AppData\.loadAdminUsers\(\{ users: \[\] \}\)/);
+  assert.match(adminJs, /formatNumber\(team\.averageScore/);
+  assert.match(css, /\.admin-judge-score-matrix/);
+  assert.match(css, /\.admin-judge-score-table/);
+  assert.match(css, /\.admin-judge-score-cell/);
+  assert.match(css, /\.admin-judge-score-cell\[data-score-state="missing"\]/);
+  assert.match(css, /\.admin-judge-track-averages/);
+  assert.match(css, /\.admin-judge-empty-state/);
+  assert.match(css, /\.admin-judge-roster-chips/);
+});
+
+test("admin judge progress lets clicking a judge reveal per-track scores and personal totals", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
+  const adminJs = fs.readFileSync(path.join(__dirname, "../src/admin.js"), "utf8");
+
+  assert.match(adminJs, /class="admin-judge-drilldown"/);
+  assert.match(adminJs, /data-judge-detail-target="\$\{escapeAttribute\(judgeKey\)\}"/);
+  assert.match(adminJs, /data-judge-detail-panel="\$\{escapeAttribute\(judgeKey\)\}"/);
+  assert.match(adminJs, /class="admin-judge-person-total"/);
+  assert.match(adminJs, /个人评分总览/);
+  assert.match(adminJs, /总分合计/);
+  assert.match(adminJs, /平均总分/);
+  assert.match(adminJs, /function activateJudgeDetailPanel/);
+  assert.match(adminJs, /event\.target\.closest\("\[data-judge-detail-target\]"\)/);
+  assert.match(adminJs, /admin-judge-detail-target/);
+  assert.match(css, /\.admin-judge-drilldown/);
+  assert.match(css, /\.admin-judge-selector-list/);
+  assert.match(css, /\.admin-judge-selector-list\s*{[\s\S]*?max-height:\s*clamp\(320px,\s*58vh,\s*620px\)/);
+  assert.match(css, /\.admin-judge-selector-list\s*{[\s\S]*?overflow-y:\s*auto/);
+  assert.match(css, /\.admin-judge-selector-card/);
+  assert.match(css, /\.admin-judge-detail-panel/);
+  assert.match(css, /\.admin-judge-person-total/);
+  assert.match(css, /\.admin-judge-track-score-grid/);
+  assert.match(css, /\.admin-judge-accordion-list\s*{[\s\S]*?max-height:\s*clamp\(320px,\s*58vh,\s*620px\)/);
+  assert.match(css, /\.admin-judge-accordion-list\s*{[\s\S]*?overflow-y:\s*auto/);
 });
 
 test("admin result workspace keeps publish flow and snapshot as separate rows", () => {
@@ -1681,6 +1749,14 @@ test("team workspace screenshot upload accepts image files without browser MIME 
   assert.match(siteJs, /图片过大，请压缩到 8MB 以内后再上传/);
   assert.match(siteJs, /file\.size > WORK_SCREENSHOT_MAX_BYTES/);
   assert.match(siteJs, /toast\(getWorkScreenshotUploadErrorMessage\(error\)\)/);
+});
+
+test("team workspace screenshot carousel does not cap uploaded screenshots", () => {
+  const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
+
+  assert.doesNotMatch(siteJs, /WORK_SCREENSHOT_LIMIT/);
+  assert.doesNotMatch(siteJs, /最多上传/);
+  assert.doesNotMatch(siteJs, /slice\(0,\s*WORK_SCREENSHOT_LIMIT\)/);
 });
 
 test("team workspace resolves uploaded screenshot URLs against the API origin", () => {
@@ -3485,7 +3561,7 @@ test("admin console allows natural document scrolling on mobile", () => {
   const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
   const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
 
-  assert.match(html, /admin\.css\?v=20260703-admin-mobile-scroll/);
+  assert.match(html, /admin\.css\?v=20260710-judge-drilldown-scroll/);
   assert.match(css, /@media \(max-width:\s*980px\)[\s\S]*html,\s*\n\s*body\s*\{[\s\S]*overflow-y:\s*auto/);
   assert.match(css, /@media \(max-width:\s*980px\)[\s\S]*\.admin-shell\s*\{[\s\S]*height:\s*auto/);
   assert.match(css, /@media \(max-width:\s*980px\)[\s\S]*\.admin-workspace\s*\{[\s\S]*overflow:\s*visible/);
@@ -3497,9 +3573,9 @@ test("admin and big screen cache keys stay current", () => {
   const indexHtml = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
   const screenHtml = fs.readFileSync(path.join(__dirname, "../screen.html"), "utf8");
 
-  assert.match(adminHtml, /admin\.css\?v=20260703-admin-mobile-scroll/);
+  assert.match(adminHtml, /admin\.css\?v=20260710-judge-drilldown-scroll/);
   assert.match(adminHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
-  assert.match(adminHtml, /src\/admin\.js\?v=20260702-result-publish-api5173/);
+  assert.match(adminHtml, /src\/admin\.js\?v=20260710-judge-drilldown-scroll/);
   assert.match(indexHtml, /styles\.css\?v=20260707-final-rank-weights/);
   assert.match(indexHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(indexHtml, /src\/logic\.js\?v=20260707-final-rank-weights/);
@@ -3920,10 +3996,12 @@ test("countdown header opens a current roadshow team timer stage", () => {
   assert.match(roadshowSection, /class="roadshow-next-team"/);
   assert.match(roadshowSection, /id="roadshowNextTeamName"/);
   assert.match(roadshowSection, /CURRENT ROADSHOW TEAM/);
+  assert.doesNotMatch(roadshowSection, /id="roadshowTeamCode"|class="roadshow-team-index"/);
   assert.match(roadshowSection, /data-view-target="countdown"[\s\S]*?BACK TO MISSION TIMER/);
   assert.match(roadshowSection, /data-view-target="vote"[\s\S]*?VOTE PROGRESS/);
   assert.match(appJs, /roadshow:\s*document\.getElementById\("roadshowStage"\)/);
   assert.match(appJs, /roadshow:\s*createRain\("roadshowRain"/);
+  assert.doesNotMatch(appJs, /roadshowTeamCode|roadshow-team-index/);
   assert.match(appJs, /renderRoadshowStage/);
   assert.match(appJs, /roadshow-member-seat/);
   assert.match(appJs, /roadshow-member-avatar/);
@@ -3949,7 +4027,7 @@ test("countdown header opens a current roadshow team timer stage", () => {
   assert.match(css, /\.roadshow-command-grid/);
   assert.match(css, /\.roadshow-control-stack/);
   assert.match(css, /\.roadshow-current-team/);
-  assert.match(css, /grid-template-rows:\s*auto auto auto auto auto minmax\(0, 1fr\)/);
+  assert.match(css, /grid-template-rows:\s*auto auto auto auto minmax\(0, 1fr\)/);
   assert.match(appJs, /Array\.from\(\{\s*length:\s*4\s*\}/);
   assert.match(css, /\.roadshow-roster\s*{[\s\S]*?grid-template-rows:\s*repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(css, /\.roadshow-member\.is-empty/);

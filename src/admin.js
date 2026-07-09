@@ -250,6 +250,7 @@ let businessDataState = {
   works: [],
   judgeScores: { scores: {} },
   judgeProgress: { judges: [], teams: [], judgeCount: 0, teamCount: 0, locked: false },
+  adminUsers: [],
   auditLogs: [],
   resultSnapshot: null,
 };
@@ -318,6 +319,13 @@ const TEAM_MEMBER_ROLE_LABELS = {
   design: "体验 / 设计",
   presentation: "展示汇报",
   other: "其他职责",
+};
+const JUDGE_SCORE_DIMENSION_WEIGHTS = {
+  innovation: 25,
+  engineering: 25,
+  business: 25,
+  feasibility: 15,
+  presentation: 10,
 };
 
 let traineeProfileState = {
@@ -578,8 +586,42 @@ function countTeamMembers(teams) {
   }, 0);
 }
 
+function normalizeJudgeScoreRecords(scoresState = {}) {
+  if (scoresState.records && typeof scoresState.records === "object") {
+    return scoresState.records;
+  }
+
+  const scores = scoresState.scores && typeof scoresState.scores === "object" ? scoresState.scores : {};
+  return Object.entries(scores).reduce((records, [judgeId, judgeScores]) => {
+    const cleanJudgeId = String(judgeId || "").trim();
+    if (!cleanJudgeId || !judgeScores || typeof judgeScores !== "object") {
+      return records;
+    }
+    records[cleanJudgeId] = {};
+    Object.entries(judgeScores).forEach(([teamId, dimensions]) => {
+      const cleanTeamId = String(teamId || "").trim();
+      if (!cleanTeamId || !dimensions || typeof dimensions !== "object") {
+        return;
+      }
+      const weightedScores = Object.entries(JUDGE_SCORE_DIMENSION_WEIGHTS).map(([key, weight]) => {
+        const value = Number(dimensions[key]);
+        return Number.isFinite(value) ? value * (weight / 100) : NaN;
+      });
+      const totalScore = weightedScores.every(Number.isFinite)
+        ? Number(weightedScores.reduce((sum, value) => sum + value, 0).toFixed(2))
+        : NaN;
+      records[cleanJudgeId][cleanTeamId] = {
+        status: "submitted",
+        scores: dimensions,
+        totalScore,
+      };
+    });
+    return records;
+  }, {});
+}
+
 function scoreCoverage(scoresState = {}, progressState = businessDataState.judgeProgress) {
-  if (progressState && typeof progressState === "object" && Array.isArray(progressState.judges)) {
+  if (progressState && typeof progressState === "object" && Array.isArray(progressState.judges) && progressState.judges.length) {
     const judgeCount = Number(progressState.judgeCount);
     const teamCount = Number(progressState.teamCount);
     const expectedCount = Math.max(
@@ -607,8 +649,8 @@ function scoreCoverage(scoresState = {}, progressState = businessDataState.judge
     };
   }
 
-  const scores = scoresState.scores && typeof scoresState.scores === "object" ? scoresState.scores : {};
-  const judgeIds = Object.keys(scores);
+  const records = normalizeJudgeScoreRecords(scoresState);
+  const judgeIds = Object.keys(records);
   const submittedTeamIds = new Set();
   const configuredTeamIds = normalizeWorks(businessDataState.works)
     .filter((work) => work.status === "published")
@@ -621,8 +663,8 @@ function scoreCoverage(scoresState = {}, progressState = businessDataState.judge
   let lockedCount = 0;
 
   judgeIds.forEach((judgeId) => {
-    Object.entries(scores[judgeId] || {}).forEach(([teamId, record]) => {
-      const status = String(record?.status || "").trim();
+    Object.entries(records[judgeId] || {}).forEach(([teamId, record]) => {
+      const status = String(record?.status || "submitted").trim() || "submitted";
       if (!teamIds.size) {
         teamIds.add(teamId);
       }
@@ -648,6 +690,53 @@ function scoreCoverage(scoresState = {}, progressState = businessDataState.judge
     locked: expectedCount > 0 && lockedCount === expectedCount,
     scoreReady: teamIds.size > 0 && scoredTeamCount === teamIds.size,
   };
+}
+
+function buildJudgeProgressFallbackFromScores(scoresState = {}, scoreTeams = []) {
+  const records = normalizeJudgeScoreRecords(scoresState);
+  const teamIds = scoreTeams.map((team) => String(team.teamId || "").trim()).filter(Boolean);
+  const fallbackTeamIds = teamIds.length
+    ? teamIds
+    : Array.from(new Set(Object.values(records).flatMap((judgeRecords) => Object.keys(judgeRecords || {}))));
+
+  return Object.entries(records).map(([judgeId, judgeRecords]) => {
+    let submittedCount = 0;
+    let draftCount = 0;
+    let lockedCount = 0;
+    const teams = {};
+
+    fallbackTeamIds.forEach((teamId) => {
+      const record = judgeRecords?.[teamId] || null;
+      const status = String(record?.status || "submitted").trim() || "submitted";
+      if (!record) {
+        return;
+      }
+      if (status === "locked") lockedCount += 1;
+      if (status === "submitted" || status === "locked") submittedCount += 1;
+      if (status === "draft") draftCount += 1;
+      teams[teamId] = {
+        status,
+        totalScore: record.totalScore,
+        submittedAt: record.submittedAt || "",
+        updatedAt: record.updatedAt || "",
+      };
+    });
+
+    return {
+      id: judgeId,
+      userId: judgeId,
+      judgeId,
+      name: judgeId,
+      department: "评分记录",
+      submittedCount,
+      draftCount,
+      lockedCount,
+      missingCount: Math.max(0, fallbackTeamIds.length - submittedCount - draftCount),
+      totalTeamCount: fallbackTeamIds.length,
+      status: submittedCount >= fallbackTeamIds.length && fallbackTeamIds.length ? "submitted" : "pending",
+      teams,
+    };
+  });
 }
 
 function normalizeWorks(works) {
@@ -1731,12 +1820,70 @@ function renderAuditLogList(entries = businessDataState.auditLogs) {
 
 function renderJudgeProgress(progress = businessDataState.judgeProgress) {
   const lockButtons = [...document.querySelectorAll("[data-lock-judge-scores]")];
-  const judges = Array.isArray(progress?.judges) ? progress.judges : [];
+  const progressJudges = Array.isArray(progress?.judges) ? progress.judges : [];
+  const fallbackJudges = Array.isArray(businessDataState.adminUsers)
+    ? businessDataState.adminUsers
+      .filter((user) => Array.isArray(user.roles) && user.roles.includes("judge"))
+      .map((user) => ({
+        id: user.id,
+        userId: user.id,
+        judgeId: user.id,
+        name: user.name || user.id,
+        department: user.department || "",
+        submittedCount: 0,
+        draftCount: 0,
+        lockedCount: 0,
+        missingCount: 0,
+        totalTeamCount: 0,
+        status: "pending",
+        teams: {},
+      }))
+    : [];
   const teams = Array.isArray(progress?.teams) ? progress.teams : [];
+  const teamLabels = new Map();
+  const publishedWorks = normalizeWorks(businessDataState.works).filter((work) => work.status === "published");
+  const siteTeams = Array.isArray(businessDataState.teams) ? businessDataState.teams : [];
+  const scoreReady = Boolean(progress?.scoreReady);
+
+  publishedWorks.forEach((work) => {
+    const teamId = String(work.teamId || work.id || "").trim();
+    if (teamId) {
+      teamLabels.set(teamId, work.teamName || work.track || work.project || teamId);
+    }
+  });
+  siteTeams.forEach((team) => {
+    const teamId = String(team.id || team.teamId || "").trim();
+    if (teamId && !teamLabels.has(teamId)) {
+      teamLabels.set(teamId, team.name || team.project || teamId);
+    }
+  });
+
+  if (!adminJudgeProgress) {
+    return;
+  }
+
+  const teamIds = teams
+    .map((team) => String(team.teamId || "").trim())
+    .filter(Boolean);
+  const teamIdSet = new Set(teamIds);
+  [...progressJudges, ...fallbackJudges].forEach((judge) => {
+    Object.keys(judge.teams || {}).forEach((teamId) => {
+      const cleanTeamId = String(teamId || "").trim();
+      if (cleanTeamId && !teamIdSet.has(cleanTeamId)) {
+        teamIds.push(cleanTeamId);
+        teamIdSet.add(cleanTeamId);
+      }
+    });
+  });
+  const scoreTeams = teamIds.map((teamId) => ({
+    teamId,
+    label: teamLabels.get(teamId) || teamId,
+  }));
+  const scoreRecordJudges = buildJudgeProgressFallbackFromScores(businessDataState.judgeScores, scoreTeams);
+  const judges = progressJudges.length ? progressJudges : fallbackJudges.length ? fallbackJudges : scoreRecordJudges;
   const expected = judges.reduce((sum, judge) => sum + (Number(judge.totalTeamCount) || 0), 0);
   const submitted = judges.reduce((sum, judge) => sum + (Number(judge.submittedCount) || 0), 0);
   const allSubmitted = expected > 0 && submitted >= expected;
-  const scoreReady = Boolean(progress?.scoreReady);
 
   lockButtons.forEach((lockButton) => {
     lockButton.disabled = !allSubmitted || Boolean(progress?.locked);
@@ -1748,49 +1895,370 @@ function renderJudgeProgress(progress = businessDataState.judgeProgress) {
           ? "可发布，待全量提交后锁定"
           : "等待评分提交";
   });
-  if (!adminJudgeProgress) {
-    return;
-  }
 
   if (!judges.length) {
-    adminJudgeProgress.innerHTML = '<p class="admin-empty">暂无评委提交进度</p>';
+    adminJudgeProgress.innerHTML = '<p class="admin-empty">暂无可展示的评委数据。请确认「系统状态 / 用户角色」里存在 judge 角色用户，或检查评分接口是否同步成功。</p>';
     return;
   }
 
-  const judgeRows = judges.map((judge) => {
-    const status = judge.status === "locked"
-      ? "已锁定"
-      : judge.status === "submitted"
-        ? "已提交"
-        : judge.status === "draft"
-          ? "暂存中"
-          : "待提交";
-    return `
-      <li>
-        <span>${escapeHtml(judge.name || judge.judgeId || "评委")}</span>
-        <b>${escapeHtml(String(judge.submittedCount || 0))}/${escapeHtml(String(judge.totalTeamCount || 0))}</b>
-        <small>${escapeHtml(status)}</small>
-      </li>
-    `;
-  }).join("");
-  const teamRows = teams.slice(0, 5).map((team) => `
-    <li>
-      <span>${escapeHtml(team.teamId || "队伍")}</span>
-      <b>${team.averageScore == null ? "--" : escapeHtml(Number(team.averageScore).toFixed(2))}</b>
-      <small>${escapeHtml(String(team.submittedJudgeCount || 0))} 位评委</small>
-    </li>
+  const statusMeta = {
+    locked: { label: "已锁定", className: "locked" },
+    submitted: { label: "已提交", className: "submitted" },
+    draft: { label: "暂存中", className: "draft" },
+    missing: { label: "未评分", className: "missing" },
+    pending: { label: "未评分", className: "missing" },
+  };
+  const resolveStatusMeta = (status) => statusMeta[String(status || "missing").trim()] || statusMeta.missing;
+  const formatTeamLabel = (teamId) => teamLabels.get(teamId) || teamId || "队伍";
+
+  const hasScoreTargets = scoreTeams.length > 0;
+  const getJudgeMissingTeamLabels = (judge) => scoreTeams
+    .filter((team) => {
+      const teamStatus = resolveStatusMeta(judge.teams?.[team.teamId]?.status || "missing");
+      return teamStatus.className === "missing";
+    })
+    .map((team) => team.label);
+  const completedJudgeCount = hasScoreTargets
+    ? judges.filter((judge) => Number(judge.submittedCount) >= scoreTeams.length).length
+    : 0;
+  const pendingJudgeCount = hasScoreTargets ? judges.length - completedJudgeCount : 0;
+  const draftJudgeCount = judges.filter((judge) => Number(judge.draftCount) > 0).length;
+  const formatScoreLabel = (record) => {
+    const score = Number(record?.totalScore);
+    if (!Number.isFinite(score)) {
+      return "--";
+    }
+    return `${score.toFixed(2).replace(/\.00$/, "")} 分`;
+  };
+
+  const judgeMatrixTeams = scoreTeams.map((team) => {
+    const teamProgress = teams.find((item) => String(item.teamId || "").trim() === team.teamId) || {};
+    return {
+      ...team,
+      submittedJudgeCount: Number(teamProgress.submittedJudgeCount) || 0,
+      averageScore: teamProgress.averageScore,
+    };
+  });
+
+  const judgeMatrixRows = judges.map((judge) => {
+    const submittedCount = Number(judge.submittedCount) || 0;
+    const totalTeamCount = Number(judge.totalTeamCount) || scoreTeams.length;
+    return {
+      judge,
+      submittedCount,
+      totalTeamCount,
+      cells: judgeMatrixTeams.map((team) => {
+        const record = judge.teams?.[team.teamId] || {};
+        const teamStatus = resolveStatusMeta(record.status || "missing");
+        return {
+          team,
+          record,
+          status: teamStatus,
+        };
+      }),
+    };
+  });
+
+  const matrixHeader = judgeMatrixTeams.map((team) => `
+    <div class="admin-judge-score-track" title="${escapeHtml(team.label)}">
+      <b>${escapeHtml(team.label)}</b>
+      <span>${formatNumber(team.submittedJudgeCount)}/${formatNumber(judges.length)} 已评</span>
+    </div>
   `).join("");
 
-  adminJudgeProgress.innerHTML = `
-    <div class="admin-judge-progress-grid">
-      <div><strong>评委提交</strong><ul>${judgeRows}</ul></div>
-      <div><strong>队伍均分</strong><ul>${teamRows || '<li><span>暂无队伍</span><b>--</b><small>等待评分</small></li>'}</ul></div>
+  const matrixRows = judgeMatrixRows.map(({ judge, submittedCount, totalTeamCount, cells }) => `
+    <div class="admin-judge-score-row">
+      <div class="admin-judge-score-person">
+        <strong>${escapeHtml(judge.name || judge.judgeId || "评委")}</strong>
+        <span>${escapeHtml(judge.department || judge.judgeId || "评委账号")}</span>
+        <small>${formatNumber(submittedCount)}/${formatNumber(totalTeamCount)} 已提交</small>
+      </div>
+      ${cells.map(({ team, record, status }) => {
+        const cellStatus = status.className;
+        const statusCopy = cellStatus === "draft" ? "暂存未提交" : status.label;
+        const scoreCopy = Number.isFinite(Number(record?.totalScore))
+          ? `${formatNumber(record.totalScore)}`
+          : "未评";
+        const timeCopy = record.submittedAt
+          ? `提交：${formatSnapshotTime(record.submittedAt)}`
+          : record.updatedAt
+            ? `更新：${formatSnapshotTime(record.updatedAt)}`
+            : "暂无记录";
+        return `
+          <div class="admin-judge-score-cell is-${escapeAttribute(cellStatus)}" data-score-state="${escapeHtml(cellStatus)}" title="${escapeHtml(`${judge.name || judge.judgeId || "评委"} · ${team.label} · ${statusCopy}`)}">
+            <strong>${escapeHtml(scoreCopy)}</strong>
+            <span>${escapeHtml(statusCopy)}</span>
+            <small>${escapeHtml(timeCopy)}</small>
+          </div>
+        `;
+      }).join("")}
     </div>
+  `).join("");
+
+  const trackAverageRows = judgeMatrixTeams.map((team) => {
+    const averageScore = Number(team.averageScore);
+    return `
+      <article>
+        <span>${escapeHtml(team.label)}</span>
+        <strong>${Number.isFinite(averageScore) ? formatNumber(team.averageScore) : "--"}</strong>
+        <small>平均分 · ${formatNumber(team.submittedJudgeCount)}/${formatNumber(judges.length)} 位评委</small>
+      </article>
+    `;
+  }).join("");
+
+  const judgeRosterChips = judges.map((judge) => `
+    <span>
+      <b>${escapeHtml(judge.name || judge.judgeId || "评委")}</b>
+      <small>${escapeHtml(judge.department || judge.judgeId || "评委账号")}</small>
+    </span>
+  `).join("");
+
+  const judgeRows = judges.map((judge) => {
+    const status = resolveStatusMeta(judge.status);
+    const missingTeamLabels = getJudgeMissingTeamLabels(judge);
+    const submittedCount = Number(judge.submittedCount) || 0;
+    const totalTeamCount = Number(judge.totalTeamCount) || scoreTeams.length;
+    const draftCount = Number(judge.draftCount) || 0;
+    const missingCount = Math.max(0, totalTeamCount - submittedCount - draftCount);
+    const missingCopy = !hasScoreTargets
+      ? "暂无评分对象，请先发布作品"
+      : missingTeamLabels.length
+        ? `未评分：${missingTeamLabels.join("、")}`
+        : "全部作品已提交评分";
+    const rowStatus = !hasScoreTargets
+      ? { label: "等待作品发布", className: "missing" }
+      : status;
+    const detailCards = scoreTeams.map((team) => {
+      const record = judge.teams?.[team.teamId] || {};
+      const teamStatus = resolveStatusMeta(record.status || "missing");
+      const statusCopy = teamStatus.className === "draft"
+        ? "未提交（已暂存）"
+        : teamStatus.label;
+      const timeCopy = record.submittedAt
+        ? `提交时间：${formatSnapshotTime(record.submittedAt)}`
+        : record.updatedAt
+          ? `更新时间：${formatSnapshotTime(record.updatedAt)}`
+          : "暂无提交记录";
+      return `
+        <article class="admin-judge-detail-card admin-judge-status-cell is-${teamStatus.className}" title="${escapeHtml(`${team.label} · ${statusCopy}`)}">
+          <b>${escapeHtml(team.label)}</b>
+          <span>${escapeHtml(statusCopy)}</span>
+          <dl>
+            <dt>分数</dt>
+            <dd>${escapeHtml(formatScoreLabel(record))}</dd>
+            <dt>记录</dt>
+            <dd>${escapeHtml(timeCopy)}</dd>
+          </dl>
+        </article>
+      `;
+    }).join("");
+
+    return `
+      <details class="admin-judge-accordion admin-judge-progress-row is-${rowStatus.className}">
+        <summary class="admin-judge-progress-person">
+          <span class="admin-judge-toggle" aria-hidden="true">+</span>
+          <strong>${escapeHtml(judge.name || judge.judgeId || "评委")}</strong>
+          <span>${escapeHtml(judge.department || judge.judgeId || "评委账号")}</span>
+          <b>${escapeHtml(String(submittedCount))}/${escapeHtml(String(totalTeamCount))} 已提交 · ${escapeHtml(String(draftCount))} 暂存 · ${escapeHtml(String(missingCount))} 未评分</b>
+          <em>${escapeHtml(rowStatus.label)}</em>
+          <small>${escapeHtml(missingCopy)}</small>
+        </summary>
+        <div class="admin-judge-status-list admin-judge-progress-matrix" aria-label="${escapeHtml(judge.name || judge.judgeId || "评委")}评分状态">
+          ${detailCards || '<article class="admin-judge-detail-card admin-judge-status-cell is-missing"><b>暂无作品</b><span>等待发布</span><dl><dt>分数</dt><dd>--</dd><dt>记录</dt><dd>暂无提交记录</dd></dl></article>'}
+        </div>
+      </details>
+    `;
+  }).join("");
+  const judgeDetailSelectors = judges.map((judge, index) => {
+    const judgeKey = String(judge.judgeId || judge.userId || judge.id || `judge-${index}`);
+    const submittedCount = Number(judge.submittedCount) || 0;
+    const totalTeamCount = Number(judge.totalTeamCount) || scoreTeams.length;
+    const isActive = index === 0;
+
+    return `
+      <button class="admin-judge-selector-card admin-judge-detail-target ${isActive ? "is-active" : ""}" type="button" data-judge-detail-target="${escapeAttribute(judgeKey)}" aria-pressed="${isActive ? "true" : "false"}">
+        <strong>${escapeHtml(judge.name || judge.judgeId || "评委")}</strong>
+        <span>${escapeHtml(judge.department || judge.judgeId || "评委账号")}</span>
+        <small>${escapeHtml(String(submittedCount))}/${escapeHtml(String(totalTeamCount))} 已提交</small>
+      </button>
+    `;
+  }).join("");
+  const judgeDetailPanels = judges.map((judge, index) => {
+    const judgeKey = String(judge.judgeId || judge.userId || judge.id || `judge-${index}`);
+    const scoreRecords = scoreTeams.map((team) => {
+      const record = judge.teams?.[team.teamId] || {};
+      const score = Number(record?.totalScore);
+      const teamStatus = resolveStatusMeta(record.status || "missing");
+      const statusCopy = teamStatus.className === "draft" ? "未提交（已暂存）" : teamStatus.label;
+      const timeCopy = record.submittedAt
+        ? `提交时间：${formatSnapshotTime(record.submittedAt)}`
+        : record.updatedAt
+          ? `更新时间：${formatSnapshotTime(record.updatedAt)}`
+          : "暂无提交记录";
+
+      return {
+        team,
+        record,
+        score,
+        status: teamStatus,
+        statusCopy,
+        timeCopy,
+      };
+    });
+    const validScores = scoreRecords
+      .map((item) => item.score)
+      .filter((score) => Number.isFinite(score));
+    const totalScore = validScores.reduce((sum, score) => sum + score, 0);
+    const averageScore = validScores.length ? totalScore / validScores.length : NaN;
+    const submittedCount = Number(judge.submittedCount) || 0;
+    const totalTeamCount = Number(judge.totalTeamCount) || scoreTeams.length;
+    const isActive = index === 0;
+    const trackScoreCards = scoreRecords.map(({ team, score, status, statusCopy, timeCopy }) => `
+      <article class="admin-judge-track-score-card is-${status.className}">
+        <span>${escapeHtml(team.label)}</span>
+        <strong>${Number.isFinite(score) ? escapeHtml(formatNumber(score)) : "--"}</strong>
+        <small>${escapeHtml(statusCopy)} · ${escapeHtml(timeCopy)}</small>
+      </article>
+    `).join("");
+
+    return `
+      <section class="admin-judge-detail-panel ${isActive ? "is-active" : ""}" data-judge-detail-panel="${escapeAttribute(judgeKey)}" ${isActive ? "" : "hidden"}>
+        <header>
+          <div>
+            <span>个人评分总览</span>
+            <strong>${escapeHtml(judge.name || judge.judgeId || "评委")}</strong>
+            <small>${escapeHtml(judge.department || judge.judgeId || "评委账号")}</small>
+          </div>
+          <div class="admin-judge-person-total">
+            <span><b>${Number.isFinite(totalScore) && validScores.length ? escapeHtml(formatNumber(totalScore)) : "--"}</b><small>总分合计</small></span>
+            <span><b>${Number.isFinite(averageScore) ? escapeHtml(formatNumber(averageScore)) : "--"}</b><small>平均总分</small></span>
+            <span><b>${escapeHtml(String(submittedCount))}/${escapeHtml(String(totalTeamCount))}</b><small>已评分队伍</small></span>
+          </div>
+        </header>
+        <div class="admin-judge-track-score-grid">
+          ${trackScoreCards || '<article class="admin-judge-track-score-card is-missing"><span>暂无作品</span><strong>--</strong><small>等待发布评分对象</small></article>'}
+        </div>
+      </section>
+    `;
+  }).join("");
+  const judgeDrilldownSection = hasScoreTargets ? `
+    <section class="admin-judge-drilldown" aria-label="按评委查看赛道评分">
+      <header>
+        <div>
+          <strong>按评委查看评分</strong>
+          <span>点击左侧评委姓名，右侧展开该评委给每个赛道的分数和个人总分。</span>
+        </div>
+        <small>个人总分 / 平均总分 / 已评分队伍</small>
+      </header>
+      <div class="admin-judge-drilldown-body">
+        <div class="admin-judge-selector-list" aria-label="评委列表">
+          ${judgeDetailSelectors}
+        </div>
+        <div class="admin-judge-detail-stack">
+          ${judgeDetailPanels}
+        </div>
+      </div>
+    </section>
+  ` : "";
+  const teamRows = scoreTeams.map((team) => {
+    const teamProgress = teams.find((item) => String(item.teamId || "").trim() === team.teamId) || {};
+    return `
+    <li>
+      <span>${escapeHtml(formatTeamLabel(team.teamId))}</span>
+      <b>${escapeHtml(String(teamProgress.submittedJudgeCount || 0))}/${escapeHtml(String(judges.length))}</b>
+      <small>已提交评委数</small>
+    </li>
+  `;
+  }).join("");
+
+  const scoreMatrixSection = hasScoreTargets ? `
+    <section class="admin-judge-score-matrix" aria-label="评委赛道评分矩阵">
+      <header>
+        <div>
+          <strong>评委 × 赛道评分矩阵</strong>
+          <span>横向查看每位评委评了哪些赛道，以及给出的总分。</span>
+        </div>
+        <small>总分 / 状态 / 时间</small>
+      </header>
+      <div class="admin-judge-score-table" style="--judge-score-columns: ${Math.max(1, judgeMatrixTeams.length)};">
+        <div class="admin-judge-score-row is-head">
+          <div class="admin-judge-score-person">评委</div>
+          ${matrixHeader}
+        </div>
+        ${matrixRows}
+      </div>
+    </section>
+    <section class="admin-judge-track-averages" aria-label="赛道评分均分">
+      <header>
+        <strong>赛道均分</strong>
+        <span>按正式提交评分计算，用于发布前复核。</span>
+      </header>
+      <div>
+        ${trackAverageRows}
+      </div>
+    </section>
+  ` : `
+    <section class="admin-judge-empty-state">
+      <div>
+        <strong>已同步 ${escapeHtml(String(judges.length))} 位评委</strong>
+        <p>目前还没有评分对象。管理员发布作品后，这里会自动切换为“评委 × 赛道”评分矩阵，显示每位评委给每个赛道的总分。</p>
+      </div>
+      <div class="admin-judge-roster-chips" aria-label="已同步评委名单">
+        ${judgeRosterChips}
+      </div>
+    </section>
+  `;
+
+  adminJudgeProgress.innerHTML = `
+    <div class="admin-judge-progress-head">
+      <div>
+        <strong>评委评分明细</strong>
+        <span>${escapeHtml(String(submitted))}/${escapeHtml(String(expected))} 份正式评分 · ${escapeHtml(String(completedJudgeCount))}/${escapeHtml(String(judges.length))} 位评委完成 · ${escapeHtml(String(scoreTeams.length))} 个作品</span>
+      </div>
+      <b>${progress?.locked ? "已锁定" : allSubmitted ? "全员已提交" : scoreReady ? "覆盖已满足" : "等待评分"}</b>
+    </div>
+    <div class="admin-judge-progress-grid">
+      <div><strong>进度总览</strong><ul><li><span>已完成评委</span><b>${escapeHtml(String(completedJudgeCount))}</b><small>所有作品均已正式提交</small></li><li><span>待补交评委</span><b>${escapeHtml(String(pendingJudgeCount))}</b><small>包含未评分或暂存未提交</small></li><li><span>暂存中评委</span><b>${escapeHtml(String(draftJudgeCount))}</b><small>有草稿但未正式提交</small></li></ul></div>
+      <div><strong>作品覆盖</strong><ul>${teamRows || '<li><span>暂无作品</span><b>--</b><small>等待作品发布后生成评分对象</small></li>'}</ul></div>
+    </div>
+    ${scoreMatrixSection}
+    ${judgeDrilldownSection}
+    ${hasScoreTargets ? `
+      <div class="admin-judge-accordion-list">
+        ${judgeRows}
+      </div>
+    ` : ""}
   `;
 }
 
+function activateJudgeDetailPanel(targetKey) {
+  if (!adminJudgeProgress || !targetKey) {
+    return;
+  }
+
+  adminJudgeProgress.querySelectorAll("[data-judge-detail-target]").forEach((button) => {
+    const isActive = button.dataset.judgeDetailTarget === targetKey;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+  });
+  adminJudgeProgress.querySelectorAll("[data-judge-detail-panel]").forEach((panel) => {
+    const isActive = panel.dataset.judgeDetailPanel === targetKey;
+    panel.hidden = !isActive;
+    panel.classList.toggle("is-active", isActive);
+  });
+}
+
+document.addEventListener("click", (event) => {
+  const judgeTarget = event.target.closest("[data-judge-detail-target]");
+  if (!judgeTarget) {
+    return;
+  }
+
+  activateJudgeDetailPanel(judgeTarget.dataset.judgeDetailTarget);
+});
+
 function renderBusinessData(payload = {}) {
-  const { teams, voteResults, works, judgeScores, judgeProgress, resultSnapshot } = payload;
+  const { teams, voteResults, works, judgeScores, judgeProgress, adminUsers, resultSnapshot } = payload;
   const hasSnapshotPayload = Object.prototype.hasOwnProperty.call(payload, "resultSnapshot");
 
   businessDataState = {
@@ -1800,6 +2268,7 @@ function renderBusinessData(payload = {}) {
     ...(Array.isArray(works) ? { works } : {}),
     ...(judgeScores && typeof judgeScores === "object" ? { judgeScores } : {}),
     ...(judgeProgress && typeof judgeProgress === "object" ? { judgeProgress } : {}),
+    ...(Array.isArray(adminUsers) ? { adminUsers } : {}),
     ...(hasSnapshotPayload ? { resultSnapshot } : {}),
   };
 
@@ -3538,12 +4007,13 @@ async function loadAuditTrail() {
 
 async function loadBusinessData({ writeLog = false } = {}) {
   setSyncStatus("syncing", "同步后台数据", "队伍 / 投票 / 作品 / 评分 / 快照 / 计时器");
-  const [teamsResult, voteResult, worksResult, judgeResult, judgeProgressResult, snapshotResult, missionCountdownResult, roadshowResult] = await Promise.allSettled([
+  const [teamsResult, voteResult, worksResult, judgeResult, judgeProgressResult, adminUsersResult, snapshotResult, missionCountdownResult, roadshowResult] = await Promise.allSettled([
     window.AppData.loadTeams([]),
     window.AppData.loadVoteResults([]),
     window.AppData.loadAdminWorks([]),
     window.AppData.loadJudgeScores({ scores: {} }),
     window.AppData.loadJudgeProgress({ judges: [], teams: [], judgeCount: 0, teamCount: 0, locked: false }),
+    window.AppData.loadAdminUsers({ users: [] }),
     window.AppData.loadLatestResultSnapshot({ snapshot: null }),
     window.AppData.loadMissionCountdown(),
     window.AppData.loadRoadshow(),
@@ -3554,6 +4024,7 @@ async function loadBusinessData({ writeLog = false } = {}) {
   if (worksResult.status === "fulfilled") nextBusinessData.works = worksResult.value;
   if (judgeResult.status === "fulfilled") nextBusinessData.judgeScores = judgeResult.value;
   if (judgeProgressResult.status === "fulfilled") nextBusinessData.judgeProgress = judgeProgressResult.value;
+  if (adminUsersResult.status === "fulfilled") nextBusinessData.adminUsers = Array.isArray(adminUsersResult.value?.users) ? adminUsersResult.value.users : [];
   if (snapshotResult.status === "fulfilled") nextBusinessData.resultSnapshot = snapshotResult.value?.snapshot || null;
   if (missionCountdownResult.status === "fulfilled") renderMissionCountdownScreenState(missionCountdownResult.value);
   if (roadshowResult.status === "fulfilled") renderRoadshowScreenState(roadshowResult.value);
@@ -3566,6 +4037,7 @@ async function loadBusinessData({ writeLog = false } = {}) {
   if (worksResult.status === "rejected") failedSources.push("作品");
   if (judgeResult.status === "rejected") failedSources.push("评分");
   if (judgeProgressResult.status === "rejected") failedSources.push("评分进度");
+  if (adminUsersResult.status === "rejected") failedSources.push("用户角色");
   if (snapshotResult.status === "rejected") failedSources.push("快照");
   if (missionCountdownResult.status === "rejected") failedSources.push("任务倒计时");
   if (roadshowResult.status === "rejected") failedSources.push("路演计时");
