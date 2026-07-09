@@ -61,7 +61,7 @@
       permissions: Object.freeze({
         canJoinTeam: false,
         canSubmitWork: false,
-        canVote: false,
+        canVote: true,
         canScore: false,
         canAdmin: true,
         canControlBigscreen: true,

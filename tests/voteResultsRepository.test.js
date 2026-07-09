@@ -54,6 +54,29 @@ test("JSON vote repository reads wait for queued vote writes", async () => {
   assert.equal(listed.voters["public-queued"], "marketing");
 });
 
+test("JSON vote repository counts repeatable admin votes without locking admin voter state", async () => {
+  const dataPath = await createTempVoteFile({
+    pointScale: [100, 85, 70, 55, 40],
+    status: "voting",
+    results: [
+      { id: "marketing", name: "营销", votes: 0 },
+    ],
+    voters: {},
+  });
+  const repository = createVoteResultsRepository(dataPath);
+
+  const first = await repository.castVote({ teamId: "marketing", userId: "admin-001", repeatable: true, source: "admin" });
+  const second = await repository.castVote({ teamId: "marketing", userId: "admin-001", repeatable: true, source: "admin" });
+
+  assert.equal(first.accepted, true);
+  assert.equal(first.repeatable, true);
+  assert.equal(second.results.find((team) => team.id === "marketing").votes, 2);
+
+  const stored = JSON.parse(await fs.readFile(dataPath, "utf8"));
+  assert.equal(stored.results.find((team) => team.id === "marketing").votes, 2);
+  assert.deepEqual(stored.voters, {});
+});
+
 test("JSON vote repository normalizes stale vote window labels from status", async () => {
   const dataPath = await createTempVoteFile({
     pointScale: [100, 85, 70, 55, 40],

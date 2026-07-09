@@ -16,6 +16,15 @@ function normalizeId(value) {
   return String(value || "").trim();
 }
 
+function isRepeatableVote(payload = {}) {
+  return Boolean(payload.repeatable);
+}
+
+function createRepeatableVoterId(userId) {
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `${userId}#repeat-${suffix}`;
+}
+
 function parseJsonValue(value, fallback = {}) {
   if (Buffer.isBuffer(value)) {
     return JSON.parse(value.toString("utf8"));
@@ -187,7 +196,8 @@ function createMysqlVoteResultsRepository(pool) {
   async function castVote(payload = {}) {
     const teamId = normalizeId(payload.teamId);
     const userId = normalizeUserId(payload);
-    const source = String(payload.source || "web").trim();
+    const repeatable = isRepeatableVote(payload);
+    const source = String(payload.source || (repeatable ? "admin" : "web")).trim();
     if (!teamId) {
       throw createHttpError(400, "teamId is required.");
     }
@@ -196,6 +206,14 @@ function createMysqlVoteResultsRepository(pool) {
       const windowState = await readVoteWindow(db, { forUpdate: true });
       ensureVotingOpen(windowState);
       await ensureTeamExists(teamId, db);
+
+      if (repeatable) {
+        await db.execute(
+          "INSERT INTO votes (voter_id, team_id, source, status) VALUES (?, ?, ?, 'active')",
+          [createRepeatableVoterId(userId), teamId, source || "admin"],
+        );
+        return;
+      }
 
       const currentVote = await getCurrentActiveVote(userId, db, { forUpdate: true });
       ensureExistingVoteMatches(userId, teamId, currentVote);
@@ -220,6 +238,7 @@ function createMysqlVoteResultsRepository(pool) {
 
     return {
       accepted: true,
+      repeatable,
       teamId,
       userId,
       ...await listVoteResults(),

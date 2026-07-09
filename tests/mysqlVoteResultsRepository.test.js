@@ -240,6 +240,29 @@ test("MySQL vote repository wraps vote writes in a transaction and locks the vot
   assert.ok(pool.calls.some((call) => /from vote_windows/i.test(call.sql) && /for update/i.test(call.sql)));
 });
 
+test("MySQL vote repository stores repeatable admin votes as separate active rows", async () => {
+  const pool = new MemoryMysqlVotePool({
+    window: {
+      status: "voting",
+      windowLabel: "投票窗口开启中",
+      pointScale: [100, 85, 70, 55, 40],
+    },
+    teams: [
+      { id: "marketing", name: "营销", track: "SALES & MARKETING", project: "全域内容生成引擎" },
+    ],
+  });
+  const repository = createMysqlVoteResultsRepository(pool);
+
+  await repository.castVote({ teamId: "marketing", userId: "admin-001", repeatable: true, source: "admin" });
+  const second = await repository.castVote({ teamId: "marketing", userId: "admin-001", repeatable: true, source: "admin" });
+
+  assert.equal(second.repeatable, true);
+  assert.equal(second.results.find((team) => team.id === "marketing").votes, 2);
+  assert.equal(pool.votes.filter((vote) => vote.voter_id === "admin-001" && vote.status === "active").length, 0);
+  assert.equal(pool.votes.filter((vote) => vote.voter_id.startsWith("admin-001#repeat-") && vote.status === "active").length, 2);
+  assert.ok(pool.votes.every((vote) => vote.source === "admin"));
+});
+
 test("MySQL vote repository treats duplicate same-team active inserts as idempotent", async () => {
   const pool = new MemoryMysqlVotePool({
     window: {

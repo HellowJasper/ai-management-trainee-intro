@@ -2658,6 +2658,51 @@ test("vote APIs persist one vote per user and update ranked results", async (t) 
   assert.deepEqual(stored.voters, {});
 });
 
+test("strict vote API lets admins add repeatable votes without claiming a voter slot", async (t) => {
+  const { dataPath, publicRoot } = await createTempJsonFile("ai-admin-repeat-votes-", "vote-results.json", {
+    pointScale: [100, 85, 70, 55, 40],
+    status: "voting",
+    results: [
+      { id: "marketing", name: "营销", votes: 0, expert: 93.2 },
+    ],
+    voters: {},
+  });
+  const sessionFile = await createTempJsonFile("ai-admin-repeat-session-", "sessions.json", { sessions: {} });
+  const authSessionRepository = createAuthSessionRepository(sessionFile.dataPath);
+  const server = createServer({
+    publicRoot,
+    voteResultsRepository: createVoteResultsRepository(dataPath),
+    authSessionRepository,
+    worksRepository: createPublishedWorksRepository(["marketing"]),
+    authEnforcement: "strict",
+  });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const adminCookie = await createSessionCookie(authSessionRepository, "admin", { userId: "admin-001" });
+  const firstResponse = await fetch(`${baseUrl}/api/vote/cast`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: adminCookie },
+    body: JSON.stringify({ teamId: "marketing" }),
+  });
+  const secondResponse = await fetch(`${baseUrl}/api/vote/cast`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: adminCookie },
+    body: JSON.stringify({ teamId: "marketing" }),
+  });
+  const second = await secondResponse.json();
+
+  assert.equal(firstResponse.status, 200);
+  assert.equal(secondResponse.status, 200);
+  assert.equal(second.repeatable, true);
+  assert.equal(second.results.find((team) => team.id === "marketing").votes, 2);
+
+  const stored = JSON.parse(await fs.readFile(dataPath, "utf8"));
+  assert.equal(stored.results.find((team) => team.id === "marketing").votes, 2);
+  assert.deepEqual(stored.voters, {});
+});
+
 test("vote API rejects unpublished work targets for audience votes", async (t) => {
   const { dataPath, publicRoot } = await createTempJsonFile("ai-votes-unpublished-target-", "vote-results.json", {
     pointScale: [100, 85, 70, 55, 40],
@@ -3074,6 +3119,31 @@ test("work APIs persist submissions and admin review status", async (t) => {
 
   const stored = JSON.parse(await fs.readFile(dataPath, "utf8"));
   assert.equal(stored.works[0].status, "published");
+});
+
+test("work submissions accept internal http demo URLs", async (t) => {
+  const { dataPath, publicRoot } = await createTempJsonFile("ai-works-internal-http-url-", "works.json", {
+    works: [],
+  });
+  const worksRepository = createWorksRepository(dataPath);
+  const server = createServer({ publicRoot, worksRepository });
+  const baseUrl = await listen(server);
+
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+
+  const response = await fetch(`${baseUrl}/api/work/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      teamId: "marketing",
+      project: "内网 Demo",
+      demoUrl: "http://192.168.1.98:5211/ai-insights",
+    }),
+  });
+  const payload = await response.json();
+
+  assert.equal(response.status, 201);
+  assert.equal(payload.work.demoUrl, "http://192.168.1.98:5211/ai-insights");
 });
 
 test("work submissions reject unsafe delivery URLs", async (t) => {
@@ -3820,7 +3890,7 @@ test("admin / screen / big-screen pages require an admin session", async (t) => 
   assert.match(response.headers.get("content-type"), /text\/html/);
   assert.match(html, /AI 星锐黑客松 管理后台/);
   assert.match(html, /id="stageRows"/);
-  assert.match(html, /src="\.\/src\/admin\.js\?v=20260710-judge-drilldown-scroll"/);
+  assert.match(html, /src="\.\/src\/admin\.js\?v=20260710-judge-user-sync"/);
 });
 
 test("root serves the user site for everyone; big screen stays admin-only", async (t) => {

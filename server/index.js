@@ -354,10 +354,10 @@ function isSafeWorkUrl(value) {
   }
   try {
     const url = new URL(raw);
-    if (url.protocol === "https:") {
+    if (["http:", "https:"].includes(url.protocol)) {
       return true;
     }
-    return url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname);
+    return false;
   } catch {
     return false;
   }
@@ -366,7 +366,7 @@ function isSafeWorkUrl(value) {
 function assertSafeWorkUrls(payload = {}) {
   ["demoUrl", "codeUrl", "docUrl"].forEach((field) => {
     if (!isSafeWorkUrl(payload[field])) {
-      throw createStatusError(400, `${field} must be an https URL or a same-origin asset path.`);
+      throw createStatusError(400, `${field} must be an http/https URL or a same-origin asset path.`);
     }
   });
 }
@@ -546,7 +546,7 @@ async function routeApi(
       sendJson(response, 401, { error: { message: "Authentication required.", statusCode: 401 } });
       return null;
     }
-    const perms = session.permissions || getRolePermissions(session.role);
+    const perms = { ...(session.permissions || {}), ...getRolePermissions(session.role) };
     if (!perms[permissionName]) {
       sendJson(response, 403, { error: { message: `Required permission: ${permissionName}`, statusCode: 403 } });
       return null;
@@ -1164,8 +1164,14 @@ async function routeApi(
     const session = await enforcePermission(request, response, "canVote");
     if (!session) return true;
     const payload = await readJsonBody(request);
+    delete payload.repeatable;
     if (session.user?.id) {
       payload.userId = session.user.id;
+    }
+    const permissions = { ...(session.permissions || {}), ...getRolePermissions(session.role) };
+    if (session.role === "admin" || permissions.canAdmin) {
+      payload.repeatable = true;
+      payload.source = "admin";
     }
     await enforcePublishedVoteTarget(payload.teamId);
     sendJson(response, 200, await voteResultsRepository.castVote(payload));

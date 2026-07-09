@@ -3225,12 +3225,18 @@ async function loadUserRoles() {
 
   try {
     const payload = await window.AppData.loadAdminUsers({ users: [] });
+    const users = Array.isArray(payload.users) ? payload.users : [];
     userRoleState = {
-      users: Array.isArray(payload.users) ? payload.users : [],
+      users,
       loading: false,
+    };
+    businessDataState = {
+      ...businessDataState,
+      adminUsers: users,
     };
     renderUserRoleManager();
     renderTeamMemberUserOptions();
+    renderJudgeProgress();
   } catch (error) {
     console.warn("User role mappings load failed.", error);
     userRoleState = {

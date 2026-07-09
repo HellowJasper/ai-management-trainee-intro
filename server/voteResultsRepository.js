@@ -14,6 +14,10 @@ function normalizeUserId(payload = {}) {
   return String(payload.userId || payload.openId || payload.unionId || "local-public").trim();
 }
 
+function isRepeatableVote(payload = {}) {
+  return Boolean(payload.repeatable);
+}
+
 function normalizeVoteWindowStatus(status) {
   const cleanStatus = String(status || "").trim();
   if (!Object.prototype.hasOwnProperty.call(VOTE_WINDOW_LABELS, cleanStatus)) {
@@ -93,6 +97,25 @@ function createVoteResultsRepository(dataPath = DEFAULT_DATA_PATH) {
       const state = await readVoteResults();
       ensureVotingOpen(state);
       const resultIndex = findResultIndex(state, teamId);
+      const repeatable = isRepeatableVote(payload);
+
+      if (repeatable) {
+        state.results[resultIndex] = {
+          ...state.results[resultIndex],
+          votes: Math.max(0, Number(state.results[resultIndex].votes) || 0) + 1,
+        };
+        state.updatedAt = new Date().toISOString();
+        await writeVoteResults(state);
+
+        return {
+          accepted: true,
+          repeatable: true,
+          teamId,
+          userId,
+          ...normalizeVoteResults(state),
+        };
+      }
+
       const currentVote = state.voters[userId];
 
       if (currentVote && currentVote !== teamId) {

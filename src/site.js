@@ -148,7 +148,7 @@
   const joinedTeam = () => (SITE_STATE && SITE_STATE.me && SITE_STATE.me.teamId) || "";
   function currentRole() { return root.localStorage.getItem(ROLE_KEY); }
   const roleName = (role) => Logic.getRoleLabel ? Logic.getRoleLabel(role) : ({ player: "参赛选手", judge: "专家评委", public: "大众评委", admin: "管理员" }[role] || "待鉴权");
-  const rolePermissions = (role) => Logic.getRolePermissions ? Logic.getRolePermissions(role) : { canJoinTeam: role === "player", canSubmitWork: role === "player", canVote: role === "public", canScore: role === "judge", canAdmin: role === "admin", canControlBigscreen: role === "admin", canViewTeamProgress: true };
+  const rolePermissions = (role) => Logic.getRolePermissions ? Logic.getRolePermissions(role) : { canJoinTeam: role === "player", canSubmitWork: role === "player", canVote: role === "public" || role === "admin", canScore: role === "judge", canAdmin: role === "admin", canControlBigscreen: role === "admin", canViewTeamProgress: true };
   const roleNavItems = (role) => Logic.getRoleNavItems ? Logic.getRoleNavItems(role) : VIEWS.filter((v) => !v.hidden).map(({ key, label }) => ({ key, label }));
   const getTeam = (id) => D.teams.find((t) => t.id === id);
   function hasBackendSession() {

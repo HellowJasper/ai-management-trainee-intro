@@ -703,6 +703,8 @@ test("admin judge progress renders a score matrix with track averages", () => {
   assert.match(adminJs, /暂无可展示的评委数据/);
   assert.match(adminJs, /检查评分接口是否同步成功/);
   assert.match(adminJs, /window\.AppData\.loadAdminUsers\(\{ users: \[\] \}\)/);
+  assert.match(adminJs, /businessDataState\s*=\s*\{[\s\S]*?adminUsers:\s*users/);
+  assert.match(adminJs, /renderJudgeProgress\(\)/);
   assert.match(adminJs, /formatNumber\(team\.averageScore/);
   assert.match(css, /\.admin-judge-score-matrix/);
   assert.match(css, /\.admin-judge-score-table/);
@@ -1415,6 +1417,7 @@ test("role permissions reserve team joining, voting, judging, and admin control 
   assert.equal(getRolePermissions("public").canAdmin, false);
   assert.equal(getRolePermissions("public").canViewTeamProgress, false);
   assert.equal(getRolePermissions("admin").canJoinTeam, false);
+  assert.equal(getRolePermissions("admin").canVote, true);
   assert.equal(getRolePermissions("admin").canAdmin, true);
   assert.equal(getRolePermissions("admin").canControlBigscreen, true);
 });
@@ -3561,7 +3564,7 @@ test("admin console allows natural document scrolling on mobile", () => {
   const html = fs.readFileSync(path.join(__dirname, "../admin.html"), "utf8");
   const css = fs.readFileSync(path.join(__dirname, "../admin.css"), "utf8");
 
-  assert.match(html, /admin\.css\?v=20260710-judge-drilldown-scroll/);
+  assert.match(html, /admin\.css\?v=20260710-judge-user-sync/);
   assert.match(css, /@media \(max-width:\s*980px\)[\s\S]*html,\s*\n\s*body\s*\{[\s\S]*overflow-y:\s*auto/);
   assert.match(css, /@media \(max-width:\s*980px\)[\s\S]*\.admin-shell\s*\{[\s\S]*height:\s*auto/);
   assert.match(css, /@media \(max-width:\s*980px\)[\s\S]*\.admin-workspace\s*\{[\s\S]*overflow:\s*visible/);
@@ -3573,9 +3576,9 @@ test("admin and big screen cache keys stay current", () => {
   const indexHtml = fs.readFileSync(path.join(__dirname, "../index.html"), "utf8");
   const screenHtml = fs.readFileSync(path.join(__dirname, "../screen.html"), "utf8");
 
-  assert.match(adminHtml, /admin\.css\?v=20260710-judge-drilldown-scroll/);
+  assert.match(adminHtml, /admin\.css\?v=20260710-judge-user-sync/);
   assert.match(adminHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
-  assert.match(adminHtml, /src\/admin\.js\?v=20260710-judge-drilldown-scroll/);
+  assert.match(adminHtml, /src\/admin\.js\?v=20260710-judge-user-sync/);
   assert.match(indexHtml, /styles\.css\?v=20260707-final-rank-weights/);
   assert.match(indexHtml, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(indexHtml, /src\/logic\.js\?v=20260707-final-rank-weights/);
