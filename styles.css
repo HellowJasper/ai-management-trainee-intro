@@ -3373,7 +3373,7 @@ button:disabled {
 
 .roadshow-current-team {
   display: grid;
-  grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
   align-content: stretch;
   gap: clamp(7px, 0.9vh, 10px);
   padding: clamp(18px, 1.9vw, 28px);
@@ -3398,16 +3398,6 @@ button:disabled {
   font-size: clamp(8px, 0.66vw, 11px);
   letter-spacing: 0.14em;
   text-shadow: 0 0 14px rgba(var(--roadshow-color-rgb), 0.28);
-}
-
-.roadshow-team-index {
-  position: relative;
-  z-index: 1;
-  color: rgba(var(--roadshow-color-rgb), 0.92);
-  font-family: var(--display);
-  font-size: clamp(40px, 3.45vw, 58px);
-  line-height: 0.86;
-  text-shadow: 0 0 30px rgba(var(--roadshow-color-rgb), 0.2);
 }
 
 .roadshow-current-team h2 {

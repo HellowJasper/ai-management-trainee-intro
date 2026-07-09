@@ -50,7 +50,6 @@
     { roleKey: "dev", label: "AI 开发", duty: "AI 开发" },
     { roleKey: "design", label: "产品设计", duty: "产品设计" },
   ];
-  const WORK_SCREENSHOT_LIMIT = 3;
   const WORK_SCREENSHOT_MAX_BYTES = 8 * 1024 * 1024;
   const SITE_STATE_POLL_MS = 5000;
   const RETURN_SCROLL_PREFIX = "joincare_return_scroll_";
@@ -2059,14 +2058,14 @@
   }
 
   function renderShotThumbs(value, teamId, editable) {
-    const screenshots = normalizeScreenshotList(value).slice(0, WORK_SCREENSHOT_LIMIT);
+    const screenshots = normalizeScreenshotList(value);
     return screenshots.length
       ? screenshots.map((shot, index) => renderShotThumb(shot, index, teamId, editable)).join("")
       : `<span class="workspace-shot-empty">尚未选择图片</span>`;
   }
 
   function renderPreviewShots(value) {
-    const screenshots = normalizeScreenshotList(value).slice(0, WORK_SCREENSHOT_LIMIT);
+    const screenshots = normalizeScreenshotList(value);
     return screenshots.length
       ? screenshots.map((shot, index) => {
         if (isImageSource(shot)) {
@@ -2078,7 +2077,7 @@
   }
 
   function renderWorkspaceScreenshotField({ teamId, value, hint, editable = true }) {
-    const screenshots = normalizeScreenshotList(value).slice(0, WORK_SCREENSHOT_LIMIT);
+    const screenshots = normalizeScreenshotList(value);
     const disabled = editable ? "" : "disabled";
     return `<div class="workspace-field workspace-shot-field" data-work-screenshot-dropzone="${esc(teamId)}">
       <span>展示截图</span>
@@ -2398,7 +2397,7 @@
           ? `<button class="btn-primary dim" disabled>投票未开启</button>`
           : `<button class="btn-primary dim" disabled>当前身份不可投票</button>`;
     const screenshots = normalizeScreenshotList(t.work?.screenshots);
-    const slides = screenshots.slice(0, WORK_SCREENSHOT_LIMIT).map((src, index) => ({ src: resolveUploadedAssetUrl(src), title: `展示截图 ${index + 1}`, caption: "作品真实界面" }));
+    const slides = screenshots.map((src, index) => ({ src: resolveUploadedAssetUrl(src), title: `展示截图 ${index + 1}`, caption: "作品真实界面" }));
     const slideEls = slides.length ? slides.map((slide, i) => {
       const shot = slide.src && isImageSource(slide.src)
         ? `<img src="${esc(slide.src)}" alt="${esc(slide.title)}" loading="lazy" />`
@@ -3360,7 +3359,7 @@
   function setWorkspaceScreenshots(teamId, screenshots) {
     const field = findWorkField(teamId, "screenshots");
     if (!field) return;
-    const next = normalizeScreenshotList(screenshots).slice(0, WORK_SCREENSHOT_LIMIT);
+    const next = normalizeScreenshotList(screenshots);
     field.value = JSON.stringify(next);
     const list = doc.querySelector(`[data-work-screenshot-list="${teamId}"]`);
     if (list) list.innerHTML = renderShotThumbs(next, teamId, canEditTeamWorkspace(teamId));
@@ -3401,16 +3400,11 @@
     }
     const field = findWorkField(teamId, "screenshots");
     const current = normalizeScreenshotList(field?.value);
-    const slots = Math.max(0, WORK_SCREENSHOT_LIMIT - current.length);
-    if (!slots) {
-      toast(`最多上传 ${WORK_SCREENSHOT_LIMIT} 张展示截图`);
-      return;
-    }
 
     try {
       toast("正在上传展示截图…");
       const uploaded = [];
-      for (const file of files.slice(0, slots)) {
+      for (const file of files) {
         uploaded.push(await uploadWorkspaceScreenshotFile(teamId, file));
       }
       setWorkspaceScreenshots(teamId, current.concat(uploaded));

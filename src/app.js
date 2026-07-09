@@ -528,7 +528,6 @@ const countdownSeconds = document.getElementById("countdownSeconds");
 const countdownStatus = document.getElementById("countdownStatus");
 const countdownProgress = document.getElementById("countdownProgress");
 const countdownStartButton = document.getElementById("countdownStartButton");
-const roadshowTeamCode = document.getElementById("roadshowTeamCode");
 const roadshowTeamName = document.getElementById("roadshowTeamName");
 const roadshowProject = document.getElementById("roadshowProject");
 const roadshowTrackName = document.getElementById("roadshowTrackName");
@@ -1484,7 +1483,6 @@ function renderRoadshowStage() {
   roadshowStage?.style.setProperty("--roadshow-color", team.color || "var(--neon)");
   roadshowStage?.style.setProperty("--roadshow-color-rgb", team.colorRgb || "40, 255, 200");
 
-  if (roadshowTeamCode) roadshowTeamCode.textContent = String(team.index || "03").padStart(2, "0");
   roadshowTeamName.textContent = team.name || "当前路演队伍";
   if (roadshowProject) roadshowProject.textContent = team.project || "AI 创新解决方案路演中";
   if (roadshowTrackName) roadshowTrackName.textContent = team.nameEn || team.track || "LIVE ROADSHOW";
