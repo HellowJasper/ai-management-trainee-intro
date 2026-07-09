@@ -1149,8 +1149,8 @@ test("official site home stays a navigable site dashboard instead of the index l
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
   const renderHomeBody = siteJs.match(/function renderHome\(\) \{([\s\S]*?)\n  function renderPeople\(\)/)?.[1] || "";
 
-  assert.match(siteHtml, /src\/site\.css\?v=20260710-work-lightbox/);
-  assert.match(siteHtml, /src\/site\.js\?v=20260710-work-lightbox/);
+  assert.match(siteHtml, /src\/site\.css\?v=20260710-mobile-gallery-fit/);
+  assert.match(siteHtml, /src\/site\.js\?v=20260710-mobile-gallery-fit/);
   assert.match(renderHomeBody, /<span class="hero-kicker"><span class="hero-kicker-live"><span class="live-dot"><\/span>LIVE<\/span><span class="hero-kicker-name">AI_INNOVATION_HACKATHON_2026<\/span><\/span>/);
   assert.match(renderHomeBody, /<h1 class="hero-title">AI创新黑客松<\/h1>/);
   assert.match(renderHomeBody, /<p class="hero-slogan">36小时 · 让想法落地，让创新发生<\/p>/);
@@ -1179,7 +1179,7 @@ test("official site lets users leave teams and cancel their vote", () => {
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260710-work-lightbox/);
+  assert.match(siteHtml, /site\.js\?v=20260710-mobile-gallery-fit/);
   assert.match(siteJs, /leaveTeam:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/team\/leave"/);
   assert.match(siteJs, /cancelVote:\s*\(teamId\)\s*=>\s*apiRequest\("\/api\/vote\/cancel"/);
   assert.match(siteJs, /function leaveTeam\(/);
@@ -1221,7 +1221,7 @@ test("official site disables vote actions while the vote window is closed", () =
   const siteHtml = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
 
-  assert.match(siteHtml, /site\.js\?v=20260710-work-lightbox/);
+  assert.match(siteHtml, /site\.js\?v=20260710-mobile-gallery-fit/);
   assert.match(siteJs, /const isVoteWindowOpen = \(\) => \(\(SITE_STATE && SITE_STATE\.vote && SITE_STATE\.vote\.status\) \|\| ""\) === "voting"/);
   assert.match(siteJs, /const voteWindowOpen = isVoteWindowOpen\(\);/);
   assert.match(siteJs, /投票窗口当前未开启，暂不能取消或重新选择/);
@@ -1239,8 +1239,8 @@ test("gallery page presents innovation showcase copy and non-redundant work card
   const siteJs = fs.readFileSync(path.join(__dirname, "../src/site.js"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(siteHtml, /site\.css\?v=20260710-work-lightbox/);
-  assert.match(siteHtml, /site\.js\?v=20260710-work-lightbox/);
+  assert.match(siteHtml, /site\.css\?v=20260710-mobile-gallery-fit/);
+  assert.match(siteHtml, /site\.js\?v=20260710-mobile-gallery-fit/);
   assert.match(siteJs, /pageHead\("作品展厅", "从真实业务挑战出发，见证 AI 从想法走向实践", "INNOVATION SHOWCASE"\)/);
   assert.match(siteJs, /投票进行中 · 浏览五大战队作品，选出你最认可的解决方案，并投出关键一票/);
   assert.match(siteJs, /class="gl2-cover-label"><span class="gl2-cover-index">\$\{esc\(t\.trackCode\)\}<\/span><span class="gl2-cover-track">\$\{esc\(t\.track\)\}<\/span><\/span>/);
@@ -1440,6 +1440,10 @@ test("work detail carousel constrains uploaded screenshots on mobile", () => {
   assert.match(siteCss, /\.wkc-slide img\s*\{[^}]*max-width:\s*100%[^}]*height:\s*auto/s);
   assert.match(siteCss, /@media \(max-width:\s*760px\)[\s\S]*\.wkc-slide\s*\{[^}]*padding:\s*clamp\(20px,\s*6vw,\s*34px\) clamp\(14px,\s*4\.5vw,\s*22px\)/);
   assert.match(siteCss, /@media \(max-width:\s*760px\)[\s\S]*\.wkc-slide img\s*\{[^}]*max-height:\s*min\(52dvh,\s*240px\)/);
+  assert.match(siteCss, /Mobile gallery\/work media containment/);
+  assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.gl2-grid\.horizontal\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.gl2-card\.gl2-h\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  assert.match(siteCss, /@media \(max-width:\s*680px\)[\s\S]*\.wkc-image-button,\s*\n\s*\.wkc-image-button img,\s*\n\s*\.wkc-slide img\s*\{[\s\S]*max-width:\s*100%/);
 });
 
 test("work detail lightbox clears its scroll lock before route changes", () => {
@@ -2552,7 +2556,7 @@ test("site trainee detail modal uses viewport-safe desktop sizing", () => {
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
   const siteCss = fs.readFileSync(path.join(__dirname, "../src/site.css"), "utf8");
 
-  assert.match(html, /src\/site\.css\?v=20260710-work-lightbox/);
+  assert.match(html, /src\/site\.css\?v=20260710-mobile-gallery-fit/);
   assert.match(siteCss, /--site-detail-card-width:\s*clamp\(220px,\s*20vw,\s*340px\)/);
   assert.match(siteCss, /--site-detail-card-left:\s*clamp\(28px,\s*2\.4vw,\s*64px\)/);
   assert.match(siteCss, /--site-detail-console-left:\s*calc\(var\(--site-detail-card-left\) \+ var\(--site-detail-card-width\) \+ clamp\(42px,\s*3\.8vw,\s*78px\)\)/);
@@ -2944,8 +2948,8 @@ test("official site forces Feishu login on desktop and mobile entry", () => {
   assert.match(siteJs, /closeAuthGate\(\{ force: true \}\)/);
   assert.match(siteCss, /\.auth-gate\.is-forced/);
   assert.match(siteCss, /\.auth-required-note/);
-  assert.match(html, /src\/site\.css\?v=20260710-work-lightbox/);
-  assert.match(html, /src\/site\.js\?v=20260710-work-lightbox/);
+  assert.match(html, /src\/site\.css\?v=20260710-mobile-gallery-fit/);
+  assert.match(html, /src\/site\.js\?v=20260710-mobile-gallery-fit/);
 });
 
 test("official site refreshes backend session before leaving the Feishu login gate", () => {
@@ -2999,11 +3003,11 @@ test("official site cache keys are bumped after navigation and detail layout pol
   const html = fs.readFileSync(path.join(__dirname, "../site.html"), "utf8");
 
   assert.match(html, /styles\.css\?v=20260624-home-polish/);
-  assert.match(html, /src\/site\.css\?v=20260710-work-lightbox/);
+  assert.match(html, /src\/site\.css\?v=20260710-mobile-gallery-fit/);
   assert.match(html, /src\/logic\.js\?v=20260707-final-rank-weights/);
   assert.match(html, /src\/data\.js\?v=20260630-prestart-separate-timer/);
   assert.match(html, /src\/screen-data\.js\?v=20260707-final-rank-weights/);
-  assert.match(html, /src\/site\.js\?v=20260710-work-lightbox/);
+  assert.match(html, /src\/site\.js\?v=20260710-mobile-gallery-fit/);
 });
 
 test("terminal boot welcome stage is wired into the HTML", () => {

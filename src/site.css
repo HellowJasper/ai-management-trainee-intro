@@ -4441,3 +4441,102 @@ body.work-lightbox-open .site-main { z-index: 100; }
     min-height: clamp(164px, 26svh, 232px);
   }
 }
+
+/* Mobile gallery/work media containment.
+   Prevent uploaded screenshots or long project copy from expanding the viewport. */
+@media (max-width: 680px) {
+  .site-body[data-view="gallery"],
+  .site-body[data-view="work"] {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .site-body[data-view="gallery"] .container,
+  .site-body[data-view="work"] .container,
+  .site-body[data-view="gallery"] .sec,
+  .site-body[data-view="work"] .sec {
+    width: min(100% - 28px, 1240px);
+    max-width: calc(100vw - 28px);
+    min-width: 0;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
+  .gl2-grid.horizontal,
+  .gl2-card.gl2-h,
+  .gl2-h .gl2-shot,
+  .gl2-h .gl2-mid,
+  .gl2-right,
+  .wk-grid,
+  .wk-main,
+  .wk-side,
+  .wk-card,
+  .wk-carousel,
+  .wkc-viewport,
+  .wkc-track,
+  .wkc-slide {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .gl2-grid.horizontal {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    overflow-x: hidden;
+  }
+
+  .gl2-card.gl2-h {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gl2-h .gl2-project-name,
+  .gl2-h .gl2-pitch,
+  .gl2-cover-name,
+  .gl2-cover-track,
+  .wkc-cap,
+  .wk-pitch,
+  .wk-desc {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .wkc-viewport,
+  .wkc-slide {
+    overflow: hidden;
+  }
+
+  .wkc-track {
+    display: flex;
+  }
+
+  .wkc-slide {
+    flex: 0 0 100%;
+    padding-inline: clamp(10px, 3.8vw, 18px);
+  }
+
+  .wkc-image-button,
+  .wkc-image-button img,
+  .wkc-slide img {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .wkc-slide img {
+    height: auto;
+    object-fit: contain;
+  }
+
+  .work-lightbox,
+  .work-lightbox-stage,
+  .work-lightbox-figure,
+  .work-lightbox-image {
+    max-width: 100vw;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+}
